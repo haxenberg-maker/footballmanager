@@ -775,10 +775,8 @@
             </div>
         </div>
     </div>
-
-    <div class="me-field">
-        <label>Rating echipe (ex: 7.4 vs 6.9)</label>
-        <input type="text" class="me-input" id="meScore" placeholder="7.4 vs 6.9">
+    <div style="font-size:0.75rem;color:#444;margin-bottom:12px;padding:8px 12px;background:#0d1020;border-radius:8px;border:1px solid #1e2130;">
+        ⚡ Scorul se calculează automat din ratingurile Smart ale jucătorilor selectați.
     </div>
 
     <div class="me-teams-grid">
@@ -2072,7 +2070,6 @@ function openMatchEditor(idx) {
 
     // Reset fields
     document.getElementById('meDate').value = '';
-    document.getElementById('meScore').value = '';
     document.getElementById('meWinO').className = 'me-winner-btn';
     document.getElementById('meWinG').className = 'me-winner-btn';
 
@@ -2082,7 +2079,6 @@ function openMatchEditor(idx) {
     if (!isNew) {
         const h = db.history[idx];
         document.getElementById('meDate').value = h.date || '';
-        document.getElementById('meScore').value = h.score || '';
         if (h.winner) setMatchWinner(h.winner);
         buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || []);
     }
@@ -2138,50 +2134,101 @@ function getMeSelectedPlayers(team) {
 }
 
 async function saveMatchEdit() {
-    const date = document.getElementById('meDate').value.trim();
-    const score = document.getElementById('meScore').value.trim();
+    const date   = document.getElementById('meDate').value.trim();
     const winner = matchEditorWinner;
 
-    if (!date) { showToast('⚠️ Introduceți data meciului!'); return; }
-    if (!winner) { showToast('⚠️ Selectați câștigătorul!'); return; }
+    if (!date)   { showToast('⚠️ Introduceți data meciului!'); return; }
+    if (!winner) { showToast('⚠️ Selectați câștigătorul!');   return; }
 
     const orangePlayers = getMeSelectedPlayers('Orange');
-    const greenPlayers = getMeSelectedPlayers('Green');
+    const greenPlayers  = getMeSelectedPlayers('Green');
 
-    const entry = {
-        date, winner, score: score || '— vs —',
-        orangePlayers, greenPlayers
+    // Auto-calculează scorul din smart rating-urile actuale ale jucătorilor
+    const calcAvg = (names) => {
+        const players = names.map(n => db.players.find(p=>p.name===n)).filter(Boolean);
+        if (!players.length) return '0.0';
+        return (players.reduce((s,p)=>s+getSmartRating(p),0)/players.length).toFixed(1);
     };
+    const score = `${calcAvg(orangePlayers)} vs ${calcAvg(greenPlayers)}`;
+
+    const entry = { date, winner, score, orangePlayers, greenPlayers };
 
     if (matchEditorIdx === null) {
-        // Meci nou — inserează în DB
+        // MECI NOU
         try {
             const { data, error } = await sb.from('match_history').insert({
-                date: entry.date, winner: entry.winner, score: entry.score,
-                orange_players: entry.orangePlayers, green_players: entry.greenPlayers
+                date, winner, score,
+                orange_players: orangePlayers,
+                green_players:  greenPlayers
             }).select().single();
             if (error) throw error;
             entry._dbId = data.id;
             db.history.unshift(entry);
-            showToast('✅ Meci adăugat în istoric!');
         } catch(e) { showToast('⚠️ ' + e.message); return; }
     } else {
-        // Editare meci existent
+        // EDITARE MECI EXISTENT
         const h = db.history[matchEditorIdx];
+        const dbId = h._dbId;
         Object.assign(h, entry);
         try {
-            if (h._dbId) {
+            if (dbId) {
                 await sb.from('match_history').update({
-                    date: entry.date, winner: entry.winner, score: entry.score,
-                    orange_players: entry.orangePlayers, green_players: entry.greenPlayers
-                }).eq('id', h._dbId);
+                    date, winner, score,
+                    orange_players: orangePlayers,
+                    green_players:  greenPlayers
+                }).eq('id', dbId);
+                entry._dbId = dbId;
+                h._dbId = dbId;
             }
-            showToast('✅ Meci actualizat!');
         } catch(e) { showToast('⚠️ ' + e.message); return; }
     }
 
+    // Recalculează wins/games/matchHistory pentru toți jucătorii din tot istoricul
+    recalculateAllPlayerStats();
+
+    // Salvează fiecare jucător afectat în DB
+    const affectedNames = new Set([...orangePlayers, ...greenPlayers]);
+    const affectedPlayers = db.players.filter(p => affectedNames.has(p.name));
+    try {
+        await Promise.all(affectedPlayers.map(p => dbUpdatePlayer(p)));
+        showToast(matchEditorIdx === null ? '✅ Meci adăugat și stats recalculate!' : '✅ Meci actualizat și stats recalculate!');
+    } catch(e) { showToast('⚠️ Salvat local, eroare DB: ' + e.message); }
+
     closeMatchEditor();
     render();
+}
+
+function recalculateAllPlayerStats() {
+    // Resetează toate stats la zero
+    db.players.forEach(p => {
+        p.wins = 0;
+        p.games = 0;
+        p.matchHistory = [];
+    });
+
+    // Parcurge istoricul în ordine cronologică (cel mai vechi primul)
+    const sortedHistory = [...db.history].reverse(); // history e descrescător
+    sortedHistory.forEach(h => {
+        const orangeNames = h.orangePlayers || [];
+        const greenNames  = h.greenPlayers  || [];
+        const winnerIsOrange = h.winner === 'Portocaliu';
+
+        orangeNames.forEach(name => {
+            const p = db.players.find(x => x.name === name);
+            if (!p) return;
+            p.games++;
+            if (winnerIsOrange) p.wins++;
+            p.matchHistory.push(winnerIsOrange ? 'W' : 'L');
+        });
+
+        greenNames.forEach(name => {
+            const p = db.players.find(x => x.name === name);
+            if (!p) return;
+            p.games++;
+            if (!winnerIsOrange) p.wins++;
+            p.matchHistory.push(!winnerIsOrange ? 'W' : 'L');
+        });
+    });
 }
 
 function confirmDeleteMatch(idx) {
@@ -2195,8 +2242,11 @@ function confirmDeleteMatch(idx) {
                 await sb.from('match_history').delete().eq('date', h.date).eq('winner', h.winner);
             }
             db.history.splice(idx, 1);
+            recalculateAllPlayerStats();
+            // Salvează toți jucătorii afectați
+            await Promise.all(db.players.map(p => dbUpdatePlayer(p)));
             render();
-            showToast('🗑️ Meci șters din istoric.');
+            showToast('🗑️ Meci șters și stats recalculate.');
         } catch(e) { showToast('⚠️ ' + e.message); }
     });
 }
