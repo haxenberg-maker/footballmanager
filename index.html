@@ -2,15 +2,178 @@
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manager Fotbal - 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Arena Friends FC</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0a0c10">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Arena FC">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+
+    <!-- Fonts & Libs -->
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!--
+    ╔══════════════════════════════════════════════════════╗
+    ║  SUPABASE SQL SCHEMA — rulează în SQL Editor          ║
+    ╚══════════════════════════════════════════════════════╝
+
+    create table players (
+      id bigint primary key,
+      name text not null,
+      status text default 'bench',
+      wins int default 0,
+      games int default 0,
+      match_history text[] default '{}',
+      created_at timestamptz default now()
+    );
+
+    create table ratings (
+      id uuid primary key default gen_random_uuid(),
+      player_id bigint references players(id) on delete cascade,
+      rater text not null,
+      date text,
+      general int default 5,
+      viteza int default 5,
+      tehnica int default 5,
+      strategie int default 5,
+      aparare int default 5,
+      created_at timestamptz default now()
+    );
+
+    create table match_history (
+      id uuid primary key default gen_random_uuid(),
+      date text,
+      winner text,
+      score text,
+      orange_players text[] default '{}',
+      green_players text[] default '{}',
+      created_at timestamptz default now()
+    );
+
+    create table next_match (
+      id int primary key default 1,
+      match_date date,
+      match_time time,
+      location text,
+      confirmed_ids bigint[] default '{}'
+    );
+
+    create table push_subscriptions (
+      id uuid primary key default gen_random_uuid(),
+      player_name text,
+      subscription jsonb not null,
+      created_at timestamptz default now()
+    );
+
+    -- RLS: permite acces public (pentru început; adaugă auth mai târziu)
+    alter table players enable row level security;
+    alter table ratings enable row level security;
+    alter table match_history enable row level security;
+    alter table next_match enable row level security;
+    alter table push_subscriptions enable row level security;
+
+    create policy "public_all" on players for all using (true) with check (true);
+    create policy "public_all" on ratings for all using (true) with check (true);
+    create policy "public_all" on match_history for all using (true) with check (true);
+    create policy "public_all" on next_match for all using (true) with check (true);
+    create policy "public_all" on push_subscriptions for all using (true) with check (true);
+
+    -- Insert initial row for next_match
+    insert into next_match (id) values (1) on conflict do nothing;
+
+    ╔══════════════════════════════════════════════════════╗
+    ║  manifest.json — creează fișier separat în repo       ║
+    ╚══════════════════════════════════════════════════════╝
+    {
+      "name": "Arena Friends FC",
+      "short_name": "Arena FC",
+      "description": "Manager fotbal pentru meciuri amicale",
+      "start_url": "/",
+      "display": "standalone",
+      "orientation": "portrait",
+      "background_color": "#0a0c10",
+      "theme_color": "#0a0c10",
+      "icons": [
+        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+        { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+      ]
+    }
+
+    ╔══════════════════════════════════════════════════════╗
+    ║  sw.js — creează fișier separat în repo               ║
+    ╚══════════════════════════════════════════════════════╝
+    const CACHE_NAME = 'arena-fc-v1';
+    const OFFLINE_ASSETS = ['/', '/index.html', '/manifest.json'];
+
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(OFFLINE_ASSETS)));
+      self.skipWaiting();
+    });
+
+    self.addEventListener('activate', e => {
+      e.waitUntil(caches.keys().then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+      )));
+      self.clients.claim();
+    });
+
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        fetch(e.request).catch(() => caches.match(e.request))
+      );
+    });
+
+    self.addEventListener('push', e => {
+      const data = e.data?.json() || {};
+      e.waitUntil(self.registration.showNotification(data.title || 'Arena FC', {
+        body: data.body || 'Ai o notificare nouă!',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        vibrate: [200, 100, 200],
+        data: { url: data.url || '/' }
+      }));
+    });
+
+    self.addEventListener('notificationclick', e => {
+      e.notification.close();
+      e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
+    });
+
+    ╔══════════════════════════════════════════════════════╗
+    ║  netlify.toml — creează fișier separat în root repo   ║
+    ╚══════════════════════════════════════════════════════╝
+    [[redirects]]
+      from = "/*"
+      to = "/index.html"
+      status = 200
+    -->
+
     <style>
         :root { --orange:#ff8c00;--green:#28a745;--dark:#0a0c10;--card:#141720;--star:#ffcc00;--accent:#3d5afe;--border:#252836;--purple:#9c27b0; }
         *{box-sizing:border-box;}
         body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#e0e0e0;margin:0;padding:0;}
+
+        /* ── Loading Overlay ── */
+        .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,12,16,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(6px);}
+        .loading-overlay.hidden{display:none;}
+        .spinner{width:44px;height:44px;border:3px solid #252836;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading-text{font-size:0.9rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
+
+        /* ── Connection Badge ── */
+        .conn-badge{position:fixed;bottom:16px;right:16px;z-index:8000;display:flex;align-items:center;gap:6px;background:#1c1f2b;border-radius:20px;padding:5px 12px;font-size:0.72rem;font-weight:700;border:1px solid #252836;transition:all 0.3s;}
+        .conn-dot{width:7px;height:7px;border-radius:50%;background:#555;}
+        .conn-badge.online .conn-dot{background:#28a745;box-shadow:0 0 6px rgba(40,167,69,0.5);}
+        .conn-badge.online{color:#4caf50;}
+        .conn-badge.offline .conn-dot{background:#c62828;}
+        .conn-badge.offline{color:#e57373;}
 
         /* ── Header ── */
         .main-header{text-align:center;padding:22px 20px 18px;border-bottom:1px solid var(--border);background:#0d0f18;}
@@ -23,20 +186,16 @@
         .controls-separator{width:1px;height:28px;background:var(--border);margin:0 4px;}
         button{padding:9px 14px;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#252836;color:white;}
         button:hover{filter:brightness(1.2);transform:translateY(-1px);}
+        button:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
         .btn-win-o{background:var(--orange);color:#000;}
         .btn-win-g{background:var(--green);}
         .btn-new-match{background:linear-gradient(135deg,#004d40,#00796b);border:1px solid #00bcd4;color:#80deea;}
-        .btn-danger{background:#c62828;}
-        .btn-settings{background:#1c1f2b;border:1px solid #2a2d40;color:#888;display:flex;align-items:center;gap:6px;}
+        .btn-settings{background:#1c1f2b;border:1px solid #2a2d40;color:#888;}
         .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;}
         .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#82b1ff;}
 
-        /* ── Page ── */
-        .page{display:none;padding:20px;max-width:1400px;margin:0 auto;}
-        .page.active{display:block;}
-        #page-main{display:block;}
-
         /* ── Dashboard ── */
+        .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
         .dashboard{display:grid;grid-template-columns:1fr 1fr 300px;gap:14px;}
         .column{background:#0f1118;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#333;}
@@ -58,7 +217,7 @@
         .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
         .card-top{display:flex;justify-content:space-between;align-items:center;}
         .player-name{font-weight:700;color:#fff;font-size:0.97rem;}
-        .player-id-tag{font-size:0.62rem;color:#333;font-family:monospace;margin-left:5px;}
+        .player-id-tag{font-size:0.6rem;color:#333;font-family:monospace;margin-left:5px;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#252836;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
         .rating-badge-smart{background:linear-gradient(135deg,#1a1060,#2d1b8e);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#a78bfa;font-weight:700;white-space:nowrap;}
@@ -74,15 +233,15 @@
         .cat-bar-track{width:22px;height:3px;background:#252836;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
 
-        /* ── Lobby / Scheduled Match ── */
-        .lobby-section{grid-column:1/-1;background:#0c1220;border-radius:14px;border:1px solid #1a2a4a;padding:0;overflow:hidden;}
+        /* ── Lobby ── */
+        .lobby-section{grid-column:1/-1;background:#0c1220;border-radius:14px;border:1px solid #1a2a4a;overflow:hidden;}
         .lobby-header{background:linear-gradient(135deg,#0d2040,#1a3060);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
         .lobby-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#82b1ff;flex:1;}
         .lobby-datetime{font-size:0.88rem;color:#5c8aff;font-weight:700;}
         .lobby-datetime.no-date{color:#333;font-size:0.8rem;}
         .btn-form-teams{background:linear-gradient(135deg,#1565c0,#1976d2);border:1px solid #42a5f5;color:#e3f2fd;padding:9px 18px;border-radius:8px;font-size:0.9rem;font-weight:700;}
         .btn-edit-schedule{background:transparent;border:1px solid #1a2a4a;color:#444;padding:7px 12px;border-radius:7px;font-size:0.8rem;}
-        .btn-edit-schedule:hover{border-color:#5c8aff;color:#5c8aff;}
+        .btn-edit-schedule:hover{border-color:#5c8aff;color:#5c8aff;filter:none;transform:none;}
         .lobby-body{padding:14px 18px;}
         .lobby-hint{font-size:0.78rem;color:#333;margin-bottom:12px;}
         .lobby-players{display:flex;flex-wrap:wrap;gap:8px;}
@@ -94,6 +253,12 @@
         .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#666;}
         .lobby-player-chip.confirmed .chip-name{color:#82b1ff;}
         .lobby-confirmed-count{font-size:0.78rem;color:#5c8aff;font-weight:700;margin-top:10px;}
+
+        /* ── Toast ── */
+        .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+        .toast.toast-o{border-color:var(--orange);background:#2a1800;}
+        .toast.toast-g{border-color:var(--green);background:#0a2a14;}
 
         /* ── Leaderboard ── */
         .stats-section{grid-column:1/-1;margin-top:4px;background:#0f1118;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
@@ -115,12 +280,6 @@
         .history-players{font-size:0.76rem;color:#444;margin-top:3px;}
         #match-history tbody tr{cursor:pointer;transition:background 0.12s;}
         #match-history tbody tr:hover td{background:#151820;}
-
-        /* ── Toast ── */
-        .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
-        .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
-        .toast.toast-o{border-color:var(--orange);background:#2a1800;}
-        .toast.toast-g{border-color:var(--green);background:#0a2a14;}
 
         /* ── Modal base ── */
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
@@ -151,7 +310,7 @@
         .chart-section{margin-bottom:10px;}
         .chart-toggle{display:flex;justify-content:space-between;align-items:center;background:#0f1118;border:1px solid #1e2130;border-radius:10px;padding:10px 14px;cursor:pointer;user-select:none;}
         .chart-toggle:hover{background:#141820;}
-        .chart-toggle-label{font-size:0.78rem;color:#555;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px;}
+        .chart-toggle-label{font-size:0.78rem;color:#555;text-transform:uppercase;letter-spacing:1px;}
         .chart-toggle-icon{transition:transform 0.25s;color:#444;font-size:0.8rem;}
         .chart-toggle-icon.open{transform:rotate(180deg);}
         .chart-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
@@ -199,11 +358,11 @@
         .general-star-btn{flex:1;height:46px;border-radius:8px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;letter-spacing:0.5px;}
         .general-star-btn:hover{border-color:#ffcc0088;color:#ffcc0088;transform:translateY(-1px);}
         .general-star-btn.selected{background:var(--star);color:#000;border-color:var(--star);transform:translateY(-2px);box-shadow:0 4px 14px rgba(255,204,0,0.4);}
-        .general-star-btn[data-val="1"].selected,.general-star-btn[data-val="2"].selected{background:#e53935;border-color:#e53935;color:#fff;box-shadow:0 4px 14px rgba(229,57,53,0.4);}
-        .general-star-btn[data-val="3"].selected,.general-star-btn[data-val="4"].selected{background:#ff8c00;border-color:#ff8c00;color:#000;box-shadow:0 4px 14px rgba(255,140,0,0.4);}
-        .general-star-btn[data-val="5"].selected,.general-star-btn[data-val="6"].selected{background:#ffd600;border-color:#ffd600;color:#000;box-shadow:0 4px 14px rgba(255,214,0,0.4);}
-        .general-star-btn[data-val="7"].selected,.general-star-btn[data-val="8"].selected{background:#69f0ae;border-color:#69f0ae;color:#000;box-shadow:0 4px 14px rgba(105,240,174,0.4);}
-        .general-star-btn[data-val="9"].selected,.general-star-btn[data-val="10"].selected{background:#00e5ff;border-color:#00e5ff;color:#000;box-shadow:0 4px 14px rgba(0,229,255,0.4);}
+        .general-star-btn[data-val="1"].selected,.general-star-btn[data-val="2"].selected{background:#e53935;border-color:#e53935;color:#fff;}
+        .general-star-btn[data-val="3"].selected,.general-star-btn[data-val="4"].selected{background:#ff8c00;border-color:#ff8c00;color:#000;}
+        .general-star-btn[data-val="5"].selected,.general-star-btn[data-val="6"].selected{background:#ffd600;border-color:#ffd600;color:#000;}
+        .general-star-btn[data-val="7"].selected,.general-star-btn[data-val="8"].selected{background:#69f0ae;border-color:#69f0ae;color:#000;}
+        .general-star-btn[data-val="9"].selected,.general-star-btn[data-val="10"].selected{background:#00e5ff;border-color:#00e5ff;color:#000;}
         .btn-details-toggle{width:100%;background:transparent;border:1px dashed #252836;color:#555;margin:0 0 6px;border-radius:10px;padding:10px 16px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Rajdhani',sans-serif;font-weight:700;}
         .btn-details-toggle:hover{border-color:#3d2bbf;color:#a78bfa;background:rgba(61,43,191,0.06);transform:none;}
         .btn-details-toggle.open{border-color:#3d2bbf;color:#a78bfa;background:rgba(61,43,191,0.1);border-style:solid;}
@@ -237,29 +396,28 @@
         .settings-body{flex:1;overflow-y:auto;padding:18px 22px;}
         .settings-panel{display:none;}
         .settings-panel.active{display:block;}
-        .settings-footer{padding:14px 22px;border-top:1px solid #1e2130;display:flex;justify-content:flex-end;flex-shrink:0;}
-
-        /* Settings — Players tab */
         .player-edit-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#0f1118;border-radius:10px;margin-bottom:6px;border:1px solid #1e2130;}
-        .player-edit-id{font-size:0.65rem;color:#333;font-family:monospace;min-width:60px;white-space:nowrap;}
+        .player-edit-id{font-size:0.65rem;color:#333;font-family:monospace;min-width:65px;white-space:nowrap;}
         .player-edit-input{flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:7px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.92rem;outline:none;}
         .player-edit-input:focus{border-color:var(--accent);}
         .player-edit-stats{font-size:0.72rem;color:#444;white-space:nowrap;}
         .btn-save-name{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;}
         .btn-delete-player{background:#c62828;color:white;padding:6px 10px;border-radius:6px;font-size:0.78rem;}
-
-        /* Settings — Export tab */
         .settings-action-row{display:flex;flex-direction:column;gap:10px;}
         .settings-action-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0f1118;border-radius:10px;border:1px solid #1e2130;}
         .settings-action-info{display:flex;flex-direction:column;gap:2px;}
         .settings-action-title{font-weight:700;color:#ccc;font-size:0.92rem;}
         .settings-action-desc{font-size:0.76rem;color:#555;}
-        .btn-action-export{background:#1a3a2a;border:1px solid #28a745;color:#28a745;padding:8px 16px;border-radius:7px;}
-        .btn-action-import{background:#1a2a3a;border:1px solid #3d5afe;color:#3d5afe;padding:8px 16px;border-radius:7px;}
-        .btn-action-pdf{background:linear-gradient(135deg,#b71c1c,#e53935);padding:8px 16px;border-radius:7px;}
-        .btn-action-csv{background:linear-gradient(135deg,#1a5276,#2980b9);padding:8px 16px;border-radius:7px;}
 
-        /* ── Custom Confirm Dialog ── */
+        /* Push notifications panel */
+        .push-status-box{background:#0d1020;border-radius:10px;padding:14px;border:1px solid #1e2130;margin-bottom:12px;}
+        .push-status-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+        .push-status-label{font-size:0.85rem;color:#888;}
+        .push-status-val{font-size:0.85rem;font-weight:700;}
+        .push-status-val.active{color:#4caf50;}
+        .push-status-val.inactive{color:#555;}
+
+        /* ── Confirm Modal ── */
         .confirm-modal{background:#141720;width:90%;max-width:380px;border-radius:16px;padding:24px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.9);text-align:center;}
         .confirm-icon{font-size:2.5rem;margin-bottom:10px;}
         .confirm-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#fff;margin-bottom:8px;}
@@ -276,14 +434,13 @@
         .schedule-input{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:10px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
         .schedule-input:focus{border-color:#2979ff;}
 
-        /* ── Quick Vote Modal ── */
-        .qv-modal{background:#141720;width:94%;max-width:600px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;gap:0;}
+        /* ── Quick Vote ── */
+        .qv-modal{background:#141720;width:94%;max-width:600px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
         .qv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
         .qv-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#fff;}
         .qv-rater-bar{background:#0d1020;border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid #1a1d30;display:flex;align-items:center;gap:10px;}
         .qv-rater-bar label{font-size:0.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
         .qv-rater-select{flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:9px 12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;cursor:pointer;}
-        .qv-rater-select:focus{border-color:var(--accent);}
         .qv-players-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
         .qv-team-label{font-size:0.7rem;color:#555;text-transform:uppercase;letter-spacing:2px;padding:6px 2px 4px;border-bottom:1px solid #1e2130;margin-bottom:2px;}
         .qv-player-row{background:#0f1118;border-radius:10px;padding:10px 12px;border:1px solid #1e2130;}
@@ -293,13 +450,13 @@
         .qv-gen-row{display:flex;gap:2px;margin-bottom:4px;}
         .qv-gen-btn{flex:1;height:38px;border-radius:6px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;}
         .qv-gen-btn:hover{border-color:#ffcc0066;color:#ffcc0066;}
-        .qv-gen-btn.selected{background:var(--star);color:#000;border-color:var(--star);transform:translateY(-1px);box-shadow:0 3px 10px rgba(255,204,0,0.35);}
+        .qv-gen-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
         .qv-gen-btn[data-v="1"].selected,.qv-gen-btn[data-v="2"].selected{background:#e53935;border-color:#e53935;color:#fff;}
         .qv-gen-btn[data-v="3"].selected,.qv-gen-btn[data-v="4"].selected{background:#ff8c00;border-color:#ff8c00;color:#000;}
         .qv-gen-btn[data-v="5"].selected,.qv-gen-btn[data-v="6"].selected{background:#ffd600;border-color:#ffd600;color:#000;}
         .qv-gen-btn[data-v="7"].selected,.qv-gen-btn[data-v="8"].selected{background:#69f0ae;border-color:#69f0ae;color:#000;}
         .qv-gen-btn[data-v="9"].selected,.qv-gen-btn[data-v="10"].selected{background:#00e5ff;border-color:#00e5ff;color:#000;}
-        .qv-details-btn{font-size:0.72rem;color:#444;background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'Rajdhani',sans-serif;font-weight:600;letter-spacing:0;transform:none;}
+        .qv-details-btn{font-size:0.72rem;color:#444;background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'Rajdhani',sans-serif;font-weight:600;transform:none;}
         .qv-details-btn:hover{color:#a78bfa;filter:none;transform:none;}
         .qv-sub-section{max-height:0;overflow:hidden;transition:max-height 0.3s ease;}
         .qv-sub-section.open{max-height:200px;}
@@ -313,12 +470,10 @@
         .qv-sub-btn{flex:1;height:24px;border-radius:3px;background:#1c1f2b;border:1px solid #252836;color:#444;font-size:0.65rem;font-weight:700;cursor:pointer;transition:all 0.08s;padding:0;font-family:'Rajdhani',sans-serif;}
         .qv-sub-btn:hover{border-color:#ffcc0055;color:#ffcc0055;}
         .qv-sub-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
-        .qv-done-row{display:flex;gap:8px;}
-        .qv-save-btn{flex:1;font-size:1rem;padding:13px;border-radius:10px;letter-spacing:1px;}
         .qv-progress{font-size:0.78rem;color:#555;text-align:center;margin-bottom:8px;}
         .qv-progress span{color:var(--star);font-weight:700;}
 
-        /* ── Match Detail Modal ── */
+        /* ── Match Detail ── */
         .match-modal{background:#141720;width:90%;max-width:480px;border-radius:16px;padding:24px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
         .match-modal-date{font-size:0.8rem;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
         .match-winner-banner{text-align:center;padding:10px 16px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;margin-bottom:16px;}
@@ -326,21 +481,30 @@
         .match-team-block{background:#0f1118;border-radius:10px;padding:12px 14px;border:1px solid #1e2130;}
         .match-team-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1e2130;}
         .match-team-player{font-size:0.85rem;color:#aaa;padding:3px 0;}
-        .match-score{text-align:center;font-size:0.85rem;color:#555;margin-bottom:10px;}
 
-        /* ── CSV Modal ── */
+        /* ── CSV ── */
         .csv-modal{background:#141720;width:90%;max-width:600px;border-radius:16px;padding:24px;border:1px solid #2a2d40;max-height:85vh;overflow-y:auto;}
-        .csv-instructions{background:#0d1020;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #1e2130;font-size:0.85rem;color:#888;line-height:1.6;}
-        .csv-instructions code{background:#1c1f2b;padding:2px 6px;border-radius:4px;color:#a78bfa;font-size:0.8rem;}
         .csv-result-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#0f1118;border-radius:6px;margin-bottom:4px;font-size:0.82rem;}
         .csv-match{color:#4caf50}.csv-no-match{color:#e57373}
 
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0f1118}::-webkit-scrollbar-thumb{background:#2a2d40;border-radius:3px}
         @media(max-width:1100px){.dashboard{grid-template-columns:1fr 1fr}.column-bench{grid-column:1/-1}}
-        @media(max-width:640px){.dashboard{grid-template-columns:1fr}.cat-inputs{grid-template-columns:1fr}.general-star-row{flex-wrap:wrap}.general-star-btn{min-width:calc(20% - 3px);}.settings-tabs{overflow-x:auto;}}
+        @media(max-width:640px){.dashboard{grid-template-columns:1fr}.cat-inputs{grid-template-columns:1fr}.general-star-row{flex-wrap:wrap}.general-star-btn{min-width:calc(20% - 3px)}.settings-tabs{overflow-x:auto}}
     </style>
 </head>
 <body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Se încarcă datele...</div>
+</div>
+
+<!-- Connection badge -->
+<div class="conn-badge offline" id="connBadge">
+    <div class="conn-dot"></div>
+    <span id="connText">Offline</span>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -350,29 +514,26 @@
     <div class="date-display" id="current-date"></div>
 </div>
 
-<!-- CONTROLS — clean, only game actions -->
+<!-- CONTROLS -->
 <div class="controls">
     <button class="btn-win-o" onclick="recordMatch('orange')">🏆 Portocaliu Win</button>
     <button class="btn-win-g" onclick="recordMatch('green')">🏆 Verde Win</button>
     <button class="btn-new-match" onclick="newMatch()">🔄 Meci Nou</button>
     <div class="controls-separator"></div>
-    <button class="btn-schedule" onclick="openScheduleModal()">📅 Programează Meci</button>
+    <button class="btn-schedule" onclick="openScheduleModal()">📅 Programează</button>
     <button class="btn-quick-vote" onclick="openQuickVote()">⚡ Vot Rapid</button>
     <button onclick="addNewPlayer()">+ Jucător</button>
     <div class="controls-separator"></div>
     <button class="btn-settings" onclick="openSettings()">⚙️ Setări</button>
 </div>
 
-<!-- MAIN PAGE -->
-<div class="page active" id="page-main">
+<!-- DASHBOARD -->
+<div class="page">
 <div class="dashboard">
     <div class="column header-orange" id="col-orange" ondrop="drop(event)" ondragover="allowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Portocalie</div>
-            <div class="team-rating-info">
-                <span class="team-avg-badge" id="avg-orange">★ —</span>
-                <span class="team-count-badge" id="count-orange">0 jucători</span>
-            </div>
+            <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
         </div>
         <div class="col-body" id="list-orange"></div>
@@ -380,10 +541,7 @@
     <div class="column header-green" id="col-green" ondrop="drop(event)" ondragover="allowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Verde</div>
-            <div class="team-rating-info">
-                <span class="team-avg-badge" id="avg-green">★ —</span>
-                <span class="team-count-badge" id="count-green">0 jucători</span>
-            </div>
+            <div class="team-rating-info"><span class="team-avg-badge" id="avg-green">★ —</span><span class="team-count-badge" id="count-green">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-green" style="width:0%"></div></div>
         </div>
         <div class="col-body" id="list-green"></div>
@@ -396,7 +554,7 @@
         <div class="col-body" id="list-bench"></div>
     </div>
 
-    <!-- LOBBY / SCHEDULED MATCH -->
+    <!-- LOBBY -->
     <div class="lobby-section">
         <div class="lobby-header">
             <span class="lobby-title">📅 Meci Următor</span>
@@ -405,7 +563,7 @@
             <button class="btn-form-teams" onclick="formTeamsFromLobby()">⚡ Formează Echipe</button>
         </div>
         <div class="lobby-body">
-            <div class="lobby-hint">Click pe un jucător pentru a marca prezența la meciul următor:</div>
+            <div class="lobby-hint">Click pe un jucător pentru a marca prezența:</div>
             <div class="lobby-players" id="lobbyPlayers"></div>
             <div class="lobby-confirmed-count" id="lobbyCount"></div>
         </div>
@@ -425,7 +583,7 @@
 </div>
 </div>
 
-<!-- ═══ PLAYER MODAL ═══ -->
+<!-- PLAYER MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
 <div class="modal">
     <div class="modal-player-name" id="modalPlayerName"></div>
@@ -489,19 +647,19 @@
                 <div class="details-hint">Opțional — votează doar ce vrei. Restul = nota generală.</div>
                 <div class="cat-inputs">
                     <div class="cat-input-group">
-                        <div class="cat-input-label">⚡ Viteză <span class="cat-optional-tag">opțional</span> <span class="cat-val-badge unset" id="lbl-viteza">—</span></div>
+                        <div class="cat-input-label">⚡ Viteză <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-viteza">—</span></div>
                         <div class="cat-star-row" id="stars-viteza"></div>
                     </div>
                     <div class="cat-input-group">
-                        <div class="cat-input-label">🎯 Tehnică <span class="cat-optional-tag">opțional</span> <span class="cat-val-badge unset" id="lbl-tehnica">—</span></div>
+                        <div class="cat-input-label">🎯 Tehnică <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-tehnica">—</span></div>
                         <div class="cat-star-row" id="stars-tehnica"></div>
                     </div>
                     <div class="cat-input-group">
-                        <div class="cat-input-label">🧠 Strategie <span class="cat-optional-tag">opțional</span> <span class="cat-val-badge unset" id="lbl-strategie">—</span></div>
+                        <div class="cat-input-label">🧠 Strategie <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-strategie">—</span></div>
                         <div class="cat-star-row" id="stars-strategie"></div>
                     </div>
                     <div class="cat-input-group">
-                        <div class="cat-input-label">🛡️ Apărare <span class="cat-optional-tag">opțional</span> <span class="cat-val-badge unset" id="lbl-aparare">—</span></div>
+                        <div class="cat-input-label">🛡️ Apărare <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-aparare">—</span></div>
                         <div class="cat-star-row" id="stars-aparare"></div>
                     </div>
                 </div>
@@ -515,7 +673,7 @@
 </div>
 </div>
 
-<!-- ═══ CUSTOM CONFIRM MODAL ═══ -->
+<!-- CONFIRM MODAL -->
 <div class="modal-overlay" id="confirmOverlay">
 <div class="confirm-modal">
     <div class="confirm-icon" id="confirmIcon">❓</div>
@@ -528,22 +686,13 @@
 </div>
 </div>
 
-<!-- ═══ SCHEDULE MODAL ═══ -->
+<!-- SCHEDULE MODAL -->
 <div class="modal-overlay" id="scheduleOverlay" onclick="if(event.target===this)closeScheduleModal()">
 <div class="schedule-modal">
     <div class="schedule-title">📅 Programează Meci</div>
-    <div class="schedule-field">
-        <label>Data meciului</label>
-        <input type="date" class="schedule-input" id="scheduleDate">
-    </div>
-    <div class="schedule-field">
-        <label>Ora</label>
-        <input type="time" class="schedule-input" id="scheduleTime">
-    </div>
-    <div class="schedule-field">
-        <label>Locație (opțional)</label>
-        <input type="text" class="schedule-input" id="scheduleLocation" placeholder="ex: Terenul din Bârlad">
-    </div>
+    <div class="schedule-field"><label>Data meciului</label><input type="date" class="schedule-input" id="scheduleDate"></div>
+    <div class="schedule-field"><label>Ora</label><input type="time" class="schedule-input" id="scheduleTime"></div>
+    <div class="schedule-field"><label>Locație (opțional)</label><input type="text" class="schedule-input" id="scheduleLocation" placeholder="ex: Terenul din Bârlad"></div>
     <div style="display:flex;gap:8px;margin-top:4px;">
         <button style="flex:1;padding:12px;border-radius:10px;background:#1a3060;border:1px solid #2979ff;color:#82b1ff;font-size:0.95rem;" onclick="saveSchedule()">💾 Salvează</button>
         <button style="padding:12px 16px;border-radius:10px;background:#252836;" onclick="closeScheduleModal()">✕</button>
@@ -552,7 +701,7 @@
 </div>
 </div>
 
-<!-- ═══ SETTINGS MODAL ═══ -->
+<!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
 <div class="settings-modal">
     <div class="settings-header">
@@ -562,74 +711,67 @@
         </div>
         <div class="settings-tabs">
             <div class="settings-tab active" onclick="switchSettingsTab('players')">👤 Jucători</div>
-            <div class="settings-tab" onclick="switchSettingsTab('export')">📦 Export / Import</div>
+            <div class="settings-tab" onclick="switchSettingsTab('notifications')">🔔 Notificări</div>
+            <div class="settings-tab" onclick="switchSettingsTab('export')">📦 Date</div>
             <div class="settings-tab" onclick="switchSettingsTab('season')">🔄 Sezon</div>
         </div>
     </div>
     <div class="settings-body">
-        <!-- Jucători -->
         <div class="settings-panel active" id="panel-players">
-            <div style="font-size:0.75rem;color:#444;margin-bottom:12px;">ID-urile sunt unice și permanente. Folosite pentru sistemul de prezență.</div>
+            <div style="font-size:0.75rem;color:#444;margin-bottom:12px;">ID-urile sunt unice și permanente.</div>
             <div id="playerEditList"></div>
             <button style="width:100%;margin-top:10px;padding:10px;background:#1a2a1a;border:1px dashed #28a745;color:#28a745;border-radius:8px;" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
         </div>
-        <!-- Export / Import -->
+        <div class="settings-panel" id="panel-notifications">
+            <div class="push-status-box">
+                <div class="push-status-row"><span class="push-status-label">Status notificări</span><span class="push-status-val inactive" id="pushStatusVal">Inactiv</span></div>
+                <div class="push-status-row"><span class="push-status-label">Jucător asociat</span><span class="push-status-val inactive" id="pushPlayerVal">—</span></div>
+            </div>
+            <div style="margin-bottom:10px;">
+                <div style="font-size:0.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Jucătorul tău (pentru notificări):</div>
+                <select class="rater-select" id="pushPlayerSelect" style="margin-bottom:10px;">
+                    <option value="">— Selectează —</option>
+                </select>
+            </div>
+            <button style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;font-size:0.95rem;" onclick="enablePushNotifications()">🔔 Activează Notificările</button>
+            <div style="font-size:0.75rem;color:#444;margin-top:10px;line-height:1.5;">
+                Vei primi notificări când se programează un meci nou. Necesită VAPID keys configurate în Supabase Edge Functions.
+            </div>
+        </div>
         <div class="settings-panel" id="panel-export">
             <div class="settings-action-row">
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Export JSON</div>
-                        <div class="settings-action-desc">Backup complet — jucători, voturi, istoric</div>
-                    </div>
-                    <button class="btn-action-export" onclick="exportData()">💾 Export</button>
+                    <div class="settings-action-info"><div class="settings-action-title">Export JSON</div><div class="settings-action-desc">Backup complet local</div></div>
+                    <button style="background:#1a3a2a;border:1px solid #28a745;color:#28a745;padding:8px 16px;border-radius:7px;" onclick="exportData()">💾 Export</button>
                 </div>
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Import JSON</div>
-                        <div class="settings-action-desc">Restaurează din backup</div>
-                    </div>
-                    <label class="btn-action-import" style="cursor:pointer;padding:8px 16px;border-radius:7px;">
+                    <div class="settings-action-info"><div class="settings-action-title">Import JSON</div><div class="settings-action-desc">Restaurează din backup</div></div>
+                    <label style="background:#1a2a3a;border:1px solid #3d5afe;color:#3d5afe;padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;">
                         📂 Import<input type="file" accept=".json" onchange="importData(event)" style="display:none;">
                     </label>
                 </div>
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Export PDF</div>
-                        <div class="settings-action-desc">Raport sezon cu clasament</div>
-                    </div>
-                    <button class="btn-action-pdf" onclick="exportPDF()">📄 PDF</button>
+                    <div class="settings-action-info"><div class="settings-action-title">Export PDF</div><div class="settings-action-desc">Raport sezon cu clasament</div></div>
+                    <button style="background:linear-gradient(135deg,#b71c1c,#e53935);padding:8px 16px;border-radius:7px;" onclick="exportPDF()">📄 PDF</button>
                 </div>
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Import CSV Google Forms</div>
-                        <div class="settings-action-desc">Importă voturi din Google Forms</div>
-                    </div>
-                    <button class="btn-action-csv" onclick="openCSVModal()">📊 CSV</button>
+                    <div class="settings-action-info"><div class="settings-action-title">Import CSV Google Forms</div><div class="settings-action-desc">Importă voturi din Forms</div></div>
+                    <button style="background:linear-gradient(135deg,#1a5276,#2980b9);padding:8px 16px;border-radius:7px;" onclick="openCSVModal()">📊 CSV</button>
                 </div>
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Copiază Echipele</div>
-                        <div class="settings-action-desc">Pentru WhatsApp / mesaje</div>
-                    </div>
+                    <div class="settings-action-info"><div class="settings-action-title">Copiază Echipele</div><div class="settings-action-desc">Pentru WhatsApp</div></div>
                     <button style="background:#1a3050;border:1px solid #5c7aff;color:#8fa8ff;padding:8px 16px;border-radius:7px;" onclick="copyTeams()">📋 Copiază</button>
                 </div>
             </div>
         </div>
-        <!-- Sezon -->
         <div class="settings-panel" id="panel-season">
             <div class="settings-action-row">
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Reset Sezon</div>
-                        <div class="settings-action-desc">Șterge scoruri, meciuri, istoricul echipelor. Jucătorii și ratingurile rămân.</div>
-                    </div>
+                    <div class="settings-action-info"><div class="settings-action-title">Reset Sezon</div><div class="settings-action-desc">Șterge scoruri și istoric meciuri. Ratingurile rămân.</div></div>
                     <button style="background:#c62828;padding:8px 16px;border-radius:7px;" onclick="resetSeason()">↺ Reset</button>
                 </div>
                 <div class="settings-action-item">
-                    <div class="settings-action-info">
-                        <div class="settings-action-title">Șterge Toate Datele</div>
-                        <div class="settings-action-desc">Resetare completă. Irecuperabil.</div>
-                    </div>
+                    <div class="settings-action-info"><div class="settings-action-title">Șterge Toate Datele</div><div class="settings-action-desc">Resetare completă din Supabase. Irecuperabil.</div></div>
                     <button style="background:#7b1010;border:1px solid #c62828;padding:8px 16px;border-radius:7px;" onclick="nukeAll()">💥 Șterge Tot</button>
                 </div>
             </div>
@@ -643,7 +785,7 @@
 <div class="match-modal">
     <div class="match-modal-date" id="matchModalDate"></div>
     <div class="match-winner-banner" id="matchWinnerBanner"></div>
-    <div class="match-score" id="matchScore"></div>
+    <div style="text-align:center;font-size:0.85rem;color:#555;margin-bottom:10px;" id="matchScore"></div>
     <div class="match-teams">
         <div class="match-team-block"><div class="match-team-title" style="color:var(--orange)">🟠 Portocaliu</div><div id="matchOrangePlayers"></div></div>
         <div class="match-team-block"><div class="match-team-title" style="color:var(--green)">🟢 Verde</div><div id="matchGreenPlayers"></div></div>
@@ -656,13 +798,11 @@
 <div class="modal-overlay" id="csvModalOverlay" onclick="if(event.target===this)closeCsvModal()">
 <div class="csv-modal">
     <h3 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;margin:0 0 14px;color:#fff;">Import CSV Google Forms</h3>
-    <div class="csv-instructions">
-        <strong style="color:#fff;">Format coloane:</strong><br>
-        <code>Timestamp</code> | <code>Evaluator</code> | <code>[Nume Jucător] - General</code> | <code>[Nume Jucător] - Viteza</code> | ...
+    <div style="background:#0d1020;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #1e2130;font-size:0.85rem;color:#888;line-height:1.6;">
+        Format coloane: <code style="background:#1c1f2b;padding:2px 6px;border-radius:4px;color:#a78bfa;">Timestamp</code> | <code style="background:#1c1f2b;padding:2px 6px;border-radius:4px;color:#a78bfa;">Evaluator</code> | <code style="background:#1c1f2b;padding:2px 6px;border-radius:4px;color:#a78bfa;">[Jucător] - General</code> | ...
     </div>
     <label style="display:block;background:#1c1f2b;border:2px dashed #2a2d40;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#666;margin-bottom:14px;">
-        📁 Click sau trage fișierul CSV
-        <input type="file" accept=".csv" onchange="previewCSV(event)" style="display:none;">
+        📁 Click sau trage fișierul CSV<input type="file" accept=".csv" onchange="previewCSV(event)" style="display:none;">
     </label>
     <div id="csvPreviewArea" style="display:none;">
         <div style="font-size:0.75rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Previzualizare:</div>
@@ -682,105 +822,242 @@
     </div>
     <div class="qv-rater-bar">
         <label>👤 Cine votează:</label>
-        <select class="qv-rater-select" id="qvRaterSelect" onchange="onQvRaterChange()">
-            <option value="">— Selectează —</option>
-        </select>
-        <div id="qvRaterCustomWrap" style="display:none;flex:1;">
-            <input class="qv-rater-select" type="text" id="qvRaterCustom" placeholder="Numele tău...">
-        </div>
+        <select class="qv-rater-select" id="qvRaterSelect" onchange="onQvRaterChange()"><option value="">— Selectează —</option></select>
+        <div id="qvRaterCustomWrap" style="display:none;flex:1;"><input class="qv-rater-select" type="text" id="qvRaterCustom" placeholder="Numele tău..."></div>
     </div>
     <div class="qv-progress" id="qvProgress">Selectează cine votează, apoi dă note.</div>
     <div class="qv-players-list" id="qvPlayersList"></div>
-    <div class="qv-done-row">
-        <button class="qv-save-btn" style="background:var(--orange);color:#000;" onclick="submitQuickVote()">💾 Salvează Toate Notele</button>
+    <div style="display:flex;gap:8px;">
+        <button style="flex:1;font-size:1rem;padding:13px;border-radius:10px;background:var(--orange);color:#000;font-weight:700;" onclick="submitQuickVote()">💾 Salvează Toate Notele</button>
     </div>
 </div>
 </div>
 
 <script>
-// ══════════════════════════════════════
-//  CONSTANTS & STATE
-// ══════════════════════════════════════
+// ╔══════════════════════════════════════════════════════╗
+// ║  CONFIG — înlocuiește cu datele tale din Supabase     ║
+// ╚══════════════════════════════════════════════════════╝
+const SUPABASE_URL     = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const VAPID_PUBLIC_KEY  = 'BNjkmY6gdLIO_a04E7DM2ygbfIGgX9Vyb0kBZnf02RuelCQwQ9C4b8Ij-WUcsR0LCiswRdpWAbBymtkGz-aABSM'; // npx web-push generate-vapid-keys
+
+// ── Supabase Client ──
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ── Constants ──
 const CATS = ['general','viteza','tehnica','strategie','aparare'];
 const CAT_LABELS = {general:'⚽ General',viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
 const CAT_COLORS = {general:'#ffcc00',viteza:'#ff8c00',tehnica:'#3d5afe',strategie:'#00bcd4',aparare:'#4caf50'};
 const W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20};
-const defaultNames = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andrei Magazin Dez","Vlad Stan","Gabi Balan","Tudor","Andrei Rascu","Andrei Stan","Adrian Prisecaru","Om Vlad Stan 1","Om Vlad Stan 2"];
+const DEFAULT_PLAYERS = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andrei Magazin Dez","Vlad Stan","Gabi Balan","Tudor","Andrei Rascu","Andrei Stan","Adrian Prisecaru","Om Vlad Stan 1","Om Vlad Stan 2"];
 const today = new Date().toLocaleDateString('ro-RO');
 
-let db = JSON.parse(localStorage.getItem('fb_club_v6')) || {
-    players: defaultNames.map((name,i) => ({id:i+1, name, ratings:[{rater:"Default",date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}], status:'bench', wins:0, games:0, matchHistory:[]})),
-    history: [],
-    nextMatch: { date: null, time: null, location: null, confirmedIds: [] }
-};
-// Migrations
-db.players.forEach(p => {
-    if (!p.matchHistory) p.matchHistory = [];
-    p.ratings = p.ratings.map(r => r.value!==undefined && r.general===undefined
-        ? {rater:r.rater||'?', date:r.date||'—', general:r.value, viteza:r.value, tehnica:r.value, strategie:r.value, aparare:r.value}
-        : r);
-});
-if (!db.nextMatch) db.nextMatch = { date:null, time:null, location:null, confirmedIds:[] };
-
+// ── App State ──
+let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[]} };
 let currentPlayerId = null;
-let selectedCats = {general:null, viteza:null, tehnica:null, strategie:null, aparare:null};
+let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
 let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
-let chartOpen = false, statsOpen = false, detailsOpen = false, ratingsListOpen = false;
-let qvVotes = {};
-let confirmCallback = null;
+let chartOpen=false, statsOpen=false, detailsOpen=false, ratingsListOpen=false;
+let qvVotes = {}, confirmCallback = null;
+let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
-// ── Algorithm ──
+// ╔══════════════════════════════════════════════════════╗
+// ║  DATABASE LAYER                                       ║
+// ╚══════════════════════════════════════════════════════╝
+
+async function loadAll() {
+    showLoading(true);
+    try {
+        // Players + Ratings (joined)
+        const { data: playersRaw, error: pe } = await sb
+            .from('players')
+            .select('*, ratings(*)')
+            .order('id');
+        if (pe) throw pe;
+
+        db.players = (playersRaw || []).map(rowToPlayer);
+
+        // If empty DB — seed default players
+        if (db.players.length === 0) {
+            await seedDefaultPlayers();
+            const { data: seeded } = await sb.from('players').select('*, ratings(*)').order('id');
+            db.players = (seeded || []).map(rowToPlayer);
+        }
+
+        // Match history
+        const { data: histRaw } = await sb
+            .from('match_history')
+            .select('*')
+            .order('created_at', { ascending: false });
+        db.history = (histRaw || []).map(h => ({
+            date: h.date, winner: h.winner, score: h.score,
+            orangePlayers: h.orange_players || [],
+            greenPlayers:  h.green_players  || []
+        }));
+
+        // Next match
+        const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
+        db.nextMatch = nm
+            ? { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[] }
+            : { date:null, time:null, location:null, confirmedIds:[] };
+
+        setConnected(true);
+        render();
+    } catch (err) {
+        setConnected(false);
+        showToast('❌ Eroare conectare DB: ' + (err.message||err), '');
+        // Fallback la localStorage dacă există
+        const local = localStorage.getItem('fb_club_v6');
+        if (local) { try { db = JSON.parse(local); render(); } catch(_){} }
+    } finally {
+        showLoading(false);
+    }
+}
+
+function rowToPlayer(p) {
+    return {
+        id: p.id, name: p.name, status: p.status||'bench',
+        wins: p.wins||0, games: p.games||0,
+        matchHistory: p.match_history||[],
+        ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
+            _dbId: r.id, rater:r.rater, date:r.date,
+            general:r.general||5, viteza:r.viteza||5, tehnica:r.tehnica||5,
+            strategie:r.strategie||5, aparare:r.aparare||5
+        }))
+    };
+}
+
+async function seedDefaultPlayers() {
+    const rows = DEFAULT_PLAYERS.map((name,i) => ({
+        id: i+1, name, status:'bench', wins:0, games:0, match_history:[]
+    }));
+    await sb.from('players').upsert(rows);
+    // Add default rating for each
+    const ratingRows = rows.map(p => ({
+        player_id:p.id, rater:'Default', date:today,
+        general:5,viteza:5,tehnica:5,strategie:5,aparare:5
+    }));
+    await sb.from('ratings').insert(ratingRows);
+}
+
+async function dbUpdatePlayer(p) {
+    const { error } = await sb.from('players').upsert({
+        id:p.id, name:p.name, status:p.status,
+        wins:p.wins, games:p.games, match_history:p.matchHistory
+    });
+    if (error) throw error;
+}
+
+async function dbInsertRating(playerId, r) {
+    const { data, error } = await sb.from('ratings').insert({
+        player_id:playerId, rater:r.rater, date:r.date,
+        general:r.general, viteza:r.viteza, tehnica:r.tehnica,
+        strategie:r.strategie, aparare:r.aparare
+    }).select().single();
+    if (error) throw error;
+    return data.id; // UUID for future deletion
+}
+
+async function dbDeleteRating(dbId) {
+    const { error } = await sb.from('ratings').delete().eq('id', dbId);
+    if (error) throw error;
+}
+
+async function dbSaveNextMatch() {
+    const nm = db.nextMatch;
+    const { error } = await sb.from('next_match').upsert({
+        id:1,
+        match_date: nm.date || null,
+        match_time: nm.time || null,
+        location:   nm.location || null,
+        confirmed_ids: nm.confirmedIds || []
+    });
+    if (error) throw error;
+}
+
+async function dbInsertMatchHistory(entry) {
+    const { error } = await sb.from('match_history').insert({
+        date: entry.date, winner: entry.winner, score: entry.score,
+        orange_players: entry.orangePlayers, green_players: entry.greenPlayers
+    });
+    if (error) throw error;
+}
+
+// ── Realtime: sync lobby across all devices ──
+function setupRealtime() {
+    sb.channel('next_match_realtime')
+        .on('postgres_changes', { event:'*', schema:'public', table:'next_match' }, async () => {
+            const { data:nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
+            if (nm) {
+                db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[] };
+                renderLobby();
+            }
+        })
+        .subscribe();
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  ALGORITHM                                            ║
+// ╚══════════════════════════════════════════════════════╝
 function getSmartRating(p) {
-    const base = CATS.reduce((s,c) => s + (p.ratings.length ? p.ratings.reduce((a,r)=>a+(r[c]||5),0)/p.ratings.length : 5)*W[c], 0);
+    const base = CATS.reduce((s,c) => s+(p.ratings.length?p.ratings.reduce((a,r)=>a+(r[c]||5),0)/p.ratings.length:5)*W[c],0);
     const wr = p.games>0 ? 1+(p.wins/p.games)*9 : 5;
-    return parseFloat((base + wr*W.winrate).toFixed(2));
+    return parseFloat((base+wr*W.winrate).toFixed(2));
 }
-function getCatAvg(p,cat) { return p.ratings.length ? p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length : 5; }
-function getGeneralAvg(p) { return getCatAvg(p,'general'); }
-function getStreak(p) {
-    if (!p.matchHistory?.length) return {count:0,type:null};
-    const last = p.matchHistory[p.matchHistory.length-1]; let count = 0;
-    for (let i=p.matchHistory.length-1; i>=0; i--) { if(p.matchHistory[i]===last) count++; else break; }
-    return {count, type:last};
-}
-
-// ── Toast ──
-function showToast(msg, type='') {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.className = 'toast' + (type?' toast-'+type:'');
-    requestAnimationFrame(()=>{ t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); });
+function getCatAvg(p,cat){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
+function getGeneralAvg(p){return getCatAvg(p,'general');}
+function getStreak(p){
+    if(!p.matchHistory?.length)return{count:0,type:null};
+    const last=p.matchHistory[p.matchHistory.length-1];let count=0;
+    for(let i=p.matchHistory.length-1;i>=0;i--){if(p.matchHistory[i]===last)count++;else break;}
+    return{count,type:last};
 }
 
-// ── Init ──
-function init() {
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    render();
+// ╔══════════════════════════════════════════════════════╗
+// ║  UI HELPERS                                           ║
+// ╚══════════════════════════════════════════════════════╝
+function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('hidden',!v);}
+function setConnected(v){
+    const b=document.getElementById('connBadge'),t=document.getElementById('connText');
+    b.className='conn-badge '+(v?'online':'offline');
+    t.textContent=v?'Online':'Offline';
 }
+function showToast(msg,type=''){
+    const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type?' toast-'+type:'');
+    requestAnimationFrame(()=>{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);});
+}
+function showConfirm(icon,title,msg,yesLabel,yesBg,cb){
+    document.getElementById('confirmIcon').textContent=icon;
+    document.getElementById('confirmTitle').textContent=title;
+    document.getElementById('confirmMsg').textContent=msg;
+    const btn=document.getElementById('confirmYesBtn');btn.textContent=yesLabel;
+    btn.style.background=yesBg;btn.style.color=(yesBg==='var(--orange)'||yesBg==='/orange')?'#000':'#fff';
+    btn.onclick=()=>{closeConfirm();cb();};
+    document.getElementById('confirmOverlay').style.display='flex';
+}
+function closeConfirm(){document.getElementById('confirmOverlay').style.display='none';}
 
-// ── Save ──
-function save() { localStorage.setItem('fb_club_v6', JSON.stringify(db)); }
-
-// ── Render ──
-function render() {
-    ['orange','green','bench'].forEach(t => document.getElementById(`list-${t}`).innerHTML='');
-    const sorted = [...db.players].sort((a,b) => getSmartRating(b)-getSmartRating(a));
-    const byTeam = {orange:[],green:[],bench:[]};
-    sorted.forEach(p => byTeam[p.status].push(p));
-    ['orange','green','bench'].forEach(team => {
-        byTeam[team].forEach((p,idx) => {
-            const smart = getSmartRating(p).toFixed(1), general = getGeneralAvg(p).toFixed(1);
-            const rankClass = idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
-            const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
-            const s = getStreak(p);
-            const streakHtml = s.count ? (s.type==='W'
-                ? `<span class="streak-badge streak-win">🔥 ${s.count}V</span>`
-                : `<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`) : '';
-            const catBars = CATS.filter(c=>c!=='general').map(c=>`<div class="cat-bar-item"><div class="cat-bar-track"><div class="cat-bar-fill" style="width:${getCatAvg(p,c)*10}%;background:${CAT_COLORS[c]}"></div></div><div class="cat-bar-label">${c.slice(0,3)}</div></div>`).join('');
-            const card = document.createElement('div');
-            card.className = 'player-card'; card.draggable = true; card.id = `p-${p.id}`;
-            card.ondragstart = e => e.dataTransfer.setData("text", p.id);
-            card.onclick = () => openModal(p.id);
-            card.innerHTML = `<div class="player-rank-label ${rankClass}"></div>
+// ╔══════════════════════════════════════════════════════╗
+// ║  RENDER                                               ║
+// ╚══════════════════════════════════════════════════════╝
+function render(){
+    ['orange','green','bench'].forEach(t=>document.getElementById(`list-${t}`).innerHTML='');
+    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    const byTeam={orange:[],green:[],bench:[]};
+    sorted.forEach(p=>byTeam[p.status]?.push(p)||(byTeam.bench.push(p)));
+    ['orange','green','bench'].forEach(team=>{
+        byTeam[team].forEach((p,idx)=>{
+            const smart=getSmartRating(p).toFixed(1),general=getGeneralAvg(p).toFixed(1);
+            const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
+            const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+            const s=getStreak(p);
+            const streakHtml=s.count?(s.type==='W'?`<span class="streak-badge streak-win">🔥 ${s.count}V</span>`:`<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`):'';
+            const catBars=CATS.filter(c=>c!=='general').map(c=>`<div class="cat-bar-item"><div class="cat-bar-track"><div class="cat-bar-fill" style="width:${getCatAvg(p,c)*10}%;background:${CAT_COLORS[c]}"></div></div><div class="cat-bar-label">${c.slice(0,3)}</div></div>`).join('');
+            const card=document.createElement('div');
+            card.className='player-card';card.draggable=true;card.id=`p-${p.id}`;
+            card.ondragstart=e=>e.dataTransfer.setData("text",p.id);
+            card.onclick=()=>openModal(p.id);
+            card.innerHTML=`<div class="player-rank-label ${rankClass}"></div>
                 <div class="card-top"><span class="player-name">${p.name}<span class="player-id-tag">#${p.id}</span></span>
                 <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart">★ ${smart}</span></div></div>
                 <div class="cat-bars">${catBars}</div>
@@ -788,223 +1065,221 @@ function render() {
             document.getElementById(`list-${team}`).appendChild(card);
         });
     });
-    updateTeamStats(); renderLeaderboard(); renderHistory(); renderLobby();
-    save();
+    updateTeamStats();renderLeaderboard();renderHistory();renderLobby();
+    // Also save to localStorage as offline backup
+    localStorage.setItem('fb_club_v6',JSON.stringify(db));
 }
 
-function updateTeamStats() {
-    ['orange','green'].forEach(team => {
-        const pl = db.players.filter(p=>p.status===team), n = pl.length;
-        const tot = pl.reduce((s,p)=>s+getSmartRating(p),0), avg = n?(tot/n).toFixed(1):'—';
-        document.getElementById(`avg-${team}`).textContent = `★ ${avg}`;
-        document.getElementById(`count-${team}`).textContent = `${n} jucători`;
-        document.getElementById(`bar-${team}`).style.width = (n?Math.min((tot/n)/10*100,100):0)+'%';
+function updateTeamStats(){
+    ['orange','green'].forEach(team=>{
+        const pl=db.players.filter(p=>p.status===team),n=pl.length;
+        const tot=pl.reduce((s,p)=>s+getSmartRating(p),0),avg=n?(tot/n).toFixed(1):'—';
+        document.getElementById(`avg-${team}`).textContent=`★ ${avg}`;
+        document.getElementById(`count-${team}`).textContent=`${n} jucători`;
+        document.getElementById(`bar-${team}`).style.width=(n?Math.min((tot/n)/10*100,100):0)+'%';
     });
-    document.getElementById('count-bench').textContent = `${db.players.filter(p=>p.status==='bench').length} jucători`;
+    document.getElementById('count-bench').textContent=`${db.players.filter(p=>p.status==='bench').length} jucători`;
 }
-
-function renderLeaderboard() {
-    const sorted = [...db.players].sort((a,b) => getSmartRating(b)-getSmartRating(a));
-    const medals = ['🥇','🥈','🥉'];
-    document.getElementById('leaderboard').innerHTML = sorted.slice(0,9).map((p,i) => {
-        const s = getStreak(p), st = s.count ? (s.type==='W'?`🔥${s.count}V`:`❄️${s.count}P`) : '—';
-        const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
+function renderLeaderboard(){
+    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    const medals=['🥇','🥈','🥉'];
+    document.getElementById('leaderboard').innerHTML=sorted.slice(0,9).map((p,i)=>{
+        const s=getStreak(p),st=s.count?(s.type==='W'?`🔥${s.count}V`:`❄️${s.count}P`):'—';
+        const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
         return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">⭐ ${getGeneralAvg(p).toFixed(1)} | ${wr} victorii | ${st}</div><div class="lb-smart">★ Smart: ${getSmartRating(p).toFixed(2)}</div></div>`;
-    }).join('') || '<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
+    }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
 }
-
-function renderHistory() {
-    document.querySelector('#match-history tbody').innerHTML = db.history.length
-        ? db.history.map((h,idx) => `<tr onclick="openMatchModal(${idx})">
+function renderHistory(){
+    document.querySelector('#match-history tbody').innerHTML=db.history.length
+        ?db.history.map((h,idx)=>`<tr onclick="openMatchModal(${idx})">
             <td>${h.date}</td>
             <td><span class="win-tag" style="background:${h.winner==='Portocaliu'?'var(--orange)':'var(--green)'};color:${h.winner==='Portocaliu'?'#000':'#fff'}">${h.winner}</span></td>
             <td>${h.score}</td>
             <td><div class="history-players"><span style="color:#ff8c00">🟠</span> ${(h.orangePlayers||[]).join(', ')||'—'}</div>
                 <div class="history-players"><span style="color:#28a745">🟢</span> ${(h.greenPlayers||[]).join(', ')||'—'}</div></td>
         </tr>`).join('')
-        : '<tr><td colspan="4" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
+        :'<tr><td colspan="4" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
 }
 
-// ══════════════════════════════════════
-//  LOBBY / SCHEDULED MATCH
-// ══════════════════════════════════════
-function renderLobby() {
-    const nm = db.nextMatch;
-    const dtEl = document.getElementById('lobbyDatetime');
-    if (nm.date) {
-        const d = new Date(nm.date + 'T' + (nm.time||'00:00'));
-        const opts = {weekday:'short', day:'numeric', month:'short'};
-        let str = d.toLocaleDateString('ro-RO', opts);
-        if (nm.time) str += ' · ' + nm.time;
-        if (nm.location) str += ' · ' + nm.location;
-        dtEl.textContent = str;
-        dtEl.className = 'lobby-datetime';
-    } else {
-        dtEl.textContent = 'Niciun meci programat';
-        dtEl.className = 'lobby-datetime no-date';
-    }
-
-    const container = document.getElementById('lobbyPlayers');
-    container.innerHTML = '';
-    db.players.forEach(p => {
-        const confirmed = db.nextMatch.confirmedIds.includes(p.id);
-        const chip = document.createElement('div');
-        chip.className = 'lobby-player-chip' + (confirmed?' confirmed':'');
-        chip.innerHTML = `<div class="chip-dot"></div><span class="chip-name">${p.name}</span>`;
-        chip.onclick = () => toggleLobbyPresence(p.id);
+// ╔══════════════════════════════════════════════════════╗
+// ║  LOBBY                                                ║
+// ╚══════════════════════════════════════════════════════╝
+function renderLobby(){
+    const nm=db.nextMatch;
+    const dtEl=document.getElementById('lobbyDatetime');
+    if(nm.date){
+        const d=new Date(nm.date+'T'+(nm.time||'00:00'));
+        let str=d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
+        if(nm.time)str+=' · '+nm.time;
+        if(nm.location)str+=' · '+nm.location;
+        dtEl.textContent=str;dtEl.className='lobby-datetime';
+    }else{dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';}
+    const container=document.getElementById('lobbyPlayers');container.innerHTML='';
+    db.players.forEach(p=>{
+        const confirmed=db.nextMatch.confirmedIds.includes(p.id);
+        const chip=document.createElement('div');
+        chip.className='lobby-player-chip'+(confirmed?' confirmed':'');
+        chip.innerHTML=`<div class="chip-dot"></div><span class="chip-name">${p.name}</span>`;
+        chip.onclick=()=>toggleLobbyPresence(p.id);
         container.appendChild(chip);
     });
-
-    const cnt = db.nextMatch.confirmedIds.length;
-    document.getElementById('lobbyCount').textContent = cnt
-        ? `✅ ${cnt} jucător${cnt===1?'':'i'} confirmat${cnt===1?'':'i'} — gata de meci!`
-        : 'Niciun jucător confirmat încă.';
+    const cnt=db.nextMatch.confirmedIds.length;
+    document.getElementById('lobbyCount').textContent=cnt?`✅ ${cnt} jucător${cnt===1?'':'i'} confirmat${cnt===1?'':'i'}!`:'Niciun jucător confirmat încă.';
 }
 
-function toggleLobbyPresence(playerId) {
-    const ids = db.nextMatch.confirmedIds;
-    const idx = ids.indexOf(playerId);
-    if (idx === -1) ids.push(playerId);
-    else ids.splice(idx, 1);
-    renderLobby(); save();
+async function toggleLobbyPresence(playerId){
+    const ids=db.nextMatch.confirmedIds;
+    const idx=ids.indexOf(playerId);
+    if(idx===-1)ids.push(playerId);else ids.splice(idx,1);
+    renderLobby();
+    try{ await dbSaveNextMatch(); }catch(e){ showToast('⚠️ Eroare salvare: '+e.message); }
 }
 
-function openScheduleModal() {
-    const nm = db.nextMatch;
-    document.getElementById('scheduleDate').value = nm.date || '';
-    document.getElementById('scheduleTime').value = nm.time || '';
-    document.getElementById('scheduleLocation').value = nm.location || '';
-    document.getElementById('scheduleOverlay').style.display = 'flex';
+function openScheduleModal(){
+    const nm=db.nextMatch;
+    document.getElementById('scheduleDate').value=nm.date||'';
+    document.getElementById('scheduleTime').value=nm.time||'';
+    document.getElementById('scheduleLocation').value=nm.location||'';
+    document.getElementById('scheduleOverlay').style.display='flex';
 }
-function closeScheduleModal() { document.getElementById('scheduleOverlay').style.display = 'none'; }
-function saveSchedule() {
-    db.nextMatch.date = document.getElementById('scheduleDate').value || null;
-    db.nextMatch.time = document.getElementById('scheduleTime').value || null;
-    db.nextMatch.location = document.getElementById('scheduleLocation').value.trim() || null;
-    save(); renderLobby(); closeScheduleModal();
-    showToast('📅 Meci programat!');
+function closeScheduleModal(){document.getElementById('scheduleOverlay').style.display='none';}
+async function saveSchedule(){
+    db.nextMatch.date=document.getElementById('scheduleDate').value||null;
+    db.nextMatch.time=document.getElementById('scheduleTime').value||null;
+    db.nextMatch.location=document.getElementById('scheduleLocation').value.trim()||null;
+    renderLobby();closeScheduleModal();
+    try{
+        await dbSaveNextMatch();
+        showToast('📅 Meci programat!');
+        // Send push notifications to all subscribers
+        await sendPushToAll({
+            title:'⚽ Meci programat!',
+            body:`${db.nextMatch.date||''}${db.nextMatch.time?' · '+db.nextMatch.time:''}${db.nextMatch.location?' · '+db.nextMatch.location:''}`,
+            url: window.location.origin
+        });
+    }catch(e){showToast('⚠️ '+e.message);}
 }
-function clearSchedule() {
-    db.nextMatch = { date:null, time:null, location:null, confirmedIds:[] };
-    save(); renderLobby(); closeScheduleModal();
-    showToast('🗑️ Meci șters.');
+async function clearSchedule(){
+    db.nextMatch={date:null,time:null,location:null,confirmedIds:[]};
+    renderLobby();closeScheduleModal();
+    try{await dbSaveNextMatch();showToast('🗑️ Meci șters.');}catch(e){showToast('⚠️ '+e.message);}
 }
-
-function formTeamsFromLobby() {
-    const confirmed = db.players.filter(p => db.nextMatch.confirmedIds.includes(p.id));
-    if (confirmed.length < 2) { showToast('⚠️ Minim 2 jucători confirmați!'); return; }
-    // Move non-confirmed active players to bench
-    db.players.forEach(p => { if (!db.nextMatch.confirmedIds.includes(p.id)) p.status = 'bench'; });
-    // Auto-balance confirmed players
-    const sorted = [...confirmed].sort((a,b) => getSmartRating(b)-getSmartRating(a));
-    let oSum = 0, gSum = 0;
-    sorted.forEach(p => {
-        if (oSum <= gSum) { p.status='orange'; oSum+=getSmartRating(p); }
-        else { p.status='green'; gSum+=getSmartRating(p); }
-    });
+function formTeamsFromLobby(){
+    const confirmed=db.players.filter(p=>db.nextMatch.confirmedIds.includes(p.id));
+    if(confirmed.length<2){showToast('⚠️ Minim 2 jucători confirmați!');return;}
+    db.players.forEach(p=>{if(!db.nextMatch.confirmedIds.includes(p.id))p.status='bench';});
+    const sorted=[...confirmed].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    let oSum=0,gSum=0;
+    sorted.forEach(p=>{if(oSum<=gSum){p.status='orange';oSum+=getSmartRating(p);}else{p.status='green';gSum+=getSmartRating(p);}});
     render();
-    showToast(`⚡ Echipe formate din ${confirmed.length} jucători confirmați!`);
+    Promise.all(confirmed.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
+    showToast(`⚡ Echipe formate din ${confirmed.length} jucători!`);
 }
 
-// ══════════════════════════════════════
-//  CUSTOM CONFIRM
-// ══════════════════════════════════════
-function showConfirm(icon, title, msg, yesLabel, yesBg, cb) {
-    document.getElementById('confirmIcon').textContent = icon;
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmMsg').textContent = msg;
-    const yesBtn = document.getElementById('confirmYesBtn');
-    yesBtn.textContent = yesLabel;
-    yesBtn.style.background = yesBg;
-    yesBtn.style.color = yesBg === 'var(--orange)' ? '#000' : '#fff';
-    confirmCallback = cb;
-    yesBtn.onclick = () => { closeConfirm(); cb(); };
-    document.getElementById('confirmOverlay').style.display = 'flex';
-}
-function closeConfirm() { document.getElementById('confirmOverlay').style.display = 'none'; confirmCallback = null; }
-
-// ══════════════════════════════════════
-//  MATCH ACTIONS
-// ══════════════════════════════════════
-function recordMatch(winner) {
-    const oP = db.players.filter(p=>p.status==='orange'), gP = db.players.filter(p=>p.status==='green');
-    if (oP.length<1||gP.length<1) { showToast('⚠️ Ambele echipe trebuie să aibă jucători!'); return; }
-    const oAvg = (oP.reduce((s,p)=>s+getSmartRating(p),0)/oP.length).toFixed(1);
-    const gAvg = (gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
+// ╔══════════════════════════════════════════════════════╗
+// ║  MATCH ACTIONS                                        ║
+// ╚══════════════════════════════════════════════════════╝
+async function recordMatch(winner){
+    const oP=db.players.filter(p=>p.status==='orange'),gP=db.players.filter(p=>p.status==='green');
+    if(oP.length<1||gP.length<1){showToast('⚠️ Ambele echipe trebuie să aibă jucători!');return;}
+    const oAvg=(oP.reduce((s,p)=>s+getSmartRating(p),0)/oP.length).toFixed(1);
+    const gAvg=(gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
     oP.forEach(p=>{p.games++;if(winner==='orange')p.wins++;p.matchHistory.push(winner==='orange'?'W':'L');});
     gP.forEach(p=>{p.games++;if(winner==='green')p.wins++;p.matchHistory.push(winner==='green'?'W':'L');});
-    db.history.unshift({date:today, winner:winner==='orange'?'Portocaliu':'Verde', score:`${oAvg} vs ${gAvg}`, orangePlayers:oP.map(p=>p.name), greenPlayers:gP.map(p=>p.name)});
-    // Clear confirmed list after match
-    db.nextMatch.confirmedIds = [];
-    render();
-    showToast(`🏆 ${winner==='orange'?'Portocaliu':'Verde'} câștigă! ${oAvg} vs ${gAvg}`, winner==='orange'?'o':'g');
+    const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
+    db.history.unshift(entry);db.nextMatch.confirmedIds=[];
+    render();showToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`,winner==='orange'?'o':'g');
+    try{
+        await Promise.all([...oP,...gP].map(p=>dbUpdatePlayer(p)));
+        await dbInsertMatchHistory(entry);
+        await dbSaveNextMatch();
+    }catch(e){showToast('⚠️ Eroare salvare: '+e.message);}
 }
 
-function newMatch() {
-    showConfirm('🔄','Meci Nou?','Scorurile de azi se resetează. Echipele și jucătorii rămân.','Da, Meci Nou','#00796b',()=>{
-        render();
-        showToast('🔄 Meci nou început!');
+function newMatch(){
+    showConfirm('🔄','Meci Nou?','Scorurile se resetează. Echipele și jucătorii rămân.','Da, Meci Nou','#00796b',()=>{
+        render();showToast('🔄 Meci nou început!');
     });
 }
 
-function addNewPlayer() {
-    const name = prompt('Numele jucătorului nou:');
-    if (!name||!name.trim()) return;
-    db.players.push({id:Date.now(), name:name.trim(), ratings:[{rater:"Initial",date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}], status:'bench', wins:0, games:0, matchHistory:[]});
-    render(); showToast(`✅ ${name.trim()} adăugat!`);
+function addNewPlayer(){
+    const name=prompt('Numele jucătorului nou:');if(!name||!name.trim())return;
+    const newP={id:Date.now(),name:name.trim(),status:'bench',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
+    db.players.push(newP);render();
+    dbUpdatePlayer(newP)
+        .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
+        .catch(e=>showToast('⚠️ '+e.message));
+    showToast(`✅ ${name.trim()} adăugat!`);
 }
 
-function resetSeason() {
-    showConfirm('↺','Reset Sezon','Victoriile, meciurile și istoricul se șterg. Jucătorii și ratingurile rămân.','Reset','#c62828',()=>{
+async function resetSeason(){
+    showConfirm('↺','Reset Sezon','Victoriile și istoricul se șterg. Ratingurile rămân.','Reset','#c62828',async()=>{
         db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];});
-        db.history=[]; db.nextMatch.confirmedIds=[];
-        render(); showToast('↺ Sezon resetat!');
+        db.history=[];db.nextMatch.confirmedIds=[];render();
+        try{
+            await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
+            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            await dbSaveNextMatch();
+            showToast('↺ Sezon resetat!');
+        }catch(e){showToast('⚠️ '+e.message);}
     });
 }
 
-function nukeAll() {
-    showConfirm('💥','Șterge Tot?','TOATE datele vor fi șterse definitiv. Nu există recuperare.','Șterge Tot','#7b1010',()=>{
-        localStorage.removeItem('fb_club_v6'); location.reload();
+async function nukeAll(){
+    showConfirm('💥','Șterge Tot?','TOATE datele din Supabase vor fi șterse definitiv.','Șterge Tot','#7b1010',async()=>{
+        try{
+            await sb.from('ratings').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            await sb.from('players').delete().neq('id',0);
+            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            await sb.from('next_match').upsert({id:1,match_date:null,match_time:null,location:null,confirmed_ids:[]});
+            localStorage.removeItem('fb_club_v6');
+            location.reload();
+        }catch(e){showToast('⚠️ '+e.message);}
     });
 }
 
-function copyTeams() {
-    const o = db.players.filter(p=>p.status==='orange').map(p=>p.name);
-    const g = db.players.filter(p=>p.status==='green').map(p=>p.name);
+function copyTeams(){
+    const o=db.players.filter(p=>p.status==='orange').map(p=>p.name);
+    const g=db.players.filter(p=>p.status==='green').map(p=>p.name);
     navigator.clipboard?.writeText(`🟠 Portocaliu:\n${o.join('\n')}\n\n🟢 Verde:\n${g.join('\n')}`).then(()=>showToast('📋 Copiat!')).catch(()=>showToast('❌ Eroare clipboard'));
 }
 
-// ── Drag & Drop ──
 function allowDrop(e){e.preventDefault();}
-function drop(e){
-    e.preventDefault(); const id=e.dataTransfer.getData("text");
-    let target=e.target; while(target&&!target.id.startsWith('col-'))target=target.parentElement;
-    if(target){const tId=target.id.replace('col-','');if(['orange','green','bench'].includes(tId)){db.players.find(p=>p.id==id).status=tId;render();}}
+async function drop(e){
+    e.preventDefault();const id=e.dataTransfer.getData("text");
+    let target=e.target;while(target&&!target.id.startsWith('col-'))target=target.parentElement;
+    if(target){const tId=target.id.replace('col-','');if(['orange','green','bench'].includes(tId)){
+        const p=db.players.find(x=>x.id==id);p.status=tId;render();
+        await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
+    }}
 }
 
-// ══════════════════════════════════════
-//  SETTINGS
-// ══════════════════════════════════════
-function openSettings() {
+// ╔══════════════════════════════════════════════════════╗
+// ║  SETTINGS                                             ║
+// ╚══════════════════════════════════════════════════════╝
+function openSettings(){
     buildPlayerEditList();
-    document.getElementById('settingsOverlay').style.display = 'flex';
+    // Populate push player select
+    const sel=document.getElementById('pushPlayerSelect');
+    sel.innerHTML='<option value="">— Selectează —</option>';
+    db.players.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;if(p.name===pushPlayerName)o.selected=true;sel.appendChild(o);});
+    document.getElementById('pushPlayerVal').textContent=pushPlayerName||'—';
+    document.getElementById('pushStatusVal').textContent=Notification.permission==='granted'?'Activ':'Inactiv';
+    document.getElementById('pushStatusVal').className='push-status-val '+(Notification.permission==='granted'?'active':'inactive');
+    document.getElementById('settingsOverlay').style.display='flex';
 }
-function closeSettings() { document.getElementById('settingsOverlay').style.display = 'none'; }
-
-function switchSettingsTab(tab) {
-    document.querySelectorAll('.settings-tab').forEach((t,i)=>{
-        const tabs = ['players','export','season'];
-        t.classList.toggle('active', tabs[i]===tab);
-    });
+function closeSettings(){document.getElementById('settingsOverlay').style.display='none';}
+function switchSettingsTab(tab){
+    const tabNames=['players','notifications','export','season'];
+    document.querySelectorAll('.settings-tab').forEach((t,i)=>t.classList.toggle('active',tabNames[i]===tab));
     document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('panel-'+tab).classList.add('active');
 }
-
-function buildPlayerEditList() {
-    const sorted = [...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    document.getElementById('playerEditList').innerHTML = sorted.map(p => {
-        const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%':'—';
-        return `<div class="player-edit-row" id="editrow-${p.id}">
+function buildPlayerEditList(){
+    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    document.getElementById('playerEditList').innerHTML=sorted.map(p=>{
+        const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+        return `<div class="player-edit-row">
             <span class="player-edit-id">#${p.id}</span>
             <input class="player-edit-input" type="text" value="${p.name}" id="editname-${p.id}" onkeydown="if(event.key==='Enter')savePlayerName(${p.id})">
             <span class="player-edit-stats">⭐${getGeneralAvg(p).toFixed(1)} ${wr}</span>
@@ -1013,53 +1288,101 @@ function buildPlayerEditList() {
         </div>`;
     }).join('');
 }
-
-function savePlayerName(id) {
-    const input = document.getElementById(`editname-${id}`);
-    const newName = input.value.trim();
-    if (!newName) { showToast('⚠️ Numele nu poate fi gol!'); return; }
-    db.players.find(p=>p.id==id).name = newName;
-    render(); buildPlayerEditList();
-    showToast(`✅ Nume salvat: ${newName}`);
+async function savePlayerName(id){
+    const input=document.getElementById(`editname-${id}`);const newName=input.value.trim();
+    if(!newName){showToast('⚠️ Numele nu poate fi gol!');return;}
+    const p=db.players.find(x=>x.id==id);p.name=newName;
+    render();buildPlayerEditList();
+    try{await dbUpdatePlayer(p);showToast(`✅ Nume salvat: ${newName}`);}catch(e){showToast('⚠️ '+e.message);}
 }
-
-function deletePlayer(id) {
-    const p = db.players.find(x=>x.id==id);
-    showConfirm('🗑️',`Șterge ${p.name}?`,'Toate datele jucătorului vor fi șterse.','Șterge','#c62828',()=>{
-        db.players = db.players.filter(x=>x.id!=id);
-        db.nextMatch.confirmedIds = db.nextMatch.confirmedIds.filter(i=>i!=id);
-        render(); buildPlayerEditList();
-        showToast(`🗑️ ${p.name} șters.`);
+async function deletePlayer(id){
+    const p=db.players.find(x=>x.id==id);
+    showConfirm('🗑️',`Șterge ${p.name}?`,'Toate datele jucătorului vor fi șterse.','Șterge','#c62828',async()=>{
+        db.players=db.players.filter(x=>x.id!=id);
+        db.nextMatch.confirmedIds=db.nextMatch.confirmedIds.filter(i=>i!=id);
+        render();buildPlayerEditList();
+        try{
+            await sb.from('players').delete().eq('id',id);
+            showToast(`🗑️ ${p.name} șters.`);
+        }catch(e){showToast('⚠️ '+e.message);}
     });
 }
-
-function addNewPlayerFromSettings() {
-    const name = prompt('Numele jucătorului nou:');
-    if (!name||!name.trim()) return;
-    db.players.push({id:Date.now(), name:name.trim(), ratings:[{rater:"Initial",date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}], status:'bench', wins:0, games:0, matchHistory:[]});
-    render(); buildPlayerEditList();
+function addNewPlayerFromSettings(){
+    const name=prompt('Numele jucătorului nou:');if(!name||!name.trim())return;
+    const newP={id:Date.now(),name:name.trim(),status:'bench',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
+    db.players.push(newP);render();buildPlayerEditList();
+    dbUpdatePlayer(newP)
+        .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
+        .catch(e=>showToast('⚠️ '+e.message));
     showToast(`✅ ${name.trim()} adăugat!`);
 }
 
-// ══════════════════════════════════════
-//  PLAYER MODAL
-// ══════════════════════════════════════
-function openModal(id) {
-    currentPlayerId = id;
-    const p = db.players.find(x=>x.id==id);
-    document.getElementById('modalPlayerName').textContent = p.name;
-    document.getElementById('modalAvg').textContent = `⭐ ${getGeneralAvg(p).toFixed(1)}`;
-    document.getElementById('modalSmart').textContent = `★ Smart: ${getSmartRating(p).toFixed(2)}`;
-    const s = getStreak(p), el = document.getElementById('modalStreak');
-    if (s.count) { el.textContent = s.type==='W'?`🔥 ${s.count}V la rând`:`❄️ ${s.count}P la rând`; el.className='modal-streak-big '+(s.type==='W'?'streak-win':'streak-loss'); }
-    else { el.textContent=''; el.className='modal-streak-big'; }
-    const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
-    document.getElementById('algoInfo').innerHTML = `<strong>Smart Rating</strong>: General×32% + Viteză×12% + Tehnică×12% + Strategie×12% + Apărare×12% + WinRate×20% &nbsp;|&nbsp; WinRate → <strong>${wrScore}/10</strong>`;
-    const breakdown = [...CATS.map(c=>({label:CAT_LABELS[c],val:getCatAvg(p,c),weight:(W[c]*100).toFixed(0)+'%',color:CAT_COLORS[c]})),{label:'📊 Win Rate',val:p.games>0?1+p.wins/p.games*9:5,weight:'20%',color:'#a78bfa'}];
-    document.getElementById('algoBreakdown').innerHTML = `<div class="algo-title">Detaliu calcul</div>`+breakdown.map(b=>`<div class="algo-row"><div class="algo-label">${b.label}</div><div class="algo-track"><div class="algo-fill" style="width:${b.val*10}%;background:${b.color}"></div></div><div class="algo-val">${b.val.toFixed(1)}</div><div class="algo-weight">${b.weight}</div></div>`).join('');
-    buildCatTabs(p); buildRatingsList(p);
-    // Reset states
-    statsOpen=false; detailsOpen=false; ratingsListOpen=false; chartOpen=false;
+// ╔══════════════════════════════════════════════════════╗
+// ║  PUSH NOTIFICATIONS                                   ║
+// ╚══════════════════════════════════════════════════════╝
+async function enablePushNotifications(){
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+        showToast('⚠️ Browser-ul nu suportă push notifications.');return;
+    }
+    const playerName=document.getElementById('pushPlayerSelect').value;
+    if(!playerName){showToast('⚠️ Selectează jucătorul tău mai întâi!');return;}
+    try{
+        const permission=await Notification.requestPermission();
+        if(permission!=='granted'){showToast('⚠️ Permisiunea a fost refuzată.');return;}
+        const reg=await navigator.serviceWorker.ready;
+        const sub=await reg.pushManager.subscribe({
+            userVisibleOnly:true,
+            applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        // Save subscription to Supabase
+        await sb.from('push_subscriptions').upsert({
+            player_name:playerName,
+            subscription:sub.toJSON()
+        },{onConflict:'player_name'});
+        pushPlayerName=playerName;
+        localStorage.setItem('pushPlayerName',playerName);
+        document.getElementById('pushStatusVal').textContent='Activ';
+        document.getElementById('pushStatusVal').className='push-status-val active';
+        document.getElementById('pushPlayerVal').textContent=playerName;
+        showToast('🔔 Notificări activate pentru '+playerName+'!');
+    }catch(e){showToast('⚠️ Eroare push: '+e.message);}
+}
+
+async function sendPushToAll(payload){
+    // Apelează Supabase Edge Function care trimite notificările
+    // Creează funcția în Supabase Dashboard → Edge Functions → "send-push"
+    try{
+        await sb.functions.invoke('send-push',{body:payload});
+    }catch(e){
+        console.log('Push send skipped (edge function not set up):',e.message);
+    }
+}
+
+function urlBase64ToUint8Array(base64String){
+    const padding='='.repeat((4-base64String.length%4)%4);
+    const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+    const rawData=window.atob(base64);const outputArray=new Uint8Array(rawData.length);
+    for(let i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);
+    return outputArray;
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  PLAYER MODAL                                         ║
+// ╚══════════════════════════════════════════════════════╝
+function openModal(id){
+    currentPlayerId=id;const p=db.players.find(x=>x.id==id);
+    document.getElementById('modalPlayerName').textContent=p.name;
+    document.getElementById('modalAvg').textContent=`⭐ ${getGeneralAvg(p).toFixed(1)}`;
+    document.getElementById('modalSmart').textContent=`★ Smart: ${getSmartRating(p).toFixed(2)}`;
+    const s=getStreak(p),el=document.getElementById('modalStreak');
+    if(s.count){el.textContent=s.type==='W'?`🔥 ${s.count}V la rând`:`❄️ ${s.count}P la rând`;el.className='modal-streak-big '+(s.type==='W'?'streak-win':'streak-loss');}
+    else{el.textContent='';el.className='modal-streak-big';}
+    const wrScore=p.games>0?(1+p.wins/p.games*9).toFixed(1):'5.0';
+    document.getElementById('algoInfo').innerHTML=`<strong>Smart Rating</strong>: General×32% + Viteză×12% + Tehnică×12% + Strategie×12% + Apărare×12% + WinRate×20% &nbsp;|&nbsp; WinRate → <strong>${wrScore}/10</strong>`;
+    const breakdown=[...CATS.map(c=>({label:CAT_LABELS[c],val:getCatAvg(p,c),weight:(W[c]*100).toFixed(0)+'%',color:CAT_COLORS[c]})),{label:'📊 Win Rate',val:p.games>0?1+p.wins/p.games*9:5,weight:'20%',color:'#a78bfa'}];
+    document.getElementById('algoBreakdown').innerHTML=`<div class="algo-title">Detaliu calcul</div>`+breakdown.map(b=>`<div class="algo-row"><div class="algo-label">${b.label}</div><div class="algo-track"><div class="algo-fill" style="width:${b.val*10}%;background:${b.color}"></div></div><div class="algo-val">${b.val.toFixed(1)}</div><div class="algo-weight">${b.weight}</div></div>`).join('');
+    buildCatTabs(p);buildRatingsList(p);
+    statsOpen=false;detailsOpen=false;ratingsListOpen=false;chartOpen=false;
     document.getElementById('statsDetailWrap').classList.remove('open');
     document.getElementById('statsChevron').classList.remove('open');
     document.getElementById('ratingsListBody').classList.remove('open');
@@ -1070,68 +1393,31 @@ function openModal(id) {
     document.getElementById('detailsToggleBtn').lastChild.textContent=' Adaugă avantaje / dezavantaje';
     document.getElementById('chartBody').classList.remove('open');
     document.getElementById('chartIcon').classList.remove('open');
-    populateRaterDropdown(); resetCatInputs();
-    document.getElementById('modalOverlay').style.display = 'flex';
+    populateRaterDropdown();resetCatInputs();
+    document.getElementById('modalOverlay').style.display='flex';
 }
-
-function toggleStats() {
-    statsOpen=!statsOpen;
-    document.getElementById('statsDetailWrap').classList.toggle('open',statsOpen);
-    document.getElementById('statsChevron').classList.toggle('open',statsOpen);
-    if (statsOpen&&chartOpen) { const p=db.players.find(x=>x.id==currentPlayerId); if(p) buildRatingChart(p,activeCatTab); }
-}
-function toggleRatingsList() {
-    ratingsListOpen=!ratingsListOpen;
-    document.getElementById('ratingsListBody').classList.toggle('open',ratingsListOpen);
-    document.getElementById('ratingsListChevron').classList.toggle('open',ratingsListOpen);
-}
-function toggleDetails() {
-    detailsOpen=!detailsOpen;
-    document.getElementById('detailsSection').classList.toggle('open',detailsOpen);
-    const btn=document.getElementById('detailsToggleBtn');
-    btn.classList.toggle('open',detailsOpen);
-    document.getElementById('detailsToggleIcon').textContent=detailsOpen?'➖':'➕';
-    btn.lastChild.textContent=detailsOpen?' Ascunde detalii':' Adaugă avantaje / dezavantaje';
-}
-
-function populateRaterDropdown() {
-    const sel=document.getElementById('raterSelect');
-    sel.innerHTML='<option value="">👤 Cine votează?</option>';
-    db.players.forEach(p=>{const opt=document.createElement('option');opt.value=p.name;opt.textContent=p.name;sel.appendChild(opt);});
+function toggleStats(){statsOpen=!statsOpen;document.getElementById('statsDetailWrap').classList.toggle('open',statsOpen);document.getElementById('statsChevron').classList.toggle('open',statsOpen);if(statsOpen&&chartOpen){const p=db.players.find(x=>x.id==currentPlayerId);if(p)buildRatingChart(p,activeCatTab);}}
+function toggleRatingsList(){ratingsListOpen=!ratingsListOpen;document.getElementById('ratingsListBody').classList.toggle('open',ratingsListOpen);document.getElementById('ratingsListChevron').classList.toggle('open',ratingsListOpen);}
+function toggleDetails(){detailsOpen=!detailsOpen;document.getElementById('detailsSection').classList.toggle('open',detailsOpen);const btn=document.getElementById('detailsToggleBtn');btn.classList.toggle('open',detailsOpen);document.getElementById('detailsToggleIcon').textContent=detailsOpen?'➖':'➕';btn.lastChild.textContent=detailsOpen?' Ascunde detalii':' Adaugă avantaje / dezavantaje';}
+function populateRaterDropdown(){
+    const sel=document.getElementById('raterSelect');sel.innerHTML='<option value="">👤 Cine votează?</option>';
+    db.players.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
     const o=document.createElement('option');o.value='__other__';o.textContent='✏️ Altcineva...';sel.appendChild(o);
     document.getElementById('raterCustomWrap').classList.remove('show');
 }
-function onRaterSelectChange() {
-    document.getElementById('raterCustomWrap').classList.toggle('show',document.getElementById('raterSelect').value==='__other__');
-}
-
-function toggleChart() {
-    chartOpen=!chartOpen;
-    document.getElementById('chartBody').classList.toggle('open',chartOpen);
-    document.getElementById('chartIcon').classList.toggle('open',chartOpen);
-    if (chartOpen) { const p=db.players.find(x=>x.id==currentPlayerId); if(p) buildRatingChart(p,activeCatTab); }
-}
-function buildCatTabs(p) {
-    document.getElementById('catTabs').innerHTML=CATS.map(c=>`<div class="cat-tab ${c===activeCatTab?'active':''}" onclick="switchCatTab('${c}')">${CAT_LABELS[c]}</div>`).join('');
-}
-function switchCatTab(cat) {
-    activeCatTab=cat; const p=db.players.find(x=>x.id==currentPlayerId);
-    buildCatTabs(p); if(chartOpen&&statsOpen) buildRatingChart(p,cat);
-    document.getElementById('chartLabel').textContent=`📈 Evoluție Rating — ${CAT_LABELS[cat]}`;
-}
-function buildRatingChart(p,cat) {
+function onRaterSelectChange(){document.getElementById('raterCustomWrap').classList.toggle('show',document.getElementById('raterSelect').value==='__other__');}
+function toggleChart(){chartOpen=!chartOpen;document.getElementById('chartBody').classList.toggle('open',chartOpen);document.getElementById('chartIcon').classList.toggle('open',chartOpen);if(chartOpen){const p=db.players.find(x=>x.id==currentPlayerId);if(p)buildRatingChart(p,activeCatTab);}}
+function buildCatTabs(p){document.getElementById('catTabs').innerHTML=CATS.map(c=>`<div class="cat-tab ${c===activeCatTab?'active':''}" onclick="switchCatTab('${c}')">${CAT_LABELS[c]}</div>`).join('');}
+function switchCatTab(cat){activeCatTab=cat;const p=db.players.find(x=>x.id==currentPlayerId);buildCatTabs(p);if(chartOpen&&statsOpen)buildRatingChart(p,cat);document.getElementById('chartLabel').textContent=`📈 Evoluție Rating — ${CAT_LABELS[cat]}`;}
+function buildRatingChart(p,cat){
     if(ratingChartInstance){ratingChartInstance.destroy();ratingChartInstance=null;}
     const ctx=document.getElementById('ratingChart').getContext('2d');
-    const labels=p.ratings.map((r,i)=>r.rater||`#${i+1}`), vals=p.ratings.map(r=>r[cat]||5);
+    const labels=p.ratings.map((r,i)=>r.rater||`#${i+1}`),vals=p.ratings.map(r=>r[cat]||5);
     const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
-    ratingChartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[
-        {label:'Rating',data:vals,borderColor:CAT_COLORS[cat],backgroundColor:CAT_COLORS[cat]+'15',pointBackgroundColor:CAT_COLORS[cat],pointRadius:4,tension:0.35,fill:true},
-        {label:'Medie',data:vals.map(()=>avg),borderColor:'rgba(255,255,255,0.15)',borderDash:[5,5],pointRadius:0,fill:false}
-    ]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:'#555',stepSize:2},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#555',maxRotation:0,font:{size:9}},grid:{display:false}}}}});
+    ratingChartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Rating',data:vals,borderColor:CAT_COLORS[cat],backgroundColor:CAT_COLORS[cat]+'15',pointBackgroundColor:CAT_COLORS[cat],pointRadius:4,tension:0.35,fill:true},{label:'Medie',data:vals.map(()=>avg),borderColor:'rgba(255,255,255,0.15)',borderDash:[5,5],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:'#555',stepSize:2},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#555',maxRotation:0,font:{size:9}},grid:{display:false}}}}});
 }
-function buildRatingsList(p) {
-    const count=p.ratings.length;
-    document.getElementById('ratingsListLabel').textContent=`📊 Voturi existente (${count})`;
+function buildRatingsList(p){
+    const count=p.ratings.length;document.getElementById('ratingsListLabel').textContent=`📊 Voturi existente (${count})`;
     document.getElementById('ratingsList').innerHTML=p.ratings.map((r,i)=>`
         <div class="rating-entry">
             <div class="rating-entry-left">
@@ -1144,62 +1430,65 @@ function buildRatingsList(p) {
             </div>
         </div>`).join('');
 }
-
-function buildGeneralBigPicker() {
-    const row=document.getElementById('stars-general-big'); if(!row) return;
-    row.innerHTML='';
+function buildGeneralBigPicker(){
+    const row=document.getElementById('stars-general-big');if(!row)return;row.innerHTML='';
     for(let i=1;i<=10;i++){const btn=document.createElement('button');btn.className='general-star-btn'+(i===selectedCats.general?' selected':'');btn.setAttribute('data-val',i);btn.textContent=i;btn.onclick=()=>selectGeneralStar(i);row.appendChild(btn);}
 }
-function selectGeneralStar(val) {
-    selectedCats.general=val;
-    const valEl=document.getElementById('lbl-general-big');valEl.textContent=val;valEl.className='general-rating-val-big filled';
+function selectGeneralStar(val){
+    selectedCats.general=val;const valEl=document.getElementById('lbl-general-big');valEl.textContent=val;valEl.className='general-rating-val-big filled';
     document.querySelectorAll('#stars-general-big .general-star-btn').forEach((b,i)=>b.classList.toggle('selected',i+1===val));
-    document.getElementById('generalRatingWrap').classList.add('has-value');
-    document.getElementById('generalRequired').style.display='none';
+    document.getElementById('generalRatingWrap').classList.add('has-value');document.getElementById('generalRequired').style.display='none';
 }
-function buildSubCatPickers() {
+function buildSubCatPickers(){
     ['viteza','tehnica','strategie','aparare'].forEach(cat=>{
-        const row=document.getElementById(`stars-${cat}`); if(!row) return;
-        row.innerHTML='';
+        const row=document.getElementById(`stars-${cat}`);if(!row)return;row.innerHTML='';
         for(let i=1;i<=10;i++){const btn=document.createElement('button');btn.className='cat-star-btn'+(i===selectedCats[cat]?' selected':'');btn.textContent=i;btn.onclick=()=>selectSubCatStar(cat,i);row.appendChild(btn);}
     });
 }
-function selectSubCatStar(cat,val) {
-    selectedCats[cat]=val;
-    const lbl=document.getElementById(`lbl-${cat}`);lbl.textContent=val;lbl.className='cat-val-badge set';
+function selectSubCatStar(cat,val){
+    selectedCats[cat]=val;const lbl=document.getElementById(`lbl-${cat}`);lbl.textContent=val;lbl.className='cat-val-badge set';
     document.querySelectorAll(`#stars-${cat} .cat-star-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));
 }
-function resetCatInputs() {
+function resetCatInputs(){
     selectedCats={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
     const valEl=document.getElementById('lbl-general-big');valEl.textContent='—';valEl.className='general-rating-val-big empty';
-    document.getElementById('generalRatingWrap').classList.remove('has-value');
-    document.getElementById('generalRequired').style.display='';
+    document.getElementById('generalRatingWrap').classList.remove('has-value');document.getElementById('generalRequired').style.display='';
     buildGeneralBigPicker();
     ['viteza','tehnica','strategie','aparare'].forEach(c=>{const lbl=document.getElementById(`lbl-${c}`);if(lbl){lbl.textContent='—';lbl.className='cat-val-badge unset';}});
     buildSubCatPickers();
 }
-
 function handleOverlayClick(e){if(e.target===document.getElementById('modalOverlay'))closeModal();}
 function closeModal(){document.getElementById('modalOverlay').style.display='none';}
 
-function submitRating() {
+async function submitRating(){
     const selVal=document.getElementById('raterSelect').value;
     if(!selVal){showToast('⚠️ Selectează cine votează!');return;}
     if(selectedCats.general===null){showToast('⚠️ Selectează nota generală!');return;}
     const name=selVal==='__other__'?(document.getElementById('raterCustom').value.trim()||'Anonim'):selVal;
     const g=selectedCats.general;
-    db.players.find(x=>x.id==currentPlayerId).ratings.push({rater:name,date:today,general:g,viteza:selectedCats.viteza??g,tehnica:selectedCats.tehnica??g,strategie:selectedCats.strategie??g,aparare:selectedCats.aparare??g});
-    openModal(currentPlayerId); render(); showToast(`✅ Nota ${g} salvată! (${name})`);
-}
-function deleteRating(index) {
+    const ratingData={rater:name,date:today,general:g,viteza:selectedCats.viteza??g,tehnica:selectedCats.tehnica??g,strategie:selectedCats.strategie??g,aparare:selectedCats.aparare??g};
     const p=db.players.find(x=>x.id==currentPlayerId);
-    if(p.ratings.length>1){p.ratings.splice(index,1);openModal(currentPlayerId);render();}
+    p.ratings.push({...ratingData,_dbId:null});
+    openModal(currentPlayerId);render();
+    showToast(`✅ Nota ${g} salvată! (${name})`);
+    try{
+        const dbId=await dbInsertRating(currentPlayerId,ratingData);
+        p.ratings[p.ratings.length-1]._dbId=dbId;
+    }catch(e){showToast('⚠️ Eroare salvare: '+e.message);}
+}
+async function deleteRating(index){
+    const p=db.players.find(x=>x.id==currentPlayerId);
+    if(p.ratings.length>1){
+        const rating=p.ratings[index];
+        p.ratings.splice(index,1);openModal(currentPlayerId);render();
+        if(rating._dbId){
+            try{await dbDeleteRating(rating._dbId);}catch(e){showToast('⚠️ '+e.message);}
+        }
+    }
 }
 
-// ══════════════════════════════════════
-//  MATCH DETAIL MODAL
-// ══════════════════════════════════════
-function openMatchModal(idx) {
+// ── Match Detail Modal ──
+function openMatchModal(idx){
     const h=db.history[idx];
     document.getElementById('matchModalDate').textContent=`📅 ${h.date}`;
     const isO=h.winner==='Portocaliu';
@@ -1213,37 +1502,33 @@ function openMatchModal(idx) {
 }
 function closeMatchModal(){document.getElementById('matchModalOverlay').style.display='none';}
 
-// ══════════════════════════════════════
-//  QUICK VOTE
-// ══════════════════════════════════════
-function openQuickVote() {
+// ╔══════════════════════════════════════════════════════╗
+// ║  QUICK VOTE                                           ║
+// ╚══════════════════════════════════════════════════════╝
+function openQuickVote(){
     const activePlayers=db.players.filter(p=>p.status==='orange'||p.status==='green');
     if(activePlayers.length===0){showToast('⚠️ Niciun jucător activ în meci!');return;}
-    qvVotes={};
-    activePlayers.forEach(p=>{qvVotes[p.id]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};});
-    const sel=document.getElementById('qvRaterSelect');
-    sel.innerHTML='<option value="">— Selectează —</option>';
-    db.players.forEach(p=>{const opt=document.createElement('option');opt.value=p.name;opt.textContent=p.name;sel.appendChild(opt);});
+    qvVotes={};activePlayers.forEach(p=>{qvVotes[p.id]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};});
+    const sel=document.getElementById('qvRaterSelect');sel.innerHTML='<option value="">— Selectează —</option>';
+    db.players.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
     const o=document.createElement('option');o.value='__other__';o.textContent='✏️ Altcineva...';sel.appendChild(o);
     document.getElementById('qvRaterCustomWrap').style.display='none';
-    buildQvPlayersList(activePlayers); updateQvProgress();
+    buildQvPlayersList(activePlayers);updateQvProgress();
     document.getElementById('qvModalOverlay').style.display='flex';
 }
 function onQvRaterChange(){document.getElementById('qvRaterCustomWrap').style.display=document.getElementById('qvRaterSelect').value==='__other__'?'flex':'none';}
 function closeQuickVote(){document.getElementById('qvModalOverlay').style.display='none';}
-
-function buildQvPlayersList(players) {
-    const container=document.getElementById('qvPlayersList'); container.innerHTML='';
-    const orange=players.filter(p=>p.status==='orange'), green=players.filter(p=>p.status==='green');
+function buildQvPlayersList(players){
+    const container=document.getElementById('qvPlayersList');container.innerHTML='';
+    const orange=players.filter(p=>p.status==='orange'),green=players.filter(p=>p.status==='green');
     function renderTeam(teamPlayers,label,color){
         if(!teamPlayers.length)return;
         const lbl=document.createElement('div');lbl.className='qv-team-label';lbl.style.color=color;lbl.textContent=label;container.appendChild(lbl);
         teamPlayers.forEach(p=>{
-            const avg=getGeneralAvg(p).toFixed(1), row=document.createElement('div');
-            row.className='qv-player-row'; row.id=`qvrow-${p.id}`;
-            let genBtns='';
-            for(let i=1;i<=10;i++) genBtns+=`<button class="qv-gen-btn" data-v="${i}" onclick="qvSelectGeneral(${p.id},${i})">${i}</button>`;
-            row.innerHTML=`<div class="qv-player-top"><span class="qv-player-name">${p.name}</span><span class="qv-player-prev">⭐ ${avg} actual</span><button class="qv-details-btn" id="qvdetbtn-${p.id}" onclick="qvToggleDetails(${p.id})">+ detalii</button></div>
+            const avg=getGeneralAvg(p).toFixed(1),row=document.createElement('div');
+            row.className='qv-player-row';row.id=`qvrow-${p.id}`;
+            let genBtns='';for(let i=1;i<=10;i++)genBtns+=`<button class="qv-gen-btn" data-v="${i}" onclick="qvSelectGeneral(${p.id},${i})">${i}</button>`;
+            row.innerHTML=`<div class="qv-player-top"><span class="qv-player-name">${p.name}</span><span class="qv-player-prev">⭐ ${avg}</span><button class="qv-details-btn" id="qvdetbtn-${p.id}" onclick="qvToggleDetails(${p.id})">+ detalii</button></div>
                 <div class="qv-gen-row" id="qvgen-${p.id}">${genBtns}</div>
                 <div class="qv-sub-section" id="qvsub-${p.id}"><div class="qv-sub-grid">${['viteza','tehnica','strategie','aparare'].map(cat=>`<div class="qv-sub-group"><div class="qv-sub-label">${{viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'}[cat]}<span class="qv-sub-val unset" id="qvsublbl-${p.id}-${cat}">—</span></div><div class="qv-sub-row" id="qvsubrow-${p.id}-${cat}">${Array.from({length:10},(_,i)=>`<button class="qv-sub-btn" onclick="qvSelectSub(${p.id},'${cat}',${i+1})">${i+1}</button>`).join('')}</div></div>`).join('')}</div></div>`;
             container.appendChild(row);
@@ -1252,38 +1537,37 @@ function buildQvPlayersList(players) {
     renderTeam(orange,'🟠 Echipa Portocalie','var(--orange)');
     renderTeam(green,'🟢 Echipa Verde','var(--green)');
 }
-function qvSelectGeneral(playerId,val){
-    qvVotes[playerId].general=val;
-    document.querySelectorAll(`#qvgen-${playerId} .qv-gen-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));
-    document.getElementById(`qvrow-${playerId}`).classList.remove('qv-skipped');
-    updateQvProgress();
-}
-function qvSelectSub(playerId,cat,val){
-    qvVotes[playerId][cat]=val;
-    const lbl=document.getElementById(`qvsublbl-${playerId}-${cat}`);lbl.textContent=val;lbl.className='qv-sub-val set';
-    document.querySelectorAll(`#qvsubrow-${playerId}-${cat} .qv-sub-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));
-}
-function qvToggleDetails(playerId){
-    const sub=document.getElementById(`qvsub-${playerId}`),btn=document.getElementById(`qvdetbtn-${playerId}`);
-    btn.textContent=sub.classList.toggle('open')?'− detalii':'+ detalii';
-}
-function updateQvProgress(){
-    const total=Object.keys(qvVotes).length,done=Object.values(qvVotes).filter(v=>v.general!==null).length;
-    document.getElementById('qvProgress').innerHTML=`Votat: <span>${done}/${total}</span> jucători`;
-}
-function submitQuickVote(){
+function qvSelectGeneral(playerId,val){qvVotes[playerId].general=val;document.querySelectorAll(`#qvgen-${playerId} .qv-gen-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));updateQvProgress();}
+function qvSelectSub(playerId,cat,val){qvVotes[playerId][cat]=val;const lbl=document.getElementById(`qvsublbl-${playerId}-${cat}`);lbl.textContent=val;lbl.className='qv-sub-val set';document.querySelectorAll(`#qvsubrow-${playerId}-${cat} .qv-sub-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));}
+function qvToggleDetails(playerId){const sub=document.getElementById(`qvsub-${playerId}`),btn=document.getElementById(`qvdetbtn-${playerId}`);btn.textContent=sub.classList.toggle('open')?'− detalii':'+ detalii';}
+function updateQvProgress(){const total=Object.keys(qvVotes).length,done=Object.values(qvVotes).filter(v=>v.general!==null).length;document.getElementById('qvProgress').innerHTML=`Votat: <span>${done}/${total}</span> jucători`;}
+async function submitQuickVote(){
     const selVal=document.getElementById('qvRaterSelect').value;
     if(!selVal){showToast('⚠️ Selectează cine votează!');return;}
     const name=selVal==='__other__'?(document.getElementById('qvRaterCustom').value.trim()||'Anonim'):selVal;
     const rated=Object.entries(qvVotes).filter(([,v])=>v.general!==null);
     if(rated.length===0){showToast('⚠️ Nu ai votat niciun jucător!');return;}
-    rated.forEach(([id,v])=>{const g=v.general;db.players.find(p=>p.id==id).ratings.push({rater:name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g});});
-    render(); closeQuickVote(); showToast(`✅ ${rated.length} note salvate de la ${name}!`);
+    rated.forEach(([id,v])=>{
+        const g=v.general,p=db.players.find(x=>x.id==id);
+        const r={_dbId:null,rater:name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g};
+        p.ratings.push(r);
+    });
+    render();closeQuickVote();showToast(`✅ ${rated.length} note salvate de la ${name}!`);
+    // Save all to DB
+    for(const [id,v] of rated){
+        const g=v.general;
+        const rData={rater:name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g};
+        try{
+            const dbId=await dbInsertRating(id,rData);
+            const p=db.players.find(x=>x.id==id);
+            if(p)p.ratings[p.ratings.length-1]._dbId=dbId;
+        }catch(e){console.error('QV save error:',e);}
+    }
 }
 
-// ══════════════════════════════════════
-//  CSV
-// ══════════════════════════════════════
+// ╔══════════════════════════════════════════════════════╗
+// ║  CSV                                                  ║
+// ╚══════════════════════════════════════════════════════╝
 function openCSVModal(){document.getElementById('csvModalOverlay').style.display='flex';}
 function closeCsvModal(){document.getElementById('csvModalOverlay').style.display='none';csvParsed=null;document.getElementById('csvPreviewArea').style.display='none';}
 function previewCSV(event){
@@ -1292,39 +1576,70 @@ function previewCSV(event){
     reader.onload=e=>{
         try{
             const lines=e.target.result.split('\n').filter(l=>l.trim()),headers=parseCSVLine(lines[0]),results=[];
-            for(let row=1;row<lines.length;row++){const vals=parseCSVLine(lines[row]);if(vals.length<3)continue;const evaluator=vals[1]||'Anonim',rowDate=vals[0]?vals[0].split(' ')[0]:today,playerRatings={};
-                for(let col=2;col<headers.length;col++){const parts=(headers[col]||'').split('-').map(s=>s.trim());if(parts.length<2)continue;const pName=parts[0].trim(),catRaw=parts[1].toLowerCase().trim().replace('viteză','viteza').replace('tehnică','tehnica').replace('apărare','aparare');if(!CATS.includes(catRaw))continue;if(!playerRatings[pName])playerRatings[pName]={general:5,viteza:5,tehnica:5,strategie:5,aparare:5};playerRatings[pName][catRaw]=Math.min(10,Math.max(1,parseInt(vals[col])||5));}
-                Object.entries(playerRatings).forEach(([name,cats])=>{const match=db.players.find(p=>p.name.toLowerCase()===name.toLowerCase());results.push({evaluator,date:rowDate,playerName:name,cats,matched:!!match,matchedPlayer:match});});}
+            for(let row=1;row<lines.length;row++){const vals=parseCSVLine(lines[row]);if(vals.length<3)continue;const evaluator=vals[1]||'Anonim',rowDate=vals[0]?vals[0].split(' ')[0]:today,pR={};
+                for(let col=2;col<headers.length;col++){const parts=(headers[col]||'').split('-').map(s=>s.trim());if(parts.length<2)continue;const pName=parts[0].trim(),catRaw=parts[1].toLowerCase().trim().replace('viteză','viteza').replace('tehnică','tehnica').replace('apărare','aparare');if(!CATS.includes(catRaw))continue;if(!pR[pName])pR[pName]={general:5,viteza:5,tehnica:5,strategie:5,aparare:5};pR[pName][catRaw]=Math.min(10,Math.max(1,parseInt(vals[col])||5));}
+                Object.entries(pR).forEach(([name,cats])=>{const match=db.players.find(p=>p.name.toLowerCase()===name.toLowerCase());results.push({evaluator,date:rowDate,playerName:name,cats,matched:!!match,matchedPlayer:match});});}
             csvParsed=results;
-            document.getElementById('csvResultRows').innerHTML=results.map(r=>`<div class="csv-result-row"><span class="${r.matched?'csv-match':'csv-no-match'}">${r.matched?'✓':'✗'} ${r.playerName}</span><span style="color:#666;font-size:0.75rem;">${r.evaluator} — ⚽${r.cats.general} ⚡${r.cats.viteza}</span></div>`).join('');
+            document.getElementById('csvResultRows').innerHTML=results.map(r=>`<div class="csv-result-row"><span class="${r.matched?'csv-match':'csv-no-match'}">${r.matched?'✓':'✗'} ${r.playerName}</span><span style="color:#666;font-size:0.75rem;">${r.evaluator} — ⚽${r.cats.general}</span></div>`).join('');
             document.getElementById('csvPreviewArea').style.display='block';
         }catch(err){showToast('❌ Eroare CSV: '+err.message);}
     };reader.readAsText(file);
 }
 function parseCSVLine(line){const r=[];let cur='',inQ=false;for(const ch of line){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){r.push(cur.trim());cur='';}else cur+=ch;}r.push(cur.trim());return r;}
-function confirmCSVImport(){if(!csvParsed)return;let n=0;csvParsed.forEach(r=>{if(r.matched&&r.matchedPlayer){r.matchedPlayer.ratings.push({rater:r.evaluator,date:r.date,...r.cats});n++;}});render();closeCsvModal();showToast(`✅ Import reușit! ${n} evaluări adăugate.`);}
+async function confirmCSVImport(){
+    if(!csvParsed)return;
+    let n=0;
+    for(const r of csvParsed){
+        if(r.matched&&r.matchedPlayer){
+            const rData={rater:r.evaluator,date:r.date,...r.cats};
+            r.matchedPlayer.ratings.push({_dbId:null,...rData});
+            try{const dbId=await dbInsertRating(r.matchedPlayer.id,rData);r.matchedPlayer.ratings[r.matchedPlayer.ratings.length-1]._dbId=dbId;}catch(e){}
+            n++;
+        }
+    }
+    render();closeCsvModal();showToast(`✅ Import reușit! ${n} evaluări adăugate.`);
+}
 
-// ══════════════════════════════════════
-//  DATA
-// ══════════════════════════════════════
-function exportData(){const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fotbal_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);}
-function importData(event){
+// ╔══════════════════════════════════════════════════════╗
+// ║  DATA EXPORT / IMPORT                                 ║
+// ╚══════════════════════════════════════════════════════╝
+function exportData(){
+    const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fotbal_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
+}
+async function importData(event){
     const file=event.target.files[0];if(!file)return;
     const reader=new FileReader();
-    reader.onload=e=>{
-        try{const imp=JSON.parse(e.target.result);if(!imp.players||!imp.history)throw new Error();
-            showConfirm('📂','Import Date?',`${imp.players.length} jucători. Datele actuale vor fi suprascrise.`,'Import','#1a4a7a',()=>{
-                db=imp;if(!db.nextMatch)db.nextMatch={date:null,time:null,location:null,confirmedIds:[]};
-                db.players.forEach(p=>{if(!p.matchHistory)p.matchHistory=[];p.ratings=p.ratings.map(r=>r.value!==undefined&&r.general===undefined?{rater:r.rater||'?',date:r.date||'—',general:r.value,viteza:r.value,tehnica:r.value,strategie:r.value,aparare:r.value}:r);});
-                save();render();showToast('✅ Import reușit!');
+    reader.onload=async e=>{
+        try{
+            const imp=JSON.parse(e.target.result);if(!imp.players||!imp.history)throw new Error('Format invalid');
+            showConfirm('📂','Import Date?',`${imp.players.length} jucători. Datele actuale vor fi suprascrise.`,'Import','#1a4a7a',async()=>{
+                showLoading(true);
+                try{
+                    // Wipe existing
+                    await sb.from('ratings').delete().neq('id','00000000-0000-0000-0000-000000000000');
+                    await sb.from('players').delete().neq('id',0);
+                    // Insert imported
+                    for(const p of imp.players){
+                        await sb.from('players').insert({id:p.id,name:p.name,status:p.status||'bench',wins:p.wins||0,games:p.games||0,match_history:p.matchHistory||[]});
+                        if(p.ratings?.length){
+                            const rRows=p.ratings.map(r=>({player_id:p.id,rater:r.rater||'?',date:r.date||'—',general:r.general||r.value||5,viteza:r.viteza||r.value||5,tehnica:r.tehnica||r.value||5,strategie:r.strategie||r.value||5,aparare:r.aparare||r.value||5}));
+                            await sb.from('ratings').insert(rRows);
+                        }
+                    }
+                    for(const h of imp.history){await sb.from('match_history').insert({date:h.date,winner:h.winner,score:h.score,orange_players:h.orangePlayers||[],green_players:h.greenPlayers||[]});}
+                    await loadAll();
+                    showToast('✅ Import reușit!');
+                }catch(e){showToast('❌ Import eșuat: '+e.message);}
+                finally{showLoading(false);}
             });
         }catch{showToast('❌ Fișier invalid!');}
     };reader.readAsText(file);event.target.value='';
 }
 
-// ══════════════════════════════════════
-//  PDF
-// ══════════════════════════════════════
+// ╔══════════════════════════════════════════════════════╗
+// ║  PDF                                                  ║
+// ╚══════════════════════════════════════════════════════╝
 function exportPDF(){
     const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     const W2=210,M=16;let y=20;
@@ -1355,6 +1670,32 @@ function exportPDF(){
     });
     doc.setFontSize(7);doc.setTextColor(50,55,70);doc.text(`${document.getElementById('clubTitle').textContent.trim()} — Manager Fotbal 2026`,W2/2,292,{align:'center'});
     doc.save(`raport_fotbal_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  SERVICE WORKER REGISTRATION                          ║
+// ╚══════════════════════════════════════════════════════╝
+async function registerServiceWorker(){
+    if(!('serviceWorker' in navigator))return;
+    try{
+        await navigator.serviceWorker.register('/sw.js');
+        console.log('✅ Service Worker registered');
+    }catch(e){
+        console.log('SW registration skipped (local dev?):', e.message);
+    }
+}
+
+// ╔══════════════════════════════════════════════════════╗
+// ║  INIT                                                 ║
+// ╚══════════════════════════════════════════════════════╝
+async function init(){
+    document.getElementById('current-date').innerText=new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    await registerServiceWorker();
+    await loadAll();
+    setupRealtime();
+    // Online/offline detection
+    window.addEventListener('online', ()=>{setConnected(true);loadAll();});
+    window.addEventListener('offline',()=>setConnected(false));
 }
 
 init();
