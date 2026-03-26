@@ -83,15 +83,18 @@
         .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;}
         .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#82b1ff;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
-        .dashboard{display:grid;grid-template-columns:1fr 1fr 300px;gap:14px;}
+        .dashboard{display:grid;grid-template-columns:1fr 1fr 220px 220px;gap:14px;}
         .column{background:#0f1118;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
-        .column-bench{border-style:dashed;border-color:#333;}
+        .column-bench{border-style:dashed;border-color:#1a5276;}
+        .column-active{border-style:dashed;border-color:#333;}
         .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:4px;}
         .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
         .header-orange .col-header{background:linear-gradient(135deg,#ff6a00,#ee8a00);}
         .header-green .col-header{background:linear-gradient(135deg,#1a7a30,#28a745);}
-        .header-bench .col-header{background:#1c1f2b;}
-        .header-bench .col-header-title{color:#888;}
+        .header-bench .col-header{background:linear-gradient(135deg,#0d2040,#1a3060);}
+        .header-bench .col-header-title{color:#82b1ff;}
+        .header-active .col-header{background:#1c1f2b;}
+        .header-active .col-header-title{color:#888;}
         .team-rating-info{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:700;flex-wrap:wrap;}
         .team-avg-badge{background:rgba(0,0,0,0.35);border-radius:20px;padding:2px 10px;color:var(--star);font-size:0.9rem;}
         .team-count-badge{background:rgba(0,0,0,0.25);border-radius:20px;padding:2px 8px;color:rgba(255,255,255,0.7);font-size:0.8rem;}
@@ -469,7 +472,8 @@
         .btn-link-account{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;white-space:nowrap;}
 
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0f1118}::-webkit-scrollbar-thumb{background:#2a2d40;border-radius:3px}
-        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 1fr}.column-bench{grid-column:1/-1}}
+        @media(max-width:1200px){.dashboard{grid-template-columns:1fr 1fr 200px 200px}}
+        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.column-bench,.column-active{grid-column:span 1}}
         @media(max-width:640px){.dashboard{grid-template-columns:1fr}.cat-inputs{grid-template-columns:1fr}.general-star-row{flex-wrap:wrap}.general-star-btn{min-width:calc(20% - 3px)}.settings-tabs{overflow-x:auto}}
     </style>
 </head>
@@ -569,7 +573,7 @@
 <!-- DASHBOARD -->
 <div class="page">
 <div class="dashboard">
-    <div class="column header-orange" id="col-orange" ondrop="drop(event)" ondragover="allowDrop(event)">
+    <div class="column header-orange" id="col-orange" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Portocalie</div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
@@ -577,7 +581,7 @@
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
-    <div class="column header-green" id="col-green" ondrop="drop(event)" ondragover="allowDrop(event)">
+    <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Verde</div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-green">★ —</span><span class="team-count-badge" id="count-green">0 jucători</span></div>
@@ -585,12 +589,19 @@
         </div>
         <div class="col-body" id="list-green"></div>
     </div>
-    <div class="column column-bench" id="col-bench" ondrop="drop(event)" ondragover="allowDrop(event)">
-        <div class="col-header header-bench">
-            <div class="col-header-title">Jucători Activi</div>
+    <div class="column column-bench header-bench" id="col-bench" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
+        <div class="col-header">
+            <div class="col-header-title">Pe Bancă</div>
             <div class="team-rating-info"><span class="team-count-badge" id="count-bench">0 jucători</span></div>
         </div>
         <div class="col-body" id="list-bench"></div>
+    </div>
+    <div class="column column-active header-active" id="col-active" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
+        <div class="col-header">
+            <div class="col-header-title">Jucători Activi</div>
+            <div class="team-rating-info"><span class="team-count-badge" id="count-active">0 jucători</span></div>
+        </div>
+        <div class="col-body" id="list-active"></div>
     </div>
 
     <!-- LOBBY -->
@@ -1291,11 +1302,19 @@ function showConfirm(icon,title,msg,yesLabel,yesBg,cb){
 function closeConfirm(){document.getElementById('confirmOverlay').style.display='none';}
 
 function render(){
-    ['orange','green','bench'].forEach(t=>document.getElementById(`list-${t}`).innerHTML='');
+    ['orange','green','bench','active'].forEach(t=>{
+        const el = document.getElementById(`list-${t}`);
+        if(el) el.innerHTML='';
+    });
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    const byTeam={orange:[],green:[],bench:[]};
-    sorted.forEach(p=>byTeam[p.status]?.push(p)||(byTeam.bench.push(p)));
-    ['orange','green','bench'].forEach(team=>{
+    const byTeam={orange:[],green:[],bench:[],active:[]};
+    sorted.forEach(p=>{
+        const s = p.status;
+        if(byTeam[s]) byTeam[s].push(p);
+        else byTeam.active.push(p); // fallback — status necunoscut → Jucători Activi
+    });
+    const admin = isAdmin();
+    ['orange','green','bench','active'].forEach(team=>{
         byTeam[team].forEach((p,idx)=>{
             const smart=getSmartRating(p).toFixed(1),general=getGeneralAvg(p).toFixed(1);
             const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
@@ -1304,19 +1323,25 @@ function render(){
             const streakHtml=s.count?(s.type==='W'?`<span class="streak-badge streak-win">🔥 ${s.count}V</span>`:`<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`):'';
             const catBars=CATS.filter(c=>c!=='general').map(c=>`<div class="cat-bar-item"><div class="cat-bar-track"><div class="cat-bar-fill" style="width:${getCatAvg(p,c)*10}%;background:${CAT_COLORS[c]}"></div></div><div class="cat-bar-label">${c.slice(0,3)}</div></div>`).join('');
             const card=document.createElement('div');
-            card.className='player-card';card.draggable=true;card.id=`p-${p.id}`;
-            card.ondragstart=e=>e.dataTransfer.setData("text",p.id);
+            card.className='player-card';
+            card.id=`p-${p.id}`;
             card.onclick=()=>openModal(p.id);
+            // Drag only for admin
+            if(admin){
+                card.draggable=true;
+                card.ondragstart=e=>e.dataTransfer.setData("text",p.id);
+                card.style.cursor='grab';
+            }
             card.innerHTML=`<div class="player-rank-label ${rankClass}"></div>
-                <div class="card-top"><span class="player-name">${p.name}<span class="player-id-tag">#${p.id}</span></span>
+                <div class="card-top"><span class="player-name">${p.name}</span>
                 <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart">★ ${smart}</span></div></div>
                 <div class="cat-bars">${catBars}</div>
                 <div class="player-stats"><span>${p.ratings.length} voturi</span><span>V:${p.wins}/M:${p.games}(${wr})</span>${streakHtml}</div>`;
-            document.getElementById(`list-${team}`).appendChild(card);
+            const container = document.getElementById(`list-${team}`);
+            if(container) container.appendChild(card);
         });
     });
     updateTeamStats();renderLeaderboard();renderHistory();renderLobby();
-    // Also save to localStorage as offline backup
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
 }
 
@@ -1329,6 +1354,7 @@ function updateTeamStats(){
         document.getElementById(`bar-${team}`).style.width=(n?Math.min((tot/n)/10*100,100):0)+'%';
     });
     document.getElementById('count-bench').textContent=`${db.players.filter(p=>p.status==='bench').length} jucători`;
+    document.getElementById('count-active').textContent=`${db.players.filter(p=>p.status==='active').length} jucători`;
 }
 function renderLeaderboard(){
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
@@ -1416,15 +1442,16 @@ async function toggleLobbyPresence(playerId){
     const inAbs  = abs.indexOf(playerId);
 
     if(inConf === -1 && inAbs === -1){
-        // Niciuna → PREZENT + mută pe bench
+        // Niciuna → PREZENT → mută pe bench
         ids.push(playerId);
         const p = db.players.find(x=>x.id==playerId);
-        if(p && p.status==='inactive') { p.status='bench'; await dbUpdatePlayer(p); }
+        if(p && p.status === 'active') { p.status='bench'; await dbUpdatePlayer(p); }
     } else if(inConf !== -1){
-        // PREZENT → ABSENT
+        // PREZENT → ABSENT → mută înapoi în active
         ids.splice(inConf,1);
         abs.push(playerId);
-        // Scoate de pe bench dacă era pus
+        const p = db.players.find(x=>x.id==playerId);
+        if(p && p.status === 'bench') { p.status='active'; await dbUpdatePlayer(p); }
     } else {
         // ABSENT → niciuna
         abs.splice(inAbs,1);
@@ -1464,15 +1491,22 @@ async function clearSchedule(){
     try{await dbSaveNextMatch();showToast('🗑️ Meci șters.');}catch(e){showToast('⚠️ '+e.message);}
 }
 function formTeamsFromLobby(){
-    const confirmed=db.players.filter(p=>db.nextMatch.confirmedIds.includes(p.id));
-    if(confirmed.length<2){showToast('⚠️ Minim 2 jucători confirmați!');return;}
-    db.players.forEach(p=>{if(!db.nextMatch.confirmedIds.includes(p.id))p.status='bench';});
-    const sorted=[...confirmed].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    let oSum=0,gSum=0;
-    sorted.forEach(p=>{if(oSum<=gSum){p.status='orange';oSum+=getSmartRating(p);}else{p.status='green';gSum+=getSmartRating(p);}});
+    const confirmed = db.players.filter(p => db.nextMatch.confirmedIds.includes(p.id));
+    if(confirmed.length < 2){ showToast('⚠️ Minim 2 jucători confirmați!'); return; }
+    // Resetează echipele — cei care nu sunt confirmați rămân unde sunt
+    db.players.forEach(p => {
+        if(p.status === 'orange' || p.status === 'green') p.status = 'bench';
+    });
+    const sorted = [...confirmed].sort((a,b) => getSmartRating(b) - getSmartRating(a));
+    let oSum = 0, gSum = 0;
+    sorted.forEach(p => {
+        if(oSum <= gSum){ p.status='orange'; oSum+=getSmartRating(p); }
+        else { p.status='green'; gSum+=getSmartRating(p); }
+    });
     render();
-    Promise.all(confirmed.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
-    showToast(`⚡ Echipe formate din ${confirmed.length} jucători!`);
+    Promise.all(db.players.filter(p=>['orange','green'].includes(p.status)).map(p=>dbUpdatePlayer(p)))
+        .catch(e => showToast('⚠️ '+e.message));
+    showToast(`⚡ Echipe formate din ${confirmed.length} jucători confirmați!`);
 }
 
 async function recordMatch(winner){
@@ -1482,8 +1516,8 @@ async function recordMatch(winner){
     const gAvg=(gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
     oP.forEach(p=>{p.games++;if(winner==='orange')p.wins++;p.matchHistory.push(winner==='orange'?'W':'L');});
     gP.forEach(p=>{p.games++;if(winner==='green')p.wins++;p.matchHistory.push(winner==='green'?'W':'L');});
-    // Mută toți jucătorii pe bancă după meci
-    db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green') p.status='bench'; });
+    // Mută toți jucătorii înapoi în Jucători Activi după meci
+    db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green'||p.status==='bench') p.status='active'; });
     const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
     db.history.unshift(entry);db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];
     render();showToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`,winner==='orange'?'o':'g');
@@ -1502,7 +1536,7 @@ function newMatch(){
 
 function addNewPlayer(){
     const name=prompt('Numele jucătorului nou:');if(!name||!name.trim())return;
-    const newP={id:Date.now(),name:name.trim(),status:'bench',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
+    const newP={id:Date.now(),name:name.trim(),status:'active',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
     db.players.push(newP);render();
     dbUpdatePlayer(newP)
         .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
@@ -1513,7 +1547,7 @@ function addNewPlayer(){
 async function resetSeason(){
     showConfirm('↺','Reset Sezon','Victoriile și istoricul se șterg. Ratingurile rămân.','Reset','#c62828',async()=>{
         db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];});
-        db.history=[];db.nextMatch.confirmedIds=[];render();
+        db.history=[];db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];render();
         try{
             await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
             await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
@@ -1529,7 +1563,7 @@ async function nukeAll(){
             await sb.from('ratings').delete().neq('id','00000000-0000-0000-0000-000000000000');
             await sb.from('players').delete().neq('id',0);
             await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await sb.from('next_match').upsert({id:1,match_date:null,match_time:null,location:null,confirmed_ids:[]});
+            await sb.from('next_match').upsert({id:1,match_date:null,match_time:null,location:null,confirmed_ids:[],absent_ids:[]});
             localStorage.removeItem('fb_club_v6');
             location.reload();
         }catch(e){showToast('⚠️ '+e.message);}
@@ -1542,14 +1576,22 @@ function copyTeams(){
     navigator.clipboard?.writeText(`🟠 Portocaliu:\n${o.join('\n')}\n\n🟢 Verde:\n${g.join('\n')}`).then(()=>showToast('📋 Copiat!')).catch(()=>showToast('❌ Eroare clipboard'));
 }
 
-function allowDrop(e){e.preventDefault();}
-async function drop(e){
-    e.preventDefault();const id=e.dataTransfer.getData("text");
-    let target=e.target;while(target&&!target.id.startsWith('col-'))target=target.parentElement;
-    if(target){const tId=target.id.replace('col-','');if(['orange','green','bench'].includes(tId)){
-        const p=db.players.find(x=>x.id==id);p.status=tId;render();
-        await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
-    }}
+function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
+async function adminDrop(e){
+    if(!isAdmin()) return;
+    e.preventDefault();
+    const id=e.dataTransfer.getData("text");
+    let target=e.target;
+    while(target && !target.id.startsWith('col-')) target=target.parentElement;
+    if(target){
+        const tId=target.id.replace('col-','');
+        if(['orange','green','bench','active'].includes(tId)){
+            const p=db.players.find(x=>x.id==id);
+            p.status=tId;
+            render();
+            await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
+        }
+    }
 }
 
 function openSettings(){
@@ -1597,6 +1639,7 @@ async function deletePlayer(id){
     showConfirm('🗑️',`Șterge ${p.name}?`,'Toate datele jucătorului vor fi șterse.','Șterge','#c62828',async()=>{
         db.players=db.players.filter(x=>x.id!=id);
         db.nextMatch.confirmedIds=db.nextMatch.confirmedIds.filter(i=>i!=id);
+        db.nextMatch.absentIds=(db.nextMatch.absentIds||[]).filter(i=>i!=id);
         render();buildPlayerEditList();
         try{
             await sb.from('players').delete().eq('id',id);
@@ -1606,7 +1649,7 @@ async function deletePlayer(id){
 }
 function addNewPlayerFromSettings(){
     const name=prompt('Numele jucătorului nou:');if(!name||!name.trim())return;
-    const newP={id:Date.now(),name:name.trim(),status:'bench',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
+    const newP={id:Date.now(),name:name.trim(),status:'active',wins:0,games:0,matchHistory:[],ratings:[{_dbId:null,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}]};
     db.players.push(newP);render();buildPlayerEditList();
     dbUpdatePlayer(newP)
         .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
@@ -1761,7 +1804,9 @@ function buildRatingChart(p,cat){
     ratingChartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Rating',data:vals,borderColor:CAT_COLORS[cat],backgroundColor:CAT_COLORS[cat]+'15',pointBackgroundColor:CAT_COLORS[cat],pointRadius:4,tension:0.35,fill:true},{label:'Medie',data:vals.map(()=>avg),borderColor:'rgba(255,255,255,0.15)',borderDash:[5,5],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:'#555',stepSize:2},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#555',maxRotation:0,font:{size:9}},grid:{display:false}}}}});
 }
 function buildRatingsList(p){
-    const count=p.ratings.length;document.getElementById('ratingsListLabel').textContent=`📊 Voturi existente (${count})`;
+    const count=p.ratings.length;
+    const admin=isAdmin();
+    document.getElementById('ratingsListLabel').textContent=`📊 Voturi existente (${count})`;
     document.getElementById('ratingsList').innerHTML=p.ratings.map((r,i)=>`
         <div class="rating-entry">
             <div class="rating-entry-left">
@@ -1770,7 +1815,7 @@ function buildRatingsList(p){
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
                 <span style="color:var(--star);">${((r.general+r.viteza+r.tehnica+r.strategie+r.aparare)/5).toFixed(1)} ★</span>
-                <button class="btn-delete-r" onclick="event.stopPropagation();deleteRating(${i})">✕</button>
+                ${admin?`<button class="btn-delete-r" onclick="event.stopPropagation();deleteRating(${i})">✕</button>`:''}
             </div>
         </div>`).join('');
 }
@@ -2222,7 +2267,7 @@ async function respondPresence(present) {
         // Scoate din absenți dacă era
         const absIdx = nm.absentIds.indexOf(myPlayer.id);
         if (absIdx !== -1) nm.absentIds.splice(absIdx, 1);
-        // Mută jucătorul în Jucători Activi (bench)
+        // Mută jucătorul în Pe Bancă (așteptând formarea echipelor)
         myPlayer.status = 'bench';
         await dbUpdatePlayer(myPlayer).catch(()=>{});
         showToast(`✅ Prezență confirmată! Te așteptăm, ${myPlayer.name}!`, 'g');
