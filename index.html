@@ -420,7 +420,31 @@
         .csv-modal{background:#141720;width:90%;max-width:600px;border-radius:16px;padding:24px;border:1px solid #2a2d40;max-height:85vh;overflow-y:auto;}
         .csv-result-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#0f1118;border-radius:6px;margin-bottom:4px;font-size:0.82rem;}
         .csv-match{color:#4caf50}.csv-no-match{color:#e57373}
-        .account-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0f1118;border-radius:10px;margin-bottom:6px;border:1px solid #1e2130;flex-wrap:wrap;}
+        .match-edit-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:5px;color:#444;font-size:0.8rem;transition:all 0.12s;}
+        .match-edit-btn:hover{color:#fff;background:#252836;filter:none;transform:none;}
+
+        .match-editor-modal{background:#141720;width:92%;max-width:560px;border-radius:16px;padding:22px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
+        .match-editor-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#fff;}
+        .me-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+        .me-field{margin-bottom:12px;}
+        .me-field label{display:block;font-size:0.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+        .me-input{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:10px 12px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;}
+        .me-input:focus{border-color:var(--accent);}
+        .me-winner-btn{padding:10px;border-radius:8px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.15s;}
+        .me-winner-btn:hover{filter:brightness(1.2);transform:none;}
+        .me-winner-btn.active-o{background:rgba(255,140,0,0.2);border-color:var(--orange);color:var(--orange);}
+        .me-winner-btn.active-g{background:rgba(40,167,69,0.2);border-color:#4caf50;color:#4caf50;}
+        .me-teams-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+        .me-team-col{background:#0f1118;border-radius:10px;padding:12px;border:1px solid #1e2130;}
+        .me-team-header{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1e2130;}
+        .me-players-checklist{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;}
+        .me-player-check{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background 0.12s;user-select:none;}
+        .me-player-check:hover{background:#141820;}
+        .me-player-check input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
+        .me-player-check span{font-size:0.85rem;color:#aaa;}
+        .me-player-check.checked span{color:#fff;}
+
+        @media(max-width:480px){.me-grid{grid-template-columns:1fr}.me-teams-grid{grid-template-columns:1fr}}
         .account-email{font-size:0.85rem;color:#ccc;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .account-role-badge{padding:2px 8px;border-radius:8px;font-size:0.68rem;font-weight:700;white-space:nowrap;}
         .account-linked{font-size:0.75rem;color:#4caf50;}
@@ -573,9 +597,12 @@
         <div class="leaderboard" id="leaderboard"></div>
     </div>
     <div class="history-section">
-        <h3>Istoric Meciuri <span style="font-size:0.75rem;color:#444;font-family:'Rajdhani',sans-serif;letter-spacing:0;">(click pentru detalii)</span></h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <h3 style="margin:0;">Istoric Meciuri</h3>
+            <button id="btnAddMatch" class="admin-only" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:8px 16px;border-radius:8px;font-size:0.85rem;" onclick="openMatchEditor(null)">+ Adaugă Meci</button>
+        </div>
         <table id="match-history">
-            <thead><tr><th>Data</th><th>Câștigător</th><th>Rating</th><th>Echipe</th></tr></thead>
+            <thead><tr><th>Data</th><th>Câștigător</th><th>Rating</th><th>Echipe</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -700,7 +727,50 @@
 </div>
 </div>
 
-<!-- SETTINGS MODAL -->
+<!-- MATCH EDITOR MODAL (admin) -->
+<div class="modal-overlay" id="matchEditorOverlay" onclick="if(event.target===this)closeMatchEditor()">
+<div class="match-editor-modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <div class="match-editor-title" id="matchEditorTitle">📋 Meci Nou</div>
+        <button style="background:#252836;padding:7px 13px;border-radius:8px;" onclick="closeMatchEditor()">✕</button>
+    </div>
+
+    <div class="me-grid">
+        <div class="me-field">
+            <label>Data meciului</label>
+            <input type="text" class="me-input" id="meDate" placeholder="ex: 25.03.2026">
+        </div>
+        <div class="me-field">
+            <label>Câștigător</label>
+            <div style="display:flex;gap:8px;">
+                <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">🟠 Portocaliu</button>
+                <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">🟢 Verde</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="me-field">
+        <label>Rating echipe (ex: 7.4 vs 6.9)</label>
+        <input type="text" class="me-input" id="meScore" placeholder="7.4 vs 6.9">
+    </div>
+
+    <div class="me-teams-grid">
+        <div class="me-team-col">
+            <div class="me-team-header" style="color:var(--orange);">🟠 Echipa Portocalie</div>
+            <div class="me-players-checklist" id="meOrangePlayers"></div>
+        </div>
+        <div class="me-team-col">
+            <div class="me-team-header" style="color:#4caf50;">🟢 Echipa Verde</div>
+            <div class="me-players-checklist" id="meGreenPlayers"></div>
+        </div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:16px;">
+        <button style="flex:1;padding:13px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#28a745);color:#fff;font-size:1rem;font-weight:700;" onclick="saveMatchEdit()">💾 Salvează Meciul</button>
+        <button id="meDeleteBtn" style="padding:13px 16px;border-radius:10px;background:#c62828;color:#fff;" onclick="deleteMatchEdit()" title="Șterge meciul">🗑️</button>
+    </div>
+</div>
+</div>
 <div class="modal-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
 <div class="settings-modal">
     <div class="settings-header">
@@ -1040,6 +1110,7 @@ async function loadAll() {
             .select('*')
             .order('created_at', { ascending: false });
         db.history = (histRaw || []).map(h => ({
+            _dbId: h.id,
             date: h.date, winner: h.winner, score: h.score,
             orangePlayers: h.orange_players || [],
             greenPlayers:  h.green_players  || []
@@ -1231,15 +1302,24 @@ function renderLeaderboard(){
     }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
 }
 function renderHistory(){
+    const admin = isAdmin();
+    document.getElementById('th-actions').style.display = admin ? '' : 'none';
+    document.querySelector('#match-history thead tr').lastElementChild.style.display = admin ? '' : 'none';
     document.querySelector('#match-history tbody').innerHTML=db.history.length
-        ?db.history.map((h,idx)=>`<tr onclick="openMatchModal(${idx})">
-            <td>${h.date}</td>
-            <td><span class="win-tag" style="background:${h.winner==='Portocaliu'?'var(--orange)':'var(--green)'};color:${h.winner==='Portocaliu'?'#000':'#fff'}">${h.winner}</span></td>
-            <td>${h.score}</td>
-            <td><div class="history-players"><span style="color:#ff8c00">🟠</span> ${(h.orangePlayers||[]).join(', ')||'—'}</div>
-                <div class="history-players"><span style="color:#28a745">🟢</span> ${(h.greenPlayers||[]).join(', ')||'—'}</div></td>
+        ?db.history.map((h,idx)=>`<tr>
+            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">${h.date}</td>
+            <td onclick="openMatchModal(${idx})" style="cursor:pointer;"><span class="win-tag" style="background:${h.winner==='Portocaliu'?'var(--orange)':'var(--green)'};color:${h.winner==='Portocaliu'?'#000':'#fff'}">${h.winner}</span></td>
+            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">${h.score||'—'}</td>
+            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">
+                <div class="history-players"><span style="color:#ff8c00">🟠</span> ${(h.orangePlayers||[]).join(', ')||'—'}</div>
+                <div class="history-players"><span style="color:#28a745">🟢</span> ${(h.greenPlayers||[]).join(', ')||'—'}</div>
+            </td>
+            ${admin?`<td style="white-space:nowrap;">
+                <button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${idx})" title="Editează">✏️</button>
+                <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${idx})" title="Șterge" style="color:#c62828;">🗑️</button>
+            </td>`:''}
         </tr>`).join('')
-        :'<tr><td colspan="4" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
+        :'<tr><td colspan="5" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
 }
 
 function renderLobby(){
@@ -1845,6 +1925,155 @@ async function registerServiceWorker(){
         console.log('✅ Service Worker registered');
     }catch(e){
         console.log('SW registration skipped (local dev?):', e.message);
+    }
+}
+
+let matchEditorIdx = null; // null = nou, number = editare
+let matchEditorWinner = null;
+
+function openMatchEditor(idx) {
+    matchEditorIdx = idx;
+    matchEditorWinner = null;
+
+    const isNew = idx === null;
+    document.getElementById('matchEditorTitle').textContent = isNew ? '📋 Meci Nou' : '✏️ Editează Meci';
+    document.getElementById('meDeleteBtn').style.display = isNew ? 'none' : 'block';
+
+    // Reset fields
+    document.getElementById('meDate').value = '';
+    document.getElementById('meScore').value = '';
+    document.getElementById('meWinO').className = 'me-winner-btn';
+    document.getElementById('meWinG').className = 'me-winner-btn';
+
+    // Build player checklists
+    buildMePlayerLists([], []);
+
+    if (!isNew) {
+        const h = db.history[idx];
+        document.getElementById('meDate').value = h.date || '';
+        document.getElementById('meScore').value = h.score || '';
+        if (h.winner) setMatchWinner(h.winner);
+        buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || []);
+    }
+
+    document.getElementById('matchEditorOverlay').style.display = 'flex';
+}
+
+function closeMatchEditor() {
+    document.getElementById('matchEditorOverlay').style.display = 'none';
+}
+
+function setMatchWinner(winner) {
+    matchEditorWinner = winner;
+    document.getElementById('meWinO').className = 'me-winner-btn' + (winner === 'Portocaliu' ? ' active-o' : '');
+    document.getElementById('meWinG').className = 'me-winner-btn' + (winner === 'Verde' ? ' active-g' : '');
+}
+
+function buildMePlayerLists(orangeNames, greenNames) {
+    const sorted = [...db.players].sort((a,b) => a.name.localeCompare(b.name));
+
+    ['Orange','Green'].forEach(team => {
+        const names = team === 'Orange' ? orangeNames : greenNames;
+        const container = document.getElementById(`me${team}Players`);
+        container.innerHTML = sorted.map(p => {
+            const checked = names.includes(p.name);
+            return `<label class="me-player-check ${checked?'checked':''}" id="mecheck-${team}-${p.id}">
+                <input type="checkbox" ${checked?'checked':''} onchange="mePLayerToggle(this,'${team}',${p.id})">
+                <span>${p.name}</span>
+            </label>`;
+        }).join('');
+    });
+}
+
+function mePLayerToggle(el, team, playerId) {
+    const label = el.closest('.me-player-check');
+    label.classList.toggle('checked', el.checked);
+    // Dacă bifezi în orange, debifează din green și invers
+    const otherTeam = team === 'Orange' ? 'Green' : 'Orange';
+    const otherId = `mecheck-${otherTeam}-${playerId}`;
+    const otherLabel = document.getElementById(otherId);
+    if (otherLabel && el.checked) {
+        otherLabel.querySelector('input').checked = false;
+        otherLabel.classList.remove('checked');
+    }
+}
+
+function getMeSelectedPlayers(team) {
+    return [...document.querySelectorAll(`#me${team}Players .me-player-check input:checked`)]
+        .map(el => {
+            const id = parseInt(el.closest('label').id.split('-')[2]);
+            return db.players.find(p => p.id === id)?.name;
+        }).filter(Boolean);
+}
+
+async function saveMatchEdit() {
+    const date = document.getElementById('meDate').value.trim();
+    const score = document.getElementById('meScore').value.trim();
+    const winner = matchEditorWinner;
+
+    if (!date) { showToast('⚠️ Introduceți data meciului!'); return; }
+    if (!winner) { showToast('⚠️ Selectați câștigătorul!'); return; }
+
+    const orangePlayers = getMeSelectedPlayers('Orange');
+    const greenPlayers = getMeSelectedPlayers('Green');
+
+    const entry = {
+        date, winner, score: score || '— vs —',
+        orangePlayers, greenPlayers
+    };
+
+    if (matchEditorIdx === null) {
+        // Meci nou — inserează în DB
+        try {
+            const { data, error } = await sb.from('match_history').insert({
+                date: entry.date, winner: entry.winner, score: entry.score,
+                orange_players: entry.orangePlayers, green_players: entry.greenPlayers
+            }).select().single();
+            if (error) throw error;
+            entry._dbId = data.id;
+            db.history.unshift(entry);
+            showToast('✅ Meci adăugat în istoric!');
+        } catch(e) { showToast('⚠️ ' + e.message); return; }
+    } else {
+        // Editare meci existent
+        const h = db.history[matchEditorIdx];
+        Object.assign(h, entry);
+        try {
+            if (h._dbId) {
+                await sb.from('match_history').update({
+                    date: entry.date, winner: entry.winner, score: entry.score,
+                    orange_players: entry.orangePlayers, green_players: entry.greenPlayers
+                }).eq('id', h._dbId);
+            }
+            showToast('✅ Meci actualizat!');
+        } catch(e) { showToast('⚠️ ' + e.message); return; }
+    }
+
+    closeMatchEditor();
+    render();
+}
+
+function confirmDeleteMatch(idx) {
+    const h = db.history[idx];
+    showConfirm('🗑️', `Șterge meciul din ${h.date}?`, 'Meciul va fi șters definitiv din istoric.', 'Șterge', '#c62828', async () => {
+        try {
+            if (h._dbId) {
+                await sb.from('match_history').delete().eq('id', h._dbId);
+            } else {
+                // Încearcă delete după date+winner
+                await sb.from('match_history').delete().eq('date', h.date).eq('winner', h.winner);
+            }
+            db.history.splice(idx, 1);
+            render();
+            showToast('🗑️ Meci șters din istoric.');
+        } catch(e) { showToast('⚠️ ' + e.message); }
+    });
+}
+
+function deleteMatchEdit() {
+    if (matchEditorIdx !== null) {
+        closeMatchEditor();
+        confirmDeleteMatch(matchEditorIdx);
     }
 }
 
