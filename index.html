@@ -2292,6 +2292,8 @@ function parseDateToObj(dateStr) {
     }
     return new Date(dateStr);
 }
+
+function recalculateAllPlayerStats() {
     // Resetează toate stats la zero
     db.players.forEach(p => {
         p.wins = 0;
