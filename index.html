@@ -19,171 +19,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!--
-    ╔══════════════════════════════════════════════════════╗
-    ║  SUPABASE SQL SCHEMA — rulează în SQL Editor          ║
-    ╚══════════════════════════════════════════════════════╝
-
-    create table players (
-      id bigint primary key,
-      name text not null,
-      status text default 'bench',
-      wins int default 0,
-      games int default 0,
-      match_history text[] default '{}',
-      created_at timestamptz default now()
-    );
-
-    create table ratings (
-      id uuid primary key default gen_random_uuid(),
-      player_id bigint references players(id) on delete cascade,
-      rater text not null,
-      date text,
-      general int default 5,
-      viteza int default 5,
-      tehnica int default 5,
-      strategie int default 5,
-      aparare int default 5,
-      created_at timestamptz default now()
-    );
-
-    create table match_history (
-      id uuid primary key default gen_random_uuid(),
-      date text,
-      winner text,
-      score text,
-      orange_players text[] default '{}',
-      green_players text[] default '{}',
-      created_at timestamptz default now()
-    );
-
-    create table next_match (
-      id int primary key default 1,
-      match_date date,
-      match_time time,
-      location text,
-      confirmed_ids bigint[] default '{}'
-    );
-
-    create table push_subscriptions (
-      id uuid primary key default gen_random_uuid(),
-      player_name text,
-      subscription jsonb not null,
-      created_at timestamptz default now()
-    );
-
-    -- RLS: permite acces public (pentru început; adaugă auth mai târziu)
-    alter table players enable row level security;
-    alter table ratings enable row level security;
-    alter table match_history enable row level security;
-    alter table next_match enable row level security;
-    alter table push_subscriptions enable row level security;
-
-    create policy "public_all" on players for all using (true) with check (true);
-    create policy "public_all" on ratings for all using (true) with check (true);
-    create policy "public_all" on match_history for all using (true) with check (true);
-    create policy "public_all" on next_match for all using (true) with check (true);
-    create policy "public_all" on push_subscriptions for all using (true) with check (true);
-
-    -- Insert initial row for next_match
-    insert into next_match (id) values (1) on conflict do nothing;
-
-    -- Profiles (linked to Supabase Auth)
-    create table profiles (
-      id uuid primary key references auth.users(id) on delete cascade,
-      email text unique,
-      role text default 'player',  -- 'admin' or 'player'
-      player_id bigint references players(id) on delete set null,
-      display_name text,
-      created_at timestamptz default now()
-    );
-    alter table profiles enable row level security;
-    create policy "profiles_select" on profiles for select using (true);
-    create policy "profiles_insert" on profiles for insert with check (auth.uid() = id);
-    create policy "profiles_update" on profiles for update using (auth.uid() = id);
-    -- Admin can update anyone (run this after setting your account as admin)
-    -- update profiles set role = 'admin' where email = 'evoluttionofall@gmail.com';
-
-    ╔══════════════════════════════════════════════════════╗
-    ║  manifest.json — creează fișier separat în repo       ║
-    ╚══════════════════════════════════════════════════════╝
-    {
-      "name": "Arena Friends FC",
-      "short_name": "Arena FC",
-      "description": "Manager fotbal pentru meciuri amicale",
-      "start_url": "/",
-      "display": "standalone",
-      "orientation": "portrait",
-      "background_color": "#0a0c10",
-      "theme_color": "#0a0c10",
-      "icons": [
-        { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-        { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
-      ]
-    }
-
-    ╔══════════════════════════════════════════════════════╗
-    ║  sw.js — creează fișier separat în repo               ║
-    ╚══════════════════════════════════════════════════════╝
-    const CACHE_NAME = 'arena-fc-v1';
-    const OFFLINE_ASSETS = ['/', '/index.html', '/manifest.json'];
-
-    self.addEventListener('install', e => {
-      e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(OFFLINE_ASSETS)));
-      self.skipWaiting();
-    });
-
-    self.addEventListener('activate', e => {
-      e.waitUntil(caches.keys().then(keys => Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      )));
-      self.clients.claim();
-    });
-
-    self.addEventListener('fetch', e => {
-      e.respondWith(
-        fetch(e.request).catch(() => caches.match(e.request))
-      );
-    });
-
-    self.addEventListener('push', e => {
-      const data = e.data?.json() || {};
-      e.waitUntil(self.registration.showNotification(data.title || 'Arena FC', {
-        body: data.body || 'Ai o notificare nouă!',
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
-        vibrate: [200, 100, 200],
-        data: { url: data.url || '/' }
-      }));
-    });
-
-    self.addEventListener('notificationclick', e => {
-      e.notification.close();
-      e.waitUntil(clients.openWindow(e.notification.data?.url || '/'));
-    });
-
-    ╔══════════════════════════════════════════════════════╗
-    ║  netlify.toml — creează fișier separat în root repo   ║
-    ╚══════════════════════════════════════════════════════╝
-    [[redirects]]
-      from = "/*"
-      to = "/index.html"
-      status = 200
-    -->
 
     <style>
         :root { --orange:#ff8c00;--green:#28a745;--dark:#0a0c10;--card:#141720;--star:#ffcc00;--accent:#3d5afe;--border:#252836;--purple:#9c27b0; }
         *{box-sizing:border-box;}
         body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#e0e0e0;margin:0;padding:0;}
-
-        /* ── Loading Overlay ── */
         .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,12,16,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(6px);}
         .loading-overlay.hidden{display:none;}
         .spinner{width:44px;height:44px;border:3px solid #252836;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
         @keyframes spin{to{transform:rotate(360deg)}}
         .loading-text{font-size:0.9rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
-
-        /* ── Auth Overlay ── */
         .auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0c10;z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;}
         .auth-overlay.hidden{display:none;}
         .auth-box{width:100%;max-width:400px;background:#141720;border-radius:20px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden;}
@@ -204,8 +49,6 @@
         .auth-error{background:rgba(198,40,40,0.15);border:1px solid #c62828;border-radius:8px;padding:10px 14px;font-size:0.85rem;color:#e57373;margin-bottom:12px;display:none;}
         .auth-error.show{display:block;}
         .auth-divider{text-align:center;font-size:0.75rem;color:#333;margin:12px 0;}
-
-        /* ── User bar in header ── */
         .user-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 20px;background:#0a0c10;border-bottom:1px solid var(--border);font-size:0.78rem;}
         .user-bar-name{color:#555;display:flex;align-items:center;gap:6px;}
         .user-bar-role{padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700;}
@@ -214,28 +57,20 @@
         .user-bar-player{color:#4caf50;font-size:0.75rem;}
         .btn-logout{background:transparent;border:1px solid #252836;color:#444;padding:4px 10px;border-radius:6px;font-size:0.75rem;}
         .btn-logout:hover{border-color:#c62828;color:#e57373;filter:none;transform:none;}
-
-        /* ── Role-based visibility ── */
         .admin-only{display:none;}
         body.is-admin .admin-only{display:inline-flex;}
         .player-only{display:none;}
         body.is-player .player-only{display:inline-flex;}
-
-        /* ── Connection Badge ── */
         .conn-badge{position:fixed;bottom:16px;right:16px;z-index:8000;display:flex;align-items:center;gap:6px;background:#1c1f2b;border-radius:20px;padding:5px 12px;font-size:0.72rem;font-weight:700;border:1px solid #252836;transition:all 0.3s;}
         .conn-dot{width:7px;height:7px;border-radius:50%;background:#555;}
         .conn-badge.online .conn-dot{background:#28a745;box-shadow:0 0 6px rgba(40,167,69,0.5);}
         .conn-badge.online{color:#4caf50;}
         .conn-badge.offline .conn-dot{background:#c62828;}
         .conn-badge.offline{color:#e57373;}
-
-        /* ── Header ── */
         .main-header{text-align:center;padding:22px 20px 18px;border-bottom:1px solid var(--border);background:#0d0f18;}
         .main-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:4px;color:#fff;margin:0;outline:none;cursor:text;border-bottom:2px dashed transparent;transition:border-color 0.2s;display:inline-block;}
         .main-header h1:focus{border-bottom-color:#3d5afe;}
         .date-display{font-size:0.82rem;color:#444;margin-top:5px;letter-spacing:1px;text-transform:uppercase;}
-
-        /* ── Controls bar ── */
         .controls{display:flex;justify-content:center;gap:6px;padding:12px 20px;background:#0d0f18;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
         .controls-separator{width:1px;height:28px;background:var(--border);margin:0 4px;}
         button{padding:9px 14px;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#252836;color:white;}
@@ -247,8 +82,6 @@
         .btn-settings{background:#1c1f2b;border:1px solid #2a2d40;color:#888;}
         .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;}
         .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#82b1ff;}
-
-        /* ── Dashboard ── */
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
         .dashboard{display:grid;grid-template-columns:1fr 1fr 300px;gap:14px;}
         .column{background:#0f1118;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
@@ -265,8 +98,6 @@
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
         .col-body{padding:10px;flex:1;min-height:360px;overflow-y:auto;}
-
-        /* ── Player Card ── */
         .player-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:all 0.15s;position:relative;display:flex;flex-direction:column;gap:4px;}
         .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
         .card-top{display:flex;justify-content:space-between;align-items:center;}
@@ -286,8 +117,6 @@
         .cat-bar-label{font-size:0.58rem;color:#444;text-transform:uppercase;}
         .cat-bar-track{width:22px;height:3px;background:#252836;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
-
-        /* ── Lobby ── */
         .lobby-section{grid-column:1/-1;background:#0c1220;border-radius:14px;border:1px solid #1a2a4a;overflow:hidden;}
         .lobby-header{background:linear-gradient(135deg,#0d2040,#1a3060);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
         .lobby-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#82b1ff;flex:1;}
@@ -307,8 +136,6 @@
         .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#666;}
         .lobby-player-chip.confirmed .chip-name{color:#82b1ff;}
         .lobby-confirmed-count{font-size:0.78rem;color:#5c8aff;font-weight:700;margin-top:10px;}
-
-        /* ── Post-Match Voting Modal ── */
         .vote-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:5000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
         .vote-overlay.show{display:flex;}
         .vote-box{width:92%;max-width:480px;background:#141720;border-radius:20px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,0.9);overflow:hidden;display:flex;flex-direction:column;}
@@ -384,14 +211,10 @@
         .vote-dot{width:6px;height:6px;border-radius:50%;background:#252836;transition:all 0.2s;}
         .vote-dot.active{background:var(--accent);width:18px;border-radius:3px;}
         .vote-dot.done{background:#28a745;}
-
-        /* ── Toast ── */
         .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
         .toast.toast-o{border-color:var(--orange);background:#2a1800;}
         .toast.toast-g{border-color:var(--green);background:#0a2a14;}
-
-        /* ── Leaderboard ── */
         .stats-section{grid-column:1/-1;margin-top:4px;background:#0f1118;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
         .stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:#888;}
         .leaderboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
@@ -400,8 +223,6 @@
         .lb-name{font-weight:700;color:#fff;font-size:0.93rem;margin:2px 0;}
         .lb-stat{font-size:0.76rem;color:#666;}
         .lb-smart{font-size:0.76rem;color:#a78bfa;margin-top:2px;}
-
-        /* ── History ── */
         .history-section{grid-column:1/-1;margin-top:4px;background:#0f1118;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
         .history-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 12px;color:#888;}
         table{width:100%;border-collapse:collapse;}
@@ -411,12 +232,8 @@
         .history-players{font-size:0.76rem;color:#444;margin-top:3px;}
         #match-history tbody tr{cursor:pointer;transition:background 0.12s;}
         #match-history tbody tr:hover td{background:#151820;}
-
-        /* ── Modal base ── */
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         .modal{background:#141720;width:90%;max-width:520px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
-
-        /* ── Player Modal ── */
         .modal-player-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;margin:0 0 10px;color:#fff;}
         .modal-stats-toggle{display:flex;justify-content:space-between;align-items:center;background:#0f1118;border:1px solid #1e2130;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;margin-bottom:4px;}
         .modal-stats-toggle:hover{background:#141820;}
@@ -465,8 +282,6 @@
         .rating-entry-cats{font-size:0.72rem;color:#555;}
         .btn-delete-r{color:#555;background:none;border:none;cursor:pointer;font-size:1rem;padding:0 4px;}
         .btn-delete-r:hover{color:#e53935;transform:none;}
-
-        /* ── Rating section ── */
         .rating-section{margin-top:14px;}
         .rating-section-header{font-size:0.72rem;color:#666;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
         .rating-section-header::after{content:'';flex:1;height:1px;background:#1e2130;}
@@ -515,8 +330,6 @@
         .modal-actions{display:flex;gap:8px;margin-top:12px;}
         .btn-submit-r{flex:1;font-size:1.05rem;padding:13px;border-radius:10px;letter-spacing:1px;}
         .btn-close-m{background:#252836;padding:13px 18px;border-radius:10px;}
-
-        /* ── Settings Modal ── */
         .settings-modal{background:#141720;width:92%;max-width:640px;border-radius:16px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
         .settings-header{padding:18px 22px 0;flex-shrink:0;}
         .settings-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#fff;margin:0 0 14px;}
@@ -547,8 +360,6 @@
         .push-status-val{font-size:0.85rem;font-weight:700;}
         .push-status-val.active{color:#4caf50;}
         .push-status-val.inactive{color:#555;}
-
-        /* ── Confirm Modal ── */
         .confirm-modal{background:#141720;width:90%;max-width:380px;border-radius:16px;padding:24px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.9);text-align:center;}
         .confirm-icon{font-size:2.5rem;margin-bottom:10px;}
         .confirm-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#fff;margin-bottom:8px;}
@@ -556,16 +367,12 @@
         .confirm-actions{display:flex;gap:10px;justify-content:center;}
         .btn-confirm-yes{flex:1;padding:12px;border-radius:10px;font-size:0.95rem;max-width:140px;}
         .btn-confirm-no{flex:1;padding:12px;border-radius:10px;font-size:0.95rem;background:#252836;max-width:140px;}
-
-        /* ── Schedule Modal ── */
         .schedule-modal{background:#141720;width:90%;max-width:420px;border-radius:16px;padding:24px;border:1px solid #1a2a4a;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
         .schedule-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#82b1ff;margin:0 0 16px;}
         .schedule-field{margin-bottom:14px;}
         .schedule-field label{display:block;font-size:0.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
         .schedule-input{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:10px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
         .schedule-input:focus{border-color:#2979ff;}
-
-        /* ── Quick Vote ── */
         .qv-modal{background:#141720;width:94%;max-width:600px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
         .qv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
         .qv-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#fff;}
@@ -603,8 +410,6 @@
         .qv-sub-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
         .qv-progress{font-size:0.78rem;color:#555;text-align:center;margin-bottom:8px;}
         .qv-progress span{color:var(--star);font-weight:700;}
-
-        /* ── Match Detail ── */
         .match-modal{background:#141720;width:90%;max-width:480px;border-radius:16px;padding:24px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
         .match-modal-date{font-size:0.8rem;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
         .match-winner-banner{text-align:center;padding:10px 16px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;margin-bottom:16px;}
@@ -612,13 +417,9 @@
         .match-team-block{background:#0f1118;border-radius:10px;padding:12px 14px;border:1px solid #1e2130;}
         .match-team-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #1e2130;}
         .match-team-player{font-size:0.85rem;color:#aaa;padding:3px 0;}
-
-        /* ── CSV ── */
         .csv-modal{background:#141720;width:90%;max-width:600px;border-radius:16px;padding:24px;border:1px solid #2a2d40;max-height:85vh;overflow-y:auto;}
         .csv-result-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#0f1118;border-radius:6px;margin-bottom:4px;font-size:0.82rem;}
         .csv-match{color:#4caf50}.csv-no-match{color:#e57373}
-
-        /* ── Accounts panel ── */
         .account-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#0f1118;border-radius:10px;margin-bottom:6px;border:1px solid #1e2130;flex-wrap:wrap;}
         .account-email{font-size:0.85rem;color:#ccc;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .account-role-badge{padding:2px 8px;border-radius:8px;font-size:0.68rem;font-weight:700;white-space:nowrap;}
@@ -1071,12 +872,9 @@
 </div>
 
 <script>
-// ╔══════════════════════════════════════════════════════╗
-// ║  CONFIG — înlocuiește cu datele tale din Supabase     ║
-// ╚══════════════════════════════════════════════════════╝
-const SUPABASE_URL     = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_URL      = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
-const VAPID_PUBLIC_KEY  = 'YOUR_VAPID_PUBLIC_KEY'; // npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY  = 'YOUR_VAPID_PUBLIC_KEY';
 const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 
 // ── Supabase Client ──
@@ -1103,9 +901,6 @@ let chartOpen=false, statsOpen=false, detailsOpen=false, ratingsListOpen=false;
 let qvVotes = {}, confirmCallback = null;
 let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  AUTH                                                 ║
-// ╚══════════════════════════════════════════════════════╝
 
 function isAdmin() {
     if (!currentUser) return false;
@@ -1219,9 +1014,6 @@ async function onAuthSuccess(user) {
     setTimeout(() => checkPendingVotes(), 800);
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  DATABASE LAYER                                       ║
-// ╚══════════════════════════════════════════════════════╝
 
 async function loadAll() {
     showLoading(true);
@@ -1354,9 +1146,6 @@ function setupRealtime() {
         .subscribe();
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  ALGORITHM                                            ║
-// ╚══════════════════════════════════════════════════════╝
 function getSmartRating(p) {
     const base = CATS.reduce((s,c) => s+(p.ratings.length?p.ratings.reduce((a,r)=>a+(r[c]||5),0)/p.ratings.length:5)*W[c],0);
     const wr = p.games>0 ? 1+(p.wins/p.games)*9 : 5;
@@ -1371,9 +1160,6 @@ function getStreak(p){
     return{count,type:last};
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  UI HELPERS                                           ║
-// ╚══════════════════════════════════════════════════════╝
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('hidden',!v);}
 function setConnected(v){
     const b=document.getElementById('connBadge'),t=document.getElementById('connText');
@@ -1395,9 +1181,6 @@ function showConfirm(icon,title,msg,yesLabel,yesBg,cb){
 }
 function closeConfirm(){document.getElementById('confirmOverlay').style.display='none';}
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  RENDER                                               ║
-// ╚══════════════════════════════════════════════════════╝
 function render(){
     ['orange','green','bench'].forEach(t=>document.getElementById(`list-${t}`).innerHTML='');
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
@@ -1459,9 +1242,6 @@ function renderHistory(){
         :'<tr><td colspan="4" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  LOBBY                                                ║
-// ╚══════════════════════════════════════════════════════╝
 function renderLobby(){
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
@@ -1540,9 +1320,6 @@ function formTeamsFromLobby(){
     showToast(`⚡ Echipe formate din ${confirmed.length} jucători!`);
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  MATCH ACTIONS                                        ║
-// ╚══════════════════════════════════════════════════════╝
 async function recordMatch(winner){
     const oP=db.players.filter(p=>p.status==='orange'),gP=db.players.filter(p=>p.status==='green');
     if(oP.length<1||gP.length<1){showToast('⚠️ Ambele echipe trebuie să aibă jucători!');return;}
@@ -1550,11 +1327,13 @@ async function recordMatch(winner){
     const gAvg=(gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
     oP.forEach(p=>{p.games++;if(winner==='orange')p.wins++;p.matchHistory.push(winner==='orange'?'W':'L');});
     gP.forEach(p=>{p.games++;if(winner==='green')p.wins++;p.matchHistory.push(winner==='green'?'W':'L');});
+    // Mută toți jucătorii pe bancă după meci
+    db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green') p.status='bench'; });
     const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
     db.history.unshift(entry);db.nextMatch.confirmedIds=[];
     render();showToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`,winner==='orange'?'o':'g');
     try{
-        await Promise.all([...oP,...gP].map(p=>dbUpdatePlayer(p)));
+        await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
         await dbInsertMatchHistory(entry);
         await dbSaveNextMatch();
     }catch(e){showToast('⚠️ Eroare salvare: '+e.message);}
@@ -1618,9 +1397,6 @@ async function drop(e){
     }}
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  SETTINGS                                             ║
-// ╚══════════════════════════════════════════════════════╝
 function openSettings(){
     buildPlayerEditList();
     if (isAdmin()) buildAccountsList();
@@ -1725,9 +1501,6 @@ async function linkAccountToPlayer(profileId, playerId){
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  PUSH NOTIFICATIONS                                   ║
-// ╚══════════════════════════════════════════════════════╝
 async function enablePushNotifications(){
     if(!('serviceWorker' in navigator)||!('PushManager' in window)){
         showToast('⚠️ Browser-ul nu suportă push notifications.');return;
@@ -1774,9 +1547,6 @@ function urlBase64ToUint8Array(base64String){
     return outputArray;
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  PLAYER MODAL                                         ║
-// ╚══════════════════════════════════════════════════════╝
 function openModal(id){
     currentPlayerId=id;const p=db.players.find(x=>x.id==id);
     document.getElementById('modalPlayerName').textContent=p.name;
@@ -1910,9 +1680,6 @@ function openMatchModal(idx){
 }
 function closeMatchModal(){document.getElementById('matchModalOverlay').style.display='none';}
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  QUICK VOTE                                           ║
-// ╚══════════════════════════════════════════════════════╝
 function openQuickVote(){
     const activePlayers=db.players.filter(p=>p.status==='orange'||p.status==='green');
     if(activePlayers.length===0){showToast('⚠️ Niciun jucător activ în meci!');return;}
@@ -1973,9 +1740,6 @@ async function submitQuickVote(){
     }
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  CSV                                                  ║
-// ╚══════════════════════════════════════════════════════╝
 function openCSVModal(){document.getElementById('csvModalOverlay').style.display='flex';}
 function closeCsvModal(){document.getElementById('csvModalOverlay').style.display='none';csvParsed=null;document.getElementById('csvPreviewArea').style.display='none';}
 function previewCSV(event){
@@ -2008,9 +1772,6 @@ async function confirmCSVImport(){
     render();closeCsvModal();showToast(`✅ Import reușit! ${n} evaluări adăugate.`);
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  DATA EXPORT / IMPORT                                 ║
-// ╚══════════════════════════════════════════════════════╝
 function exportData(){
     const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`fotbal_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href);
@@ -2045,9 +1806,6 @@ async function importData(event){
     };reader.readAsText(file);event.target.value='';
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  PDF                                                  ║
-// ╚══════════════════════════════════════════════════════╝
 function exportPDF(){
     const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
     const W2=210,M=16;let y=20;
@@ -2080,9 +1838,6 @@ function exportPDF(){
     doc.save(`raport_fotbal_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  SERVICE WORKER REGISTRATION                          ║
-// ╚══════════════════════════════════════════════════════╝
 async function registerServiceWorker(){
     if(!('serviceWorker' in navigator))return;
     try{
@@ -2093,12 +1848,6 @@ async function registerServiceWorker(){
     }
 }
 
-// ╔══════════════════════════════════════════════════════╗
-// ║  INIT                                                 ║
-// ╚══════════════════════════════════════════════════════╝
-// ╔══════════════════════════════════════════════════════╗
-// ║  POST-MATCH VOTING                                    ║
-// ╚══════════════════════════════════════════════════════╝
 let voteState = {
     match: null,          // istoricul meciului
     players: [],          // jucătorii de votat (fără self)
@@ -2109,47 +1858,82 @@ let voteState = {
 };
 
 async function checkPendingVotes() {
-    if (!currentProfile?.player_id) return; // cont neasistat — skip
-
-    const myPlayer = db.players.find(p => p.id == currentProfile.player_id);
+    // Dacă nu e asociat un player, încearcă după nume din email
+    let myPlayer = null;
+    if (currentProfile?.player_id) {
+        myPlayer = db.players.find(p => p.id == currentProfile.player_id);
+    }
+    // Fallback: caută după display_name sau email prefix
+    if (!myPlayer && currentProfile?.display_name) {
+        myPlayer = db.players.find(p =>
+            p.name.toLowerCase() === currentProfile.display_name.toLowerCase()
+        );
+    }
     if (!myPlayer) return;
 
-    // Găsește cel mai recent meci în care a jucat userul
-    const { data: matches } = await sb
+    // Ia toate meciurile din DB ordonate descrescător
+    const { data: allMatches } = await sb
         .from('match_history')
         .select('*')
-        .or(`orange_players.cs.{"${myPlayer.name}"},green_players.cs.{"${myPlayer.name}"}`)
         .order('created_at', { ascending: false })
-        .limit(1);
+        .limit(20);
 
-    if (!matches || matches.length === 0) return;
-    const lastMatch = matches[0];
+    if (!allMatches || allMatches.length === 0) return;
+
+    // Găsește primul meci în care a jucat userul
+    const lastMatch = allMatches.find(m => {
+        const allPlayers = [...(m.orange_players||[]), ...(m.green_players||[])];
+        return allPlayers.includes(myPlayer.name);
+    });
+
+    if (!lastMatch) {
+        // Fallback: dacă arrays sunt goale (meci importat), ia primul meci din trecut
+        const anyOldMatch = allMatches.find(m => {
+            const matchDate = parseMatchDate(m.date);
+            const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+            return matchDate < todayDate;
+        });
+        if (!anyOldMatch) return;
+        // Nu știm cine a jucat — arată oricum votul pentru toți jucătorii din db (mai puțin self)
+        const toVote = db.players.filter(p => p.name !== myPlayer.name && p.status !== 'bench');
+        if (toVote.length === 0) return;
+        // Verifică dacă a votat deja
+        const { data: myVotes } = await sb.from('ratings').select('id')
+            .eq('rater', myPlayer.name)
+            .gte('created_at', anyOldMatch.created_at || '2020-01-01')
+            .limit(1);
+        if (myVotes && myVotes.length > 0) return;
+        openVotingModal(anyOldMatch, toVote, myPlayer.name);
+        return;
+    }
 
     // Verifică dacă data meciului e în trecut
-    // match.date e în format "dd.mm.yyyy" sau ISO
-    const matchDateStr = lastMatch.date;
-    const matchDate = parseMatchDate(matchDateStr);
+    const matchDate = parseMatchDate(lastMatch.date);
     const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-    if (matchDate >= todayDate) return; // meciul e azi sau în viitor
+    if (matchDate >= todayDate) return;
 
-    // Verifică dacă a votat deja după data meciului
+    // Verifică dacă a votat deja după meciul ăsta
+    const matchCreatedAt = lastMatch.created_at || new Date(matchDate.getTime() + 3600000).toISOString();
     const { data: myVotes } = await sb
         .from('ratings')
-        .select('id, created_at')
+        .select('id')
         .eq('rater', myPlayer.name)
-        .gte('created_at', lastMatch.created_at || new Date(matchDate).toISOString())
+        .gte('created_at', matchCreatedAt)
         .limit(1);
 
-    if (myVotes && myVotes.length > 0) return; // deja a votat
+    if (myVotes && myVotes.length > 0) return;
 
-    // Construiește lista de jucători de votat (toți din meci, mai puțin pe sine)
+    // Jucătorii de votat = toți din meci, fără sine
     const allInMatch = [...(lastMatch.orange_players||[]), ...(lastMatch.green_players||[])];
-    const toVote = db.players.filter(p =>
+    let toVote = db.players.filter(p =>
         allInMatch.includes(p.name) && p.name !== myPlayer.name
     );
+    // Dacă arrays goale — fallback la toți jucătorii activi
+    if (toVote.length === 0) {
+        toVote = db.players.filter(p => p.name !== myPlayer.name);
+    }
     if (toVote.length === 0) return;
 
-    // Pornește modalul
     openVotingModal(lastMatch, toVote, myPlayer.name);
 }
 
