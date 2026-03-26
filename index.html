@@ -83,7 +83,7 @@
         .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;}
         .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#82b1ff;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
-        .dashboard{display:grid;grid-template-columns:1fr 1fr 220px 220px;gap:14px;}
+        .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 200px 200px;gap:14px;align-items:start;}
         .column{background:#0f1118;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
         .column-active{border-style:dashed;border-color:#333;}
@@ -471,9 +471,19 @@
         .account-player-select{background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:6px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.82rem;outline:none;max-width:160px;}
         .btn-link-account{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;white-space:nowrap;}
 
+        .balance-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;gap:8px;}
+        .btn-balance{background:linear-gradient(135deg,#1a0050,#6200ea);border:1px solid #7c4dff;color:#d1b3ff;width:36px;height:36px;border-radius:50%;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 10px rgba(124,77,255,0.3);}
+        .btn-balance:hover{background:linear-gradient(135deg,#2a0070,#7c4dff);transform:scale(1.1) rotate(20deg);box-shadow:0 4px 16px rgba(124,77,255,0.5);}
+        .balance-popup{position:absolute;background:#1c1f2b;border:1px solid #3d2bbf;border-radius:12px;padding:8px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);min-width:170px;display:none;}
+        .balance-popup.show{display:block;}
+        .balance-popup-title{font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:2px 6px 6px;border-bottom:1px solid #252836;margin-bottom:4px;}
+        .balance-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;color:#ccc;transition:background 0.12s;}
+        .balance-opt:hover{background:#252836;color:#fff;}
+        .balance-opt .balance-opt-icon{font-size:1rem;}
+
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0f1118}::-webkit-scrollbar-thumb{background:#2a2d40;border-radius:3px}
-        @media(max-width:1200px){.dashboard{grid-template-columns:1fr 1fr 200px 200px}}
-        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.column-bench,.column-active{grid-column:span 1}}
+        @media(max-width:1200px){.dashboard{grid-template-columns:1fr 36px 1fr 180px 180px}}
+        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-active{grid-column:span 1}}
         @media(max-width:640px){.dashboard{grid-template-columns:1fr}.cat-inputs{grid-template-columns:1fr}.general-star-row{flex-wrap:wrap}.general-star-btn{min-width:calc(20% - 3px)}.settings-tabs{overflow-x:auto}}
     </style>
 </head>
@@ -581,6 +591,23 @@
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
+
+    <!-- Balance button between teams — admin only -->
+    <div class="balance-col admin-only" style="position:relative;">
+        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
+        <div class="balance-popup" id="balancePopup">
+            <div class="balance-popup-title">Reechilibrează după</div>
+            <div class="balance-opt" onclick="doBalance('smart')">
+                <span class="balance-opt-icon">★</span>
+                <span>Rating Smart</span>
+            </div>
+            <div class="balance-opt" onclick="doBalance('general')">
+                <span class="balance-opt-icon">⭐</span>
+                <span>Rating General</span>
+            </div>
+        </div>
+    </div>
+
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Verde</div>
@@ -2143,13 +2170,13 @@ async function saveMatchEdit() {
     const orangePlayers = getMeSelectedPlayers('Orange');
     const greenPlayers  = getMeSelectedPlayers('Green');
 
-    // Auto-calculează scorul din smart rating-urile actuale ale jucătorilor
-    const calcAvg = (names) => {
+    // Calculează scorul din ratingurile jucătorilor la DATA MECIULUI
+    const calcAvgAtDate = (names, matchDate) => {
         const players = names.map(n => db.players.find(p=>p.name===n)).filter(Boolean);
         if (!players.length) return '0.0';
-        return (players.reduce((s,p)=>s+getSmartRating(p),0)/players.length).toFixed(1);
+        return (players.reduce((s,p) => s + getSmartRatingAtDate(p, matchDate), 0) / players.length).toFixed(1);
     };
-    const score = `${calcAvg(orangePlayers)} vs ${calcAvg(greenPlayers)}`;
+    const score = `${calcAvgAtDate(orangePlayers, date)} vs ${calcAvgAtDate(greenPlayers, date)}`;
 
     const entry = { date, winner, score, orangePlayers, greenPlayers };
 
@@ -2198,7 +2225,73 @@ async function saveMatchEdit() {
     render();
 }
 
-function recalculateAllPlayerStats() {
+// ── Balance popup ──
+function toggleBalancePopup(e) {
+    e.stopPropagation();
+    const popup = document.getElementById('balancePopup');
+    popup.classList.toggle('show');
+}
+document.addEventListener('click', () => {
+    document.getElementById('balancePopup')?.classList.remove('show');
+});
+
+function doBalance(mode) {
+    document.getElementById('balancePopup').classList.remove('show');
+    const active = db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
+    if (active.length < 2) { showToast('⚠️ Minim 2 jucători activi!'); return; }
+
+    const getRating = (p) => mode === 'smart' ? getSmartRating(p) : getGeneralAvg(p);
+    const sorted = [...active].sort((a,b) => getRating(b) - getRating(a));
+
+    // Snake draft pentru echilibrare optimă
+    let oSum = 0, gSum = 0;
+    sorted.forEach(p => {
+        if (oSum <= gSum) { p.status = 'orange'; oSum += getRating(p); }
+        else              { p.status = 'green';  gSum += getRating(p); }
+    });
+    render();
+    Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
+    const label = mode === 'smart' ? 'Smart Rating' : 'Rating General';
+    showToast(`⚖️ Echipe reechilibrate după ${label}!`);
+}
+
+// ── Rating la o anumită dată (pentru calculul scorului istoric) ──
+function getSmartRatingAtDate(player, dateStr) {
+    const targetDate = parseDateToObj(dateStr);
+    // Filtrează ratingurile care existau la data meciului
+    const validRatings = player.ratings.filter(r => {
+        if (!r.date || r.date === '—') return true; // ratinguri fără dată = mereu valide
+        const rDate = parseDateToObj(r.date);
+        return rDate <= targetDate;
+    });
+    if (validRatings.length === 0) return 5; // default
+
+    const cats = ['general','viteza','tehnica','strategie','aparare'];
+    const W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20};
+    const base = cats.reduce((s,c) =>
+        s + (validRatings.reduce((a,r)=>a+(r[c]||5),0)/validRatings.length)*W[c], 0);
+    // Win rate la acel moment — calculat din meciurile de dinainte
+    const matchesBefore = db.history.filter(h => parseDateToObj(h.date) < targetDate);
+    let wins = 0, games = 0;
+    matchesBefore.forEach(h => {
+        const inMatch = [...(h.orangePlayers||[]),...(h.greenPlayers||[])].includes(player.name);
+        if (!inMatch) return;
+        games++;
+        const isOrange = (h.orangePlayers||[]).includes(player.name);
+        if ((isOrange && h.winner==='Portocaliu') || (!isOrange && h.winner==='Verde')) wins++;
+    });
+    const wr = games > 0 ? 1 + (wins/games)*9 : 5;
+    return parseFloat((base + wr*W.winrate).toFixed(2));
+}
+
+function parseDateToObj(dateStr) {
+    if (!dateStr || dateStr === '—') return new Date(0);
+    if (dateStr.includes('.')) {
+        const [d,m,y] = dateStr.split('.');
+        return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00`);
+    }
+    return new Date(dateStr);
+}
     // Resetează toate stats la zero
     db.players.forEach(p => {
         p.wins = 0;
@@ -2426,13 +2519,7 @@ async function checkPendingVotes() {
 }
 
 function parseMatchDate(dateStr) {
-    if (!dateStr) return new Date(0);
-    // "dd.mm.yyyy"
-    if (dateStr.includes('.')) {
-        const [d,m,y] = dateStr.split('.');
-        return new Date(`${y}-${m}-${d}T00:00:00`);
-    }
-    return new Date(dateStr);
+    return parseDateToObj(dateStr);
 }
 
 function openVotingModal(match, players, raterName) {
