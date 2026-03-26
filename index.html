@@ -308,6 +308,83 @@
         .lobby-player-chip.confirmed .chip-name{color:#82b1ff;}
         .lobby-confirmed-count{font-size:0.78rem;color:#5c8aff;font-weight:700;margin-top:10px;}
 
+        /* ── Post-Match Voting Modal ── */
+        .vote-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:5000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
+        .vote-overlay.show{display:flex;}
+        .vote-box{width:92%;max-width:480px;background:#141720;border-radius:20px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,0.9);overflow:hidden;display:flex;flex-direction:column;}
+
+        /* Header */
+        .vote-header{background:linear-gradient(135deg,#0d0f18,#1a1d30);padding:16px 20px 14px;border-bottom:1px solid #1e2130;}
+        .vote-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+        .vote-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:#555;}
+        .vote-skip-btn{font-size:0.75rem;color:#333;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;font-family:'Rajdhani',sans-serif;}
+        .vote-skip-btn:hover{color:#666;filter:none;transform:none;}
+
+        /* Progress */
+        .vote-progress-wrap{display:flex;align-items:center;gap:10px;}
+        .vote-progress-bar{flex:1;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;}
+        .vote-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#7c4dff);border-radius:2px;transition:width 0.4s ease;}
+        .vote-progress-text{font-size:0.72rem;color:#444;white-space:nowrap;}
+
+        /* Slide */
+        .vote-slides{flex:1;overflow:hidden;position:relative;}
+        .vote-slide{position:absolute;top:0;left:0;width:100%;padding:22px 22px 18px;opacity:0;transform:translateX(60px);transition:all 0.35s cubic-bezier(0.4,0,0.2,1);pointer-events:none;}
+        .vote-slide.active{opacity:1;transform:translateX(0);pointer-events:all;position:relative;}
+        .vote-slide.exit-left{opacity:0;transform:translateX(-60px);}
+
+        /* Player header in slide */
+        .vote-player-intro{margin-bottom:6px;}
+        .vote-player-label{font-size:0.72rem;color:#444;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px;}
+        .vote-player-name{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:2px;color:#fff;line-height:1;margin-bottom:2px;}
+        .vote-player-meta{display:flex;gap:10px;align-items:center;margin-bottom:16px;}
+        .vote-player-avg{font-size:0.82rem;color:var(--star);font-weight:700;}
+        .vote-player-team{font-size:0.72rem;padding:2px 8px;border-radius:8px;font-weight:700;}
+        .team-o{background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3);}
+        .team-g{background:rgba(40,167,69,0.15);color:#4caf50;border:1px solid rgba(40,167,69,0.3);}
+
+        /* General rating buttons — big */
+        .vote-general-label{font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+        .vote-general-val{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;transition:all 0.15s;}
+        .vote-general-val.empty{color:#252836;}
+        .vote-general-val.filled{color:var(--star);}
+        .vote-gen-row{display:flex;gap:3px;margin-bottom:14px;}
+        .vote-gen-btn{flex:1;height:50px;border-radius:8px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:0.95rem;font-weight:700;cursor:pointer;transition:all 0.12s;padding:0;font-family:'Bebas Neue',sans-serif;}
+        .vote-gen-btn:hover{border-color:#ffcc0055;color:#ffcc0066;transform:translateY(-1px);}
+        .vote-gen-btn.sel{transform:translateY(-3px);box-shadow:0 5px 18px rgba(255,204,0,0.3);}
+        .vote-gen-btn[data-v="1"].sel,.vote-gen-btn[data-v="2"].sel{background:#e53935;border-color:#e53935;color:#fff;box-shadow:0 5px 18px rgba(229,57,53,0.4);}
+        .vote-gen-btn[data-v="3"].sel,.vote-gen-btn[data-v="4"].sel{background:#ff8c00;border-color:#ff8c00;color:#000;box-shadow:0 5px 18px rgba(255,140,0,0.4);}
+        .vote-gen-btn[data-v="5"].sel,.vote-gen-btn[data-v="6"].sel{background:#ffd600;border-color:#ffd600;color:#000;box-shadow:0 5px 18px rgba(255,214,0,0.4);}
+        .vote-gen-btn[data-v="7"].sel,.vote-gen-btn[data-v="8"].sel{background:#69f0ae;border-color:#69f0ae;color:#000;box-shadow:0 5px 18px rgba(105,240,174,0.4);}
+        .vote-gen-btn[data-v="9"].sel,.vote-gen-btn[data-v="10"].sel{background:#00e5ff;border-color:#00e5ff;color:#000;box-shadow:0 5px 18px rgba(0,229,255,0.4);}
+
+        /* Details toggle */
+        .vote-details-toggle{width:100%;background:transparent;border:1px dashed #1e2130;color:#444;border-radius:10px;padding:9px;font-size:0.82rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-bottom:6px;}
+        .vote-details-toggle:hover{border-color:#3d2bbf;color:#a78bfa;transform:none;filter:none;}
+        .vote-details-toggle.open{border-color:#3d2bbf;color:#a78bfa;border-style:solid;background:rgba(61,43,191,0.06);}
+        .vote-details-wrap{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
+        .vote-details-wrap.open{max-height:300px;}
+        .vote-details-inner{background:#0a0d18;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:8px;}
+        .vote-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        .vote-sub-group{display:flex;flex-direction:column;gap:3px;}
+        .vote-sub-label{font-size:0.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+        .vote-sub-val{font-weight:700;font-size:0.75rem;}
+        .vote-sub-val.set{color:var(--star);}
+        .vote-sub-val.unset{color:#2a2d40;}
+        .vote-sub-row{display:flex;gap:2px;}
+        .vote-sub-btn{flex:1;height:26px;border-radius:4px;background:#1c1f2b;border:1px solid #252836;color:#444;font-size:0.68rem;font-weight:700;cursor:pointer;transition:all 0.08s;padding:0;font-family:'Rajdhani',sans-serif;}
+        .vote-sub-btn:hover{border-color:#ffcc0055;color:#ffcc0055;}
+        .vote-sub-btn.sel{background:var(--star);color:#000;border-color:var(--star);}
+
+        /* Footer */
+        .vote-footer{padding:14px 22px;border-top:1px solid #1e2130;display:flex;gap:10px;align-items:center;}
+        .vote-next-btn{flex:1;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;letter-spacing:1px;background:var(--orange);color:#000;transition:all 0.15s;}
+        .vote-next-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
+        .vote-next-btn.last{background:linear-gradient(135deg,#1a7a30,#28a745);color:#fff;}
+        .vote-dot-nav{display:flex;gap:5px;align-items:center;}
+        .vote-dot{width:6px;height:6px;border-radius:50%;background:#252836;transition:all 0.2s;}
+        .vote-dot.active{background:var(--accent);width:18px;border-radius:3px;}
+        .vote-dot.done{background:#28a745;}
+
         /* ── Toast ── */
         .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
@@ -963,12 +1040,42 @@
 </div>
 </div>
 
+<!-- POST-MATCH VOTING MODAL -->
+<div class="vote-overlay" id="voteOverlay">
+<div class="vote-box">
+
+    <!-- Header -->
+    <div class="vote-header">
+        <div class="vote-header-top">
+            <span class="vote-header-title">⚽ Votează Meciul</span>
+            <button class="vote-skip-btn" onclick="skipVoting()">Sari peste →</button>
+        </div>
+        <div class="vote-progress-wrap">
+            <div class="vote-progress-bar"><div class="vote-progress-fill" id="voteProgressFill" style="width:0%"></div></div>
+            <span class="vote-progress-text" id="voteProgressText">0 / 0</span>
+        </div>
+    </div>
+
+    <!-- Slides container -->
+    <div class="vote-slides" id="voteSlides" style="min-height:380px;"></div>
+
+    <!-- Footer -->
+    <div class="vote-footer">
+        <div class="vote-dot-nav" id="voteDotNav"></div>
+        <button class="vote-next-btn" id="voteNextBtn" onclick="voteNext()" disabled>
+            Selectează nota ↓
+        </button>
+    </div>
+
+</div>
+</div>
+
 <script>
 // ╔══════════════════════════════════════════════════════╗
 // ║  CONFIG — înlocuiește cu datele tale din Supabase     ║
 // ╚══════════════════════════════════════════════════════╝
-const SUPABASE_URL     = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const SUPABASE_URL     = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY';
 const VAPID_PUBLIC_KEY  = 'YOUR_VAPID_PUBLIC_KEY'; // npx web-push generate-vapid-keys
 const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 
@@ -1108,6 +1215,8 @@ async function onAuthSuccess(user) {
     await loadAll();
     setupRealtime();
     applyRoleUI();
+    // Check if user needs to vote after last match
+    setTimeout(() => checkPendingVotes(), 800);
 }
 
 // ╔══════════════════════════════════════════════════════╗
@@ -1987,27 +2096,315 @@ async function registerServiceWorker(){
 // ╔══════════════════════════════════════════════════════╗
 // ║  INIT                                                 ║
 // ╚══════════════════════════════════════════════════════╝
+// ╔══════════════════════════════════════════════════════╗
+// ║  POST-MATCH VOTING                                    ║
+// ╚══════════════════════════════════════════════════════╝
+let voteState = {
+    match: null,          // istoricul meciului
+    players: [],          // jucătorii de votat (fără self)
+    currentIdx: 0,
+    votes: {},            // { playerId: { general, viteza, tehnica, strategie, aparare } }
+    raterName: null,
+    detailsOpen: {}       // { playerId: bool }
+};
+
+async function checkPendingVotes() {
+    if (!currentProfile?.player_id) return; // cont neasistat — skip
+
+    const myPlayer = db.players.find(p => p.id == currentProfile.player_id);
+    if (!myPlayer) return;
+
+    // Găsește cel mai recent meci în care a jucat userul
+    const { data: matches } = await sb
+        .from('match_history')
+        .select('*')
+        .or(`orange_players.cs.{"${myPlayer.name}"},green_players.cs.{"${myPlayer.name}"}`)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+    if (!matches || matches.length === 0) return;
+    const lastMatch = matches[0];
+
+    // Verifică dacă data meciului e în trecut
+    // match.date e în format "dd.mm.yyyy" sau ISO
+    const matchDateStr = lastMatch.date;
+    const matchDate = parseMatchDate(matchDateStr);
+    const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+    if (matchDate >= todayDate) return; // meciul e azi sau în viitor
+
+    // Verifică dacă a votat deja după data meciului
+    const { data: myVotes } = await sb
+        .from('ratings')
+        .select('id, created_at')
+        .eq('rater', myPlayer.name)
+        .gte('created_at', lastMatch.created_at || new Date(matchDate).toISOString())
+        .limit(1);
+
+    if (myVotes && myVotes.length > 0) return; // deja a votat
+
+    // Construiește lista de jucători de votat (toți din meci, mai puțin pe sine)
+    const allInMatch = [...(lastMatch.orange_players||[]), ...(lastMatch.green_players||[])];
+    const toVote = db.players.filter(p =>
+        allInMatch.includes(p.name) && p.name !== myPlayer.name
+    );
+    if (toVote.length === 0) return;
+
+    // Pornește modalul
+    openVotingModal(lastMatch, toVote, myPlayer.name);
+}
+
+function parseMatchDate(dateStr) {
+    if (!dateStr) return new Date(0);
+    // "dd.mm.yyyy"
+    if (dateStr.includes('.')) {
+        const [d,m,y] = dateStr.split('.');
+        return new Date(`${y}-${m}-${d}T00:00:00`);
+    }
+    return new Date(dateStr);
+}
+
+function openVotingModal(match, players, raterName) {
+    voteState = {
+        match, players, currentIdx: 0,
+        votes: {}, raterName,
+        detailsOpen: {}
+    };
+    players.forEach(p => {
+        voteState.votes[p.id] = { general:null, viteza:null, tehnica:null, strategie:null, aparare:null };
+        voteState.detailsOpen[p.id] = false;
+    });
+    buildVoteSlides();
+    updateVoteProgress();
+    document.getElementById('voteOverlay').classList.add('show');
+}
+
+function buildVoteSlides() {
+    const container = document.getElementById('voteSlides');
+    container.innerHTML = '';
+
+    voteState.players.forEach((p, idx) => {
+        const avg = getGeneralAvg(p).toFixed(1);
+        const inOrange = voteState.match.orange_players?.includes(p.name);
+        const teamLabel = inOrange
+            ? '<span class="vote-player-team team-o">🟠 Portocaliu</span>'
+            : '<span class="vote-player-team team-g">🟢 Verde</span>';
+
+        // General buttons 1-10
+        let genBtns = '';
+        for (let i = 1; i <= 10; i++) {
+            genBtns += `<button class="vote-gen-btn" data-v="${i}" id="vgb-${p.id}-${i}" onclick="voteSelectGeneral(${p.id},${i})">${i}</button>`;
+        }
+
+        // Sub-cat rows
+        const subCats = [
+            {key:'viteza',   label:'⚡ Viteză'},
+            {key:'tehnica',  label:'🎯 Tehnică'},
+            {key:'strategie',label:'🧠 Strategie'},
+            {key:'aparare',  label:'🛡️ Apărare'}
+        ];
+        const subGridHtml = subCats.map(c => `
+            <div class="vote-sub-group">
+                <div class="vote-sub-label">${c.label}
+                    <span class="vote-sub-val unset" id="vsv-${p.id}-${c.key}">—</span>
+                </div>
+                <div class="vote-sub-row" id="vsr-${p.id}-${c.key}">
+                    ${Array.from({length:10},(_,i)=>`<button class="vote-sub-btn" onclick="voteSelectSub(${p.id},'${c.key}',${i+1})">${i+1}</button>`).join('')}
+                </div>
+            </div>`).join('');
+
+        const slide = document.createElement('div');
+        slide.className = 'vote-slide' + (idx === 0 ? ' active' : '');
+        slide.id = `vslide-${p.id}`;
+        slide.innerHTML = `
+            <div class="vote-player-intro">
+                <div class="vote-player-label">Votează jucătorul</div>
+                <div class="vote-player-name">${p.name}</div>
+                <div class="vote-player-meta">
+                    <span class="vote-player-avg">⭐ ${avg} actual</span>
+                    ${teamLabel}
+                </div>
+            </div>
+
+            <div class="vote-general-label">
+                <span>⚽ NOTĂ GENERALĂ</span>
+                <span class="vote-general-val empty" id="vgv-${p.id}">—</span>
+            </div>
+            <div class="vote-gen-row">${genBtns}</div>
+
+            <button class="vote-details-toggle" id="vdt-${p.id}" onclick="voteToggleDetails(${p.id})">
+                ➕ Adaugă avantaje / dezavantaje
+            </button>
+            <div class="vote-details-wrap" id="vdw-${p.id}">
+                <div class="vote-details-inner">
+                    <div style="font-size:0.7rem;color:#333;margin-bottom:8px;font-style:italic;">Opțional — restul = nota generală</div>
+                    <div class="vote-sub-grid">${subGridHtml}</div>
+                </div>
+            </div>`;
+        container.appendChild(slide);
+    });
+
+    buildVoteDots();
+}
+
+function buildVoteDots() {
+    const nav = document.getElementById('voteDotNav');
+    nav.innerHTML = voteState.players.map((p, i) => {
+        const isDone = voteState.votes[p.id]?.general !== null;
+        const isActive = i === voteState.currentIdx;
+        return `<div class="vote-dot ${isActive?'active':isDone?'done':''}"></div>`;
+    }).join('');
+}
+
+function voteSelectGeneral(playerId, val) {
+    voteState.votes[playerId].general = val;
+
+    // Update button styles
+    for (let i = 1; i <= 10; i++) {
+        const btn = document.getElementById(`vgb-${playerId}-${i}`);
+        if (btn) btn.classList.toggle('sel', i === val);
+    }
+    // Update big value display
+    const valEl = document.getElementById(`vgv-${playerId}`);
+    if (valEl) { valEl.textContent = val; valEl.className = 'vote-general-val filled'; }
+
+    // Unlock next button
+    updateVoteNextBtn();
+    buildVoteDots();
+}
+
+function voteSelectSub(playerId, cat, val) {
+    voteState.votes[playerId][cat] = val;
+    const lbl = document.getElementById(`vsv-${playerId}-${cat}`);
+    if (lbl) { lbl.textContent = val; lbl.className = 'vote-sub-val set'; }
+    document.querySelectorAll(`#vsr-${playerId}-${cat} .vote-sub-btn`).forEach((b,i) => b.classList.toggle('sel', i+1===val));
+}
+
+function voteToggleDetails(playerId) {
+    voteState.detailsOpen[playerId] = !voteState.detailsOpen[playerId];
+    const open = voteState.detailsOpen[playerId];
+    document.getElementById(`vdw-${playerId}`).classList.toggle('open', open);
+    const btn = document.getElementById(`vdt-${playerId}`);
+    btn.classList.toggle('open', open);
+    btn.innerHTML = (open ? '➖ Ascunde detalii' : '➕ Adaugă avantaje / dezavantaje');
+}
+
+function voteNext() {
+    const players = voteState.players;
+    const idx = voteState.currentIdx;
+    const p = players[idx];
+
+    if (voteState.votes[p.id].general === null) {
+        showToast('⚠️ Selectează nota generală!'); return;
+    }
+
+    const isLast = idx === players.length - 1;
+    if (isLast) {
+        submitAllVotes();
+        return;
+    }
+
+    // Animate slide out
+    const currentSlide = document.getElementById(`vslide-${p.id}`);
+    const nextPlayer = players[idx + 1];
+    const nextSlide = document.getElementById(`vslide-${nextPlayer.id}`);
+
+    currentSlide.classList.remove('active');
+    currentSlide.classList.add('exit-left');
+    setTimeout(() => { currentSlide.style.display = 'none'; }, 350);
+
+    nextSlide.classList.add('active');
+    nextSlide.style.transform = 'translateX(60px)';
+    nextSlide.style.opacity = '0';
+    setTimeout(() => {
+        nextSlide.style.transform = '';
+        nextSlide.style.opacity = '';
+    }, 20);
+
+    voteState.currentIdx = idx + 1;
+    updateVoteProgress();
+    updateVoteNextBtn();
+    buildVoteDots();
+}
+
+function updateVoteProgress() {
+    const total = voteState.players.length;
+    const current = voteState.currentIdx + 1;
+    const pct = ((current - 1) / total) * 100;
+    document.getElementById('voteProgressFill').style.width = pct + '%';
+    document.getElementById('voteProgressText').textContent = `${current} / ${total}`;
+}
+
+function updateVoteNextBtn() {
+    const btn = document.getElementById('voteNextBtn');
+    const p = voteState.players[voteState.currentIdx];
+    if (!p) return;
+    const hasVote = voteState.votes[p.id]?.general !== null;
+    const isLast = voteState.currentIdx === voteState.players.length - 1;
+
+    btn.disabled = !hasVote;
+    if (isLast) {
+        btn.textContent = '💾 Salvează Voturile';
+        btn.className = 'vote-next-btn last';
+    } else {
+        btn.textContent = hasVote ? 'Următorul →' : 'Selectează nota ↓';
+        btn.className = 'vote-next-btn';
+    }
+}
+
+async function submitAllVotes() {
+    const rater = voteState.raterName;
+    const todayStr = new Date().toLocaleDateString('ro-RO');
+    let saved = 0;
+
+    for (const p of voteState.players) {
+        const v = voteState.votes[p.id];
+        if (v.general === null) continue; // sarit
+        const g = v.general;
+        const ratingData = {
+            rater, date: todayStr,
+            general: g,
+            viteza:    v.viteza    ?? g,
+            tehnica:   v.tehnica   ?? g,
+            strategie: v.strategie ?? g,
+            aparare:   v.aparare   ?? g,
+        };
+        // Add to local state
+        p.ratings.push({ _dbId:null, ...ratingData });
+        // Save to DB
+        try {
+            const dbId = await dbInsertRating(p.id, ratingData);
+            p.ratings[p.ratings.length-1]._dbId = dbId;
+            saved++;
+        } catch(e) { console.error('Vote save error:', e); }
+    }
+
+    document.getElementById('voteOverlay').classList.remove('show');
+    render();
+    showToast(`✅ ${saved} voturi salvate! Mulțumesc, ${rater}!`, 'g');
+}
+
+function skipVoting() {
+    showConfirm('⏭️','Sari peste votare?','Poți vota mai târziu din profilul jucătorilor.','Da, sari','#252836',()=>{
+        document.getElementById('voteOverlay').classList.remove('show');
+    });
+}
+
 async function init(){
     document.getElementById('current-date').innerText=new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     await registerServiceWorker();
 
-    // Check existing session
     const { data: { session } } = await sb.auth.getSession();
     if(session?.user){
         await onAuthSuccess(session.user);
     } else {
-        // Show auth overlay
         document.getElementById('authOverlay').classList.remove('hidden');
     }
 
-    // Listen for auth changes (e.g. email confirmation)
     sb.auth.onAuthStateChange(async (event, session) => {
         if(event==='SIGNED_IN' && session?.user && !currentUser){
             await onAuthSuccess(session.user);
         }
-        if(event==='SIGNED_OUT'){
-            currentUser=null; currentProfile=null;
-        }
+        if(event==='SIGNED_OUT'){ currentUser=null; currentProfile=null; }
     });
 
     window.addEventListener('online',()=>{setConnected(true);if(currentUser)loadAll();});
