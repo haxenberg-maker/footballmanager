@@ -2087,12 +2087,11 @@ let voteState = {
 };
 
 async function checkPendingVotes() {
-    // Dacă nu e asociat un player, încearcă după nume din email
+    // Găsește jucătorul curent
     let myPlayer = null;
     if (currentProfile?.player_id) {
         myPlayer = db.players.find(p => p.id == currentProfile.player_id);
     }
-    // Fallback: caută după display_name sau email prefix
     if (!myPlayer && currentProfile?.display_name) {
         myPlayer = db.players.find(p =>
             p.name.toLowerCase() === currentProfile.display_name.toLowerCase()
@@ -2109,59 +2108,66 @@ async function checkPendingVotes() {
 
     if (!allMatches || allMatches.length === 0) return;
 
-    // Găsește primul meci în care a jucat userul
-    const lastMatch = allMatches.find(m => {
-        const allPlayers = [...(m.orange_players||[]), ...(m.green_players||[])];
-        return allPlayers.includes(myPlayer.name);
-    });
-
-    if (!lastMatch) {
-        // Fallback: dacă arrays sunt goale (meci importat), ia primul meci din trecut
-        const anyOldMatch = allMatches.find(m => {
-            const matchDate = parseMatchDate(m.date);
-            const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-            return matchDate < todayDate;
-        });
-        if (!anyOldMatch) return;
-        // Nu știm cine a jucat — arată oricum votul pentru toți jucătorii din db (mai puțin self)
-        const toVote = db.players.filter(p => p.name !== myPlayer.name && p.status !== 'bench');
-        if (toVote.length === 0) return;
-        // Verifică dacă a votat deja
-        const { data: myVotes } = await sb.from('ratings').select('id')
-            .eq('rater', myPlayer.name)
-            .gte('created_at', anyOldMatch.created_at || '2020-01-01')
-            .limit(1);
-        if (myVotes && myVotes.length > 0) return;
-        openVotingModal(anyOldMatch, toVote, myPlayer.name);
-        return;
-    }
-
-    // Verifică dacă data meciului e în trecut
-    const matchDate = parseMatchDate(lastMatch.date);
+    // Găsește cel mai recent meci din TRECUT
     const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-    if (matchDate >= todayDate) return;
+    const pastMatches = allMatches.filter(m => {
+        const md = parseMatchDate(m.date);
+        return md < todayDate;
+    });
+    if (pastMatches.length === 0) return;
 
-    // Verifică dacă a votat deja după meciul ăsta
-    const matchCreatedAt = lastMatch.created_at || new Date(matchDate.getTime() + 3600000).toISOString();
+    const lastMatch = pastMatches[0];
+    const matchId = lastMatch.id;
+
+    // Verifică în localStorage dacă a votat deja pentru acest meci
+    const votedKey = `voted_${currentUser.id}_${matchId}`;
+    if (localStorage.getItem(votedKey)) return;
+    // Verifică dacă a sarit în sesiunea curentă
+    if (sessionStorage.getItem(`skipped_${currentUser.id}_${matchId}`)) return;
+
+    // Verifică și în DB — dacă are rating-uri cu date = data meciului sau ulterior
+    // Ignoră ratinguri cu date "—" sau Initial/Default
+    const matchDateStr = lastMatch.date;
     const { data: myVotes } = await sb
         .from('ratings')
-        .select('id')
+        .select('id, date')
         .eq('rater', myPlayer.name)
-        .gte('created_at', matchCreatedAt)
-        .limit(1);
+        .neq('date', '—')
+        .neq('date', 'today')
+        .limit(50);
 
-    if (myVotes && myVotes.length > 0) return;
+    // Verifică dacă există vot cu dată >= data meciului
+    if (myVotes && myVotes.length > 0) {
+        const matchDateObj = parseMatchDate(matchDateStr);
+        const hasVotedAfter = myVotes.some(v => {
+            if (!v.date || v.date === '—') return false;
+            const vDate = parseMatchDate(v.date);
+            return vDate >= matchDateObj;
+        });
+        if (hasVotedAfter) {
+            localStorage.setItem(votedKey, '1');
+            return;
+        }
+    }
 
-    // Jucătorii de votat = toți din meci, fără sine
+    // Construiește lista de jucători de votat
     const allInMatch = [...(lastMatch.orange_players||[]), ...(lastMatch.green_players||[])];
-    let toVote = db.players.filter(p =>
-        allInMatch.includes(p.name) && p.name !== myPlayer.name
-    );
-    // Dacă arrays goale — fallback la toți jucătorii activi
-    if (toVote.length === 0) {
+    let toVote;
+
+    if (allInMatch.length > 0) {
+        // Meci cu jucători specificați — votează doar pe cei din meci
+        toVote = db.players.filter(p =>
+            allInMatch.includes(p.name) && p.name !== myPlayer.name
+        );
+    } else {
+        // Meci importat fără liste — votează toți jucătorii (indiferent de bancă)
         toVote = db.players.filter(p => p.name !== myPlayer.name);
     }
+
     if (toVote.length === 0) return;
+
+    openVotingModal(lastMatch, toVote, myPlayer.name);
+}
 
     openVotingModal(lastMatch, toVote, myPlayer.name);
 }
@@ -2394,11 +2400,19 @@ async function submitAllVotes() {
     document.getElementById('voteOverlay').classList.remove('show');
     render();
     showToast(`✅ ${saved} voturi salvate! Mulțumesc, ${rater}!`, 'g');
+    // Marchează meciul ca votat în localStorage
+    if (voteState.match?.id && currentUser?.id) {
+        localStorage.setItem(`voted_${currentUser.id}_${voteState.match.id}`, '1');
+    }
 }
 
 function skipVoting() {
     showConfirm('⏭️','Sari peste votare?','Poți vota mai târziu din profilul jucătorilor.','Da, sari','#252836',()=>{
         document.getElementById('voteOverlay').classList.remove('show');
+        // Marchează ca "sarit" pentru sesiunea asta — va reapărea la următorul login
+        if (voteState.match?.id && currentUser?.id) {
+            sessionStorage.setItem(`skipped_${currentUser.id}_${voteState.match.id}`, '1');
+        }
     });
 }
 
