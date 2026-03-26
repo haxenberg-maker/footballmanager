@@ -1548,16 +1548,26 @@ async function buildAccountsList(){
             container.innerHTML='<div style="color:#444;font-size:0.85rem;text-align:center;padding:16px;">Niciun cont înregistrat încă.</div>';
             return;
         }
-        container.innerHTML=profiles.map(prof=>{
+        container.innerHTML = profiles.map(prof=>{
             const linkedPlayer = db.players.find(p=>p.id==prof.player_id);
-            const playerOptions = `<option value="">— Neselectat —</option>`
-                + db.players.map(p=>`<option value="${p.id}" ${p.id==prof.player_id?'selected':''}>${p.name}</option>`).join('');
-            const roleColor = prof.role==='admin' ? 'background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3)' : 'background:rgba(61,90,254,0.15);color:#7986cb;border:1px solid rgba(61,90,254,0.3)';
-            return `<div class="account-row">
-                <div class="account-email" title="${prof.email}">${prof.email}</div>
-                <span class="account-role-badge" style="${roleColor}">${prof.role==='admin'?'👑 Admin':'⚽ Jucător'}</span>
-                <select class="account-player-select" id="accsel-${prof.id}" onchange="linkAccountToPlayer('${prof.id}',this.value)">${playerOptions}</select>
-                <span class="${linkedPlayer?'account-linked':'account-unlinked'}">${linkedPlayer?'🔗 '+linkedPlayer.name:'Neasistat'}</span>
+            const roleColor = prof.role==='admin'
+                ? 'background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3)'
+                : 'background:rgba(61,90,254,0.15);color:#7986cb;border:1px solid rgba(61,90,254,0.3)';
+            const playerOptions = `<option value="">— Neasociat —</option>`
+                + db.players.sort((a,b)=>a.name.localeCompare(b.name))
+                    .map(p=>`<option value="${p.id}" ${p.id==prof.player_id?'selected':''}>${p.name}</option>`).join('');
+            return `<div class="account-row" id="arow-${prof.id}">
+                <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span class="account-email" title="${prof.email}">${prof.email}</span>
+                        <span class="account-role-badge" style="${roleColor}">${prof.role==='admin'?'👑 Admin':'⚽'}</span>
+                    </div>
+                    <div style="font-size:0.72rem;color:${linkedPlayer?'#4caf50':'#555'};">
+                        ${linkedPlayer ? '🔗 ' + linkedPlayer.name : '⚠️ Neasociat cu niciun jucător'}
+                    </div>
+                </div>
+                <select class="account-player-select" id="accsel-${prof.id}">${playerOptions}</select>
+                <button class="btn-link-account" onclick="linkAccountToPlayer('${prof.id}', document.getElementById('accsel-${prof.id}').value)">Salvează</button>
             </div>`;
         }).join('');
     }catch(e){
@@ -1567,18 +1577,19 @@ async function buildAccountsList(){
 
 async function linkAccountToPlayer(profileId, playerId){
     try{
+        const player = playerId ? db.players.find(p => p.id == parseInt(playerId)) : null;
         await sb.from('profiles').update({
-            player_id: playerId ? parseInt(playerId) : null
+            player_id: player ? player.id : null,
+            display_name: player ? player.name : null
         }).eq('id', profileId);
-        showToast('✅ Cont asociat!');
+        showToast('✅ ' + (player ? `${player.name} asociat!` : 'Asociere ștearsă!'));
         buildAccountsList();
-        // Refresh current user profile if it's theirs
         if(currentUser?.id === profileId){
             const {data} = await sb.from('profiles').select('*').eq('id',profileId).single();
             currentProfile = data;
             applyRoleUI();
         }
-    }catch(e){ showToast('⚠️ '+e.message); }
+    }catch(e){ showToast('⚠️ Eroare: ' + e.message + ' — verifică policy RLS din Supabase!'); }
 }
 
 async function enablePushNotifications(){
