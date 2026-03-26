@@ -131,11 +131,27 @@
         .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#111827;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
         .lobby-player-chip:hover{border-color:#2979ff;background:#131d2e;}
         .lobby-player-chip.confirmed{background:#0a2040;border-color:#2979ff;}
+        .lobby-player-chip.absent{background:#1a0a0a;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#252836;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
         .lobby-player-chip.confirmed .chip-dot{background:#2979ff;border-color:#2979ff;box-shadow:0 0 6px rgba(41,121,255,0.6);}
+        .lobby-player-chip.absent .chip-dot{background:#c62828;border-color:#c62828;}
         .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#666;}
         .lobby-player-chip.confirmed .chip-name{color:#82b1ff;}
+        .lobby-player-chip.absent .chip-name{color:#e57373;text-decoration:line-through;}
         .lobby-confirmed-count{font-size:0.78rem;color:#5c8aff;font-weight:700;margin-top:10px;}
+
+        /* Presence modal */
+        .presence-modal{background:#141720;width:90%;max-width:360px;border-radius:20px;padding:30px 24px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,0.9);text-align:center;}
+        .presence-icon{font-size:3rem;margin-bottom:10px;}
+        .presence-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:#fff;margin-bottom:8px;}
+        .presence-match-info{font-size:0.9rem;color:#5c8aff;font-weight:700;margin-bottom:6px;}
+        .presence-player-name{font-size:0.82rem;color:#444;margin-bottom:24px;}
+        .presence-actions{display:flex;gap:12px;}
+        .presence-btn{flex:1;padding:16px;border-radius:12px;font-size:1rem;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;cursor:pointer;border:none;transition:all 0.15s;}
+        .presence-yes{background:linear-gradient(135deg,#1a7a30,#28a745);color:#fff;border:1px solid #28a745;}
+        .presence-yes:hover{filter:brightness(1.15);transform:translateY(-2px);}
+        .presence-no{background:#1a0a0a;color:#e57373;border:1px solid #c62828;}
+        .presence-no:hover{background:#2a1010;transform:translateY(-2px);}
         .vote-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:5000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
         .vote-overlay.show{display:flex;}
         .vote-box{width:92%;max-width:480px;background:#141720;border-radius:20px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,0.9);overflow:hidden;display:flex;flex-direction:column;}
@@ -571,7 +587,7 @@
     </div>
     <div class="column column-bench" id="col-bench" ondrop="drop(event)" ondragover="allowDrop(event)">
         <div class="col-header header-bench">
-            <div class="col-header-title">Pe Bancă</div>
+            <div class="col-header-title">Jucători Activi</div>
             <div class="team-rating-info"><span class="team-count-badge" id="count-bench">0 jucători</span></div>
         </div>
         <div class="col-body" id="list-bench"></div>
@@ -911,6 +927,24 @@
 </div>
 </div>
 
+<!-- PRESENCE MODAL -->
+<div class="modal-overlay" id="presenceOverlay">
+<div class="presence-modal">
+    <div class="presence-icon">📅</div>
+    <div class="presence-title">Ești disponibil?</div>
+    <div class="presence-match-info" id="presenceMatchInfo"></div>
+    <div class="presence-player-name" id="presencePlayerName"></div>
+    <div class="presence-actions">
+        <button class="presence-btn presence-yes" onclick="respondPresence(true)">
+            ✅ Da, vin!
+        </button>
+        <button class="presence-btn presence-no" onclick="respondPresence(false)">
+            ❌ Nu pot
+        </button>
+    </div>
+</div>
+</div>
+
 <!-- POST-MATCH VOTING MODAL -->
 <div class="vote-overlay" id="voteOverlay">
 <div class="vote-box">
@@ -963,7 +997,7 @@ const DEFAULT_PLAYERS = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andre
 const today = new Date().toLocaleDateString('ro-RO');
 
 // ── App State ──
-let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[]} };
+let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[],absentIds:[]} };
 let currentPlayerId = null;
 let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
 let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
@@ -1080,8 +1114,11 @@ async function onAuthSuccess(user) {
     await loadAll();
     setupRealtime();
     applyRoleUI();
-    // Check if user needs to vote after last match
-    setTimeout(() => checkPendingVotes(), 800);
+    // Check presence first, then votes (with small delay for UI to settle)
+    setTimeout(async () => {
+        const shownPresence = await checkPresenceModal();
+        if (!shownPresence) checkPendingVotes();
+    }, 800);
 }
 
 
@@ -1119,8 +1156,8 @@ async function loadAll() {
         // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
         db.nextMatch = nm
-            ? { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[] }
-            : { date:null, time:null, location:null, confirmedIds:[] };
+            ? { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] }
+            : { date:null, time:null, location:null, confirmedIds:[], absentIds:[] };
 
         setConnected(true);
         render();
@@ -1191,7 +1228,8 @@ async function dbSaveNextMatch() {
         match_date: nm.date || null,
         match_time: nm.time || null,
         location:   nm.location || null,
-        confirmed_ids: nm.confirmedIds || []
+        confirmed_ids: nm.confirmedIds || [],
+        absent_ids: nm.absentIds || []
     });
     if (error) throw error;
 }
@@ -1210,7 +1248,7 @@ function setupRealtime() {
         .on('postgres_changes', { event:'*', schema:'public', table:'next_match' }, async () => {
             const { data:nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
             if (nm) {
-                db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[] };
+                db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] };
                 renderLobby();
             }
         })
@@ -1332,31 +1370,68 @@ function renderLobby(){
         if(nm.location)str+=' · '+nm.location;
         dtEl.textContent=str;dtEl.className='lobby-datetime';
     }else{dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';}
+
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
     db.players.forEach(p=>{
-        const confirmed=db.nextMatch.confirmedIds.includes(p.id);
+        const confirmed = nm.confirmedIds.includes(p.id);
+        const absent    = nm.absentIds?.includes(p.id);
         const chip=document.createElement('div');
-        chip.className='lobby-player-chip'+(confirmed?' confirmed':'');
-        chip.innerHTML=`<div class="chip-dot"></div><span class="chip-name">${p.name}</span>`;
-        chip.onclick=()=>toggleLobbyPresence(p.id);
+        let chipClass = 'lobby-player-chip';
+        let dotHtml = '<div class="chip-dot"></div>';
+        let nameHtml = `<span class="chip-name">${p.name}</span>`;
+        if(confirmed){
+            chipClass += ' confirmed';
+            dotHtml = '<div class="chip-dot"></div>';
+        } else if(absent){
+            chipClass += ' absent';
+            dotHtml = '<span style="font-size:0.75rem;line-height:1;">✕</span>';
+        }
+        chip.className = chipClass;
+        chip.innerHTML = dotHtml + nameHtml;
+        // Admin can toggle anyone; players can only toggle themselves
+        chip.onclick = () => toggleLobbyPresence(p.id);
         container.appendChild(chip);
     });
-    const cnt=db.nextMatch.confirmedIds.length;
-    document.getElementById('lobbyCount').textContent=cnt?`✅ ${cnt} jucător${cnt===1?'':'i'} confirmat${cnt===1?'':'i'}!`:'Niciun jucător confirmat încă.';
+
+    const cnt = nm.confirmedIds.length;
+    const absCnt = nm.absentIds?.length || 0;
+    const pending = db.players.length - cnt - absCnt;
+    let countText = '';
+    if(cnt > 0) countText += `✅ ${cnt} prezenți`;
+    if(absCnt > 0) countText += (countText?' · ':'') + `❌ ${absCnt} absenți`;
+    if(pending > 0) countText += (countText?' · ':'') + `⏳ ${pending} fără răspuns`;
+    document.getElementById('lobbyCount').textContent = countText || 'Nimeni nu a răspuns încă.';
 }
 
 async function toggleLobbyPresence(playerId){
-    // Players can only toggle their own presence
     if(!isAdmin()){
-        const myPlayerId = currentProfile?.player_id;
-        if(!myPlayerId){ showToast('⚠️ Contul tău nu e asociat unui jucător!'); return; }
-        if(myPlayerId != playerId){ showToast('⚠️ Poți marca doar prezența ta!'); return; }
+        // Jucătorii nu pot schimba singuri din lobby — folosesc modalul de prezență
+        showToast('⚠️ Folosește modalul de prezență la login!');
+        return;
     }
-    const ids=db.nextMatch.confirmedIds;
-    const idx=ids.indexOf(playerId);
-    if(idx===-1)ids.push(playerId);else ids.splice(idx,1);
+    // Admin: ciclează prin stări: niciuna → prezent → absent → niciuna
+    const ids = db.nextMatch.confirmedIds;
+    const abs = db.nextMatch.absentIds || (db.nextMatch.absentIds=[]);
+    const inConf = ids.indexOf(playerId);
+    const inAbs  = abs.indexOf(playerId);
+
+    if(inConf === -1 && inAbs === -1){
+        // Niciuna → PREZENT + mută pe bench
+        ids.push(playerId);
+        const p = db.players.find(x=>x.id==playerId);
+        if(p && p.status==='inactive') { p.status='bench'; await dbUpdatePlayer(p); }
+    } else if(inConf !== -1){
+        // PREZENT → ABSENT
+        ids.splice(inConf,1);
+        abs.push(playerId);
+        // Scoate de pe bench dacă era pus
+    } else {
+        // ABSENT → niciuna
+        abs.splice(inAbs,1);
+    }
+
     renderLobby();
-    try{ await dbSaveNextMatch(); }catch(e){ showToast('⚠️ Eroare salvare: '+e.message); }
+    try{ await dbSaveNextMatch(); }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 function openScheduleModal(){
@@ -1384,7 +1459,7 @@ async function saveSchedule(){
     }catch(e){showToast('⚠️ '+e.message);}
 }
 async function clearSchedule(){
-    db.nextMatch={date:null,time:null,location:null,confirmedIds:[]};
+    db.nextMatch={date:null,time:null,location:null,confirmedIds:[],absentIds:[]};
     renderLobby();closeScheduleModal();
     try{await dbSaveNextMatch();showToast('🗑️ Meci șters.');}catch(e){showToast('⚠️ '+e.message);}
 }
@@ -1410,7 +1485,7 @@ async function recordMatch(winner){
     // Mută toți jucătorii pe bancă după meci
     db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green') p.status='bench'; });
     const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
-    db.history.unshift(entry);db.nextMatch.confirmedIds=[];
+    db.history.unshift(entry);db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];
     render();showToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`,winner==='orange'?'o':'g');
     try{
         await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
@@ -2096,6 +2171,81 @@ let voteState = {
     raterName: null,
     detailsOpen: {}       // { playerId: bool }
 };
+
+async function checkPresenceModal() {
+    // Verifică dacă există meci viitor programat
+    const nm = db.nextMatch;
+    if (!nm.date) return false;
+
+    const matchDate = new Date(nm.date + 'T' + (nm.time || '00:00'));
+    const now = new Date();
+    if (matchDate <= now) return false; // meciul a trecut
+
+    // Găsește jucătorul curent
+    let myPlayer = null;
+    if (currentProfile?.player_id) myPlayer = db.players.find(p=>p.id==currentProfile.player_id);
+    if (!myPlayer && currentProfile?.display_name) myPlayer = db.players.find(p=>p.name.toLowerCase()===currentProfile.display_name.toLowerCase());
+    if (!myPlayer) return false;
+
+    // A răspuns deja?
+    const alreadyConfirmed = nm.confirmedIds.includes(myPlayer.id);
+    const alreadyAbsent    = (nm.absentIds||[]).includes(myPlayer.id);
+    if (alreadyConfirmed || alreadyAbsent) return false;
+
+    // Verifică sessionStorage — dacă a sarit deja în sesiunea asta
+    const skipKey = `presence_skip_${currentUser.id}_${nm.date}`;
+    if (sessionStorage.getItem(skipKey)) return false;
+
+    // Afișează modalul
+    let matchStr = matchDate.toLocaleDateString('ro-RO', {weekday:'long', day:'numeric', month:'long'});
+    if (nm.time) matchStr += ' · ' + nm.time;
+    if (nm.location) matchStr += ' · ' + nm.location;
+    document.getElementById('presenceMatchInfo').textContent = matchStr;
+    document.getElementById('presencePlayerName').textContent = `ca ${myPlayer.name}`;
+    document.getElementById('presenceOverlay').style.display = 'flex';
+
+    // Salvează referința la jucător pentru respondPresence
+    window._presencePlayer = myPlayer;
+    return true;
+}
+
+async function respondPresence(present) {
+    const myPlayer = window._presencePlayer;
+    if (!myPlayer) return;
+
+    const nm = db.nextMatch;
+    if (!nm.absentIds) nm.absentIds = [];
+
+    if (present) {
+        // Adaugă la confirmați dacă nu e deja
+        if (!nm.confirmedIds.includes(myPlayer.id)) nm.confirmedIds.push(myPlayer.id);
+        // Scoate din absenți dacă era
+        const absIdx = nm.absentIds.indexOf(myPlayer.id);
+        if (absIdx !== -1) nm.absentIds.splice(absIdx, 1);
+        // Mută jucătorul în Jucători Activi (bench)
+        myPlayer.status = 'bench';
+        await dbUpdatePlayer(myPlayer).catch(()=>{});
+        showToast(`✅ Prezență confirmată! Te așteptăm, ${myPlayer.name}!`, 'g');
+    } else {
+        // Adaugă la absenți
+        if (!nm.absentIds.includes(myPlayer.id)) nm.absentIds.push(myPlayer.id);
+        // Scoate din confirmați dacă era
+        const confIdx = nm.confirmedIds.indexOf(myPlayer.id);
+        if (confIdx !== -1) nm.confirmedIds.splice(confIdx, 1);
+        showToast(`❌ Absență înregistrată. Data viitoare!`);
+    }
+
+    document.getElementById('presenceOverlay').style.display = 'none';
+
+    try {
+        await dbSaveNextMatch();
+    } catch(e) { showToast('⚠️ ' + e.message); }
+
+    render();
+
+    // Dacă a confirmat prezența, verifică și voturile
+    if (present) setTimeout(() => checkPendingVotes(), 400);
+}
 
 async function checkPendingVotes() {
     // Găsește jucătorul curent
