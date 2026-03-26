@@ -1,7 +1,6 @@
 const CACHE_NAME = 'arena-fc-v1';
 const OFFLINE_ASSETS = ['/', '/index.html', '/manifest.json'];
 
-// Install — cache assets
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_ASSETS))
@@ -9,7 +8,6 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate — clear old caches
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys => Promise.all(
@@ -19,14 +17,20 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Fetch — serve from cache, fallback to network
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // NU intercepta request-uri externe — Supabase, Google Fonts, CDN-uri
+  if (url.origin !== self.location.origin) return;
+
+  // NU intercepta POST/PUT/DELETE — doar GET
+  if (event.request.method !== 'GET') return;
+
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
 });
 
-// Push notifications
 self.addEventListener('push', event => {
   const data = event.data?.json() || {};
   event.waitUntil(
