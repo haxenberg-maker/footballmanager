@@ -332,19 +332,28 @@ async function respond(present){
     if(present)confirmedIds.push(pid);
     else absentIds.push(pid);
 
-    // Save to DB
+    // Save to DB — use upsert to avoid RLS issues
     try{
-        await sb.from('next_match').update({
+        const{error}=await sb.from('next_match').upsert({
+            id:1,
             confirmed_ids:confirmedIds,
             absent_ids:absentIds
-        }).eq('id',1);
-    }catch(e){toast('⚠️ Eroare la salvare: '+e.message);return;}
+        });
+        if(error)throw error;
+    }catch(e){
+        toast('⚠️ Eroare salvare: '+e.message);
+        console.error('Prezenta save error:',e);
+        // Revert local state
+        confirmedIds=confirmedIds.filter(i=>i!=pid);
+        absentIds=absentIds.filter(i=>i!=pid);
+        renderCounters();renderConfirmedSection();renderPlayerList();
+        return;
+    }
 
     renderCounters();
     renderConfirmedSection();
     renderPlayerList();
 
-    // Show done screen
     const name=pendingPlayer.name;
     const{date,time}=nextMatch;
     let dt=new Date(date+'T'+(time||'00:00'));
@@ -357,7 +366,6 @@ async function respond(present){
         ?`${name}, prezența ta a fost confirmată pentru ${dtStr}.`
         :`${name}, absența ta a fost înregistrată. Data viitoare!`;
 
-    // Show updated player list in done screen too
     const confList=allPlayers.filter(p=>confirmedIds.includes(p.id));
     document.getElementById('donePlayerList').innerHTML=confList.length
         ?`<div class="list-label">✅ Prezenți acum (${confList.length})</div>`+confList.map(p=>`
