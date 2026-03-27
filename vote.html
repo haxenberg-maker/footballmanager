@@ -208,16 +208,9 @@
         </div>
         <div class="identity-btns">
             <button class="btn-yes" onclick="confirmIdentity()">✅ Da, sunt eu!</button>
-            <button class="btn-no" onclick="changeIdentity()">Nu sunt eu</button>
         </div>
     </div>
-    <div style="font-size:.72rem;color:#333;margin-top:8px;text-align:center;">Sau alege altcineva de mai jos</div>
-    <div id="playerListConfirm" style="width:100%;margin-top:12px;"></div>
-    <button class="nf-btn" id="nfBtn2" onclick="showNF2()">👤 Nu mă regăsesc în listă →</button>
-    <div class="nf-wrap" id="nfWrap2">
-        <input class="nf-input" id="nfInput2" placeholder="Prenume Nume (ex: Ion Popescu)" onkeydown="if(event.key==='Enter')useNF2()">
-        <button class="nf-ok" onclick="useNF2()">Continuă →</button>
-    </div>
+    <button class="nf-btn" onclick="changeIdentity()" style="margin-top:16px;">🔄 Nu sunt eu — alege alt jucător</button>
 </div>
 
 <!-- S2: Match list -->
@@ -343,14 +336,11 @@ async function init(){
 function showIdentityConfirm(name){
     document.getElementById('identityAvatar').textContent=ini(name);
     document.getElementById('identityName').textContent=name;
-    // Also show smaller list below for quick switching
-    buildPlayerList('playerListConfirm', p=>startAs(p.name), name);
     goTo('s1b');
 }
 
-function buildPlayerList(containerId, onClick, excludeName=null){
-    const players=excludeName?allPlayers.filter(p=>p.name!==excludeName):allPlayers;
-    document.getElementById(containerId).innerHTML=players.map(p=>`
+function buildPlayerList(containerId, onClick){
+    document.getElementById(containerId).innerHTML=allPlayers.map(p=>`
         <div class="player-item" onclick="(${onClick.toString()})({name:'${p.name}'})">
             <div class="p-avatar">${ini(p.name)}</div>
             <div class="p-name">${p.name}</div>
@@ -365,8 +355,6 @@ function changeIdentity(){
 
 function showNF(){document.getElementById('nfWrap').classList.add('show');document.getElementById('nfBtn').style.display='none';setTimeout(()=>document.getElementById('nfInput').focus(),100);}
 function useNF(){const v=document.getElementById('nfInput').value.trim();if(!v||v.length<2){toast('⚠️ Minim 2 caractere!');return;}startAs(v);}
-function showNF2(){document.getElementById('nfWrap2').classList.add('show');document.getElementById('nfBtn2').style.display='none';setTimeout(()=>document.getElementById('nfInput2').focus(),100);}
-function useNF2(){const v=document.getElementById('nfInput2').value.trim();if(!v||v.length<2){toast('⚠️ Minim 2 caractere!');return;}startAs(v);}
 
 async function startAs(name){
     myName=name;
