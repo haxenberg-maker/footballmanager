@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prezență · Arena Friends FC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root{--orange:#ff8c00;--green:#28a745;--dark:#0a0c10;--card:#141720;--accent:#3d5afe;--border:#252836;--blue:#2979ff;}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;}
+        .spinner{width:40px;height:40px;border:3px solid #252836;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading{position:fixed;inset:0;background:#0a0c10;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+        .loading.hidden{display:none;}
+        .loading-text{font-size:.82rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
+
+        .header{background:linear-gradient(135deg,#0d0f18,#141720);border-bottom:1px solid var(--border);padding:14px 20px;text-align:center;}
+        .header h1{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:#fff;}
+        .header p{font-size:.72rem;color:#444;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+
+        .page{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px;max-width:560px;margin:0 auto;width:100%;}
+
+        /* Match info card */
+        .match-card{width:100%;background:linear-gradient(135deg,#0d2040,#1a3060);border:1px solid #2a4a80;border-radius:16px;padding:20px 22px;margin-bottom:20px;text-align:center;}
+        .mc-label{font-size:.65rem;color:#5c8aff;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+        .mc-date{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#fff;margin-bottom:4px;}
+        .mc-details{font-size:.88rem;color:#5c8aff;margin-bottom:4px;}
+        .mc-location{font-size:.8rem;color:#444;}
+
+        /* No match */
+        .no-match{text-align:center;padding:40px 20px;}
+        .no-match-icon{font-size:3rem;margin-bottom:14px;}
+        .no-match-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#555;margin-bottom:8px;}
+        .no-match-sub{font-size:.85rem;color:#333;line-height:1.6;}
+
+        /* Player select screen */
+        .sec-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;margin-bottom:5px;width:100%;}
+        .sec-sub{font-size:.78rem;color:#555;margin-bottom:14px;width:100%;}
+
+        .player-item{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s;margin-bottom:7px;}
+        .player-item:hover{border-color:var(--accent);transform:translateX(4px);}
+        .player-item.confirmed{border-color:var(--blue);background:rgba(41,121,255,.08);cursor:default;}
+        .player-item.absent{border-color:#c62828;background:rgba(198,40,40,.06);cursor:default;opacity:.6;}
+        .p-avatar{width:36px;height:36px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#555;flex-shrink:0;}
+        .p-avatar.conf{background:rgba(41,121,255,.2);color:#82b1ff;}
+        .p-avatar.abs{background:rgba(198,40,40,.2);color:#e57373;}
+        .p-name{font-weight:700;font-size:.95rem;}
+        .p-status{font-size:.7rem;margin-top:1px;}
+        .p-status.conf{color:#82b1ff;}
+        .p-status.abs{color:#e57373;}
+        .p-status.none{color:#333;}
+        .p-badge{margin-left:auto;font-size:.72rem;padding:3px 9px;border-radius:8px;font-weight:700;white-space:nowrap;}
+        .badge-conf{background:rgba(41,121,255,.15);color:#82b1ff;border:1px solid rgba(41,121,255,.3);}
+        .badge-abs{background:rgba(198,40,40,.12);color:#e57373;border:1px solid rgba(198,40,40,.25);}
+
+        /* Response modal */
+        .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px);}
+        .modal-bg.hidden{display:none;}
+        .modal{background:#141720;width:100%;max-width:380px;border-radius:20px;padding:28px 24px;border:1px solid #2a2d40;box-shadow:0 30px 80px rgba(0,0,0,.9);text-align:center;}
+        .modal-icon{font-size:2.5rem;margin-bottom:10px;}
+        .modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#fff;margin-bottom:6px;}
+        .modal-match{font-size:.82rem;color:#5c8aff;margin-bottom:4px;}
+        .modal-player{font-size:.75rem;color:#444;margin-bottom:22px;}
+        .modal-btns{display:flex;gap:10px;}
+        .mbtn{flex:1;padding:15px;border-radius:12px;font-size:.95rem;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;cursor:pointer;border:none;transition:all .15s;}
+        .mbtn-yes{background:linear-gradient(135deg,#1a7a30,#28a745);color:#fff;border:1px solid #28a745;}
+        .mbtn-yes:hover{filter:brightness(1.15);transform:translateY(-2px);}
+        .mbtn-no{background:#1a0a0a;color:#e57373;border:1px solid #c62828;}
+        .mbtn-no:hover{background:#2a1010;transform:translateY(-2px);}
+        .mbtn-cancel{background:#1c1f2b;color:#555;border:1px solid var(--border);font-size:.75rem;letter-spacing:1px;}
+        .mbtn-cancel:hover{background:#252836;}
+
+        /* Counters */
+        .counters{display:flex;gap:10px;width:100%;margin-bottom:18px;}
+        .counter{flex:1;background:var(--card);border-radius:12px;padding:12px;text-align:center;border:1px solid var(--border);}
+        .counter.conf{border-color:rgba(41,121,255,.3);background:rgba(41,121,255,.05);}
+        .counter.abs{border-color:rgba(198,40,40,.25);background:rgba(198,40,40,.04);}
+        .counter.pend{border-color:#252836;}
+        .counter-n{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:1px;}
+        .counter.conf .counter-n{color:#82b1ff;}
+        .counter.abs .counter-n{color:#e57373;}
+        .counter.pend .counter-n{color:#444;}
+        .counter-lbl{font-size:.62rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+
+        .done-wrap{text-align:center;padding:16px 0 8px;width:100%;}
+        .done-icon{font-size:3rem;margin-bottom:12px;}
+        .done-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;margin-bottom:6px;}
+        .done-title.yes{color:#4caf50;}
+        .done-title.no{color:#e57373;}
+        .done-sub{font-size:.85rem;color:#555;margin-bottom:18px;line-height:1.5;}
+        .back-btn{background:none;border:1px solid var(--border);color:#555;padding:8px 18px;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;}
+        .back-btn:hover{border-color:#555;color:#aaa;}
+
+        .divider{width:100%;height:1px;background:var(--border);margin:14px 0;}
+        .list-label{font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;width:100%;}
+
+        .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+        /* Screens */
+        .view{display:none;width:100%;}
+        .view.active{display:block;}
+    </style>
+</head>
+<body>
+<div class="loading" id="loading"><div class="spinner"></div><div class="loading-text">Se încarcă...</div></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-bg hidden" id="confirmModal">
+    <div class="modal">
+        <div class="modal-icon">📅</div>
+        <div class="modal-title">Ești disponibil?</div>
+        <div class="modal-match" id="mModalMatch"></div>
+        <div class="modal-player" id="mModalPlayer"></div>
+        <div class="modal-btns" style="flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:10px;">
+                <button class="mbtn mbtn-yes" onclick="respond(true)">✅ Da, vin!</button>
+                <button class="mbtn mbtn-no" onclick="respond(false)">❌ Nu pot</button>
+            </div>
+            <button class="mbtn mbtn-cancel" onclick="closeModal()">Anulează</button>
+        </div>
+    </div>
+</div>
+
+<div class="header"><h1>Arena Friends FC</h1><p>Prezență meci următor</p></div>
+
+<div class="page">
+
+    <!-- NO MATCH -->
+    <div class="view" id="vNoMatch">
+        <div class="no-match">
+            <div class="no-match-icon">📭</div>
+            <div class="no-match-title">Niciun meci programat</div>
+            <div class="no-match-sub">Nu există un meci următor programat momentan.<br>Revino mai târziu!</div>
+        </div>
+    </div>
+
+    <!-- MATCH + SELECT PLAYER -->
+    <div class="view" id="vMain">
+        <div class="match-card" id="matchCard"></div>
+
+        <div class="counters" id="counters"></div>
+
+        <!-- Confirmed list -->
+        <div id="confirmedSection" style="width:100%;"></div>
+
+        <div class="divider"></div>
+
+        <!-- Select who you are -->
+        <div class="sec-title">Marchează-ți Prezența</div>
+        <div class="sec-sub">Selectează-te din lista de jucători</div>
+        <div id="playerList" style="width:100%;"></div>
+    </div>
+
+    <!-- DONE -->
+    <div class="view" id="vDone">
+        <div class="done-wrap">
+            <div class="done-icon" id="doneIcon"></div>
+            <div class="done-title" id="doneTitle"></div>
+            <div class="done-sub" id="doneSub"></div>
+            <button class="back-btn" onclick="reload()">← Înapoi</button>
+        </div>
+        <div class="divider"></div>
+        <div id="donePlayerList" style="width:100%;"></div>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let nextMatch=null, allPlayers=[], confirmedIds=[], absentIds=[], pendingPlayer=null;
+
+function parseDate(s){if(!s)return new Date(0);if(s.includes('.')){const[d,m,y]=s.split('.');return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00`);}return new Date(s);}
+function show(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id)?.classList.add('active');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;requestAnimationFrame(()=>{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);});}
+function reload(){location.reload();}
+
+async function init(){
+    // Load next match and players in parallel
+    const[nmRes,pRes]=await Promise.all([
+        sb.from('next_match').select('*').eq('id',1).maybeSingle(),
+        sb.from('players').select('id,name,status').order('name')
+    ]);
+    allPlayers=pRes.data||[];
+    const nm=nmRes.data;
+
+    if(!nm?.match_date){show('vNoMatch');document.getElementById('loading').classList.add('hidden');return;}
+
+    // Check if match is in the future
+    const matchDt=new Date(nm.match_date+'T'+(nm.match_time||'00:00'));
+    const now=new Date();
+    if(matchDt<=now){show('vNoMatch');document.getElementById('loading').classList.add('hidden');return;}
+
+    nextMatch={date:nm.match_date,time:nm.match_time,location:nm.location,id:nm.id};
+    confirmedIds=nm.confirmed_ids||[];
+    absentIds=nm.absent_ids||[];
+
+    renderMatchCard();
+    renderCounters();
+    renderConfirmedSection();
+    renderPlayerList();
+    show('vMain');
+
+    // Realtime updates
+    sb.channel('prez_realtime')
+        .on('postgres_changes',{event:'*',schema:'public',table:'next_match'},async()=>{
+            const{data:fresh}=await sb.from('next_match').select('*').eq('id',1).maybeSingle();
+            if(fresh){confirmedIds=fresh.confirmed_ids||[];absentIds=fresh.absent_ids||[];renderCounters();renderConfirmedSection();renderPlayerList();}
+        }).subscribe();
+
+    document.getElementById('loading').classList.add('hidden');
+}
+
+function renderMatchCard(){
+    const{date,time,location}=nextMatch;
+    let dt=new Date(date+'T'+(time||'00:00'));
+    let dtStr=dt.toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long'});
+    document.getElementById('matchCard').innerHTML=`
+        <div class="mc-label">Meciul următor</div>
+        <div class="mc-date">${dtStr}</div>
+        ${time?`<div class="mc-details">⏰ ${time}</div>`:''}
+        ${location?`<div class="mc-location">📍 ${location}</div>`:''}`;
+}
+
+function renderCounters(){
+    const conf=confirmedIds.length, abs=absentIds.length, pend=allPlayers.length-conf-abs;
+    document.getElementById('counters').innerHTML=`
+        <div class="counter conf"><div class="counter-n">${conf}</div><div class="counter-lbl">✅ Prezenți</div></div>
+        <div class="counter abs"><div class="counter-n">${abs}</div><div class="counter-lbl">❌ Absenți</div></div>
+        <div class="counter pend"><div class="counter-n">${Math.max(0,pend)}</div><div class="counter-lbl">⏳ Fără răspuns</div></div>`;
+}
+
+function renderConfirmedSection(){
+    const confPlayers=allPlayers.filter(p=>confirmedIds.includes(p.id));
+    const absentPlayers=allPlayers.filter(p=>absentIds.includes(p.id));
+    let html='';
+    if(confPlayers.length){
+        html+=`<div class="list-label">✅ Confirmați (${confPlayers.length})</div>`;
+        html+=confPlayers.map(p=>`
+            <div class="player-item confirmed">
+                <div class="p-avatar conf">${initials(p.name)}</div>
+                <div><div class="p-name">${p.name}</div><div class="p-status conf">Confirmă prezența</div></div>
+                <span class="p-badge badge-conf">✅ Prezent</span>
+            </div>`).join('');
+    }
+    if(absentPlayers.length){
+        html+=`<div class="list-label" style="margin-top:12px;">❌ Absenți (${absentPlayers.length})</div>`;
+        html+=absentPlayers.map(p=>`
+            <div class="player-item absent">
+                <div class="p-avatar abs">${initials(p.name)}</div>
+                <div><div class="p-name">${p.name}</div><div class="p-status abs">Nu poate veni</div></div>
+                <span class="p-badge badge-abs">❌ Absent</span>
+            </div>`).join('');
+    }
+    const sec=document.getElementById('confirmedSection');
+    sec.innerHTML=html;
+}
+
+function renderPlayerList(){
+    // Show all players sorted — those who haven't responded first
+    const sorted=[...allPlayers].sort((a,b)=>{
+        const aConf=confirmedIds.includes(a.id),aAbs=absentIds.includes(a.id);
+        const bConf=confirmedIds.includes(b.id),bAbs=absentIds.includes(b.id);
+        // no answer first, then confirmed, then absent
+        const aScore=aConf?1:aAbs?2:0, bScore=bConf?1:bAbs?2:0;
+        return aScore-bScore||a.name.localeCompare(b.name);
+    });
+    document.getElementById('playerList').innerHTML=sorted.map(p=>{
+        const isConf=confirmedIds.includes(p.id),isAbs=absentIds.includes(p.id);
+        const cls=isConf?'confirmed':isAbs?'absent':'';
+        const badge=isConf?'<span class="p-badge badge-conf">✅</span>':isAbs?'<span class="p-badge badge-abs">❌</span>':'';
+        const sub=isConf?'<span class="p-status conf">Confirmat prezent</span>':isAbs?'<span class="p-status abs">Marcat absent</span>':'<span class="p-status none">Fără răspuns</span>';
+        const avCls=isConf?'conf':isAbs?'abs':'';
+        const click=(!isConf&&!isAbs)?`onclick="openModal(${p.id})"`:isConf?`onclick="changeResponse(${p.id})"`:isAbs?`onclick="changeResponse(${p.id})"`:''
+        return `<div class="player-item ${cls}" ${click}><div class="p-avatar ${avCls}">${initials(p.name)}</div><div><div class="p-name">${p.name}</div>${sub}</div>${badge}</div>`;
+    }).join('');
+}
+
+function initials(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+function openModal(playerId){
+    pendingPlayer=allPlayers.find(p=>p.id==playerId);
+    if(!pendingPlayer)return;
+    const{date,time,location}=nextMatch;
+    let dt=new Date(date+'T'+(time||'00:00'));
+    let dtStr=dt.toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long'});
+    if(time)dtStr+=' · '+time;
+    if(location)dtStr+=' · '+location;
+    document.getElementById('mModalMatch').textContent=dtStr;
+    document.getElementById('mModalPlayer').textContent=`ca ${pendingPlayer.name}`;
+    document.getElementById('confirmModal').classList.remove('hidden');
+}
+
+function changeResponse(playerId){
+    openModal(playerId);
+}
+
+function closeModal(){
+    document.getElementById('confirmModal').classList.add('hidden');
+    pendingPlayer=null;
+}
+
+async function respond(present){
+    if(!pendingPlayer)return;
+    closeModal();
+    const pid=pendingPlayer.id;
+
+    // Update locally
+    confirmedIds=confirmedIds.filter(i=>i!=pid);
+    absentIds=absentIds.filter(i=>i!=pid);
+    if(present)confirmedIds.push(pid);
+    else absentIds.push(pid);
+
+    // Save to DB
+    try{
+        await sb.from('next_match').update({
+            confirmed_ids:confirmedIds,
+            absent_ids:absentIds
+        }).eq('id',1);
+    }catch(e){toast('⚠️ Eroare la salvare: '+e.message);return;}
+
+    renderCounters();
+    renderConfirmedSection();
+    renderPlayerList();
+
+    // Show done screen
+    const name=pendingPlayer.name;
+    const{date,time}=nextMatch;
+    let dt=new Date(date+'T'+(time||'00:00'));
+    const dtStr=dt.toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long'})+(time?' · '+time:'');
+
+    document.getElementById('doneIcon').textContent=present?'🎉':'😔';
+    document.getElementById('doneTitle').textContent=present?'Ne vedem acolo!':'Data viitoare!';
+    document.getElementById('doneTitle').className='done-title '+(present?'yes':'no');
+    document.getElementById('doneSub').textContent=present
+        ?`${name}, prezența ta a fost confirmată pentru ${dtStr}.`
+        :`${name}, absența ta a fost înregistrată. Data viitoare!`;
+
+    // Show updated player list in done screen too
+    const confList=allPlayers.filter(p=>confirmedIds.includes(p.id));
+    document.getElementById('donePlayerList').innerHTML=confList.length
+        ?`<div class="list-label">✅ Prezenți acum (${confList.length})</div>`+confList.map(p=>`
+            <div class="player-item confirmed">
+                <div class="p-avatar conf">${initials(p.name)}</div>
+                <div class="p-name">${p.name}</div>
+            </div>`).join('')
+        :'';
+
+    if(navigator.vibrate)navigator.vibrate(present?[100,50,100]:50);
+    show('vDone');
+}
+
+init();
+</script>
+</body>
+</html>

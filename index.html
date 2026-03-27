@@ -485,25 +485,21 @@
         .balance-opt .balance-opt-icon{font-size:1rem;}
 
         /* Mobile tabs */
-        .mobile-tabs{display:none;background:#0d0f18;border-bottom:1px solid var(--border);overflow-x:auto;}
-        .mobile-tab{flex:1;min-width:65px;padding:10px 4px;text-align:center;font-size:0.68rem;font-weight:700;color:#444;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:0.5px;transition:all 0.15s;}
+        .mobile-tabs-row{display:none;}
+        .mobile-tabs{display:flex;background:#0d0f18;border-bottom:1px solid var(--border);overflow-x:auto;}
+        .mobile-tab{flex:1;min-width:58px;padding:10px 3px;text-align:center;font-size:0.65rem;font-weight:700;color:#444;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:0.3px;transition:all 0.15s;}
         .mobile-tab.active{color:#fff;border-bottom-color:var(--accent);}
         .mobile-tab.tab-o.active{border-bottom-color:var(--orange);color:var(--orange);}
         .mobile-tab.tab-g.active{border-bottom-color:var(--green);color:#4caf50;}
         .mobile-tab.tab-b.active{border-bottom-color:#2979ff;color:#82b1ff;}
+        .mobile-tab.tab-a.active{border-bottom-color:#555;color:#aaa;}
         .mobile-tab.tab-l.active{border-bottom-color:#5c8aff;color:#82b1ff;}
         .mobile-tab.tab-h.active{border-bottom-color:#a78bfa;color:#a78bfa;}
-        .mobile-section{display:block;}
-        @media(max-width:640px){
-            .mobile-section{display:none;}
-            .mobile-section.mobile-active{display:block;}
-        }
-        /* Collapsible sections */
-        .section-toggle{display:none;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;user-select:none;}
-        .section-toggle-label{font-family:"Bebas Neue",sans-serif;font-size:1rem;letter-spacing:2px;color:#666;}
-        .section-chevron{color:#444;font-size:0.75rem;transition:transform 0.2s;}
-        .section-chevron.open{transform:rotate(180deg);}
-        .section-collapsible{overflow:hidden;transition:max-height 0.35s ease;}
+        /* Sections always visible on desktop */
+        #sectionsArea{display:block;}
+        #sec-lobby,#sec-stats,#sec-history{display:block;}
+        .history-desktop-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;}
+
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0f1118}::-webkit-scrollbar-thumb{background:#2a2d40;border-radius:3px}
         @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 220px 220px}}
         @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 180px 180px}}
@@ -519,13 +515,12 @@
             .column{border-radius:0;border-left:none;border-right:none;border-top:none;display:none;}
             .column.mobile-active{display:flex;}
             .balance-col{display:none !important;}
-            .stats-section,.history-section,.lobby-section{border-radius:0;border-left:none;border-right:none;margin-top:0;}
-            .history-desktop-header{display:none !important;}
-            .mobile-tabs{display:flex;}
+            /* On mobile: sections area hidden by default, shown only on lobby/history tab */
+            #sectionsArea{display:none;}
+            #sectionsArea.mobile-active{display:block;}
+            #sec-lobby,#sec-stats,#sec-history{border-radius:0;border-left:none;border-right:none;margin-top:0;}
+            .history-desktop-header{padding:12px 16px 10px;}
             .mobile-tabs-row{display:block;}
-            .section-toggle{display:flex;}
-            .section-collapsible{max-height:0 !important;}
-            .section-collapsible.open{max-height:2000px !important;}
             .col-body{min-height:160px;}
             .cat-inputs{grid-template-columns:1fr;}
             .general-star-row{flex-wrap:wrap;}
@@ -645,8 +640,10 @@
 </div>
 
 <!-- DASHBOARD -->
-<div class="page">
-<div class="dashboard">
+<div class="page" id="mainPage">
+
+<!-- Teams grid — always visible on desktop, tab-controlled on mobile -->
+<div class="dashboard" id="dashGrid">
     <div class="column header-orange" id="col-orange" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Portocalie</div>
@@ -655,23 +652,14 @@
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
-
-    <!-- Balance button between teams — admin only -->
     <div class="balance-col admin-only" style="position:relative;">
         <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">Reechilibrează după</div>
-            <div class="balance-opt" onclick="doBalance('smart')">
-                <span class="balance-opt-icon">★</span>
-                <span>Rating Smart</span>
-            </div>
-            <div class="balance-opt" onclick="doBalance('general')">
-                <span class="balance-opt-icon">⭐</span>
-                <span>Rating General</span>
-            </div>
+            <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Rating Smart</span></div>
+            <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General</span></div>
         </div>
     </div>
-
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title">Echipa Verde</div>
@@ -694,69 +682,46 @@
         </div>
         <div class="col-body" id="list-active"></div>
     </div>
+</div>
+
+<!-- Bottom sections — always visible on desktop, shown via 'lobby'/'history' tabs on mobile -->
+<div id="sectionsArea">
 
     <!-- LOBBY -->
-    <div class="mobile-section" id="mobile-lobby">
-    <div class="lobby-section">
+    <div class="lobby-section" id="sec-lobby">
         <div class="lobby-header">
             <span class="lobby-title">📅 Meci Următor</span>
             <span class="lobby-datetime no-date" id="lobbyDatetime">Niciun meci programat</span>
             <button class="btn-edit-schedule admin-only" onclick="openScheduleModal()">✏️</button>
             <button class="btn-form-teams admin-only" onclick="formTeamsFromLobby()">⚡ Echipe</button>
         </div>
-        <div class="section-toggle" onclick="toggleSection('lobbyBody','lobbyChevron')">
-            <span class="section-toggle-label">Prezențe</span>
-            <span class="section-chevron" id="lobbyChevron">▼</span>
-        </div>
-        <div class="section-collapsible open" id="lobbyBody">
         <div class="lobby-body">
             <div class="lobby-hint">Click pe jucător pentru a marca prezența:</div>
             <div class="lobby-players" id="lobbyPlayers"></div>
             <div class="lobby-confirmed-count" id="lobbyCount"></div>
         </div>
-        </div>
     </div>
-    </div><!-- /mobile-lobby -->
 
-    <div class="mobile-section" id="mobile-history">
-    <div class="stats-section">
-        <div class="section-toggle" onclick="toggleSection('statsBody','statsChevron')">
-            <span class="section-toggle-label">🏅 Clasament Smart</span>
-            <span class="section-chevron" id="statsChevron">▼</span>
-        </div>
-        <div class="section-collapsible open" id="statsBody">
-        <div style="padding:14px 18px 18px;">
+    <!-- LEADERBOARD -->
+    <div class="stats-section" id="sec-stats">
+        <h3>🏅 Clasament Smart</h3>
         <div class="leaderboard" id="leaderboard"></div>
-        </div>
-        </div>
     </div>
-    <div class="history-section">
-        <!-- Desktop header (always visible) -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;" class="history-desktop-header">
+
+    <!-- HISTORY -->
+    <div class="history-section" id="sec-history">
+        <div class="history-desktop-header">
             <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#888;">Istoric Meciuri</h3>
-            <button id="btnAddMatch" class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
+            <button class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
         </div>
-        <!-- Mobile toggle (hidden on desktop) -->
-        <div class="section-toggle" onclick="toggleSection('historyBody','historyChevron')">
-            <div style="display:flex;align-items:center;gap:10px;flex:1;">
-                <span class="section-toggle-label">Istoric Meciuri</span>
-                <button class="admin-only" onclick="event.stopPropagation();openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:4px 10px;border-radius:6px;font-size:0.75rem;">+ Adaugă</button>
-            </div>
-            <span class="section-chevron" id="historyChevron">▼</span>
-        </div>
-        <div class="section-collapsible open" id="historyBody">
-        <div style="padding:0 18px 18px;">
-        <table id="match-history">
+        <table id="match-history" style="margin-top:4px;">
             <thead><tr><th>Data</th><th>Câștigător</th><th>Rating</th><th>Echipe</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
             <tbody></tbody>
         </table>
-        </div>
-        </div>
     </div>
-    </div><!-- /mobile-history -->
-</div>
-</div>
 
+</div><!-- /sectionsArea -->
+</div><!-- /mainPage -->
 <!-- PLAYER MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
 <div class="modal">
@@ -2345,49 +2310,20 @@ document.addEventListener('click', () => {
 // ── Mobile tabs ──
 function switchMobileTab(tab) {
     const colTabs = ['orange','green','bench','active'];
-    const secTabs = ['lobby','history'];
-
-    // Toggle columns
+    const isSections = tab === 'lobby' || tab === 'history';
     colTabs.forEach(t => {
-        const col = document.getElementById(`col-${t}`);
-        if (col) col.classList.toggle('mobile-active', t === tab);
+        document.getElementById(`col-${t}`)?.classList.toggle('mobile-active', t === tab);
     });
-
-    // Toggle sections (lobby + history grouped)
-    document.getElementById('mobile-lobby')?.classList.toggle('mobile-active', tab === 'lobby');
-    document.getElementById('mobile-history')?.classList.toggle('mobile-active', tab === 'history');
-
-    // If lobby or history tab, hide all columns
-    if (secTabs.includes(tab)) {
-        colTabs.forEach(t => {
-            const col = document.getElementById(`col-${t}`);
-            if (col) col.classList.remove('mobile-active');
-        });
-    }
-
-    // Update tab active state
+    document.getElementById('sectionsArea')?.classList.toggle('mobile-active', isSections);
+    const keyMap = {orange:'o',green:'g',bench:'b',active:'a',lobby:'l',history:'h'};
+    const activeKey = keyMap[tab];
     document.querySelectorAll('.mobile-tab').forEach(el => {
-        const tabClass = [...el.classList].find(c => c.startsWith('tab-'));
-        const tabKey = tabClass?.replace('tab-','');
-        const isActive = (tabKey === 'o' && tab === 'orange')
-            || (tabKey === 'g' && tab === 'green')
-            || (tabKey === 'b' && tab === 'bench')
-            || (tabKey === 'a' && tab === 'active')
-            || (tabKey === 'l' && tab === 'lobby')
-            || (tabKey === 'h' && tab === 'history');
-        el.classList.toggle('active', isActive);
+        const k = [...el.classList].find(c=>c.startsWith('tab-'))?.replace('tab-','');
+        el.classList.toggle('active', k === activeKey);
     });
 }
 
-function toggleSection(bodyId, chevronId) {
-    const body = document.getElementById(bodyId);
-    const chevron = document.getElementById(chevronId);
-    if (!body) return;
-    const isOpen = body.classList.toggle('open');
-    if (chevron) chevron.classList.toggle('open', isOpen);
-}
-
-// Initialize mobile — show orange column by default
+// Initialize mobile
 // ── Undo Toast ──
 let undoTimer = null;
 function showUndoToast(msg, type, snapshot) {
@@ -2537,26 +2473,18 @@ function initSwipe() {
 
 function initMobile() {
     if (window.innerWidth <= 640) {
-        // On mobile, hide all sections by default, show orange tab
-        document.getElementById('mobile-lobby')?.classList.remove('mobile-active');
-        document.getElementById('mobile-history')?.classList.remove('mobile-active');
         switchMobileTab('orange');
-    } else {
-        // Desktop — ensure sections are visible
-        document.getElementById('mobile-lobby')?.classList.add('mobile-active');
-        document.getElementById('mobile-history')?.classList.add('mobile-active');
     }
 }
 window.addEventListener('resize', () => {
     if (window.innerWidth > 640) {
-        ['orange','green','bench','active'].forEach(t => {
-            document.getElementById(`col-${t}`)?.classList.remove('mobile-active');
-        });
-        document.getElementById('mobile-lobby')?.classList.add('mobile-active');
-        document.getElementById('mobile-history')?.classList.add('mobile-active');
+        ['orange','green','bench','active'].forEach(t =>
+            document.getElementById(`col-${t}`)?.classList.remove('mobile-active'));
+        document.getElementById('sectionsArea')?.classList.remove('mobile-active');
     } else {
-        const anyActive = document.querySelector('.column.mobile-active');
-        if (!anyActive) switchMobileTab('orange');
+        const anyColActive = document.querySelector('.column.mobile-active');
+        const sectionsActive = document.getElementById('sectionsArea')?.classList.contains('mobile-active');
+        if (!anyColActive && !sectionsActive) switchMobileTab('orange');
     }
 });
 
@@ -3072,47 +3000,9 @@ function toggleSection(bodyId, chevronId) {
     if (chev) chev.classList.toggle('open', isOpen);
 }
 
-let currentMobileTab = 'orange';
-function switchMobileTab(tab) {
-    currentMobileTab = tab;
-    // Hide all columns
-    ['orange','green','bench','active'].forEach(t => {
-        const col = document.getElementById(`col-${t}`);
-        if (col) col.classList.remove('mobile-active');
-    });
-    // Show selected
-    const target = document.getElementById(`col-${tab}`);
-    if (target) target.classList.add('mobile-active');
-    // Update tab styles
-    document.querySelectorAll('.mobile-tab').forEach(el => {
-        el.classList.remove('active');
-    });
-    const activeTab = document.querySelector(`.mobile-tab.tab-${tab === 'orange' ? 'o' : tab === 'green' ? 'g' : tab === 'bench' ? 'b' : 'a'}`);
-    if (activeTab) activeTab.classList.add('active');
-}
-
-// Init mobile — show first tab on load
-function initMobileTabs() {
-    if (window.innerWidth <= 640) {
-        switchMobileTab('orange');
-    }
-}
-window.addEventListener('resize', () => {
-    if (window.innerWidth > 640) {
-        // Remove mobile-active on desktop — columns shown via grid
-        ['orange','green','bench','active'].forEach(t => {
-            const col = document.getElementById(`col-${t}`);
-            if (col) col.classList.remove('mobile-active');
-        });
-    } else {
-        switchMobileTab(currentMobileTab);
-    }
-});
-
 async function init(){
     document.getElementById('current-date').innerText=new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     await registerServiceWorker();
-    initMobileTabs();
 
     const { data: { session } } = await sb.auth.getSession();
     if(session?.user){
