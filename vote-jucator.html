@@ -228,7 +228,7 @@ async function init(){
 
     document.getElementById('headerTitle').textContent='Votează '+targetPlayer.name.split(' ')[0];
     renderHero();
-    renderVoterList();
+    await renderVoterList();
     buildRateUI();
     document.getElementById('loading').classList.add('hidden');
 }
@@ -248,12 +248,29 @@ function renderHero(){
         </div>`;
 }
 
-function renderVoterList(){
-    const others=allPlayers.filter(p=>p.id!==targetPlayer.id).sort((a,b)=>a.name.localeCompare(b.name));
-    document.getElementById('voterList').innerHTML=others.map(p=>`
+async function renderVoterList(){
+    // Check DB — who rated targetPlayer today
+    const { data: todayVotes } = await sb.from('ratings').select('rater')
+        .eq('player_id', targetPlayer.id)
+        .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
+    const dbVoted = new Set((todayVotes||[]).map(v=>v.rater));
+
+    const others = allPlayers.filter(p => p.id !== targetPlayer.id)
+        .filter(p => {
+            const key = `vote_${p.name}_${targetPlayer.id}_${today}`;
+            return !dbVoted.has(p.name) && !localStorage.getItem(key);
+        })
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+    if (!others.length) {
+        document.getElementById('voterList').innerHTML = '<div style="text-align:center;padding:20px;color:#444;font-size:.9rem;">✅ Toată lumea a votat deja pentru ' + targetPlayer.name + ' astăzi!</div>';
+        return;
+    }
+
+    document.getElementById('voterList').innerHTML = others.map(p => `
         <div class="voter-item" onclick="selectVoter('${p.name}')">
             <div class="v-avatar">${ini(p.name)}</div>
-            <div><div class="v-name">${p.name}</div><div class="v-avg">⭐ ${p.avg}</div></div>
+            <div class="v-name">${p.name}</div>
         </div>`).join('');
 }
 
