@@ -241,9 +241,9 @@ async function init(){
 
     document.getElementById('headerTitle').textContent='Votează '+targetPlayer.name.split(' ')[0];
     renderHero();
+    buildRateUI(); // always build rating UI regardless of flow path
     const savedId = localStorage.getItem(LS_PLAYER);
     if (savedId) {
-        // Auto-select saved identity if they haven't voted today
         const alreadyVoted = localStorage.getItem(`vote_${savedId}_${targetPlayer.id}_${today}`);
         if (!alreadyVoted) {
             await selectVoter(savedId);
@@ -253,7 +253,6 @@ async function init(){
         }
     }
     await renderVoterList();
-    buildRateUI();
     document.getElementById('loading').classList.add('hidden');
 }
 
