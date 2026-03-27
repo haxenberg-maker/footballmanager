@@ -691,7 +691,7 @@
             <button class="btn-edit-schedule admin-only" onclick="openScheduleModal()">✏️</button>
             <button class="btn-form-teams admin-only" onclick="formTeamsFromLobby()">⚡ Echipe</button>
         </div>
-        <div class="section-toggle" onclick="toggleSection("lobbyBody","lobbyChevron")">
+        <div class="section-toggle" onclick="toggleSection('lobbyBody','lobbyChevron')">
             <span class="section-toggle-label">Prezențe</span>
             <span class="section-chevron" id="lobbyChevron">▼</span>
         </div>
@@ -705,7 +705,7 @@
     </div>
 
     <div class="stats-section">
-        <div class="section-toggle" onclick="toggleSection("statsBody","statsChevron")">
+        <div class="section-toggle" onclick="toggleSection('statsBody','statsChevron')">
             <span class="section-toggle-label">🏅 Clasament Smart</span>
             <span class="section-chevron" id="statsChevron">▼</span>
         </div>
@@ -716,7 +716,7 @@
         </div>
     </div>
     <div class="history-section">
-        <div class="section-toggle" onclick="toggleSection("historyBody","historyChevron")">
+        <div class="section-toggle" onclick="toggleSection('historyBody','historyChevron')">
             <div style="display:flex;align-items:center;gap:10px;flex:1;">
                 <span class="section-toggle-label">Istoric Meciuri</span>
                 <button id="btnAddMatch" class="admin-only" onclick="event.stopPropagation();openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:5px 12px;border-radius:7px;font-size:0.78rem;">+ Adaugă</button>
@@ -1222,7 +1222,7 @@ async function onAuthSuccess(user) {
     await loadAll();
     setupRealtime();
     applyRoleUI();
-    // Check presence first, then votes (with small delay for UI to settle)
+    initMobile();
     setTimeout(async () => {
         const shownPresence = await checkPresenceModal();
         if (!shownPresence) checkPendingVotes();
@@ -1440,6 +1440,8 @@ function render(){
     });
     updateTeamStats();renderLeaderboard();renderHistory();renderLobby();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
+    // Keep mobile tab active after re-render
+    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab);
 }
 
 function updateTeamStats(){
@@ -2309,6 +2311,48 @@ document.addEventListener('click', () => {
     document.getElementById('balancePopup')?.classList.remove('show');
 });
 
+// ── Mobile tabs ──
+function switchMobileTab(team) {
+    // Hide all columns, show only selected
+    ['orange','green','bench','active'].forEach(t => {
+        const col = document.getElementById(`col-${t}`);
+        if (col) col.classList.toggle('mobile-active', t === team);
+    });
+    // Update tab styles
+    document.querySelectorAll('.mobile-tab').forEach(tab => {
+        const isActive = tab.classList.contains(`tab-${team.charAt(0)}`);
+        tab.classList.toggle('active', isActive);
+    });
+}
+
+function toggleSection(bodyId, chevronId) {
+    const body = document.getElementById(bodyId);
+    const chevron = document.getElementById(chevronId);
+    if (!body) return;
+    const isOpen = body.classList.toggle('open');
+    if (chevron) chevron.classList.toggle('open', isOpen);
+}
+
+// Initialize mobile — show orange column by default
+function initMobile() {
+    if (window.innerWidth <= 640) {
+        switchMobileTab('orange');
+    }
+}
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 640) {
+        // Desktop — show all columns
+        ['orange','green','bench','active'].forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            if (col) col.classList.remove('mobile-active');
+        });
+    } else {
+        // Mobile — ensure one is active
+        const anyActive = document.querySelector('.column.mobile-active');
+        if (!anyActive) switchMobileTab('orange');
+    }
+});
+
 function doBalance(mode) {
     document.getElementById('balancePopup').classList.remove('show');
     const active = db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
@@ -2814,9 +2858,55 @@ function skipVoting() {
     });
 }
 
+function toggleSection(bodyId, chevronId) {
+    const body = document.getElementById(bodyId);
+    const chev = document.getElementById(chevronId);
+    if (!body) return;
+    const isOpen = body.classList.toggle('open');
+    if (chev) chev.classList.toggle('open', isOpen);
+}
+
+let currentMobileTab = 'orange';
+function switchMobileTab(tab) {
+    currentMobileTab = tab;
+    // Hide all columns
+    ['orange','green','bench','active'].forEach(t => {
+        const col = document.getElementById(`col-${t}`);
+        if (col) col.classList.remove('mobile-active');
+    });
+    // Show selected
+    const target = document.getElementById(`col-${tab}`);
+    if (target) target.classList.add('mobile-active');
+    // Update tab styles
+    document.querySelectorAll('.mobile-tab').forEach(el => {
+        el.classList.remove('active');
+    });
+    const activeTab = document.querySelector(`.mobile-tab.tab-${tab === 'orange' ? 'o' : tab === 'green' ? 'g' : tab === 'bench' ? 'b' : 'a'}`);
+    if (activeTab) activeTab.classList.add('active');
+}
+
+// Init mobile — show first tab on load
+function initMobileTabs() {
+    if (window.innerWidth <= 640) {
+        switchMobileTab('orange');
+    }
+}
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 640) {
+        // Remove mobile-active on desktop — columns shown via grid
+        ['orange','green','bench','active'].forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            if (col) col.classList.remove('mobile-active');
+        });
+    } else {
+        switchMobileTab(currentMobileTab);
+    }
+});
+
 async function init(){
     document.getElementById('current-date').innerText=new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     await registerServiceWorker();
+    initMobileTabs();
 
     const { data: { session } } = await sb.auth.getSession();
     if(session?.user){
