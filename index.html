@@ -491,8 +491,13 @@
         .mobile-tab.tab-o.active{border-bottom-color:var(--orange);color:var(--orange);}
         .mobile-tab.tab-g.active{border-bottom-color:var(--green);color:#4caf50;}
         .mobile-tab.tab-b.active{border-bottom-color:#2979ff;color:#82b1ff;}
-        .mobile-tab.tab-a.active{border-bottom-color:#555;color:#aaa;}
-        .mobile-tabs-row{display:none;}
+        .mobile-tab.tab-l.active{border-bottom-color:#5c8aff;color:#82b1ff;}
+        .mobile-tab.tab-h.active{border-bottom-color:#a78bfa;color:#a78bfa;}
+        .mobile-section{display:block;}
+        @media(max-width:640px){
+            .mobile-section{display:none;}
+            .mobile-section.mobile-active{display:block;}
+        }
         /* Collapsible sections */
         .section-toggle{display:none;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;user-select:none;}
         .section-toggle-label{font-family:"Bebas Neue",sans-serif;font-size:1rem;letter-spacing:2px;color:#666;}
@@ -634,6 +639,8 @@
     <div class="mobile-tab tab-g" onclick="switchMobileTab('green')">🟢 Verde</div>
     <div class="mobile-tab tab-b" onclick="switchMobileTab('bench')">🔵 Bancă</div>
     <div class="mobile-tab tab-a" onclick="switchMobileTab('active')">👤 Activi</div>
+    <div class="mobile-tab tab-l" onclick="switchMobileTab('lobby')">📅 Lobby</div>
+    <div class="mobile-tab tab-h" onclick="switchMobileTab('history')">📊 Istoric</div>
 </div>
 </div>
 
@@ -689,6 +696,7 @@
     </div>
 
     <!-- LOBBY -->
+    <div class="mobile-section" id="mobile-lobby">
     <div class="lobby-section">
         <div class="lobby-header">
             <span class="lobby-title">📅 Meci Următor</span>
@@ -708,7 +716,9 @@
         </div>
         </div>
     </div>
+    </div><!-- /mobile-lobby -->
 
+    <div class="mobile-section" id="mobile-history">
     <div class="stats-section">
         <div class="section-toggle" onclick="toggleSection('statsBody','statsChevron')">
             <span class="section-toggle-label">🏅 Clasament Smart</span>
@@ -743,6 +753,7 @@
         </div>
         </div>
     </div>
+    </div><!-- /mobile-history -->
 </div>
 </div>
 
@@ -970,6 +981,10 @@
                 <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Import CSV Google Forms</div><div class="settings-action-desc">Importă voturi din Forms</div></div>
                     <button style="background:linear-gradient(135deg,#1a5276,#2980b9);padding:8px 16px;border-radius:7px;" onclick="openCSVModal()">📊 CSV</button>
+                </div>
+                <div class="settings-action-item">
+                    <div class="settings-action-info"><div class="settings-action-title">Export Echipe Imagine</div><div class="settings-action-desc">PNG pentru WhatsApp / social</div></div>
+                    <button style="background:linear-gradient(135deg,#1a1a40,#3d1a70);border:1px solid #7c4dff;color:#d1b3ff;padding:8px 16px;border-radius:7px;" onclick="exportTeamsImage()">🖼️ PNG</button>
                 </div>
                 <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Copiază Echipele</div><div class="settings-action-desc">Pentru WhatsApp</div></div>
@@ -1234,6 +1249,7 @@ async function onAuthSuccess(user) {
     setupRealtime();
     applyRoleUI();
     initMobile();
+    initSwipe();
     setTimeout(async () => {
         const shownPresence = await checkPresenceModal();
         if (!shownPresence) checkPendingVotes();
@@ -1523,7 +1539,7 @@ function renderLobby(){
             dotHtml = '<span style="font-size:0.75rem;line-height:1;">✕</span>';
         }
         chip.className = chipClass;
-        chip.innerHTML = dotHtml + nameHtml;
+        chip.innerHTML = dotHtml + nameHtml + `<span style="font-size:0.68rem;color:${confirmed?'#5c8aff':absent?'#c62828':'#333'};margin-left:2px;">${getGeneralAvg(p).toFixed(1)}</span>`;
         // Admin can toggle anyone; players can only toggle themselves
         chip.onclick = () => toggleLobbyPresence(p.id);
         container.appendChild(chip);
@@ -1622,6 +1638,9 @@ function formTeamsFromLobby(){
 async function recordMatch(winner){
     const oP=db.players.filter(p=>p.status==='orange'),gP=db.players.filter(p=>p.status==='green');
     if(oP.length<1||gP.length<1){showToast('⚠️ Ambele echipe trebuie să aibă jucători!');return;}
+
+    // Snapshot for undo
+    const undoSnapshot = JSON.parse(JSON.stringify(db));
     const oAvg=(oP.reduce((s,p)=>s+getSmartRating(p),0)/oP.length).toFixed(1);
     const gAvg=(gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
     oP.forEach(p=>{p.games++;if(winner==='orange')p.wins++;p.matchHistory.push(winner==='orange'?'W':'L');});
@@ -1630,7 +1649,8 @@ async function recordMatch(winner){
     db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green'||p.status==='bench') p.status='active'; });
     const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
     db.history.unshift(entry);db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];
-    render();showToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`,winner==='orange'?'o':'g');
+    render();
+    showUndoToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`, winner==='orange'?'o':'g', undoSnapshot);
     try{
         await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
         await dbInsertMatchHistory(entry);
@@ -2323,16 +2343,39 @@ document.addEventListener('click', () => {
 });
 
 // ── Mobile tabs ──
-function switchMobileTab(team) {
-    // Hide all columns, show only selected
-    ['orange','green','bench','active'].forEach(t => {
+function switchMobileTab(tab) {
+    const colTabs = ['orange','green','bench','active'];
+    const secTabs = ['lobby','history'];
+
+    // Toggle columns
+    colTabs.forEach(t => {
         const col = document.getElementById(`col-${t}`);
-        if (col) col.classList.toggle('mobile-active', t === team);
+        if (col) col.classList.toggle('mobile-active', t === tab);
     });
-    // Update tab styles
-    document.querySelectorAll('.mobile-tab').forEach(tab => {
-        const isActive = tab.classList.contains(`tab-${team.charAt(0)}`);
-        tab.classList.toggle('active', isActive);
+
+    // Toggle sections (lobby + history grouped)
+    document.getElementById('mobile-lobby')?.classList.toggle('mobile-active', tab === 'lobby');
+    document.getElementById('mobile-history')?.classList.toggle('mobile-active', tab === 'history');
+
+    // If lobby or history tab, hide all columns
+    if (secTabs.includes(tab)) {
+        colTabs.forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            if (col) col.classList.remove('mobile-active');
+        });
+    }
+
+    // Update tab active state
+    document.querySelectorAll('.mobile-tab').forEach(el => {
+        const tabClass = [...el.classList].find(c => c.startsWith('tab-'));
+        const tabKey = tabClass?.replace('tab-','');
+        const isActive = (tabKey === 'o' && tab === 'orange')
+            || (tabKey === 'g' && tab === 'green')
+            || (tabKey === 'b' && tab === 'bench')
+            || (tabKey === 'a' && tab === 'active')
+            || (tabKey === 'l' && tab === 'lobby')
+            || (tabKey === 'h' && tab === 'history');
+        el.classList.toggle('active', isActive);
     });
 }
 
@@ -2345,20 +2388,173 @@ function toggleSection(bodyId, chevronId) {
 }
 
 // Initialize mobile — show orange column by default
+// ── Undo Toast ──
+let undoTimer = null;
+function showUndoToast(msg, type, snapshot) {
+    if (undoTimer) clearTimeout(undoTimer);
+    const t = document.getElementById('toast');
+    t.innerHTML = `${msg} <button onclick="undoMatch()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:2px 10px;border-radius:6px;margin-left:10px;font-size:0.78rem;cursor:pointer;font-family:'Rajdhani',sans-serif;font-weight:700;">↩ Undo</button>`;
+    t.className = 'toast' + (type ? ' toast-'+type : '');
+    t.style.pointerEvents = 'all';
+    requestAnimationFrame(() => {
+        t.classList.add('show');
+        undoTimer = setTimeout(() => {
+            t.classList.remove('show');
+            t.style.pointerEvents = 'none';
+            t.innerHTML = '';
+            window._undoSnapshot = null;
+        }, 8000);
+    });
+    window._undoSnapshot = snapshot;
+}
+
+async function undoMatch() {
+    if (!window._undoSnapshot) return;
+    const snap = window._undoSnapshot;
+    window._undoSnapshot = null;
+    clearTimeout(undoTimer);
+    document.getElementById('toast').classList.remove('show');
+
+    // Restore state
+    db.players = snap.players;
+    db.history = snap.history;
+    db.nextMatch = snap.nextMatch;
+
+    // Delete the last match from DB
+    const lastH = db.history[0]; // after restore, old first is now accessible via snap
+    if (snap.history.length < JSON.parse(localStorage.getItem('fb_club_v6') || '{}')?.history?.length) {
+        // just re-save players and delete last history entry
+    }
+    try {
+        // Delete last inserted match history
+        const { data: lastMatches } = await sb.from('match_history').select('id').order('created_at', {ascending:false}).limit(1);
+        if (lastMatches?.[0]) await sb.from('match_history').delete().eq('id', lastMatches[0].id);
+        await Promise.all(db.players.map(p => dbUpdatePlayer(p)));
+        await dbSaveNextMatch();
+    } catch(e) { console.error('Undo DB error:', e); }
+
+    render();
+    showToast('↩ Meci anulat!');
+}
+
+// ── Export echipe ca imagine ──
+async function exportTeamsImage() {
+    const o = db.players.filter(p=>p.status==='orange');
+    const g = db.players.filter(p=>p.status==='green');
+    if (!o.length && !g.length) { showToast('⚠️ Nu există jucători în echipe!'); return; }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 800; canvas.height = 440;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#0a0c10';
+    ctx.fillRect(0, 0, 800, 440);
+
+    // Title
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px Bebas Neue, sans-serif';
+    ctx.letterSpacing = '4px';
+    const title = document.getElementById('clubTitle')?.textContent || 'Arena Friends FC';
+    ctx.fillText(title.toUpperCase(), 40, 50);
+
+    ctx.font = '14px Rajdhani, sans-serif';
+    ctx.fillStyle = '#555';
+    ctx.fillText(new Date().toLocaleDateString('ro-RO'), 40, 72);
+
+    // Orange team
+    ctx.fillStyle = '#ff8c00';
+    ctx.font = 'bold 18px Bebas Neue, sans-serif';
+    ctx.fillText('🟠 ECHIPA PORTOCALIE', 40, 110);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(40, 118, 340, 1);
+    ctx.font = '15px Rajdhani, sans-serif';
+    o.forEach((p,i) => {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillText(`${i+1}. ${p.name}`, 40, 140 + i*26);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText(`⭐ ${getGeneralAvg(p).toFixed(1)}`, 300, 140 + i*26);
+    });
+
+    // Green team
+    ctx.fillStyle = '#28a745';
+    ctx.font = 'bold 18px Bebas Neue, sans-serif';
+    ctx.fillText('🟢 ECHIPA VERDE', 420, 110);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(420, 118, 340, 1);
+    ctx.font = '15px Rajdhani, sans-serif';
+    g.forEach((p,i) => {
+        ctx.fillStyle = '#e0e0e0';
+        ctx.fillText(`${i+1}. ${p.name}`, 420, 140 + i*26);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillText(`⭐ ${getGeneralAvg(p).toFixed(1)}`, 680, 140 + i*26);
+    });
+
+    // Footer
+    ctx.fillStyle = '#333';
+    ctx.font = '12px Rajdhani, sans-serif';
+    ctx.fillText('Arena Friends FC · Manager Fotbal 2026', 40, 420);
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `echipe_${new Date().toISOString().slice(0,10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('🖼️ Imagine descărcată!');
+}
+
+// ── Swipe support for mobile columns ──
+function initSwipe() {
+    const page = document.querySelector('.page');
+    if (!page) return;
+    let startX = 0, startY = 0;
+    const colOrder = ['orange','green','bench','active','lobby','history'];
+
+    page.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    page.addEventListener('touchend', e => {
+        if (window.innerWidth > 640) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        const dy = e.changedTouches[0].clientY - startY;
+        if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return; // not a horizontal swipe
+
+        // Find current active tab
+        const activeDot = document.querySelector('.mobile-tab.active');
+        if (!activeDot) return;
+        const activeClass = [...activeDot.classList].find(c => c.startsWith('tab-'));
+        const keyMap = {o:'orange',g:'green',b:'bench',a:'active',l:'lobby',h:'history'};
+        const key = activeClass?.replace('tab-','');
+        const current = keyMap[key];
+        const idx = colOrder.indexOf(current);
+
+        if (dx < 0 && idx < colOrder.length - 1) switchMobileTab(colOrder[idx + 1]); // swipe left → next
+        if (dx > 0 && idx > 0) switchMobileTab(colOrder[idx - 1]); // swipe right → prev
+    }, { passive: true });
+}
+
 function initMobile() {
     if (window.innerWidth <= 640) {
+        // On mobile, hide all sections by default, show orange tab
+        document.getElementById('mobile-lobby')?.classList.remove('mobile-active');
+        document.getElementById('mobile-history')?.classList.remove('mobile-active');
         switchMobileTab('orange');
+    } else {
+        // Desktop — ensure sections are visible
+        document.getElementById('mobile-lobby')?.classList.add('mobile-active');
+        document.getElementById('mobile-history')?.classList.add('mobile-active');
     }
 }
 window.addEventListener('resize', () => {
     if (window.innerWidth > 640) {
-        // Desktop — show all columns
         ['orange','green','bench','active'].forEach(t => {
-            const col = document.getElementById(`col-${t}`);
-            if (col) col.classList.remove('mobile-active');
+            document.getElementById(`col-${t}`)?.classList.remove('mobile-active');
         });
+        document.getElementById('mobile-lobby')?.classList.add('mobile-active');
+        document.getElementById('mobile-history')?.classList.add('mobile-active');
     } else {
-        // Mobile — ensure one is active
         const anyActive = document.querySelector('.column.mobile-active');
         if (!anyActive) switchMobileTab('orange');
     }
@@ -2852,6 +3048,7 @@ async function submitAllVotes() {
 
     document.getElementById('voteOverlay').classList.remove('show');
     render();
+    if (saved > 0 && navigator.vibrate) navigator.vibrate([100, 50, 100]);
     showToast(`✅ ${saved} voturi salvate! Mulțumesc, ${rater}!`, 'g');
     // Marchează meciul ca votat în localStorage
     if (voteState.match?.id && currentUser?.id) {
