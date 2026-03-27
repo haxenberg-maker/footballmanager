@@ -1935,11 +1935,53 @@ function buildPlayerEditList(){
     }).join('');
 }
 async function savePlayerName(id){
-    const input=document.getElementById(`editname-${id}`);const newName=input.value.trim();
+    const input=document.getElementById(`editname-${id}`);
+    const newName=input.value.trim();
     if(!newName){showToast('⚠️ Numele nu poate fi gol!');return;}
-    const p=db.players.find(x=>x.id==id);p.name=newName;
+    const p=db.players.find(x=>x.id==id);
+    const oldName=p.name;
+    if(oldName===newName) return;
+    p.name=newName;
     render();buildPlayerEditList();
-    try{await dbUpdatePlayer(p);showToast(`✅ Nume salvat: ${newName}`);}catch(e){showToast('⚠️ '+e.message);}
+
+    try{
+        // 1. Update players table
+        await dbUpdatePlayer(p);
+
+        // 2. Update ratings — rater field
+        await sb.from('ratings').update({rater:newName}).eq('rater',oldName);
+
+        // 3. Update match_history — orange_players and green_players arrays
+        // Fetch all matches that contain old name
+        const{data:matches}=await sb.from('match_history').select('id,orange_players,green_players');
+        const toUpdate=(matches||[]).filter(m=>
+            (m.orange_players||[]).includes(oldName)||(m.green_players||[]).includes(oldName)
+        );
+        await Promise.all(toUpdate.map(m=>sb.from('match_history').update({
+            orange_players:(m.orange_players||[]).map(n=>n===oldName?newName:n),
+            green_players: (m.green_players ||[]).map(n=>n===oldName?newName:n)
+        }).eq('id',m.id)));
+
+        // Also update db.history in memory
+        db.history.forEach(h=>{
+            h.orangePlayers=(h.orangePlayers||[]).map(n=>n===oldName?newName:n);
+            h.greenPlayers =(h.greenPlayers ||[]).map(n=>n===oldName?newName:n);
+        });
+
+        // 4. Update mvp_votes
+        try{
+            await sb.from('mvp_votes').update({voter:newName}).eq('voter',oldName);
+            await sb.from('mvp_votes').update({mvp_player_name:newName}).eq('mvp_player_name',oldName);
+        }catch(e){ /* table may not exist */ }
+
+        // 5. Update profiles display_name if linked
+        try{
+            await sb.from('profiles').update({display_name:newName}).eq('display_name',oldName);
+        }catch(e){}
+
+        showToast(`✅ Redenumit: ${oldName} → ${newName}`);
+        render();
+    }catch(e){showToast('⚠️ '+e.message);}
 }
 async function deletePlayer(id){
     const p=db.players.find(x=>x.id==id);
