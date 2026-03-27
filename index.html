@@ -101,7 +101,7 @@
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
         .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
-        #list-active,#list-bench{max-height:520px;overflow-y:auto;}
+        #matchStatsBanner{grid-column:1/-1;}
         .player-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:all 0.15s;position:relative;display:flex;flex-direction:column;gap:4px;}
         .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
         .card-top{display:flex;justify-content:space-between;align-items:center;}
@@ -645,6 +645,44 @@
 <!-- DASHBOARD -->
 <div class="page" id="mainPage">
 
+<!-- Match banner — date + win probability above both teams -->
+<div id="matchBannerBar" style="display:none;grid-column:1/-1;background:linear-gradient(135deg,#0d1420,#111827);border-bottom:1px solid #1a2540;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div style="font-size:.72rem;color:#5c8aff;font-weight:700;letter-spacing:1px;" id="bannerDate"></div>
+    <div style="display:flex;align-items:center;gap:6px;flex:1;max-width:480px;" id="bannerChances">
+        <span style="font-size:.72rem;color:var(--orange);font-weight:700;white-space:nowrap;" id="chanceOText">—</span>
+        <div style="flex:1;height:8px;background:#1c1f2b;border-radius:4px;overflow:hidden;display:flex;">
+            <div id="chanceOBar" style="height:100%;background:var(--orange);border-radius:4px 0 0 4px;transition:width .5s ease;"></div>
+            <div id="chanceGBar" style="height:100%;background:var(--green);border-radius:0 4px 4px 0;transition:width .5s ease;"></div>
+        </div>
+        <span style="font-size:.72rem;color:#4caf50;font-weight:700;white-space:nowrap;" id="chanceGText">—</span>
+    </div>
+    <div style="font-size:.68rem;color:#333;white-space:nowrap;">șanse de câștig</div>
+</div>
+
+<!-- MATCH STATS BANNER — above both teams -->
+<div id="matchStatsBanner" style="display:none;grid-column:1/-1;background:linear-gradient(135deg,#0d0f18,#141720);border:1px solid var(--border);border-radius:14px;padding:14px 20px;margin-bottom:2px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <!-- Date + location -->
+        <div id="matchBannerDate" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#5c8aff;white-space:nowrap;"></div>
+        <!-- Win probability bar -->
+        <div style="flex:1;min-width:200px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:700;margin-bottom:4px;">
+                <span style="color:var(--orange);">🟠 <span id="probOrange">—</span></span>
+                <span style="font-size:0.65rem;color:#333;text-transform:uppercase;letter-spacing:1px;">Șanse victorie</span>
+                <span style="color:#4caf50;"><span id="probGreen">—</span> 🟢</span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:#1c1f2b;overflow:hidden;display:flex;">
+                <div id="probBarOrange" style="height:100%;background:linear-gradient(90deg,#ff8c00,#ffaa00);border-radius:4px 0 0 4px;transition:width 0.6s ease;width:50%;"></div>
+                <div id="probBarGreen"  style="height:100%;background:linear-gradient(90deg,#1a7a30,#28a745);border-radius:0 4px 4px 0;transition:width 0.6s ease;width:50%;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#333;margin-top:3px;">
+                <span id="avgLabelOrange">★ —</span>
+                <span id="avgLabelGreen">★ —</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Teams grid — always visible on desktop, tab-controlled on mobile -->
 <div class="dashboard" id="dashGrid">
     <div class="column header-orange" id="col-orange" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
@@ -652,7 +690,6 @@
             <div class="col-header-title">Echipa Portocalie</div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
-            <div id="match-date-display" style="font-size:0.72rem;color:#5c8aff;margin-top:4px;display:none;"></div>
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
@@ -1461,15 +1498,42 @@ function render(){
 }
 
 function updateTeamStats(){
+    const oPlayers = db.players.filter(p=>p.status==='orange');
+    const gPlayers = db.players.filter(p=>p.status==='green');
+
     ['orange','green'].forEach(team=>{
-        const pl=db.players.filter(p=>p.status===team),n=pl.length;
-        const tot=pl.reduce((s,p)=>s+getSmartRating(p),0),avg=n?(tot/n).toFixed(1):'—';
+        const pl = team==='orange' ? oPlayers : gPlayers;
+        const n = pl.length;
+        const tot = pl.reduce((s,p)=>s+getSmartRating(p),0);
+        const avg = n ? (tot/n).toFixed(1) : '—';
         document.getElementById(`avg-${team}`).textContent=`★ ${avg}`;
         document.getElementById(`count-${team}`).textContent=`${n} jucători`;
         document.getElementById(`bar-${team}`).style.width=(n?Math.min((tot/n)/10*100,100):0)+'%';
     });
     document.getElementById('count-bench').textContent=`${db.players.filter(p=>p.status==='bench').length} jucători`;
     document.getElementById('count-active').textContent=`${db.players.filter(p=>p.status==='active').length} jucători`;
+
+    // Win probability banner
+    const banner = document.getElementById('matchStatsBanner');
+    if (oPlayers.length > 0 && gPlayers.length > 0) {
+        const oSum = oPlayers.reduce((s,p)=>s+getSmartRating(p),0);
+        const gSum = gPlayers.reduce((s,p)=>s+getSmartRating(p),0);
+        const total = oSum + gSum;
+        const oPct = Math.round((oSum/total)*100);
+        const gPct = 100 - oPct;
+        const oAvg = (oSum/oPlayers.length).toFixed(1);
+        const gAvg = (gSum/gPlayers.length).toFixed(1);
+
+        document.getElementById('probOrange').textContent     = oPct + '%';
+        document.getElementById('probGreen').textContent      = gPct + '%';
+        document.getElementById('probBarOrange').style.width  = oPct + '%';
+        document.getElementById('probBarGreen').style.width   = gPct + '%';
+        document.getElementById('avgLabelOrange').textContent = `★ ${oAvg} (${oPlayers.length} juc.)`;
+        document.getElementById('avgLabelGreen').textContent  = `★ ${gAvg} (${gPlayers.length} juc.)`;
+        if (banner) banner.style.display = 'block';
+    } else {
+        if (banner) banner.style.display = 'none';
+    }
 }
 function renderLeaderboard(){
     const getRating = p => leaderboardMode === 'general' ? getGeneralAvg(p) : getSmartRating(p);
@@ -1513,18 +1577,18 @@ function renderHistory(){
 function renderLobby(){
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
-    // Update match date in orange column header (point 1)
-    const matchDateDisplay = document.getElementById('match-date-display');
     if(nm.date){
         const d=new Date(nm.date+'T'+(nm.time||'00:00'));
         let str=d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
         if(nm.time)str+=' · '+nm.time;
         if(nm.location)str+=' · '+nm.location;
         dtEl.textContent=str;dtEl.className='lobby-datetime';
-        if(matchDateDisplay){ matchDateDisplay.textContent='📅 '+str; matchDateDisplay.style.display='block'; }
+        const bd = document.getElementById('matchBannerDate');
+        if(bd) bd.textContent='📅 ' + str;
     }else{
         dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';
-        if(matchDateDisplay){ matchDateDisplay.style.display='none'; }
+        const bd = document.getElementById('matchBannerDate');
+        if(bd) bd.textContent='';
     }
 
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
