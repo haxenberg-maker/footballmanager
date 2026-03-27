@@ -2308,7 +2308,10 @@ document.addEventListener('click', () => {
 });
 
 // ── Mobile tabs ──
+let currentMobileTab = 'orange';
+
 function switchMobileTab(tab) {
+    currentMobileTab = tab;
     const colTabs = ['orange','green','bench','active'];
     const isSections = tab === 'lobby' || tab === 'history';
     colTabs.forEach(t => {
