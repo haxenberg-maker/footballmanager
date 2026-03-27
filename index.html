@@ -942,6 +942,7 @@
             <div class="settings-tab" onclick="switchSettingsTab('accounts')" id="tabAccounts" style="display:none;">🔑 Conturi</div>
             <div class="settings-tab" onclick="switchSettingsTab('notifications')">🔔 Notificări</div>
             <div class="settings-tab" onclick="switchSettingsTab('export')">📦 Date</div>
+            <div class="settings-tab" onclick="switchSettingsTab('algorithm')">⚙️ Algoritm</div>
             <div class="settings-tab" onclick="switchSettingsTab('season')">🔄 Sezon</div>
         </div>
     </div>
@@ -1005,6 +1006,29 @@
                 </div>
             </div>
         </div>
+        <div class="settings-panel" id="panel-algorithm">
+            <!-- Site title -->
+            <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid #1e2130;">
+                <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏟️ Titlul Aplicației</div>
+                <div style="display:flex;gap:8px;">
+                    <input id="siteTitleInput" type="text" value="Arena Friends FC" style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:9px 13px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;">
+                    <button onclick="saveSiteTitle()" style="background:var(--accent);color:#fff;padding:9px 16px;border-radius:9px;font-size:.85rem;font-weight:700;white-space:nowrap;">Salvează</button>
+                </div>
+            </div>
+            <!-- Algorithm weights -->
+            <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">⚙️ Greutăți Smart Rating</div>
+            <div style="font-size:.75rem;color:#333;margin-bottom:14px;line-height:1.6;">Suma tuturor ponderilor trebuie să fie 1.00 (100%). WinRate și MVP sunt scalate 0–10.</div>
+            <div id="weightsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div style="margin-top:10px;padding:10px 14px;background:#0d1020;border-radius:8px;border:1px solid #1e2130;font-size:.78rem;color:#555;display:flex;justify-content:space-between;">
+                <span>Suma totală</span>
+                <span id="weightsSum" style="font-weight:700;"></span>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="saveAlgorithm()" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
+                <button onclick="resetAlgorithm()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;">↺ Reset</button>
+            </div>
+        </div>
+
         <div class="settings-panel" id="panel-season">
             <div class="settings-action-row">
                 <div class="settings-action-item">
@@ -1139,7 +1163,10 @@ let currentProfile = null;
 const CATS = ['general','viteza','tehnica','strategie','aparare'];
 const CAT_LABELS = {general:'⚽ General',viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
 const CAT_COLORS = {general:'#ffcc00',viteza:'#ff8c00',tehnica:'#3d5afe',strategie:'#00bcd4',aparare:'#4caf50'};
-const W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20};
+const DEFAULT_W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20,mvpWin:0.0,mvpLoss:0.0};
+let W = JSON.parse(localStorage.getItem('smart_weights') || 'null') || {...DEFAULT_W};
+function saveWeights(){ localStorage.setItem('smart_weights', JSON.stringify(W)); }
+let siteTitle = localStorage.getItem('site_title') || 'Arena Friends FC';
 const DEFAULT_PLAYERS = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andrei Magazin Dez","Vlad Stan","Gabi Balan","Tudor","Andrei Rascu","Andrei Stan","Adrian Prisecaru","Om Vlad Stan 1","Om Vlad Stan 2"];
 const today = new Date().toLocaleDateString('ro-RO');
 
@@ -1161,6 +1188,10 @@ function isAdmin() {
 }
 
 function applyRoleUI() {
+    // Apply site title
+    const titleEl = document.getElementById('clubTitle');
+    if (titleEl && siteTitle) titleEl.textContent = siteTitle;
+    document.title = siteTitle || 'Arena Friends FC';
     const admin = isAdmin();
     document.body.classList.toggle('is-admin', admin);
     document.body.classList.toggle('is-player', !admin);
@@ -1303,6 +1334,31 @@ async function loadAll() {
         // Sortează după data reală a meciului, cel mai recent primul
         .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
+        // Load MVP votes and attach counts to players
+        try {
+            const { data: mvpVotes } = await sb.from('mvp_votes').select('mvp_player_name, mvp_type, match_id');
+            if (mvpVotes?.length) {
+                // Get winners per match from history
+                const matchWinners = {};
+                db.history.forEach(h => { if(h._dbId) matchWinners[h._dbId] = h.winner; });
+                db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
+                mvpVotes.forEach(v => {
+                    const player = db.players.find(p => p.name === v.mvp_player_name);
+                    if (!player) return;
+                    // Determine if this MVP vote was for the winning or losing team
+                    const matchWinner = matchWinners[v.match_id];
+                    const matchH = db.history.find(h => h._dbId === v.match_id);
+                    if (matchH && matchWinner) {
+                        const inOrange = matchH.orangePlayers.includes(v.mvp_player_name);
+                        const winnerIsOrange = matchWinner === 'Portocaliu';
+                        const playerWon = (inOrange && winnerIsOrange) || (!inOrange && !winnerIsOrange);
+                        if (playerWon) player.mvpWinCount++;
+                        else player.mvpLossCount++;
+                    }
+                });
+            }
+        } catch(e) { /* mvp_votes table may not exist yet */ }
+
         // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
         db.nextMatch = nm
@@ -1408,7 +1464,14 @@ function setupRealtime() {
 function getSmartRating(p) {
     const base = CATS.reduce((s,c) => s+(p.ratings.length?p.ratings.reduce((a,r)=>a+(r[c]||5),0)/p.ratings.length:5)*W[c],0);
     const wr = p.games>0 ? 1+(p.wins/p.games)*9 : 5;
-    return parseFloat((base+wr*W.winrate).toFixed(2));
+    // MVP bonus: mvpWin = MVP din echipa câștigătoare, mvpLoss = MVP din echipa pierzătoare
+    const mvpWinCount  = p.mvpWinCount  || 0;
+    const mvpLossCount = p.mvpLossCount || 0;
+    // Normalize: 1 MVP winner per game played = 10/10, scale down
+    const games = Math.max(p.games, 1);
+    const mvpWinScore  = Math.min((mvpWinCount  / games) * 10, 10);
+    const mvpLossScore = Math.min((mvpLossCount / games) * 10, 10);
+    return parseFloat((base + wr*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss).toFixed(2));
 }
 function getCatAvg(p,cat){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
 function getGeneralAvg(p){return getCatAvg(p,'general');}
@@ -1795,11 +1858,12 @@ function openSettings(){
 }
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';}
 function switchSettingsTab(tab){
-    const tabNames=['players','accounts','notifications','export','season'];
+    const tabNames=['players','accounts','notifications','export','algorithm','season'];
     document.querySelectorAll('.settings-tab').forEach((t,i)=>t.classList.toggle('active',tabNames[i]===tab));
     document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
     document.getElementById('panel-'+tab).classList.add('active');
     if(tab==='accounts') buildAccountsList();
+    if(tab==='algorithm') buildAlgorithmPanel();
 }
 function buildPlayerEditList(){
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
@@ -1842,6 +1906,76 @@ function addNewPlayerFromSettings(){
         .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
         .catch(e=>showToast('⚠️ '+e.message));
     showToast(`✅ ${name.trim()} adăugat!`);
+}
+
+function saveSiteTitle(){
+    const val = document.getElementById('siteTitleInput').value.trim();
+    if (!val) { showToast('⚠️ Titlul nu poate fi gol!'); return; }
+    siteTitle = val;
+    localStorage.setItem('site_title', val);
+    applyRoleUI();
+    showToast('✅ Titlu salvat: ' + val);
+}
+
+function buildAlgorithmPanel(){
+    document.getElementById('siteTitleInput').value = siteTitle;
+    const labels = {
+        general:  '⚽ General',
+        viteza:   '⚡ Viteză',
+        tehnica:  '🎯 Tehnică',
+        strategie:'🧠 Strategie',
+        aparare:  '🛡️ Apărare',
+        winrate:  '📈 Win Rate',
+        mvpWin:   '🏆 MVP (echipa câștigătoare)',
+        mvpLoss:  '⚔️ MVP (echipa pierzătoare)'
+    };
+    const keys = Object.keys(labels);
+    document.getElementById('weightsList').innerHTML = keys.map(k => `
+        <div style="display:flex;align-items:center;gap:10px;">
+            <span style="flex:1;font-size:.85rem;color:#aaa;">${labels[k]}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <input type="range" min="0" max="100" step="1"
+                    value="${Math.round((W[k]||0)*100)}"
+                    oninput="updateWeight('${k}',this.value)"
+                    style="width:110px;accent-color:var(--accent);">
+                <span id="wlbl-${k}" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#82b1ff;min-width:36px;text-align:right;">${Math.round((W[k]||0)*100)}%</span>
+            </div>
+        </div>`).join('');
+    updateWeightsSum();
+}
+
+function updateWeight(key, val){
+    W[key] = parseInt(val)/100;
+    document.getElementById(`wlbl-${key}`).textContent = val + '%';
+    updateWeightsSum();
+}
+
+function updateWeightsSum(){
+    const sum = Object.values(W).reduce((s,v)=>s+v,0);
+    const el = document.getElementById('weightsSum');
+    if (!el) return;
+    const pct = (sum*100).toFixed(0);
+    el.textContent = pct + '%';
+    el.style.color = Math.abs(sum-1) < 0.01 ? '#4caf50' : '#e57373';
+}
+
+function saveAlgorithm(){
+    const sum = Object.values(W).reduce((s,v)=>s+v,0);
+    if (Math.abs(sum-1) > 0.02) {
+        showToast(`⚠️ Suma e ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
+        return;
+    }
+    saveWeights();
+    render();
+    showToast('✅ Algoritm salvat!');
+}
+
+function resetAlgorithm(){
+    Object.assign(W, DEFAULT_W);
+    saveWeights();
+    buildAlgorithmPanel();
+    render();
+    showToast('↺ Algoritm resetat la valorile implicite.');
 }
 
 async function buildAccountsList(){
@@ -2692,7 +2826,10 @@ function getSmartRatingAtDate(player, dateStr) {
     if (validRatings.length === 0) return 5; // default
 
     const cats = ['general','viteza','tehnica','strategie','aparare'];
-    const W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20};
+    const DEFAULT_W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20,mvpWin:0.0,mvpLoss:0.0};
+let W = JSON.parse(localStorage.getItem('smart_weights') || 'null') || {...DEFAULT_W};
+function saveWeights(){ localStorage.setItem('smart_weights', JSON.stringify(W)); }
+let siteTitle = localStorage.getItem('site_title') || 'Arena Friends FC';
     const base = cats.reduce((s,c) =>
         s + (validRatings.reduce((a,r)=>a+(r[c]||5),0)/validRatings.length)*W[c], 0);
     // Win rate la acel moment — calculat din meciurile de dinainte
