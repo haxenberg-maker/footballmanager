@@ -2314,10 +2314,29 @@ function switchMobileTab(tab) {
     currentMobileTab = tab;
     const colTabs = ['orange','green','bench','active'];
     const isSections = tab === 'lobby' || tab === 'history';
-    colTabs.forEach(t => {
-        document.getElementById(`col-${t}`)?.classList.toggle('mobile-active', t === tab);
-    });
+
+    // Columns
+    colTabs.forEach(t =>
+        document.getElementById(`col-${t}`)?.classList.toggle('mobile-active', t === tab)
+    );
+
+    // sectionsArea visibility
     document.getElementById('sectionsArea')?.classList.toggle('mobile-active', isSections);
+
+    // Individual section visibility within sectionsArea
+    if (isSections) {
+        document.getElementById('sec-lobby')?.style && (document.getElementById('sec-lobby').style.display = tab === 'lobby' ? '' : 'none');
+        document.getElementById('sec-stats')?.style && (document.getElementById('sec-stats').style.display = tab === 'history' ? '' : 'none');
+        document.getElementById('sec-history')?.style && (document.getElementById('sec-history').style.display = tab === 'history' ? '' : 'none');
+    } else {
+        // On desktop / non-section tabs, reset display so CSS controls them
+        ['sec-lobby','sec-stats','sec-history'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+    }
+
+    // Tab active styles
     const keyMap = {orange:'o',green:'g',bench:'b',active:'a',lobby:'l',history:'h'};
     const activeKey = keyMap[tab];
     document.querySelectorAll('.mobile-tab').forEach(el => {
@@ -2484,6 +2503,11 @@ window.addEventListener('resize', () => {
         ['orange','green','bench','active'].forEach(t =>
             document.getElementById(`col-${t}`)?.classList.remove('mobile-active'));
         document.getElementById('sectionsArea')?.classList.remove('mobile-active');
+        // Reset inline display styles so CSS controls sections on desktop
+        ['sec-lobby','sec-stats','sec-history'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
     } else {
         const anyColActive = document.querySelector('.column.mobile-active');
         const sectionsActive = document.getElementById('sectionsArea')?.classList.contains('mobile-active');
