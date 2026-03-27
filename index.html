@@ -83,7 +83,7 @@
         .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#ce93d8;}
         .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#82b1ff;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
-        .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 200px 200px;gap:14px;align-items:start;}
+        .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 260px 260px;gap:14px;align-items:start;}
         .column{background:#0f1118;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
         .column-active{border-style:dashed;border-color:#333;}
@@ -100,7 +100,8 @@
         .team-count-badge{background:rgba(0,0,0,0.25);border-radius:20px;padding:2px 8px;color:rgba(255,255,255,0.7);font-size:0.8rem;}
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
-        .col-body{padding:10px;flex:1;min-height:360px;overflow-y:auto;}
+        .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
+        #list-active,#list-bench{max-height:520px;overflow-y:auto;}
         .player-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:all 0.15s;position:relative;display:flex;flex-direction:column;gap:4px;}
         .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
         .card-top{display:flex;justify-content:space-between;align-items:center;}
@@ -243,7 +244,9 @@
         .lb-stat{font-size:0.76rem;color:#666;}
         .lb-smart{font-size:0.76rem;color:#a78bfa;margin-top:2px;}
         .history-section{grid-column:1/-1;margin-top:4px;background:#0f1118;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
-        .history-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 12px;color:#888;}
+        .history-desktop-header{display:flex;}
+        .history-section{padding:0;}
+        .history-section table{width:100%;}
         table{width:100%;border-collapse:collapse;}
         th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #1a1d26;font-size:0.88rem;}
         th{color:#444;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;}
@@ -497,7 +500,8 @@
         .section-chevron.open{transform:rotate(180deg);}
         .section-collapsible{overflow:hidden;transition:max-height 0.35s ease;}
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0f1118}::-webkit-scrollbar-thumb{background:#2a2d40;border-radius:3px}
-        @media(max-width:1200px){.dashboard{grid-template-columns:1fr 36px 1fr 180px 180px}}
+        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 220px 220px}}
+        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 180px 180px}}
         @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-active{grid-column:span 1}}
         @media(max-width:640px){
             .page{padding:0;}
@@ -511,6 +515,7 @@
             .column.mobile-active{display:flex;}
             .balance-col{display:none !important;}
             .stats-section,.history-section,.lobby-section{border-radius:0;border-left:none;border-right:none;margin-top:0;}
+            .history-desktop-header{display:none !important;}
             .mobile-tabs{display:flex;}
             .mobile-tabs-row{display:block;}
             .section-toggle{display:flex;}
@@ -716,10 +721,16 @@
         </div>
     </div>
     <div class="history-section">
+        <!-- Desktop header (always visible) -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;" class="history-desktop-header">
+            <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#888;">Istoric Meciuri</h3>
+            <button id="btnAddMatch" class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
+        </div>
+        <!-- Mobile toggle (hidden on desktop) -->
         <div class="section-toggle" onclick="toggleSection('historyBody','historyChevron')">
             <div style="display:flex;align-items:center;gap:10px;flex:1;">
                 <span class="section-toggle-label">Istoric Meciuri</span>
-                <button id="btnAddMatch" class="admin-only" onclick="event.stopPropagation();openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:5px 12px;border-radius:7px;font-size:0.78rem;">+ Adaugă</button>
+                <button class="admin-only" onclick="event.stopPropagation();openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:4px 10px;border-radius:6px;font-size:0.75rem;">+ Adaugă</button>
             </div>
             <span class="section-chevron" id="historyChevron">▼</span>
         </div>
@@ -2849,13 +2860,11 @@ async function submitAllVotes() {
 }
 
 function skipVoting() {
-    showConfirm('⏭️','Sari peste votare?','Poți vota mai târziu din profilul jucătorilor.','Da, sari','#252836',()=>{
-        document.getElementById('voteOverlay').classList.remove('show');
-        // Marchează ca "sarit" pentru sesiunea asta — va reapărea la următorul login
-        if (voteState.match?.id && currentUser?.id) {
-            sessionStorage.setItem(`skipped_${currentUser.id}_${voteState.match.id}`, '1');
-        }
-    });
+    document.getElementById('voteOverlay').classList.remove('show');
+    if (voteState.match?.id && currentUser?.id) {
+        sessionStorage.setItem(`skipped_${currentUser.id}_${voteState.match.id}`, '1');
+    }
+    showToast('⏭️ Votare sărită. Poți vota oricând din profilul jucătorilor.');
 }
 
 function toggleSection(bodyId, chevronId) {
