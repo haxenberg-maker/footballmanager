@@ -1335,23 +1335,20 @@ async function loadAll() {
         .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
         // Load MVP votes and attach counts to players
+        db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
         try {
             const { data: mvpVotes } = await sb.from('mvp_votes').select('mvp_player_name, mvp_type, match_id');
             if (mvpVotes?.length) {
-                // Get winners per match from history
                 const matchWinners = {};
                 db.history.forEach(h => { if(h._dbId) matchWinners[h._dbId] = h.winner; });
-                db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
                 mvpVotes.forEach(v => {
                     const player = db.players.find(p => p.name === v.mvp_player_name);
                     if (!player) return;
-                    // Determine if this MVP vote was for the winning or losing team
-                    const matchWinner = matchWinners[v.match_id];
                     const matchH = db.history.find(h => h._dbId === v.match_id);
+                    const matchWinner = matchWinners[v.match_id];
                     if (matchH && matchWinner) {
                         const inOrange = matchH.orangePlayers.includes(v.mvp_player_name);
-                        const winnerIsOrange = matchWinner === 'Portocaliu';
-                        const playerWon = (inOrange && winnerIsOrange) || (!inOrange && !winnerIsOrange);
+                        const playerWon = (inOrange && matchWinner==='Portocaliu') || (!inOrange && matchWinner==='Verde');
                         if (playerWon) player.mvpWinCount++;
                         else player.mvpLossCount++;
                     }
@@ -1919,6 +1916,8 @@ function saveSiteTitle(){
 
 function buildAlgorithmPanel(){
     document.getElementById('siteTitleInput').value = siteTitle;
+    // Ensure all players have mvp counts initialized
+    db.players.forEach(p => { if(p.mvpWinCount===undefined) p.mvpWinCount=0; if(p.mvpLossCount===undefined) p.mvpLossCount=0; });
     const labels = {
         general:  '⚽ General',
         viteza:   '⚡ Viteză',
@@ -1926,29 +1925,38 @@ function buildAlgorithmPanel(){
         strategie:'🧠 Strategie',
         aparare:  '🛡️ Apărare',
         winrate:  '📈 Win Rate',
-        mvpWin:   '🏆 MVP (echipa câștigătoare)',
-        mvpLoss:  '⚔️ MVP (echipa pierzătoare)'
+        mvpWin:   '🏆 MVP câștigătoare',
+        mvpLoss:  '⚔️ MVP pierzătoare'
     };
     const keys = Object.keys(labels);
-    document.getElementById('weightsList').innerHTML = keys.map(k => `
-        <div style="display:flex;align-items:center;gap:10px;">
-            <span style="flex:1;font-size:.85rem;color:#aaa;">${labels[k]}</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <input type="range" min="0" max="100" step="1"
-                    value="${Math.round((W[k]||0)*100)}"
-                    oninput="updateWeight('${k}',this.value)"
-                    style="width:110px;accent-color:var(--accent);">
-                <span id="wlbl-${k}" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#82b1ff;min-width:36px;text-align:right;">${Math.round((W[k]||0)*100)}%</span>
-            </div>
-        </div>`).join('');
+    document.getElementById('weightsList').innerHTML = keys.map(k => {
+        const pct = Math.round((W[k]||0)*100);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0f1118;">
+            <span style="flex:1;font-size:.82rem;color:#aaa;">${labels[k]}</span>
+            <input type="range" min="0" max="100" step="1" value="${pct}"
+                id="wrange-${k}" oninput="syncWeight('${k}','range')"
+                style="width:80px;accent-color:var(--accent);flex-shrink:0;">
+            <input type="number" min="0" max="100" value="${pct}"
+                id="wnum-${k}" oninput="syncWeight('${k}','num')"
+                style="width:48px;background:#1c1f2b;border:1px solid #2a2d40;color:#82b1ff;padding:4px 6px;border-radius:6px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;text-align:center;outline:none;">
+            <span style="font-size:.72rem;color:#444;width:16px;">%</span>
+        </div>`;
+    }).join('');
     updateWeightsSum();
 }
 
-function updateWeight(key, val){
-    W[key] = parseInt(val)/100;
-    document.getElementById(`wlbl-${key}`).textContent = val + '%';
+function syncWeight(key, source){
+    const rangeEl = document.getElementById(`wrange-${key}`);
+    const numEl   = document.getElementById(`wnum-${key}`);
+    let val = source==='range' ? parseInt(rangeEl.value) : parseInt(numEl.value)||0;
+    val = Math.max(0, Math.min(100, val));
+    rangeEl.value = val;
+    numEl.value   = val;
+    W[key] = val/100;
     updateWeightsSum();
 }
+
+function updateWeight(key, val){ syncWeight(key,'range'); } // backward compat
 
 function updateWeightsSum(){
     const sum = Object.values(W).reduce((s,v)=>s+v,0);
@@ -1956,18 +1964,45 @@ function updateWeightsSum(){
     if (!el) return;
     const pct = (sum*100).toFixed(0);
     el.textContent = pct + '%';
-    el.style.color = Math.abs(sum-1) < 0.01 ? '#4caf50' : '#e57373';
+    el.style.color = Math.abs(sum-1) < 0.02 ? '#4caf50' : '#e57373';
 }
 
-function saveAlgorithm(){
+async function saveAlgorithm(){
     const sum = Object.values(W).reduce((s,v)=>s+v,0);
     if (Math.abs(sum-1) > 0.02) {
         showToast(`⚠️ Suma e ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
         return;
     }
     saveWeights();
+
+    // Reload MVP votes if mvpWin or mvpLoss > 0
+    if (W.mvpWin > 0 || W.mvpLoss > 0) {
+        try {
+            const { data: mvpVotes } = await sb.from('mvp_votes').select('mvp_player_name, mvp_type, match_id');
+            db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
+            if (mvpVotes?.length) {
+                const matchWinners = {};
+                db.history.forEach(h => { if(h._dbId) matchWinners[h._dbId] = h.winner; });
+                mvpVotes.forEach(v => {
+                    const player = db.players.find(p => p.name === v.mvp_player_name);
+                    if (!player) return;
+                    const matchH = db.history.find(h => h._dbId === v.match_id);
+                    const matchWinner = matchWinners[v.match_id];
+                    if (matchH && matchWinner) {
+                        const inOrange = matchH.orangePlayers.includes(v.mvp_player_name);
+                        const playerWon = (inOrange && matchWinner==='Portocaliu') || (!inOrange && matchWinner==='Verde');
+                        if (playerWon) player.mvpWinCount++;
+                        else player.mvpLossCount++;
+                    }
+                });
+            }
+        } catch(e) { showToast('⚠️ Nu s-au putut încărca voturile MVP: '+e.message); }
+    } else {
+        db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
+    }
+
     render();
-    showToast('✅ Algoritm salvat!');
+    showToast('✅ Algoritm salvat și recalculat!');
 }
 
 function resetAlgorithm(){
