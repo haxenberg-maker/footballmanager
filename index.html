@@ -1259,7 +1259,9 @@ async function loadAll() {
             date: h.date, winner: h.winner, score: h.score,
             orangePlayers: h.orange_players || [],
             greenPlayers:  h.green_players  || []
-        }));
+        }))
+        // Sortează după data reală a meciului, cel mai recent primul
+        .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
         // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
@@ -2589,15 +2591,13 @@ function parseDateToObj(dateStr) {
 }
 
 function recalculateAllPlayerStats() {
-    // Resetează toate stats la zero
-    db.players.forEach(p => {
-        p.wins = 0;
-        p.games = 0;
-        p.matchHistory = [];
-    });
+    db.players.forEach(p => { p.wins = 0; p.games = 0; p.matchHistory = []; });
 
-    // Parcurge istoricul în ordine cronologică (cel mai vechi primul)
-    const sortedHistory = [...db.history].reverse(); // history e descrescător
+    // Sortează după data reală a meciului, cel mai vechi primul
+    const sortedHistory = [...db.history].sort((a, b) =>
+        parseDateToObj(a.date) - parseDateToObj(b.date)
+    );
+
     sortedHistory.forEach(h => {
         const orangeNames = h.orangePlayers || [];
         const greenNames  = h.greenPlayers  || [];
