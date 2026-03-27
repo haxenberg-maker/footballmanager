@@ -621,8 +621,8 @@
 
 <!-- CONTROLS -->
 <div class="controls">
-    <button class="btn-win-o admin-only" onclick="recordMatch('orange')">🏆 Portocaliu Win</button>
-    <button class="btn-win-g admin-only" onclick="recordMatch('green')">🏆 Verde Win</button>
+    <button class="btn-win-o admin-only" onclick="confirmWin('orange')">🏆 Portocaliu Win</button>
+    <button class="btn-win-g admin-only" onclick="confirmWin('green')">🏆 Verde Win</button>
     <button class="btn-new-match admin-only" onclick="newMatch()">🔄 Meci Nou</button>
     <div class="controls-separator admin-only"></div>
     <button class="btn-schedule admin-only" onclick="openScheduleModal()">📅 Programează</button>
@@ -652,6 +652,7 @@
             <div class="col-header-title">Echipa Portocalie</div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
+            <div id="match-date-display" style="font-size:0.72rem;color:#5c8aff;margin-top:4px;display:none;"></div>
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
@@ -661,6 +662,10 @@
             <div class="balance-popup-title">Reechilibrează după</div>
             <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Rating Smart</span></div>
             <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General</span></div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
+                <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
+            </div>
         </div>
     </div>
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
@@ -680,7 +685,10 @@
     </div>
     <div class="column column-active header-active" id="col-active" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title">Jucători</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                <div class="col-header-title">Jucători</div>
+                <button class="admin-only" id="btnMoveAllToBench" onclick="moveAllActiveToBench()" title="Mută toți pe bancă" style="background:rgba(41,121,255,.15);border:1px solid rgba(41,121,255,.3);color:#82b1ff;padding:4px 9px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;">→ Bancă</button>
+            </div>
             <div class="team-rating-info"><span class="team-count-badge" id="count-active">0 jucători</span></div>
         </div>
         <div class="col-body" id="list-active"></div>
@@ -693,7 +701,13 @@
     <!-- col-active is already in dashGrid above, rendered there on desktop -->
     <!-- On mobile this area contains just the leaderboard below the active col -->
     <div class="stats-section" id="sec-stats">
-        <h3>🏅 Clasament Smart</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <h3 style="margin:0;">🏅 Clasament</h3>
+            <div style="display:flex;gap:4px;">
+                <button id="lb-btn-smart" onclick="setLeaderboardMode('smart')" style="background:rgba(167,139,250,.2);border:1px solid #7c4dff;color:#a78bfa;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;">★ Smart</button>
+                <button id="lb-btn-general" onclick="setLeaderboardMode('general')" style="background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;">⭐ General</button>
+            </div>
+        </div>
         <div class="leaderboard" id="leaderboard"></div>
     </div>
 </div>
@@ -1458,12 +1472,14 @@ function updateTeamStats(){
     document.getElementById('count-active').textContent=`${db.players.filter(p=>p.status==='active').length} jucători`;
 }
 function renderLeaderboard(){
-    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    const getRating = p => leaderboardMode === 'general' ? getGeneralAvg(p) : getSmartRating(p);
+    const ratingLabel = leaderboardMode === 'general' ? '⭐' : '★';
+    const sorted=[...db.players].sort((a,b)=>getRating(b)-getRating(a));
     const medals=['🥇','🥈','🥉'];
     document.getElementById('leaderboard').innerHTML=sorted.slice(0,9).map((p,i)=>{
         const s=getStreak(p),st=s.count?(s.type==='W'?`🔥${s.count}V`:`❄️${s.count}P`):'—';
         const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-        return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">⭐ ${getGeneralAvg(p).toFixed(1)} | ${wr} victorii | ${st}</div><div class="lb-smart">★ Smart: ${getSmartRating(p).toFixed(2)}</div></div>`;
+        return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">${ratingLabel} ${getRating(p).toFixed(1)} | ${wr} victorii | ${st}</div></div>`;
     }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
 }
 function renderHistory(){
@@ -1497,13 +1513,19 @@ function renderHistory(){
 function renderLobby(){
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
+    // Update match date in orange column header (point 1)
+    const matchDateDisplay = document.getElementById('match-date-display');
     if(nm.date){
         const d=new Date(nm.date+'T'+(nm.time||'00:00'));
         let str=d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
         if(nm.time)str+=' · '+nm.time;
         if(nm.location)str+=' · '+nm.location;
         dtEl.textContent=str;dtEl.className='lobby-datetime';
-    }else{dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';}
+        if(matchDateDisplay){ matchDateDisplay.textContent='📅 '+str; matchDateDisplay.style.display='block'; }
+    }else{
+        dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';
+        if(matchDateDisplay){ matchDateDisplay.style.display='none'; }
+    }
 
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
     db.players.forEach(p=>{
@@ -2314,7 +2336,50 @@ async function saveMatchEdit() {
     render();
 }
 
-// ── Balance popup ──
+// ── 2. Confirmare câștigător ──
+function confirmWin(winner) {
+    const color  = winner === 'orange' ? 'var(--orange)' : 'var(--green)';
+    const label  = winner === 'orange' ? 'Portocaliu' : 'Verde';
+    const oCount = db.players.filter(p=>p.status==='orange').length;
+    const gCount = db.players.filter(p=>p.status==='green').length;
+    showConfirm('🏆', `${label} câștigă?`,
+        `Portocaliu: ${oCount} jucători · Verde: ${gCount} jucători\nAceastă acțiune va actualiza statisticile tuturor jucătorilor.`,
+        `✅ Confirmă`,
+        color,
+        () => recordMatch(winner)
+    );
+}
+
+// ── 3. Mută toți Jucătorii Activi pe Bancă ──
+async function moveAllActiveToBench() {
+    const actives = db.players.filter(p => p.status === 'active');
+    if (!actives.length) { showToast('⚠️ Niciun jucător activ!'); return; }
+    showConfirm('🔵', 'Mută toți pe Bancă?',
+        `${actives.length} jucători activi vor fi mutați pe Bancă.`,
+        'Mută', '#2979ff',
+        async () => {
+            actives.forEach(p => p.status = 'bench');
+            render();
+            try { await Promise.all(actives.map(p => dbUpdatePlayer(p))); showToast(`✅ ${actives.length} jucători mutați pe Bancă!`); }
+            catch(e) { showToast('⚠️ '+e.message); }
+        }
+    );
+}
+
+// ── 6. Leaderboard mode toggle ──
+let leaderboardMode = 'smart';
+function setLeaderboardMode(mode) {
+    leaderboardMode = mode;
+    document.getElementById('lb-btn-smart').style.cssText  = mode==='smart'
+        ? 'background:rgba(167,139,250,.2);border:1px solid #7c4dff;color:#a78bfa;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;'
+        : 'background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;';
+    document.getElementById('lb-btn-general').style.cssText = mode==='general'
+        ? 'background:rgba(255,204,0,.15);border:1px solid #ffcc00;color:#ffcc00;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;'
+        : 'background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;';
+    renderLeaderboard();
+}
+
+function confirmWin_placeholder(){}
 function toggleBalancePopup(e) {
     e.stopPropagation();
     const popup = document.getElementById('balancePopup');
@@ -2532,6 +2597,16 @@ window.addEventListener('resize', () => {
     }
 });
 
+function moveTeamsToBench() {
+    document.getElementById('balancePopup').classList.remove('show');
+    const moved = db.players.filter(p => p.status === 'orange' || p.status === 'green');
+    if (!moved.length) { showToast('⚠️ Nu sunt jucători în echipe!'); return; }
+    moved.forEach(p => p.status = 'bench');
+    render();
+    Promise.all(moved.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ ' + e.message));
+    showToast(`🔵 ${moved.length} jucători mutați pe bancă!`);
+}
+
 function doBalance(mode) {
     document.getElementById('balancePopup').classList.remove('show');
     const active = db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
@@ -2717,6 +2792,11 @@ async function respondPresence(present) {
         // Scoate din confirmați dacă era
         const confIdx = nm.confirmedIds.indexOf(myPlayer.id);
         if (confIdx !== -1) nm.confirmedIds.splice(confIdx, 1);
+        // Dacă era pe bancă, mută înapoi în activi (point 5)
+        if (myPlayer.status === 'bench') {
+            myPlayer.status = 'active';
+            await dbUpdatePlayer(myPlayer).catch(()=>{});
+        }
         showToast(`❌ Absență înregistrată. Data viitoare!`);
     }
 
