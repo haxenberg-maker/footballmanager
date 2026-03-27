@@ -96,6 +96,14 @@
         .divider{width:100%;height:1px;background:var(--border);margin:14px 0;}
         .list-label{font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;width:100%;}
 
+
+        .id-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#0a0f1a;border-bottom:1px solid #1a2a4a;font-size:.74rem;}
+        .id-bar-left{display:flex;align-items:center;gap:7px;color:#5c8aff;font-weight:700;}
+        .id-bar-av{width:22px;height:22px;border-radius:50%;background:rgba(41,121,255,.2);border:1px solid #2979ff;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.62rem;color:#82b1ff;flex-shrink:0;}
+        .id-bar-nm{color:#fff;}
+        .id-bar-chg{color:#333;cursor:pointer;text-decoration:underline;margin-left:4px;}
+        .id-bar-chg:hover{color:#555;}
+        .id-bar-login{font-size:.7rem;color:#3d5afe;text-decoration:none;padding:3px 10px;border:1px solid rgba(61,90,254,.5);border-radius:6px;font-weight:700;}
         .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
@@ -105,6 +113,10 @@
     </style>
 </head>
 <body>
+<div class="id-bar" id="idBar" style="display:none;">
+    <div class="id-bar-left"><div class="id-bar-av" id="idBarAv"></div>Ești: <span class="id-bar-nm" id="idBarNm"></span><span class="id-bar-chg" onclick="clearIdentity()">· schimbă</span></div>
+    <a class="id-bar-login" href="https://dezmembrarufootball.netlify.app">🔑 Login</a>
+</div>
 <div class="loading" id="loading"><div class="spinner"></div><div class="loading-text">Se încarcă...</div></div>
 <div class="toast" id="toast"></div>
 
@@ -222,6 +234,21 @@ async function init(){
     renderPlayerList();
     show('vMain');
 
+    // Auto-detect identity from localStorage
+    const savedId = localStorage.getItem(LS_PLAYER);
+    if (savedId) {
+        const found = allPlayers.find(p=>p.name===savedId);
+        if (found) {
+            showIdBar(savedId);
+            // Auto-open presence modal if not yet responded
+            const alreadyConf = confirmedIds.includes(found.id);
+            const alreadyAbs  = (absentIds||[]).includes(found.id);
+            if (!alreadyConf && !alreadyAbs) {
+                setTimeout(()=>openModal(found.id), 400);
+            }
+        }
+    }
+
     // Realtime updates
     sb.channel('prez_realtime')
         .on('postgres_changes',{event:'*',schema:'public',table:'next_match'},async()=>{
@@ -324,6 +351,7 @@ function closeModal(){
 async function respond(present){
     if(!pendingPlayer)return;
     closeModal();
+    saveIdentity(pendingPlayer.name);
     const pid=pendingPlayer.id;
 
     // Update locally
@@ -431,6 +459,13 @@ async function respond_for(player, present) {
     pendingPlayer = player;
     await respond(present);
 }
+
+
+const LS_PLAYER='vote_identity';
+function ini2(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function showIdBar(name){const b=document.getElementById('idBar');if(!b)return;b.style.display='flex';document.getElementById('idBarAv').textContent=ini2(name);document.getElementById('idBarNm').textContent=name;}
+function clearIdentity(){localStorage.removeItem(LS_PLAYER);location.reload();}
+function saveIdentity(name){localStorage.setItem(LS_PLAYER,name);showIdBar(name);}
 
 init();
 </script>
