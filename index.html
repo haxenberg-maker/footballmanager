@@ -692,6 +692,10 @@
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
                 <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
             </div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div class="balance-opt" onclick="copyTeams()" style="color:#4caf50;">
+                <span class="balance-opt-icon">📋</span><span>Copiază Echipe</span>
+            </div>
         </div>
     </div>
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
@@ -1818,9 +1822,64 @@ async function nukeAll(){
 }
 
 function copyTeams(){
-    const o=db.players.filter(p=>p.status==='orange').map(p=>p.name);
-    const g=db.players.filter(p=>p.status==='green').map(p=>p.name);
-    navigator.clipboard?.writeText(`🟠 Portocaliu:\n${o.join('\n')}\n\n🟢 Verde:\n${g.join('\n')}`).then(()=>showToast('📋 Copiat!')).catch(()=>showToast('❌ Eroare clipboard'));
+    document.getElementById('balancePopup').classList.remove('show');
+
+    const oP = db.players.filter(p=>p.status==='orange');
+    const gP = db.players.filter(p=>p.status==='green');
+
+    if (!oP.length && !gP.length) { showToast('⚠️ Nu există jucători în echipe!'); return; }
+
+    // Sort each team by rating descending
+    const sortBySmart   = (a,b) => getSmartRating(b)   - getSmartRating(a);
+    const sortByGeneral = (a,b) => getGeneralAvg(b)     - getGeneralAvg(a);
+
+    // Win chance calculation
+    const oSmartAvg = oP.length ? oP.reduce((s,p)=>s+getSmartRating(p),0)/oP.length : 0;
+    const gSmartAvg = gP.length ? gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length : 0;
+    const oGenAvg   = oP.length ? oP.reduce((s,p)=>s+getGeneralAvg(p),0)/oP.length   : 0;
+    const gGenAvg   = gP.length ? gP.reduce((s,p)=>s+getGeneralAvg(p),0)/gP.length   : 0;
+
+    const totalSmart = oSmartAvg + gSmartAvg || 1;
+    const totalGen   = oGenAvg   + gGenAvg   || 1;
+    const oChanceSmart   = Math.round(oSmartAvg/totalSmart*100);
+    const gChanceSmart   = 100 - oChanceSmart;
+    const oChanceGeneral = Math.round(oGenAvg/totalGen*100);
+    const gChanceGeneral = 100 - oChanceGeneral;
+
+    // Format player line with rating
+    const fmtSmart   = (p,i) => `  ${i+1}. ${p.name} (★${getSmartRating(p).toFixed(1)})`;
+    const fmtGeneral = (p,i) => `  ${i+1}. ${p.name} (⭐${getGeneralAvg(p).toFixed(1)})`;
+
+    const oSmart = [...oP].sort(sortBySmart);
+    const gSmart = [...gP].sort(sortBySmart);
+    const oGen   = [...oP].sort(sortByGeneral);
+    const gGen   = [...gP].sort(sortByGeneral);
+
+    const today = new Date().toLocaleDateString('ro-RO', {day:'numeric',month:'long',year:'numeric'});
+
+    const text = [
+        `⚽ ECHIPE ${today}`,
+        '',
+        `━━━ V1 — Smart Rating ━━━`,
+        `🟠 Portocaliu (★${oSmartAvg.toFixed(1)}) — ${oChanceSmart}% șanse câștig`,
+        oSmart.map(fmtSmart).join('\n'),
+        '',
+        `🟢 Verde (★${gSmartAvg.toFixed(1)}) — ${gChanceSmart}% șanse câștig`,
+        gSmart.map(fmtSmart).join('\n'),
+        '',
+        `━━━ V2 — Rating General ━━━`,
+        `🟠 Portocaliu (⭐${oGenAvg.toFixed(1)}) — ${oChanceGeneral}% șanse câștig`,
+        oGen.map(fmtGeneral).join('\n'),
+        '',
+        `🟢 Verde (⭐${gGenAvg.toFixed(1)}) — ${gChanceGeneral}% șanse câștig`,
+        gGen.map(fmtGeneral).join('\n'),
+        '',
+        `📱 Arena Friends FC`
+    ].join('\n');
+
+    navigator.clipboard?.writeText(text)
+        .then(()=>showToast('📋 Echipe copiate cu rating și șanse!'))
+        .catch(()=>showToast('❌ Eroare clipboard'));
 }
 
 function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
