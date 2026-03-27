@@ -15,21 +15,21 @@
         .loading{position:fixed;inset:0;background:#0a0c10;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
         .loading.hidden{display:none;}
         .loading-text{font-size:.82rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
-
         .header{background:linear-gradient(135deg,#0d0f18,#141720);border-bottom:1px solid var(--border);padding:14px 20px;text-align:center;}
         .header h1{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:#fff;}
         .header-sub{font-size:.7rem;color:#444;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
 
-        /* Progress steps */
-        .steps-bar{display:flex;align-items:center;justify-content:center;gap:0;padding:12px 20px;background:#0d0f18;border-bottom:1px solid var(--border);}
-        .step{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;max-width:80px;}
-        .step-dot{width:28px;height:28px;border-radius:50%;border:2px solid #252836;background:#141720;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:#444;transition:all .3s;font-weight:700;}
+        /* Steps */
+        .steps-bar{display:none;align-items:center;justify-content:center;padding:10px 16px;background:#0d0f18;border-bottom:1px solid var(--border);gap:0;}
+        .steps-bar.show{display:flex;}
+        .step{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;max-width:70px;}
+        .step-dot{width:26px;height:26px;border-radius:50%;border:2px solid #252836;background:#141720;display:flex;align-items:center;justify-content:center;font-size:.72rem;color:#444;transition:all .3s;font-weight:700;}
         .step-dot.active{border-color:var(--accent);background:rgba(61,90,254,.2);color:#82b1ff;}
         .step-dot.done{border-color:#28a745;background:rgba(40,167,69,.2);color:#4caf50;}
-        .step-lbl{font-size:.58rem;color:#333;text-transform:uppercase;letter-spacing:.5px;text-align:center;line-height:1.2;}
+        .step-lbl{font-size:.55rem;color:#333;text-transform:uppercase;letter-spacing:.5px;text-align:center;line-height:1.2;}
         .step-lbl.active{color:#82b1ff;}
         .step-lbl.done{color:#4caf50;}
-        .step-line{flex:1;height:2px;background:#1e2130;max-width:24px;}
+        .step-line{flex:1;height:2px;background:#1e2130;max-width:20px;}
         .step-line.done{background:#28a745;}
 
         .screen{flex:1;display:none;flex-direction:column;align-items:center;padding:18px 16px;max-width:540px;margin:0 auto;width:100%;}
@@ -38,7 +38,16 @@
         .sec-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;margin-bottom:4px;width:100%;}
         .sec-sub{font-size:.78rem;color:#555;margin-bottom:14px;width:100%;}
 
-        /* Match card */
+        /* Player items */
+        .player-item{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 15px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s;margin-bottom:7px;}
+        .player-item:hover{border-color:var(--accent);transform:translateX(3px);}
+        .p-avatar{width:36px;height:36px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#555;flex-shrink:0;}
+        .p-name{font-weight:700;color:#fff;font-size:.92rem;flex:1;}
+        .tbadge{font-size:.65rem;padding:2px 9px;border-radius:8px;font-weight:700;white-space:nowrap;}
+        .to{background:rgba(255,140,0,.15);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
+        .tg{background:rgba(40,167,69,.15);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+
+        /* Match cards */
         .match-card{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:14px;transition:all .15s;margin-bottom:8px;}
         .match-card:hover{border-color:var(--accent);background:#1e2130;}
         .mc-date{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#82b1ff;white-space:nowrap;}
@@ -47,15 +56,10 @@
         .mc-winner.o{color:var(--orange);}
         .mc-winner.g{color:#4caf50;}
         .mc-players{font-size:.72rem;color:#444;margin-top:2px;}
-
-        /* Player select */
-        .player-item{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 15px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s;margin-bottom:7px;}
-        .player-item:hover{border-color:var(--accent);transform:translateX(3px);}
-        .p-avatar{width:36px;height:36px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#555;flex-shrink:0;}
-        .p-name{font-weight:700;color:#fff;font-size:.92rem;flex:1;}
-        .tbadge{font-size:.65rem;padding:2px 9px;border-radius:8px;font-weight:700;white-space:nowrap;}
-        .to{background:rgba(255,140,0,.15);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
-        .tg{background:rgba(40,167,69,.15);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+        .mc-badge{font-size:.65rem;padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap;align-self:center;}
+        .mc-badge.was-o{background:rgba(255,140,0,.15);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
+        .mc-badge.was-g{background:rgba(40,167,69,.15);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+        .mc-badge.was-all{background:rgba(61,90,254,.1);color:#82b1ff;border:1px solid rgba(61,90,254,.3);}
 
         /* MVP grid */
         .mvp-header{width:100%;text-align:center;margin-bottom:14px;}
@@ -70,13 +74,12 @@
         .mvp-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:16px 10px;cursor:pointer;text-align:center;transition:all .2s;position:relative;}
         .mvp-card:hover{border-color:#7c4dff;transform:translateY(-2px);}
         .mvp-card.sel{border-color:#ce93d8;background:rgba(156,39,176,.15);box-shadow:0 4px 20px rgba(156,39,176,.35);}
-        .mvp-avatar{width:50px;height:50px;border-radius:50%;background:#1c1f2b;border:2px solid #252836;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#555;margin:0 auto 8px;transition:all .2s;}
+        .mvp-avatar{width:48px;height:48px;border-radius:50%;background:#1c1f2b;border:2px solid #252836;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#555;margin:0 auto 8px;transition:all .2s;}
         .mvp-card.sel .mvp-avatar{background:rgba(156,39,176,.25);border-color:#ce93d8;color:#ce93d8;}
-        .mvp-name{font-weight:700;font-size:.88rem;color:#ccc;line-height:1.2;}
+        .mvp-name{font-weight:700;font-size:.86rem;color:#ccc;line-height:1.2;}
         .mvp-card.sel .mvp-name{color:#fff;}
         .mvp-check{position:absolute;top:7px;right:7px;font-size:.9rem;opacity:0;transition:opacity .2s;}
         .mvp-card.sel .mvp-check{opacity:1;}
-
         .mvp-submit{width:100%;padding:13px;border-radius:12px;background:linear-gradient(135deg,#4a0080,#9c27b0);border:1px solid #ce93d8;color:#fff;font-size:.95rem;font-weight:700;letter-spacing:2px;font-family:'Bebas Neue',sans-serif;cursor:pointer;transition:all .2s;margin-bottom:8px;}
         .mvp-submit:disabled{opacity:.3;cursor:not-allowed;}
         .mvp-submit:not(:disabled):hover{filter:brightness(1.15);}
@@ -135,23 +138,18 @@
         .nbtn:disabled{opacity:.3;cursor:not-allowed;}
         .nbtn.last{background:linear-gradient(135deg,#1a7a30,#28a745);color:#fff;}
 
-        /* Done */
         .done-wrap{text-align:center;padding:24px 0;width:100%;}
         .done-icon{font-size:3.5rem;margin-bottom:12px;}
         .done-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:#fff;margin-bottom:8px;}
-        .done-sub{font-size:.88rem;color:#555;line-height:1.6;margin-bottom:8px;}
+        .done-sub{font-size:.88rem;color:#555;line-height:1.6;}
         .done-mvps{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;width:100%;margin-top:16px;text-align:left;}
         .done-mvp-row{display:flex;align-items:center;gap:10px;padding:7px 0;}
         .done-mvp-row+.done-mvp-row{border-top:1px solid #1a1d30;}
-        .done-mvp-icon{font-size:1.2rem;}
-        .done-mvp-txt{font-size:.85rem;color:#ccc;}
         .done-mvp-name{font-weight:700;color:#fff;}
 
         .back-btn{background:none;border:1px solid var(--border);color:#555;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;margin-top:10px;}
         .back-btn:hover{border-color:#555;color:#aaa;}
-
-        /* Not found */
-        .not-found-btn{width:100%;margin-top:5px;background:none;border:1px dashed #252836;color:#444;padding:10px;border-radius:11px;font-size:.8rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;}
+        .not-found-btn{width:100%;margin-top:5px;background:none;border:1px dashed #252836;color:#444;padding:10px;border-radius:11px;font-size:.8rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;}
         .not-found-btn:hover{border-color:#555;color:#888;}
         .nf-wrap{display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:12px;padding:15px;margin-top:8px;}
         .nf-wrap.show{display:block;}
@@ -159,8 +157,7 @@
         .nf-input{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:10px 13px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;margin-bottom:10px;}
         .nf-input:focus{border-color:var(--accent);}
         .nf-submit{width:100%;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;}
-
-        .empty{text-align:center;padding:24px;color:#444;font-size:.88rem;line-height:1.6;}
+        .empty{text-align:center;padding:24px;color:#444;font-size:.88rem;line-height:1.7;}
         .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
         @media(max-width:400px){.grow{flex-wrap:wrap;}.gbtn{min-width:calc(20% - 3px);}.sgrid{grid-template-columns:1fr;}.mvp-grid{grid-template-columns:1fr;}}
@@ -169,52 +166,40 @@
 <body>
 <div class="loading" id="loading"><div class="spinner"></div><div class="loading-text">Se încarcă...</div></div>
 <div class="toast" id="toast"></div>
-
 <div class="header"><h1>Arena Friends FC</h1><div class="header-sub">Votează după meci</div></div>
 
 <!-- Steps bar -->
 <div class="steps-bar" id="stepsBar">
-    <div class="step">
-        <div class="step-dot active" id="dot1">1</div>
-        <div class="step-lbl active" id="lbl1">Meci & Eu</div>
-    </div>
+    <div class="step"><div class="step-dot" id="dot1">👤</div><div class="step-lbl" id="lbl1">Eu</div></div>
     <div class="step-line" id="line1"></div>
-    <div class="step">
-        <div class="step-dot" id="dot2">🏆</div>
-        <div class="step-lbl" id="lbl2">MVP echipa mea</div>
-    </div>
+    <div class="step"><div class="step-dot" id="dot2">⚽</div><div class="step-lbl" id="lbl2">Meci</div></div>
     <div class="step-line" id="line2"></div>
-    <div class="step">
-        <div class="step-dot" id="dot3">🏆</div>
-        <div class="step-lbl" id="lbl3">MVP advers</div>
-    </div>
+    <div class="step"><div class="step-dot" id="dot3">🏆</div><div class="step-lbl" id="lbl3">MVP meu</div></div>
     <div class="step-line" id="line3"></div>
-    <div class="step">
-        <div class="step-dot" id="dot4">⭐</div>
-        <div class="step-lbl" id="lbl4">Ratinguri</div>
-    </div>
+    <div class="step"><div class="step-dot" id="dot4">⚔️</div><div class="step-lbl" id="lbl4">MVP advers</div></div>
+    <div class="step-line" id="line4"></div>
+    <div class="step"><div class="step-dot" id="dot5">⭐</div><div class="step-lbl" id="lbl5">Voturi</div></div>
 </div>
 
-<!-- S1: Select match -->
+<!-- S1: Who am I -->
 <div class="screen active" id="s1">
-    <div class="sec-title" style="margin-top:6px;">Selectează Meciul</div>
-    <div class="sec-sub">Alege meciul pentru care vrei să votezi</div>
-    <div id="matchList" style="width:100%;"></div>
-</div>
-
-<!-- S2: Select who you are -->
-<div class="screen" id="s2">
-    <div id="mBanner" style="width:100%;background:#0c1220;border-radius:12px;border:1px solid #1a2a4a;padding:12px 16px;margin-bottom:16px;"></div>
-    <div class="sec-title">Cine ești tu?</div>
-    <div class="sec-sub" id="s2sub">Selectează-te din lista jucătorilor</div>
-    <div id="playerList" style="width:100%;"></div>
+    <div class="sec-title" style="margin-top:6px;">Cine ești tu?</div>
+    <div class="sec-sub">Selectează-te din lista de jucători</div>
+    <div id="allPlayersList" style="width:100%;"></div>
     <button class="not-found-btn" id="nfBtn" onclick="showNF()">👤 Nu mă regăsesc în listă →</button>
     <div class="nf-wrap" id="nfWrap">
         <div class="nf-title">Introdu numele tău</div>
         <input class="nf-input" id="nfInput" placeholder="ex: Ion Popescu" onkeydown="if(event.key==='Enter')useNF()">
         <button class="nf-submit" onclick="useNF()">Continuă →</button>
     </div>
-    <button class="back-btn" onclick="goTo('s1')">← Schimbă meciul</button>
+</div>
+
+<!-- S2: Pick match (filtered by participation + not voted) -->
+<div class="screen" id="s2">
+    <div class="sec-title">Meciurile tale</div>
+    <div class="sec-sub" id="s2sub">Meciuri în care ai participat și nu ai votat încă</div>
+    <div id="myMatchList" style="width:100%;"></div>
+    <button class="back-btn" onclick="goTo('s1')">← Schimbă jucătorul</button>
 </div>
 
 <!-- S3: MVP my team -->
@@ -224,10 +209,11 @@
         <div class="mvp-header-title">MVP ECHIPA MEA</div>
         <div class="mvp-header-sub">Cel mai bun din echipa ta în acest meci</div>
     </div>
-    <div id="mvpMyTeamBadge"></div>
+    <div id="mvpMyBadge"></div>
     <div class="mvp-grid" id="mvpMyGrid"></div>
     <button class="mvp-submit" id="mvpMyBtn" onclick="submitMvpMy()" disabled>🏆 Votez acest MVP</button>
     <button class="skip-btn" onclick="skipMvpMy()">Sari peste →</button>
+    <button class="back-btn" onclick="goTo('s2')">← Înapoi</button>
 </div>
 
 <!-- S4: MVP opponent -->
@@ -241,6 +227,7 @@
     <div class="mvp-grid" id="mvpOppGrid"></div>
     <button class="mvp-submit" id="mvpOppBtn" onclick="submitMvpOpp()" disabled>🏆 Votez acest MVP</button>
     <button class="skip-btn" onclick="skipMvpOpp()">Sari peste →</button>
+    <button class="back-btn" onclick="goTo('s3')">← Înapoi</button>
 </div>
 
 <!-- S5: Rating slides -->
@@ -249,7 +236,7 @@
         <div class="vtop">
             <div class="vtop-row">
                 <span class="vtop-who" id="vwho"></span>
-                <button class="vskip" onclick="goTo('s6')">Sari tot →</button>
+                <button class="vskip" onclick="finishFlow(0)">Sari tot →</button>
             </div>
             <div class="pbar-wrap">
                 <div class="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
@@ -262,7 +249,7 @@
             <button class="nbtn" id="nbtn" onclick="nextSlide()" disabled>Selectează nota ↓</button>
         </div>
     </div>
-    <button class="back-btn" onclick="goTo('s6')" style="margin-top:10px;">Sari la final →</button>
+    <button class="back-btn" onclick="goTo('s4')" style="margin-top:10px;">← Înapoi</button>
 </div>
 
 <!-- S6: Done -->
@@ -272,7 +259,7 @@
         <div class="done-title">Mulțumim!</div>
         <div class="done-sub" id="doneSub"></div>
         <div class="done-mvps" id="doneMvps" style="display:none;"></div>
-        <button class="back-btn" onclick="goTo('s1')" style="margin-top:20px;">← Votează alt meci</button>
+        <button class="back-btn" onclick="goTo('s1')" style="margin-top:20px;">← Votează din nou</button>
     </div>
 </div>
 
@@ -283,237 +270,257 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const CATS={viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
 const today=new Date().toLocaleDateString('ro-RO');
 
-// State
-let matches=[], players=[];
-let selMatch=null, myPlayer=null, myTeam=null, oppTeam=null;
+let allPlayers=[], allMatches=[];
+let myPlayer=null, selMatch=null;
+let myTeam=null, oppTeam=null;
 let mvpMyId=null, mvpOppId=null;
 let toVote=[], votes={}, detOpen={}, curIdx=0;
 
 function parseDate(s){if(!s)return new Date(0);if(s.includes('.')){const[d,m,y]=s.split('.');return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00`);}return new Date(s);}
 function ini(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;requestAnimationFrame(()=>{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);});}
+function key(n){return n.replace(/\s+/g,'_');}
 
 function goTo(id){
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(id)?.classList.add('active');
     updateSteps(id);
+    window.scrollTo(0,0);
 }
-
-function updateSteps(screenId){
+function updateSteps(sid){
     const map={s1:0,s2:1,s3:2,s4:3,s5:4,s6:5};
-    const cur=map[screenId]||0;
-    [1,2,3,4].forEach(i=>{
+    const cur=map[sid]??0;
+    document.getElementById('stepsBar').classList.toggle('show',sid!=='s1');
+    [1,2,3,4,5].forEach(i=>{
         const dot=document.getElementById('dot'+i);
         const lbl=document.getElementById('lbl'+i);
         const line=document.getElementById('line'+i);
         const step=i-1;
-        if(step<cur){dot.classList.add('done');dot.classList.remove('active');lbl.className='step-lbl done';if(line)line.classList.add('done');}
-        else if(step===cur){dot.classList.add('active');dot.classList.remove('done');lbl.className='step-lbl active';if(line)line.classList.remove('done');}
-        else{dot.classList.remove('active','done');lbl.className='step-lbl';if(line)line.classList.remove('done');}
+        dot.className='step-dot'+(step<cur?' done':step===cur?' active':'');
+        lbl.className='step-lbl'+(step<cur?' done':step===cur?' active':'');
+        if(line) line.className='step-line'+(step<cur?' done':'');
     });
-    // Hide steps bar on match select
-    document.getElementById('stepsBar').style.display = screenId==='s1'?'none':'flex';
 }
 
 async function init(){
     const now=new Date();now.setHours(0,0,0,0);
-    const[mr,pr]=await Promise.all([
-        sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(30),
-        sb.from('players').select('id,name').order('name')
+    const[pr,mr]=await Promise.all([
+        sb.from('players').select('id,name').order('name'),
+        sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(50)
     ]);
-    matches=(mr.data||[]).filter(m=>parseDate(m.date)<now).sort((a,b)=>parseDate(b.date)-parseDate(a.date));
-    players=pr.data||[];
+    allPlayers=pr.data||[];
+    allMatches=(mr.data||[])
+        .filter(m=>parseDate(m.date)<now)
+        .sort((a,b)=>parseDate(b.date)-parseDate(a.date));
 
-    const el=document.getElementById('matchList');
-    if(!matches.length){el.innerHTML='<div class="empty">Nu există meciuri înregistrate.</div>';document.getElementById('loading').classList.add('hidden');return;}
+    // Render all players list for S1
+    document.getElementById('allPlayersList').innerHTML=
+        allPlayers.map(p=>`
+            <div class="player-item" onclick="selMe('${p.name}')">
+                <div class="p-avatar">${ini(p.name)}</div>
+                <div class="p-name">${p.name}</div>
+            </div>`).join('');
 
-    el.innerHTML=matches.map((m,i)=>{
-        const all=[...(m.orange_players||[]),...(m.green_players||[])];
-        const ps=all.length?all.slice(0,4).join(', ')+(all.length>4?` +${all.length-4}`:''):'Jucători nespecificați';
-        return `<div class="match-card" onclick="selMatch_(${i})">
-            <div class="mc-date">${m.date||'—'}</div>
-            <div class="mc-info">
-                <div class="mc-winner ${m.winner==='Portocaliu'?'o':'g'}">🏆 ${m.winner||'—'}</div>
-                <div class="mc-players">${ps}</div>
-            </div>
-        </div>`;
-    }).join('');
     document.getElementById('loading').classList.add('hidden');
     updateSteps('s1');
 }
 
-async function selMatch_(i){
-    selMatch=matches[i];
-    const o=selMatch.orange_players||[], g=selMatch.green_players||[];
+function showNF(){document.getElementById('nfWrap').classList.add('show');document.getElementById('nfBtn').style.display='none';setTimeout(()=>document.getElementById('nfInput').focus(),100);}
+function useNF(){const v=document.getElementById('nfInput').value.trim();if(!v||v.length<2){toast('⚠️ Minim 2 caractere!');return;}selMe(v);}
 
-    // Match banner
-    document.getElementById('mBanner').innerHTML=`
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#82b1ff;">${selMatch.date} · 🏆 ${selMatch.winner||'—'}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
-            <div><div style="font-size:.62rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟠 Portocaliu</div>${o.map(n=>`<div style="font-size:.78rem;color:#aaa;">${n}</div>`).join('')||'<div style="color:#333;font-size:.78rem;">—</div>'}</div>
-            <div><div style="font-size:.62rem;color:#4caf50;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟢 Verde</div>${g.map(n=>`<div style="font-size:.78rem;color:#aaa;">${n}</div>`).join('')||'<div style="color:#333;font-size:.78rem;">—</div>'}</div>
-        </div>`;
+async function selMe(name){
+    myPlayer={name, id: allPlayers.find(p=>p.name===name)?.id||null};
 
-    // Check who already voted for this match (ratings after match created_at)
-    const{data:voted}=await sb.from('ratings').select('rater').gt('created_at',selMatch.created_at||'2020-01-01');
-    const votedSet=new Set((voted||[]).map(v=>v.rater));
+    // Find all matches where this player participated and hasn't voted yet
+    const{data:myVotes}=await sb.from('ratings').select('created_at').eq('rater',name).order('created_at',{ascending:false}).limit(1);
+    const lastVoteAt = myVotes?.length ? myVotes[0].created_at : null;
 
-    const allIn=[...o,...g];
-    const candidates=allIn.length?players.filter(p=>allIn.includes(p.name)):players;
-    const unvoted=candidates.filter(p=>!votedSet.has(p.name)&&!localStorage.getItem(`v_${p.name}_${selMatch.id}`));
+    // Filter matches: player was in the match AND created_at > lastVoteAt (or no vote at all)
+    const participated = allMatches.filter(m=>{
+        const allIn=[...(m.orange_players||[]),...(m.green_players||[])];
+        // If match has no player lists — show all past matches
+        const wasIn = allIn.length===0 || allIn.includes(name);
+        if(!wasIn) return false;
+        // Check if already voted for this specific match
+        const lsKey=`v_${name}_${m.id}`;
+        if(localStorage.getItem(lsKey)) return false;
+        return true;
+    });
+
+    // Further filter: remove matches voted after match created_at
+    const unvoted=[];
+    for(const m of participated){
+        if(lastVoteAt && lastVoteAt > m.created_at){
+            // Voted after this match was created — skip
+            continue;
+        }
+        unvoted.push(m);
+    }
+
+    const el=document.getElementById('myMatchList');
+    document.getElementById('s2sub').textContent=
+        `${unvoted.length} meci${unvoted.length!==1?'uri':''} de votat pentru ${name}`;
 
     if(!unvoted.length){
-        document.getElementById('playerList').innerHTML='<div class="empty">✅ Toți jucătorii au votat deja pentru acest meci!</div>';
+        el.innerHTML=`<div class="empty">✅ Ai votat deja la toate meciurile în care ai jucat!<br><br><span style="color:#333;font-size:.8rem;">Dacă crezi că e o eroare, încearcă cu alt nume.</span></div>`;
     } else {
-        document.getElementById('s2sub').textContent=`${unvoted.length} jucători nu au votat încă`;
-        document.getElementById('playerList').innerHTML=unvoted.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>{
-            const inO=o.includes(p.name),inG=g.includes(p.name);
-            const badge=allIn.length?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠 Portocaliu':'🟢 Verde'}</span>`:'';
-            return `<div class="player-item" onclick="selPlayer('${p.name}')">
-                <div class="p-avatar">${ini(p.name)}</div>
-                <div class="p-name">${p.name}</div>
-                ${badge}
+        el.innerHTML=unvoted.map(m=>{
+            const o=m.orange_players||[], g=m.green_players||[];
+            const allIn=[...o,...g];
+            const inO=o.includes(name), inG=g.includes(name);
+            const badgeCls=inO?'was-o':inG?'was-g':'was-all';
+            const badgeTxt=inO?'🟠 Portocaliu':inG?'🟢 Verde':'⚽ Meci';
+            const players=allIn.length?allIn.slice(0,4).join(', ')+(allIn.length>4?` +${allIn.length-4}`:''):'Jucători nespecificați';
+            return `<div class="match-card" onclick="selMatch_('${m.id}')">
+                <div class="mc-date">${m.date||'—'}</div>
+                <div class="mc-info">
+                    <div class="mc-winner ${m.winner==='Portocaliu'?'o':'g'}">🏆 ${m.winner||'—'}</div>
+                    <div class="mc-players">${players}</div>
+                </div>
+                <span class="mc-badge ${badgeCls}">${badgeTxt}</span>
             </div>`;
         }).join('');
     }
     goTo('s2');
 }
 
-function selPlayer(name){ startFlow(name); }
-function showNF(){document.getElementById('nfWrap').classList.add('show');document.getElementById('nfBtn').style.display='none';setTimeout(()=>document.getElementById('nfInput').focus(),100);}
-function useNF(){const v=document.getElementById('nfInput').value.trim();if(!v||v.length<2){toast('⚠️ Minim 2 caractere!');return;}startFlow(v);}
-
-function startFlow(name){
-    myPlayer={name};
+function selMatch_(matchId){
+    selMatch=allMatches.find(m=>m.id===matchId);
+    if(!selMatch)return;
+    const name=myPlayer.name;
     const o=selMatch.orange_players||[], g=selMatch.green_players||[];
-    const hasLists=o.length>0||g.length>0;
 
     // Detect team
-    if(hasLists){
-        if(o.includes(name)){myTeam='orange';oppTeam='green';}
-        else if(g.includes(name)){myTeam='green';oppTeam='orange';}
-        else{myTeam=null;oppTeam=null;}
-    } else {
-        myTeam=null;oppTeam=null;
-    }
+    if(o.includes(name)){myTeam='orange';oppTeam='green';}
+    else if(g.includes(name)){myTeam='green';oppTeam='orange';}
+    else{myTeam=null;oppTeam=null;}
 
-    mvpMyId=null;mvpOppId=null;
-    setupMvpScreens(o,g,name,hasLists);
+    mvpMyId=null; mvpOppId=null;
+    setupMvpScreens();
     goTo('s3');
 }
 
-function buildMvpGrid(gridId, btnId, candidates, onPick){
-    const oNames=selMatch.orange_players||[];
-    document.getElementById(gridId).innerHTML=candidates.map(p=>{
-        const inO=oNames.includes(p.name);
-        const badge=selMatch.orange_players?.length?`<div style="font-size:.6rem;margin-top:5px;padding:1px 7px;border-radius:6px;font-weight:700;display:inline-block;" class="${inO?'to':'tg'}">${inO?'🟠':'🟢'}</div>`:'';
-        return `<div class="mvp-card" id="mc-${gridId}-${p.name.replace(/\s/g,'_')}" onclick="pickMvp('${gridId}','${btnId}','${p.name}')">
-            <span class="mvp-check">✅</span>
-            <div class="mvp-avatar">${ini(p.name)}</div>
-            <div class="mvp-name">${p.name}</div>
-            ${badge}
-        </div>`;
-    }).join('');
+function buildMvpGrid(gridId, btnId, candidates){
+    const o=selMatch.orange_players||[];
+    document.getElementById(gridId).innerHTML=candidates.length
+        ?candidates.map(p=>{
+            const inO=o.includes(p.name);
+            const allIn=[...(selMatch.orange_players||[]),...(selMatch.green_players||[])];
+            const badge=allIn.length?`<div style="font-size:.6rem;margin-top:4px;padding:1px 7px;border-radius:6px;font-weight:700;display:inline-block;" class="${inO?'to':'tg'}">${inO?'🟠':'🟢'}</div>`:'';
+            return `<div class="mvp-card" id="mc-${gridId}-${key(p.name)}" onclick="pickMvp('${gridId}','${btnId}','${p.name}')">
+                <span class="mvp-check">✅</span>
+                <div class="mvp-avatar">${ini(p.name)}</div>
+                <div class="mvp-name">${p.name}</div>
+                ${badge}
+            </div>`;
+        }).join('')
+        :`<div class="empty" style="grid-column:1/-1;">Nu sunt jucători disponibili pentru acest vot.</div>`;
 }
 
 function pickMvp(gridId, btnId, name){
     document.querySelectorAll(`#${gridId} .mvp-card`).forEach(c=>c.classList.remove('sel'));
-    document.getElementById(`mc-${gridId}-${name.replace(/\s/g,'_')}`)?.classList.add('sel');
+    document.getElementById(`mc-${gridId}-${key(name)}`)?.classList.add('sel');
     document.getElementById(btnId).disabled=false;
     if(gridId==='mvpMyGrid') mvpMyId=name;
     else mvpOppId=name;
-    if(navigator.vibrate) navigator.vibrate(30);
+    if(navigator.vibrate)navigator.vibrate(30);
 }
 
-function setupMvpScreens(o, g, myName, hasLists){
-    // Screen 3 — MVP my team
-    let myTeamPlayers=[], myBadge='', myBadgeClass='all';
-    if(myTeam==='orange'){myTeamPlayers=players.filter(p=>o.includes(p.name)&&p.name!==myName);myBadge='🟠 Echipa Portocalie';myBadgeClass='o';}
-    else if(myTeam==='green'){myTeamPlayers=players.filter(p=>g.includes(p.name)&&p.name!==myName);myBadge='🟢 Echipa Verde';myBadgeClass='g';}
-    else{
-        // No team known — one single MVP from all players
-        myTeamPlayers=players.filter(p=>p.name!==myName&&(hasLists?[...o,...g].includes(p.name):true));
-        myBadge='⚽ Toți jucătorii';myBadgeClass='all';
-        // Hide screen 4 entirely — skip straight to ratings
+function setupMvpScreens(){
+    const name=myPlayer.name;
+    const o=selMatch.orange_players||[], g=selMatch.green_players||[];
+
+    // My team players (excluding me)
+    let myTeamPlayers=[], oppPlayers=[];
+    if(myTeam==='orange'){
+        myTeamPlayers=allPlayers.filter(p=>o.includes(p.name)&&p.name!==name);
+        oppPlayers=allPlayers.filter(p=>g.includes(p.name));
+        document.getElementById('mvpMyBadge').innerHTML='<div class="mvp-team-badge o">🟠 Echipa Portocalie</div>';
+        document.getElementById('mvpOppBadge').innerHTML='<div class="mvp-team-badge g">🟢 Echipa Verde</div>';
+    } else if(myTeam==='green'){
+        myTeamPlayers=allPlayers.filter(p=>g.includes(p.name)&&p.name!==name);
+        oppPlayers=allPlayers.filter(p=>o.includes(p.name));
+        document.getElementById('mvpMyBadge').innerHTML='<div class="mvp-team-badge g">🟢 Echipa Verde</div>';
+        document.getElementById('mvpOppBadge').innerHTML='<div class="mvp-team-badge o">🟠 Echipa Portocalie</div>';
+    } else {
+        // Unknown team — all players
+        myTeamPlayers=allPlayers.filter(p=>p.name!==name);
+        oppPlayers=[];
+        document.getElementById('mvpMyBadge').innerHTML='<div class="mvp-team-badge all">⚽ Toți jucătorii</div>';
+        document.getElementById('mvpOppBadge').innerHTML='';
     }
-    document.getElementById('mvpMyTeamBadge').innerHTML=myBadge?`<div class="mvp-team-badge ${myBadgeClass}">${myBadge}</div>`:'';
+
     buildMvpGrid('mvpMyGrid','mvpMyBtn',myTeamPlayers);
+    buildMvpGrid('mvpOppGrid','mvpOppBtn',oppPlayers);
     document.getElementById('mvpMyBtn').disabled=true;
+    document.getElementById('mvpOppBtn').disabled=true;
 
-    if(myTeam){
-        // Screen 4 — MVP opponent team
-        let oppPlayers=[];
-        if(myTeam==='orange') oppPlayers=players.filter(p=>g.includes(p.name));
-        else oppPlayers=players.filter(p=>o.includes(p.name));
-        document.getElementById('mvpOppBadge').innerHTML=`<div class="mvp-team-badge ${myTeam==='orange'?'g':'o'}">${myTeam==='orange'?'🟢 Echipa Verde':'🟠 Echipa Portocalie'}</div>`;
-        buildMvpGrid('mvpOppGrid','mvpOppBtn',oppPlayers);
-        document.getElementById('mvpOppBtn').disabled=true;
-    }
-
-    // Setup rating slides (screen 5)
+    // Prep rating slides
     const allIn=[...o,...g];
-    toVote=allIn.length?players.filter(p=>allIn.includes(p.name)&&p.name!==myName):players.filter(p=>p.name!==myName);
+    toVote=allIn.length
+        ?allPlayers.filter(p=>allIn.includes(p.name)&&p.name!==name)
+        :allPlayers.filter(p=>p.name!==name);
     votes={};detOpen={};curIdx=0;
     toVote.forEach(p=>{votes[p.name]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};detOpen[p.name]=false;});
-    document.getElementById('vwho').textContent=myName;
+    document.getElementById('vwho').textContent=name;
     buildSlides();updProg();
 }
 
-async function submitMvp(mvpName, type){
-    if(!mvpName) return;
-    try{
-        await sb.from('mvp_votes').insert({
-            match_id:selMatch.id, voter:myPlayer.name,
-            mvp_player_id:players.find(p=>p.name===mvpName)?.id||null,
-            mvp_player_name:mvpName, match_date:selMatch.date,
-            mvp_type:type // 'my_team' or 'opponent'
-        });
-    } catch(e){ console.warn('MVP save:',e.message); }
+async function saveMvp(mvpName, type){
+    if(!mvpName)return;
+    try{await sb.from('mvp_votes').insert({
+        match_id:selMatch.id, voter:myPlayer.name,
+        mvp_player_id:allPlayers.find(p=>p.name===mvpName)?.id||null,
+        mvp_player_name:mvpName, match_date:selMatch.date, mvp_type:type
+    });}catch(e){console.warn('MVP:',e.message);}
 }
 
-async function submitMvpMy(){
-    await submitMvp(mvpMyId,'my_team');
-    if(myTeam) goTo('s4'); else goToRatings();
+async function submitMvpMy(){await saveMvp(mvpMyId,'my_team');nextAfterMyMvp();}
+function skipMvpMy(){nextAfterMyMvp();}
+function nextAfterMyMvp(){
+    if(myTeam && (selMatch.orange_players||[]).length && (selMatch.green_players||[]).length){
+        goTo('s4');
+    } else {
+        goToRatings();
+    }
 }
-function skipMvpMy(){ if(myTeam) goTo('s4'); else goToRatings(); }
 
-async function submitMvpOpp(){ await submitMvp(mvpOppId,'opponent'); goToRatings(); }
-function skipMvpOpp(){ goToRatings(); }
-
-function goToRatings(){ if(toVote.length) goTo('s5'); else finishFlow(); }
+async function submitMvpOpp(){await saveMvp(mvpOppId,'opponent');goToRatings();}
+function skipMvpOpp(){goToRatings();}
+function goToRatings(){toVote.length?goTo('s5'):finishFlow(0);}
 
 function buildSlides(){
     const wrap=document.getElementById('slides');wrap.innerHTML='';
     const oNames=selMatch.orange_players||[];
     toVote.forEach((p,idx)=>{
         const inO=oNames.includes(p.name);
-        const badge=oNames.length?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠 Portocaliu':'🟢 Verde'}</span>`:'';
-        let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb-${p.name.replace(/\s/g,'_')}-${i}" onclick="pickG('${p.name}',${i})">${i}</button>`;
+        const allIn=[...oNames,...(selMatch.green_players||[])];
+        const badge=allIn.length?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠 Portocaliu':'🟢 Verde'}</span>`:'';
+        let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb-${key(p.name)}-${i}" onclick="pickG('${p.name}',${i})">${i}</button>`;
         const sg=Object.entries(CATS).map(([cat,lbl])=>`
             <div class="sg">
-                <label>${lbl}<span class="sv unset" id="sv-${p.name.replace(/\s/g,'_')}-${cat}">—</span></label>
-                <div class="srow" id="sr-${p.name.replace(/\s/g,'_')}-${cat}">${Array.from({length:10},(_,i)=>`<button class="sbtn" onclick="pickS('${p.name}','${cat}',${i+1})">${i+1}</button>`).join('')}</div>
+                <label>${lbl}<span class="sv unset" id="sv-${key(p.name)}-${cat}">—</span></label>
+                <div class="srow" id="sr-${key(p.name)}-${cat}">${Array.from({length:10},(_,i)=>`<button class="sbtn" onclick="pickS('${p.name}','${cat}',${i+1})">${i+1}</button>`).join('')}</div>
             </div>`).join('');
         const sl=document.createElement('div');
-        sl.className='slide'+(idx===0?' active':'');sl.id=`sl-${p.name.replace(/\s/g,'_')}`;
+        sl.className='slide'+(idx===0?' active':'');sl.id=`sl-${key(p.name)}`;
         sl.innerHTML=`<div class="slbl">Votează jucătorul</div>
             <div class="sname">${p.name}</div>
             <div class="smeta">${badge}</div>
-            <div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval empty" id="gv-${p.name.replace(/\s/g,'_')}">—</span></div>
+            <div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval empty" id="gv-${key(p.name)}">—</span></div>
             <div class="grow">${gb}</div>
-            <button class="dbtn" id="db-${p.name.replace(/\s/g,'_')}" onclick="togDet('${p.name}')">➕ Adaugă detalii</button>
-            <div class="dwrap" id="dw-${p.name.replace(/\s/g,'_')}"><div class="dinner"><div style="font-size:.63rem;color:#333;margin-bottom:6px;font-style:italic;">Opțional — restul = nota generală</div><div class="sgrid">${sg}</div></div></div>`;
+            <button class="dbtn" id="db-${key(p.name)}" onclick="togDet('${p.name}')">➕ Adaugă detalii</button>
+            <div class="dwrap" id="dw-${key(p.name)}"><div class="dinner"><div style="font-size:.63rem;color:#333;margin-bottom:6px;font-style:italic;">Opțional — restul = nota generală</div><div class="sgrid">${sg}</div></div></div>`;
         wrap.appendChild(sl);
     });
     buildDots();updNxt();
 }
 
-function key(name){return name.replace(/\s/g,'_');}
 function pickG(name,v){
     votes[name].general=v;
-    for(let i=1;i<=10;i++) document.getElementById(`gb-${key(name)}-${i}`)?.classList.toggle('sel',i===v);
+    for(let i=1;i<=10;i++)document.getElementById(`gb-${key(name)}-${i}`)?.classList.toggle('sel',i===v);
     const el=document.getElementById(`gv-${key(name)}`);if(el){el.textContent=v;el.className='gval filled';}
-    if(navigator.vibrate) navigator.vibrate(25);
+    if(navigator.vibrate)navigator.vibrate(25);
     updNxt();buildDots();
 }
 function pickS(name,cat,v){
@@ -529,7 +536,7 @@ function togDet(name){
 function buildDots(){
     document.getElementById('dots').innerHTML=toVote.map((p,i)=>{
         const done=votes[p.name]?.general!==null,act=i===curIdx;
-        return `<div class="dot ${act?'active':done?'done':''}"></div>`;
+        return`<div class="dot ${act?'active':done?'done':''}"></div>`;
     }).join('');
 }
 function updProg(){
@@ -557,7 +564,6 @@ function nextSlide(){
     if(nel){nel.style.display='';setTimeout(()=>nel.classList.add('active'),15);}
     updProg();updNxt();buildDots();
 }
-
 async function saveRatings(){
     let saved=0;
     for(const p of toVote){
@@ -565,33 +571,22 @@ async function saveRatings(){
         const g=v.general;
         try{
             await sb.from('ratings').insert({
-                player_id:players.find(x=>x.name===p.name)?.id||null,
-                rater:myPlayer.name, date:today,
-                general:g, viteza:v.viteza??g, tehnica:v.tehnica??g,
-                strategie:v.strategie??g, aparare:v.aparare??g
-            });
-            saved++;
+                player_id:allPlayers.find(x=>x.name===p.name)?.id||null,
+                rater:myPlayer.name,date:today,
+                general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g
+            });saved++;
         }catch(e){console.error(e);}
     }
-    if(saved>0){
-        localStorage.setItem(`v_${myPlayer.name}_${selMatch.id}`,'1');
-        if(navigator.vibrate) navigator.vibrate([100,50,100]);
-    }
+    if(saved>0){localStorage.setItem(`v_${myPlayer.name}_${selMatch.id}`,'1');if(navigator.vibrate)navigator.vibrate([100,50,100]);}
     finishFlow(saved);
 }
-
 function finishFlow(saved){
-    document.getElementById('doneSub').textContent=
-        `${myPlayer.name} — ${saved||0} voturi salvate pentru meciul din ${selMatch.date}.`;
-
-    // Show MVPs if any were voted
-    const mvpEl=document.getElementById('doneMvps');
+    document.getElementById('doneSub').textContent=`${myPlayer.name} — ${saved} voturi salvate pentru meciul din ${selMatch?.date||'—'}.`;
     const rows=[];
-    if(mvpMyId) rows.push(`<div class="done-mvp-row"><div class="done-mvp-icon">🏆</div><div class="done-mvp-txt">MVP echipa mea: <span class="done-mvp-name">${mvpMyId}</span></div></div>`);
-    if(mvpOppId) rows.push(`<div class="done-mvp-row"><div class="done-mvp-icon">⚔️</div><div class="done-mvp-txt">MVP adversari: <span class="done-mvp-name">${mvpOppId}</span></div></div>`);
-    if(rows.length){mvpEl.innerHTML=rows.join('');mvpEl.style.display='block';}
-    else mvpEl.style.display='none';
-
+    if(mvpMyId) rows.push(`<div class="done-mvp-row"><span>🏆</span><span>MVP echipa mea: <span class="done-mvp-name">${mvpMyId}</span></span></div>`);
+    if(mvpOppId) rows.push(`<div class="done-mvp-row"><span>⚔️</span><span>MVP adversari: <span class="done-mvp-name">${mvpOppId}</span></span></div>`);
+    const mvpEl=document.getElementById('doneMvps');
+    if(rows.length){mvpEl.innerHTML=rows.join('');mvpEl.style.display='block';}else mvpEl.style.display='none';
     goTo('s6');
 }
 
