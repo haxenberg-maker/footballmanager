@@ -99,6 +99,17 @@
         .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
         @media(max-width:400px){.grow{flex-wrap:wrap;}.gbtn{min-width:calc(20% - 3px);}.sgrid{grid-template-columns:1fr;}}
+    
+        .not-found-btn{width:100%;margin-top:6px;background:none;border:1px dashed #252836;color:#444;padding:11px;border-radius:11px;font-size:.82rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+        .not-found-btn:hover{border-color:#555;color:#888;}
+        .name-input-wrap{display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:13px;padding:16px;margin-top:8px;}
+        .name-input-wrap.show{display:block;}
+        .name-input-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;margin-bottom:3px;}
+        .name-input-sub{font-size:.72rem;color:#555;margin-bottom:12px;}
+        .name-field{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+        .name-field:focus{border-color:var(--accent);}
+        .name-submit{width:100%;padding:11px;border-radius:10px;background:var(--accent);color:#fff;font-size:.9rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;}
+        .name-submit:hover{filter:brightness(1.15);}
     </style>
 </head>
 <body>
@@ -172,7 +183,9 @@ async function init(){
         sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(30),
         sb.from('players').select('id,name').select('*, ratings(general)')
     ]);
-    matches=(mr.data||[]).filter(m=>parseDate(m.date)<now);
+    matches=(mr.data||[])
+        .filter(m=>parseDate(m.date)<now)
+        .sort((a,b)=>parseDate(b.date)-parseDate(a.date));
     players=(pr.data||[]).map(p=>({id:p.id,name:p.name,avg:p.ratings?.length?(p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length).toFixed(1):'5.0'}));
     const el=document.getElementById('matchList');
     if(!matches.length){el.innerHTML='<div class="empty">Nu există meciuri în baza de date.</div>';document.getElementById('loading').classList.add('hidden');return;}
@@ -213,12 +226,19 @@ async function selMatch_(i){
     show('s2');
 }
 
-function selPlayer(pid){
-    myPlayer=players.find(p=>p.id==pid);
-    if(!myPlayer)return;
+function selPlayer(pid, customName) {
+    if (customName) {
+        myPlayer = { id: null, name: customName, avg: '—' };
+    } else {
+        myPlayer=players.find(p=>p.id==pid);
+        if(!myPlayer)return;
+    }
     const o=selMatch.orange_players||[],g=selMatch.green_players||[];
     const all=[...o,...g];
-    toVote=all.length?players.filter(p=>all.includes(p.name)&&p.id!=pid):players.filter(p=>p.id!=pid);
+    const myName=myPlayer.name;
+    toVote=all.length
+        ?players.filter(p=>all.includes(p.name)&&p.name!==myName)
+        :players.filter(p=>p.name!==myName);
     if(!toVote.length){toast('⚠️ Nu sunt alți jucători de votat!');return;}
     votes={};detOpen={};curIdx=0;
     toVote.forEach(p=>{votes[p.id]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};detOpen[p.id]=false;});
@@ -295,9 +315,27 @@ async function submitVotes(){
         try{await sb.from('ratings').insert({player_id:p.id,rater:myPlayer.name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g});saved++;}
         catch(e){console.error(e);}
     }
-    if(saved>0){localStorage.setItem(`v_${myPlayer.id}_${selMatch.id}`,'1');if(navigator.vibrate)navigator.vibrate([100,50,100]);}
+    if(saved>0){
+        const storageKey = myPlayer.id ? `v_${myPlayer.id}_${selMatch.id}` : `v_custom_${myPlayer.name}_${selMatch.id}`;
+        localStorage.setItem(storageKey,'1');
+        if(navigator.vibrate)navigator.vibrate([100,50,100]);
+    }
     document.getElementById('doneTxt').textContent=saved>0?`${saved} voturi salvate pentru ${selMatch.date}. Mulțumim, ${myPlayer.name}!`:'Niciun vot salvat.';
     show('s4');
+}
+
+
+function showNameInput(inputId, wrapId, btnId) {
+    document.getElementById(wrapId).classList.add('show');
+    document.getElementById(btnId).style.display = 'none';
+    setTimeout(() => document.getElementById(inputId)?.focus(), 100);
+}
+function useCustomName(inputId, wrapId, btnId, callback) {
+    const val = document.getElementById(inputId)?.value.trim();
+    if (!val || val.length < 2) { toast('⚠️ Introdu prenume și nume (minim 2 caractere)!'); return; }
+    document.getElementById(wrapId).classList.remove('show');
+    document.getElementById(btnId).style.display = '';
+    callback(val);
 }
 
 init();

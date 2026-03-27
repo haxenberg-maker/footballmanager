@@ -88,6 +88,17 @@
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
 
         @media(max-width:400px){.mvp-grid{grid-template-columns:1fr;}}
+    
+        .not-found-btn{width:100%;margin-top:6px;background:none;border:1px dashed #252836;color:#444;padding:11px;border-radius:11px;font-size:.82rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+        .not-found-btn:hover{border-color:#555;color:#888;}
+        .name-input-wrap{display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:13px;padding:16px;margin-top:8px;}
+        .name-input-wrap.show{display:block;}
+        .name-input-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;margin-bottom:3px;}
+        .name-input-sub{font-size:.72rem;color:#555;margin-bottom:12px;}
+        .name-field{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+        .name-field:focus{border-color:var(--accent);}
+        .name-submit{width:100%;padding:11px;border-radius:10px;background:var(--accent);color:#fff;font-size:.9rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;}
+        .name-submit:hover{filter:brightness(1.15);}
     </style>
 </head>
 <body>
@@ -106,6 +117,13 @@
         <div class="sec-title">Cine ești tu?</div>
         <div class="sec-sub">Selectează-te pentru a vota</div>
         <div id="voterList"></div>
+        <button class="not-found-btn" id="nfBtn" onclick="showNameInput('nfInput','nfWrap','nfBtn')">👤 Nu mă regăsesc în listă →</button>
+        <div class="name-input-wrap" id="nfWrap">
+            <div class="name-input-title">Introdu numele tău</div>
+            <div class="name-input-sub">Poți vota MVP și fără cont sau fără să fii în lista de jucători</div>
+            <input class="name-field" id="nfInput" type="text" placeholder="ex: Ion Popescu" onkeydown="if(event.key==='Enter')useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">
+            <button class="name-submit" onclick="useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">Continuă →</button>
+        </div>
     </div>
 
     <!-- S2: Vote MVP -->
@@ -146,10 +164,13 @@ function parseDate(s){if(!s)return new Date(0);if(s.includes('.')){const[d,m,y]=
 async function init(){
     const now=new Date();now.setHours(0,0,0,0);
     const[mr,pr]=await Promise.all([
-        sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(10),
+        sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(30),
         sb.from('players').select('id,name').select('*, ratings(general)')
     ]);
-    const pastMatches=(mr.data||[]).filter(m=>parseDate(m.date)<now);
+    // Filter past matches then sort by actual match DATE descending (not created_at)
+    const pastMatches=(mr.data||[])
+        .filter(m=>parseDate(m.date)<now)
+        .sort((a,b)=>parseDate(b.date)-parseDate(a.date));
     if(!pastMatches.length){document.querySelector('.page').innerHTML='<div style="text-align:center;padding:40px;color:#444;">Nu există meciuri în baza de date.</div>';document.getElementById('loading').classList.add('hidden');return;}
     lastMatch=pastMatches[0];
     allPlayers=(pr.data||[]).map(p=>({id:p.id,name:p.name,avg:p.ratings?.length?(p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length).toFixed(1):'5.0'}));
@@ -275,6 +296,20 @@ async function submitMVP(){
         </div>`).join('');
 
     show('s3');
+}
+
+
+function showNameInput(inputId, wrapId, btnId) {
+    document.getElementById(wrapId).classList.add('show');
+    document.getElementById(btnId).style.display = 'none';
+    setTimeout(() => document.getElementById(inputId)?.focus(), 100);
+}
+function useCustomName(inputId, wrapId, btnId, callback) {
+    const val = document.getElementById(inputId)?.value.trim();
+    if (!val || val.length < 2) { toast('⚠️ Introdu prenume și nume (minim 2 caractere)!'); return; }
+    document.getElementById(wrapId).classList.remove('show');
+    document.getElementById(btnId).style.display = '';
+    callback(val);
 }
 
 init();
