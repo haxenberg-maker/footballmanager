@@ -715,7 +715,7 @@
             <button class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
         </div>
         <table id="match-history" style="margin-top:4px;">
-            <thead><tr><th>Data</th><th>Câștigător</th><th>Rating</th><th>Echipe</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
+            <thead><tr><th>Data</th><th>Câștigător</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -1460,21 +1460,28 @@ function renderHistory(){
     const admin = isAdmin();
     document.getElementById('th-actions').style.display = admin ? '' : 'none';
     document.querySelector('#match-history thead tr').lastElementChild.style.display = admin ? '' : 'none';
-    document.querySelector('#match-history tbody').innerHTML=db.history.length
-        ?db.history.map((h,idx)=>`<tr>
-            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">${h.date}</td>
-            <td onclick="openMatchModal(${idx})" style="cursor:pointer;"><span class="win-tag" style="background:${h.winner==='Portocaliu'?'var(--orange)':'var(--green)'};color:${h.winner==='Portocaliu'?'#000':'#fff'}">${h.winner}</span></td>
-            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">${h.score||'—'}</td>
-            <td onclick="openMatchModal(${idx})" style="cursor:pointer;">
-                <div class="history-players"><span style="color:#ff8c00">🟠</span> ${(h.orangePlayers||[]).join(', ')||'—'}</div>
-                <div class="history-players"><span style="color:#28a745">🟢</span> ${(h.greenPlayers||[]).join(', ')||'—'}</div>
-            </td>
-            ${admin?`<td style="white-space:nowrap;">
-                <button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${idx})" title="Editează">✏️</button>
-                <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${idx})" title="Șterge" style="color:#c62828;">🗑️</button>
-            </td>`:''}
-        </tr>`).join('')
-        :'<tr><td colspan="5" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>';
+
+    // Sort by date descending (most recent first)
+    const sorted = [...db.history].sort((a,b) => {
+        const da = parseDateToObj(a.date), db_ = parseDateToObj(b.date);
+        return db_ - da;
+    });
+
+    document.querySelector('#match-history tbody').innerHTML = sorted.length
+        ? sorted.map((h,idx) => {
+            const origIdx = db.history.indexOf(h);
+            const winColor = h.winner==='Portocaliu' ? 'var(--orange)' : 'var(--green)';
+            const winText  = h.winner==='Portocaliu' ? '#000' : '#fff';
+            return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
+                <td>${h.date||'—'}</td>
+                <td><span class="win-tag" style="background:${winColor};color:${winText}">${h.winner||'—'}</span></td>
+                ${admin?`<td style="white-space:nowrap;">
+                    <button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
+                    <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>
+                </td>`:''}
+            </tr>`;
+        }).join('')
+        : `<tr><td colspan="${admin?3:2}" style="color:#444;text-align:center;">Niciun meci înregistrat</td></tr>`;
 }
 
 function renderLobby(){

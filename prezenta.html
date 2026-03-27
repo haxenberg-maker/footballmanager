@@ -152,6 +152,23 @@
         <div class="sec-title">Marchează-ți Prezența</div>
         <div class="sec-sub">Selectează-te din lista de jucători</div>
         <div id="playerList" style="width:100%;"></div>
+        <button onclick="showAddPlayer()" style="width:100%;margin-top:6px;background:none;border:1px dashed #252836;color:#444;padding:12px;border-radius:12px;font-size:.85rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#555';this.style.color='#888'" onmouseout="this.style.borderColor='#252836';this.style.color='#444'">
+            👤 Nu mă regăsesc în listă →
+        </button>
+
+        <!-- Add player inline form -->
+        <div id="addPlayerForm" style="display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:14px;padding:18px;margin-top:10px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;margin-bottom:4px;">Adaugă-te în echipă</div>
+            <div style="font-size:.75rem;color:#555;margin-bottom:14px;">Vei fi adăugat ca jucător nou în baza de date.</div>
+            <div style="margin-bottom:10px;">
+                <label style="font-size:.68rem;color:#555;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px;">Prenume și Nume</label>
+                <input id="newPlayerName" type="text" placeholder="ex: Ion Popescu" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;" oninput="this.style.borderColor='#3d5afe'">
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="addNewPlayer()" style="flex:1;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-size:.9rem;font-weight:700;font-family:'Rajdhani',sans-serif;cursor:pointer;">✅ Adaugă și confirmă prezența</button>
+                <button onclick="hideAddPlayer()" style="padding:12px 16px;border-radius:10px;background:#1c1f2b;border:1px solid #252836;color:#555;font-family:'Rajdhani',sans-serif;cursor:pointer;">✕</button>
+            </div>
+        </div>
     </div>
 
     <!-- DONE -->
@@ -352,6 +369,59 @@ async function respond(present){
 
     if(navigator.vibrate)navigator.vibrate(present?[100,50,100]:50);
     show('vDone');
+}
+
+function showAddPlayer() {
+    document.getElementById('addPlayerForm').style.display = 'block';
+    setTimeout(() => document.getElementById('newPlayerName')?.focus(), 100);
+}
+function hideAddPlayer() {
+    document.getElementById('addPlayerForm').style.display = 'none';
+    document.getElementById('newPlayerName').value = '';
+}
+
+async function addNewPlayer() {
+    const nameInput = document.getElementById('newPlayerName');
+    const name = nameInput?.value.trim();
+    if (!name || name.length < 2) { toast('⚠️ Introdu prenume și nume (minim 2 caractere)!'); return; }
+
+    // Check duplicate
+    if (allPlayers.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+        toast('⚠️ Există deja un jucător cu acest nume!');
+        return;
+    }
+
+    const newId = Date.now();
+    try {
+        // Insert player
+        const { error: pErr } = await sb.from('players').insert({
+            id: newId, name, status: 'active', wins: 0, games: 0, match_history: []
+        });
+        if (pErr) throw pErr;
+
+        // Insert default rating
+        await sb.from('ratings').insert({
+            player_id: newId, rater: 'Initial',
+            date: new Date().toLocaleDateString('ro-RO'),
+            general: 5, viteza: 5, tehnica: 5, strategie: 5, aparare: 5
+        });
+
+        // Add to local list
+        allPlayers.push({ id: newId, name });
+
+        hideAddPlayer();
+        toast(`✅ ${name} adăugat! Confirmând prezența...`);
+
+        // Auto-confirm presence
+        await respond_for({ id: newId, name }, true);
+    } catch(e) {
+        toast('⚠️ Eroare: ' + e.message);
+    }
+}
+
+async function respond_for(player, present) {
+    pendingPlayer = player;
+    await respond(present);
 }
 
 init();
