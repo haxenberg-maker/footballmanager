@@ -489,13 +489,12 @@
         .mobile-tabs{display:flex;background:#0d0f18;border-bottom:1px solid var(--border);overflow-x:auto;}
         .mobile-tab{flex:1;min-width:58px;padding:10px 3px;text-align:center;font-size:0.65rem;font-weight:700;color:#444;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:0.3px;transition:all 0.15s;}
         .mobile-tab.active{color:#fff;border-bottom-color:var(--accent);}
-        .mobile-tab.tab-o.active{border-bottom-color:var(--orange);color:var(--orange);}
-        .mobile-tab.tab-g.active{border-bottom-color:var(--green);color:#4caf50;}
-        .mobile-tab.tab-b.active{border-bottom-color:#2979ff;color:#82b1ff;}
-        .mobile-tab.tab-a.active{border-bottom-color:#555;color:#aaa;}
-        .mobile-tab.tab-l.active{border-bottom-color:#5c8aff;color:#82b1ff;}
-        .mobile-tab.tab-h.active{border-bottom-color:#a78bfa;color:#a78bfa;}
+        .mobile-tab.tab-match.active{border-bottom-color:var(--orange);color:var(--orange);}
+        .mobile-tab.tab-players.active{border-bottom-color:#a78bfa;color:#a78bfa;}
+        .mobile-tab.tab-lobby.active{border-bottom-color:#2979ff;color:#82b1ff;}
+        .mobile-tab.tab-history.active{border-bottom-color:#555;color:#aaa;}
         /* Sections always visible on desktop */
+        #playersArea{display:block;}
         #sectionsArea{display:block;}
         #sec-lobby,#sec-stats,#sec-history{display:block;}
         .history-desktop-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;}
@@ -511,13 +510,19 @@
             .controls-separator{display:none;}
             .main-header{padding:14px 12px 12px;}
             .main-header h1{font-size:1.9rem;}
-            .dashboard{display:block !important;margin:0;}
+            /* Dashboard columns hidden by default on mobile */
+            #dashGrid{display:block !important;}
             .column{border-radius:0;border-left:none;border-right:none;border-top:none;display:none;}
-            .column.mobile-active{display:flex;}
             .balance-col{display:none !important;}
-            /* On mobile: sections area hidden by default, shown only on lobby/history tab */
+            /* Players area and sections area hidden by default */
+            #playersArea{display:none;}
             #sectionsArea{display:none;}
+            /* Active states per tab */
+            .mobile-tab-match .column-match-group{display:flex;}
+            #playersArea.mobile-active{display:block;}
             #sectionsArea.mobile-active{display:block;}
+            /* Match tab: show orange, green, bench */
+            .col-match-active{display:flex !important;}
             #sec-lobby,#sec-stats,#sec-history{border-radius:0;border-left:none;border-right:none;margin-top:0;}
             .history-desktop-header{padding:12px 16px 10px;}
             .mobile-tabs-row{display:block;}
@@ -630,12 +635,10 @@
 <!-- MOBILE TABS -->
 <div class="mobile-tabs-row">
 <div class="mobile-tabs" id="mobileTabs">
-    <div class="mobile-tab tab-o active" onclick="switchMobileTab('orange')">🟠 Portocaliu</div>
-    <div class="mobile-tab tab-g" onclick="switchMobileTab('green')">🟢 Verde</div>
-    <div class="mobile-tab tab-b" onclick="switchMobileTab('bench')">🔵 Bancă</div>
-    <div class="mobile-tab tab-a" onclick="switchMobileTab('active')">👤 Activi</div>
-    <div class="mobile-tab tab-l" onclick="switchMobileTab('lobby')">📅 Lobby</div>
-    <div class="mobile-tab tab-h" onclick="switchMobileTab('history')">📊 Istoric</div>
+    <div class="mobile-tab tab-match active" onclick="switchMobileTab('match')">⚽ Meci Activ</div>
+    <div class="mobile-tab tab-players" onclick="switchMobileTab('players')">👤 Jucători</div>
+    <div class="mobile-tab tab-lobby" onclick="switchMobileTab('lobby')">📅 Lobby</div>
+    <div class="mobile-tab tab-history" onclick="switchMobileTab('history')">📊 Istoric</div>
 </div>
 </div>
 
@@ -677,14 +680,25 @@
     </div>
     <div class="column column-active header-active" id="col-active" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title">Jucători Activi</div>
+            <div class="col-header-title">Jucători</div>
             <div class="team-rating-info"><span class="team-count-badge" id="count-active">0 jucători</span></div>
         </div>
         <div class="col-body" id="list-active"></div>
     </div>
 </div>
 
-<!-- Bottom sections — always visible on desktop, shown via 'lobby'/'history' tabs on mobile -->
+<!-- Bottom sections -->
+<!-- Players section: col-active + leaderboard (mobile: tab 'players', desktop: always visible) -->
+<div id="playersArea">
+    <!-- col-active is already in dashGrid above, rendered there on desktop -->
+    <!-- On mobile this area contains just the leaderboard below the active col -->
+    <div class="stats-section" id="sec-stats">
+        <h3>🏅 Clasament Smart</h3>
+        <div class="leaderboard" id="leaderboard"></div>
+    </div>
+</div>
+
+<!-- Lobby + History sections -->
 <div id="sectionsArea">
 
     <!-- LOBBY -->
@@ -700,12 +714,6 @@
             <div class="lobby-players" id="lobbyPlayers"></div>
             <div class="lobby-confirmed-count" id="lobbyCount"></div>
         </div>
-    </div>
-
-    <!-- LEADERBOARD -->
-    <div class="stats-section" id="sec-stats">
-        <h3>🏅 Clasament Smart</h3>
-        <div class="leaderboard" id="leaderboard"></div>
     </div>
 
     <!-- HISTORY -->
@@ -1433,7 +1441,7 @@ function render(){
     updateTeamStats();renderLeaderboard();renderHistory();renderLobby();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
     // Keep mobile tab active after re-render
-    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab);
+    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
 }
 
 function updateTeamStats(){
@@ -2319,36 +2327,40 @@ let currentMobileTab = 'orange';
 
 function switchMobileTab(tab) {
     currentMobileTab = tab;
-    const colTabs = ['orange','green','bench','active'];
-    const isSections = tab === 'lobby' || tab === 'history';
+    if (window.innerWidth > 640) return; // desktop: CSS handles everything
 
-    // Columns
-    colTabs.forEach(t =>
-        document.getElementById(`col-${t}`)?.classList.toggle('mobile-active', t === tab)
+    // Hide all columns
+    ['orange','green','bench','active'].forEach(t =>
+        document.getElementById(`col-${t}`)?.style && (document.getElementById(`col-${t}`).style.display = 'none')
     );
+    // Hide all areas
+    document.getElementById('playersArea').style.display  = 'none';
+    document.getElementById('sectionsArea').style.display = 'none';
+    document.getElementById('sec-lobby').style.display    = 'none';
+    document.getElementById('sec-history').style.display  = 'none';
 
-    // sectionsArea visibility
-    document.getElementById('sectionsArea')?.classList.toggle('mobile-active', isSections);
-
-    // Individual section visibility within sectionsArea
-    if (isSections) {
-        document.getElementById('sec-lobby')?.style && (document.getElementById('sec-lobby').style.display = tab === 'lobby' ? '' : 'none');
-        document.getElementById('sec-stats')?.style && (document.getElementById('sec-stats').style.display = tab === 'history' ? '' : 'none');
-        document.getElementById('sec-history')?.style && (document.getElementById('sec-history').style.display = tab === 'history' ? '' : 'none');
-    } else {
-        // On desktop / non-section tabs, reset display so CSS controls them
-        ['sec-lobby','sec-stats','sec-history'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
+    if (tab === 'match') {
+        // Show orange + verde + bench stacked
+        ['orange','green','bench'].forEach(t => {
+            document.getElementById(`col-${t}`).style.display = 'flex';
         });
+    } else if (tab === 'players') {
+        // Show active column + leaderboard
+        document.getElementById('col-active').style.display   = 'flex';
+        document.getElementById('playersArea').style.display  = 'block';
+        document.getElementById('sec-stats').style.display    = 'block';
+    } else if (tab === 'lobby') {
+        document.getElementById('sectionsArea').style.display = 'block';
+        document.getElementById('sec-lobby').style.display    = 'block';
+    } else if (tab === 'history') {
+        document.getElementById('sectionsArea').style.display = 'block';
+        document.getElementById('sec-history').style.display  = 'block';
     }
 
-    // Tab active styles
-    const keyMap = {orange:'o',green:'g',bench:'b',active:'a',lobby:'l',history:'h'};
-    const activeKey = keyMap[tab];
+    // Update tab active styles
     document.querySelectorAll('.mobile-tab').forEach(el => {
-        const k = [...el.classList].find(c=>c.startsWith('tab-'))?.replace('tab-','');
-        el.classList.toggle('active', k === activeKey);
+        const isActive = el.classList.contains(`tab-${tab}`);
+        el.classList.toggle('active', isActive);
     });
 }
 
@@ -2473,7 +2485,7 @@ function initSwipe() {
     const page = document.querySelector('.page');
     if (!page) return;
     let startX = 0, startY = 0;
-    const colOrder = ['orange','green','bench','active','lobby','history'];
+    const colOrder = ['match', 'players', 'lobby', 'history'];
 
     page.addEventListener('touchstart', e => {
         startX = e.touches[0].clientX;
@@ -2489,10 +2501,7 @@ function initSwipe() {
         // Find current active tab
         const activeDot = document.querySelector('.mobile-tab.active');
         if (!activeDot) return;
-        const activeClass = [...activeDot.classList].find(c => c.startsWith('tab-'));
-        const keyMap = {o:'orange',g:'green',b:'bench',a:'active',l:'lobby',h:'history'};
-        const key = activeClass?.replace('tab-','');
-        const current = keyMap[key];
+        const current = currentMobileTab || 'match';
         const idx = colOrder.indexOf(current);
 
         if (dx < 0 && idx < colOrder.length - 1) switchMobileTab(colOrder[idx + 1]); // swipe left → next
@@ -2502,23 +2511,22 @@ function initSwipe() {
 
 function initMobile() {
     if (window.innerWidth <= 640) {
-        switchMobileTab('orange');
+        switchMobileTab('match');
     }
 }
 window.addEventListener('resize', () => {
     if (window.innerWidth > 640) {
-        ['orange','green','bench','active'].forEach(t =>
-            document.getElementById(`col-${t}`)?.classList.remove('mobile-active'));
-        document.getElementById('sectionsArea')?.classList.remove('mobile-active');
-        // Reset inline display styles so CSS controls sections on desktop
-        ['sec-lobby','sec-stats','sec-history'].forEach(id => {
+        // Desktop: clear all inline styles so CSS takes over
+        ['orange','green','bench','active'].forEach(t => {
+            const el = document.getElementById('col-'+t);
+            if (el) el.style.display = '';
+        });
+        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = '';
         });
     } else {
-        const anyColActive = document.querySelector('.column.mobile-active');
-        const sectionsActive = document.getElementById('sectionsArea')?.classList.contains('mobile-active');
-        if (!anyColActive && !sectionsActive) switchMobileTab('orange');
+        switchMobileTab(currentMobileTab || 'match');
     }
 });
 
