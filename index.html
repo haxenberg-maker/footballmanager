@@ -257,7 +257,31 @@
         #match-history tbody tr:hover td{background:#151820;}
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         .modal{background:#141720;width:90%;max-width:520px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
-        .modal-player-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;margin:0 0 10px;color:#fff;}
+        .modal-tabs{display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid #1e2130;overflow-x:auto;}
+        .modal-tab{padding:8px 12px;font-size:.75rem;font-weight:700;color:#444;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .15s;}
+        .modal-tab:hover{color:#888;}
+        .modal-tab.active{color:#fff;border-bottom-color:var(--accent);}
+        .modal-tab-panel{display:none;}
+        .modal-tab-panel.active{display:block;}
+
+        /* Chemistry */
+        .chem-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #0f1118;}
+        .chem-avatar{width:30px;height:30px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.72rem;color:#555;flex-shrink:0;}
+        .chem-name{flex:1;font-weight:700;font-size:.85rem;}
+        .chem-bar-wrap{flex:1;height:6px;background:#1c1f2b;border-radius:3px;overflow:hidden;}
+        .chem-bar{height:100%;border-radius:3px;transition:width .5s ease;}
+        .chem-score{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:32px;text-align:right;}
+        .chem-detail{font-size:.65rem;color:#444;margin-top:2px;}
+
+        /* Match history in modal */
+        .mh-row{padding:9px 0;border-bottom:1px solid #0f1118;display:flex;flex-direction:column;gap:3px;}
+        .mh-top{display:flex;align-items:center;gap:8px;}
+        .mh-date{font-size:.78rem;color:#555;width:60px;flex-shrink:0;}
+        .mh-result{font-size:.72rem;font-weight:700;padding:1px 8px;border-radius:6px;flex-shrink:0;}
+        .mh-result.W{background:rgba(40,167,69,.2);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+        .mh-result.L{background:rgba(198,40,40,.15);color:#e57373;border:1px solid rgba(198,40,40,.25);}
+        .mh-team{font-size:.72rem;color:#555;flex:1;}
+        .mh-teammates{font-size:.7rem;color:#444;padding-left:68px;line-height:1.4;}
         .modal-stats-toggle{display:flex;justify-content:space-between;align-items:center;background:#0f1118;border:1px solid #1e2130;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;margin-bottom:4px;}
         .modal-stats-toggle:hover{background:#141820;}
         .modal-stats-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
@@ -693,8 +717,8 @@
                 <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
             </div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="copyTeams()" style="color:#4caf50;">
-                <span class="balance-opt-icon">📋</span><span>Copiază Echipe</span>
+            <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
+                <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
             </div>
         </div>
     </div>
@@ -777,89 +801,95 @@
 <!-- PLAYER MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
 <div class="modal">
-    <div class="modal-player-name" id="modalPlayerName"></div>
-    <div class="modal-stats-toggle" onclick="toggleStats()">
-        <div class="modal-stats-badges">
-            <span class="modal-avg-big" id="modalAvg"></span>
-            <span class="modal-smart-big" id="modalSmart"></span>
-            <span class="modal-streak-big" id="modalStreak"></span>
-        </div>
-        <span class="stats-chevron" id="statsChevron">▼</span>
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div class="modal-player-name" id="modalPlayerName"></div>
+        <button onclick="closeModal()" style="background:#1c1f2b;border:1px solid #252836;color:#555;width:30px;height:30px;border-radius:8px;font-size:.9rem;cursor:pointer;flex-shrink:0;">✕</button>
     </div>
-    <div class="stats-detail-wrap" id="statsDetailWrap">
-        <div style="padding-top:8px;">
-            <div class="algo-info" id="algoInfo"></div>
-            <div class="algo-breakdown" id="algoBreakdown"></div>
-            <div class="chart-section">
-                <div class="chart-toggle" onclick="toggleChart()">
-                    <div class="chart-toggle-label" id="chartLabel">📈 Evoluție Rating — General</div>
-                    <div class="chart-toggle-icon" id="chartIcon">▼</div>
-                </div>
-                <div class="chart-body" id="chartBody">
-                    <div class="chart-body-inner">
-                        <div class="cat-tabs" id="catTabs"></div>
-                        <canvas id="ratingChart" height="90"></canvas>
-                    </div>
-                </div>
+    <!-- Stats badges -->
+    <div class="modal-stats-badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <span class="modal-avg-big" id="modalAvg"></span>
+        <span class="modal-smart-big" id="modalSmart"></span>
+        <span class="modal-streak-big" id="modalStreak"></span>
+        <span style="font-size:.78rem;color:#444;align-self:center;" id="modalWinRate"></span>
+    </div>
+
+    <!-- Modal tabs -->
+    <div class="modal-tabs" id="modalTabs">
+        <button class="modal-tab active" onclick="switchModalTab('stats')">📊 Stats</button>
+        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Radar</button>
+        <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
+        <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
+        <button class="modal-tab" onclick="switchModalTab('votes')">⭐ Voturi</button>
+    </div>
+
+    <!-- Tab: Stats -->
+    <div class="modal-tab-panel active" id="tabStats">
+        <div class="algo-info" id="algoInfo" style="margin-bottom:8px;"></div>
+        <div class="algo-breakdown" id="algoBreakdown"></div>
+        <div class="chart-section" style="margin-top:8px;">
+            <div class="chart-toggle" onclick="toggleChart()">
+                <div class="chart-toggle-label" id="chartLabel">📈 Evoluție Rating — General</div>
+                <div class="chart-toggle-icon" id="chartIcon">▼</div>
             </div>
-        </div>
-    </div>
-    <div class="ratings-list-wrap">
-        <div class="ratings-list-toggle" onclick="toggleRatingsList()">
-            <span class="ratings-list-label" id="ratingsListLabel">📊 Voturi existente</span>
-            <span class="ratings-list-chevron" id="ratingsListChevron">▼</span>
-        </div>
-        <div class="ratings-list-body" id="ratingsListBody">
-            <div class="ratings-list-inner" id="ratingsList"></div>
-        </div>
-    </div>
-    <div class="rating-section">
-        <div class="rating-section-header">Votează acum</div>
-        <select class="rater-select" id="raterSelect" onchange="onRaterSelectChange()">
-            <option value="">👤 Cine votează?</option>
-        </select>
-        <div class="rater-custom-wrap" id="raterCustomWrap">
-            <input class="rater-input" type="text" id="raterCustom" placeholder="Introdu numele tău...">
-        </div>
-        <div class="general-rating-wrap" id="generalRatingWrap">
-            <div class="general-rating-header">
-                <span style="font-size:1.3rem;">⚽</span>
-                <span class="general-rating-title">Notă Generală</span>
-                <span class="general-rating-required" id="generalRequired">* obligatoriu</span>
-                <span class="general-rating-val-big empty" id="lbl-general-big">—</span>
-            </div>
-            <div class="general-star-row" id="stars-general-big"></div>
-        </div>
-        <button class="btn-details-toggle" id="detailsToggleBtn" onclick="toggleDetails()">
-            <span id="detailsToggleIcon">➕</span> Adaugă avantaje / dezavantaje
-        </button>
-        <div class="details-section" id="detailsSection">
-            <div class="details-section-inner">
-                <div class="details-hint">Opțional — votează doar ce vrei. Restul = nota generală.</div>
-                <div class="cat-inputs">
-                    <div class="cat-input-group">
-                        <div class="cat-input-label">⚡ Viteză <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-viteza">—</span></div>
-                        <div class="cat-star-row" id="stars-viteza"></div>
-                    </div>
-                    <div class="cat-input-group">
-                        <div class="cat-input-label">🎯 Tehnică <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-tehnica">—</span></div>
-                        <div class="cat-star-row" id="stars-tehnica"></div>
-                    </div>
-                    <div class="cat-input-group">
-                        <div class="cat-input-label">🧠 Strategie <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-strategie">—</span></div>
-                        <div class="cat-star-row" id="stars-strategie"></div>
-                    </div>
-                    <div class="cat-input-group">
-                        <div class="cat-input-label">🛡️ Apărare <span class="cat-optional-tag">opțional</span><span class="cat-val-badge unset" id="lbl-aparare">—</span></div>
-                        <div class="cat-star-row" id="stars-aparare"></div>
-                    </div>
+            <div class="chart-body" id="chartBody">
+                <div class="chart-body-inner">
+                    <div class="cat-tabs" id="catTabs"></div>
+                    <canvas id="ratingChart" height="90"></canvas>
                 </div>
             </div>
         </div>
-        <div class="modal-actions">
-            <button class="btn-submit-r btn-win-o" onclick="submitRating()">💾 Salvează Nota</button>
-            <button class="btn-close-m" onclick="closeModal()">✕</button>
+    </div>
+
+    <!-- Tab: Radar -->
+    <div class="modal-tab-panel" id="tabRadar">
+        <div style="display:flex;justify-content:center;padding:8px 0;">
+            <canvas id="radarChart" width="280" height="280"></canvas>
         </div>
+        <div id="radarLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;"></div>
+    </div>
+
+    <!-- Tab: Match History -->
+    <div class="modal-tab-panel" id="tabHistory">
+        <div id="playerMatchHistory" style="max-height:380px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Tab: Chemistry -->
+    <div class="modal-tab-panel" id="tabChemistry">
+        <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🤝 Compatibilitate cu alți jucători</div>
+        <div id="chemistryList" style="max-height:380px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Tab: Votes -->
+    <div class="modal-tab-panel" id="tabVotes">
+        <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="ratingsListLabel">📊 Voturi existente</div>
+        <div id="ratingsList" style="max-height:380px;overflow-y:auto;"></div>
+    </div>
+</div>
+</div>
+
+<!-- TABELA OVERLAY -->
+<div class="modal-overlay" id="tableOverlay" onclick="if(event.target===this)closeTableView()" style="display:none;">
+<div style="background:#0a0c10;width:96%;max-width:700px;border-radius:16px;border:1px solid #252836;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9);">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #1e2130;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;color:#fff;">⚽ Echipe față în față</div>
+        <button onclick="closeTableView()" style="background:#1c1f2b;border:1px solid #252836;color:#555;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;min-height:200px;">
+        <!-- Orange -->
+        <div style="border-right:1px solid #1e2130;">
+            <div style="background:linear-gradient(135deg,#ff6a00,#ee8a00);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#000;">🟠 Echipa Portocalie</div>
+            <div id="tableOrangePlayers" style="padding:10px 16px;"></div>
+        </div>
+        <!-- Green -->
+        <div>
+            <div style="background:linear-gradient(135deg,#1a7a30,#28a745);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#fff;">🟢 Echipa Verde</div>
+            <div id="tableGreenPlayers" style="padding:10px 16px;"></div>
+        </div>
+    </div>
+    <div style="padding:10px 20px;border-top:1px solid #1e2130;display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="copyTeams();closeTableView();" style="background:#1a3050;border:1px solid #5c7aff;color:#8fa8ff;padding:7px 16px;border-radius:8px;font-size:.82rem;font-weight:700;">📋 Copiază</button>
+        <button onclick="closeTableView()" style="background:#1c1f2b;border:1px solid #252836;color:#555;padding:7px 16px;border-radius:8px;font-size:.82rem;">Închide</button>
     </div>
 </div>
 </div>
@@ -2214,62 +2244,166 @@ function urlBase64ToUint8Array(base64String){
 }
 
 function openModal(id){
-    currentPlayerId=id;const p=db.players.find(x=>x.id==id);
+    currentPlayerId=id;
+    const p=db.players.find(x=>x.id==id);
     document.getElementById('modalPlayerName').textContent=p.name;
     document.getElementById('modalAvg').textContent=`⭐ ${getGeneralAvg(p).toFixed(1)}`;
     document.getElementById('modalSmart').textContent=`★ Smart: ${getSmartRating(p).toFixed(2)}`;
     const s=getStreak(p),el=document.getElementById('modalStreak');
     if(s.count){el.textContent=s.type==='W'?`🔥 ${s.count}V la rând`:`❄️ ${s.count}P la rând`;el.className='modal-streak-big '+(s.type==='W'?'streak-win':'streak-loss');}
     else{el.textContent='';el.className='modal-streak-big';}
+    const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+    document.getElementById('modalWinRate').textContent=`V: ${p.wins}/${p.games} (${wr})`;
+
+    // Stats tab
+    buildModalStats(p);
+    // Radar tab
+    buildRadarChart(p);
+    // History tab
+    buildPlayerMatchHistory(p);
+    // Chemistry tab
+    buildChemistry(p);
+    // Votes tab
+    buildRatingsList(p);
+
+    switchModalTab('stats');
+    document.getElementById('modalOverlay').style.display='flex';
+    chartOpen=false;
+    document.getElementById('chartBody').classList.remove('open');
+    document.getElementById('chartIcon').textContent='▼';
+}
+function switchModalTab(tab){
+    document.querySelectorAll('.modal-tab').forEach((t,i)=>{
+        const tabs=['stats','radar','history','chemistry','votes'];
+        t.classList.toggle('active',tabs[i]===tab);
+    });
+    document.querySelectorAll('.modal-tab-panel').forEach(p=>p.classList.remove('active'));
+    const panels={stats:'tabStats',radar:'tabRadar',history:'tabHistory',chemistry:'tabChemistry',votes:'tabVotes'};
+    document.getElementById(panels[tab])?.classList.add('active');
+}
+
+// ── buildModalStats ─────────────────────────────────────────────
+function buildModalStats(p){
     const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
     const mvpWinCount  = p.mvpWinCount  || 0;
     const mvpLossCount = p.mvpLossCount || 0;
-    const games = Math.max(p.games, 1);
-    const mvpWinScore  = Math.min((mvpWinCount  / games)*10, 10);
-    const mvpLossScore = Math.min((mvpLossCount / games)*10, 10);
-
-    // Build dynamic formula string from W
+    const games = Math.max(p.games,1);
+    const mvpWinScore  = Math.min((mvpWinCount/games)*10,10);
+    const mvpLossScore = Math.min((mvpLossCount/games)*10,10);
     const formulaParts = [
-        ...CATS.map(c => `${CAT_LABELS[c].replace(/[⚽⚡🎯🧠🛡️]/u,'').trim()}×${(W[c]*100).toFixed(0)}%`),
+        ...CATS.map(c=>`${CAT_LABELS[c].replace(/[⚽⚡🎯🧠🛡️]/u,'').trim()}×${(W[c]*100).toFixed(0)}%`),
         `WinRate×${(W.winrate*100).toFixed(0)}%`
     ];
-    if (W.mvpWin  > 0) formulaParts.push(`MVP✓×${(W.mvpWin*100).toFixed(0)}%`);
-    if (W.mvpLoss > 0) formulaParts.push(`MVP✗×${(W.mvpLoss*100).toFixed(0)}%`);
-    document.getElementById('algoInfo').innerHTML=`<strong>Smart Rating</strong>: ${formulaParts.join(' + ')} &nbsp;|&nbsp; WinRate → <strong>${wrScore}/10</strong>${mvpWinCount||mvpLossCount ? ` &nbsp;|&nbsp; MVP ✓${mvpWinCount} ✗${mvpLossCount}` : ''}`;
-
-    // Breakdown bars
-    const breakdown = [
-        ...CATS.map(c => ({label:CAT_LABELS[c], val:getCatAvg(p,c), weight:(W[c]*100).toFixed(0)+'%', color:CAT_COLORS[c]})),
-        {label:'📊 Win Rate', val:p.games>0?1+p.wins/p.games*9:5, weight:(W.winrate*100).toFixed(0)+'%', color:'#a78bfa'}
+    if(W.mvpWin>0)  formulaParts.push(`MVP✓×${(W.mvpWin*100).toFixed(0)}%`);
+    if(W.mvpLoss>0) formulaParts.push(`MVP✗×${(W.mvpLoss*100).toFixed(0)}%`);
+    document.getElementById('algoInfo').innerHTML=`<strong>Smart Rating</strong>: ${formulaParts.join(' + ')} &nbsp;|&nbsp; WinRate → <strong>${wrScore}/10</strong>${mvpWinCount||mvpLossCount?` &nbsp;|&nbsp; MVP ✓${mvpWinCount} ✗${mvpLossCount}`:''}`;
+    const breakdown=[
+        ...CATS.map(c=>({label:CAT_LABELS[c],val:getCatAvg(p,c),weight:(W[c]*100).toFixed(0)+'%',color:CAT_COLORS[c]})),
+        {label:'📊 Win Rate',val:p.games>0?1+p.wins/p.games*9:5,weight:(W.winrate*100).toFixed(0)+'%',color:'#a78bfa'}
     ];
-    if (W.mvpWin  > 0) breakdown.push({label:'🏆 MVP câștigătoare', val:mvpWinScore,  weight:(W.mvpWin*100).toFixed(0)+'%', color:'#ffcc00'});
-    if (W.mvpLoss > 0) breakdown.push({label:'⚔️ MVP pierzătoare',  val:mvpLossScore, weight:(W.mvpLoss*100).toFixed(0)+'%', color:'#ff8c00'});
+    if(W.mvpWin>0)  breakdown.push({label:'🏆 MVP câștig.',  val:mvpWinScore,  weight:(W.mvpWin*100).toFixed(0)+'%',color:'#ffcc00'});
+    if(W.mvpLoss>0) breakdown.push({label:'⚔️ MVP pierdere', val:mvpLossScore, weight:(W.mvpLoss*100).toFixed(0)+'%',color:'#ff8c00'});
     document.getElementById('algoBreakdown').innerHTML=`<div class="algo-title">Detaliu calcul</div>`+breakdown.map(b=>`<div class="algo-row"><div class="algo-label">${b.label}</div><div class="algo-track"><div class="algo-fill" style="width:${b.val*10}%;background:${b.color}"></div></div><div class="algo-val">${b.val.toFixed(1)}</div><div class="algo-weight">${b.weight}</div></div>`).join('');
-    buildCatTabs(p);buildRatingsList(p);
-    statsOpen=false;detailsOpen=false;ratingsListOpen=false;chartOpen=false;
-    document.getElementById('statsDetailWrap').classList.remove('open');
-    document.getElementById('statsChevron').classList.remove('open');
-    document.getElementById('ratingsListBody').classList.remove('open');
-    document.getElementById('ratingsListChevron').classList.remove('open');
-    document.getElementById('detailsSection').classList.remove('open');
-    document.getElementById('detailsToggleBtn').classList.remove('open');
-    document.getElementById('detailsToggleIcon').textContent='➕';
-    document.getElementById('detailsToggleBtn').lastChild.textContent=' Adaugă avantaje / dezavantaje';
-    document.getElementById('chartBody').classList.remove('open');
-    document.getElementById('chartIcon').classList.remove('open');
-    populateRaterDropdown();resetCatInputs();
-    document.getElementById('modalOverlay').style.display='flex';
+    buildCatTabs(p);
 }
-function toggleStats(){statsOpen=!statsOpen;document.getElementById('statsDetailWrap').classList.toggle('open',statsOpen);document.getElementById('statsChevron').classList.toggle('open',statsOpen);if(statsOpen&&chartOpen){const p=db.players.find(x=>x.id==currentPlayerId);if(p)buildRatingChart(p,activeCatTab);}}
-function toggleRatingsList(){ratingsListOpen=!ratingsListOpen;document.getElementById('ratingsListBody').classList.toggle('open',ratingsListOpen);document.getElementById('ratingsListChevron').classList.toggle('open',ratingsListOpen);}
-function toggleDetails(){detailsOpen=!detailsOpen;document.getElementById('detailsSection').classList.toggle('open',detailsOpen);const btn=document.getElementById('detailsToggleBtn');btn.classList.toggle('open',detailsOpen);document.getElementById('detailsToggleIcon').textContent=detailsOpen?'➖':'➕';btn.lastChild.textContent=detailsOpen?' Ascunde detalii':' Adaugă avantaje / dezavantaje';}
-function populateRaterDropdown(){
-    const sel=document.getElementById('raterSelect');sel.innerHTML='<option value="">👤 Cine votează?</option>';
-    db.players.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
-    const o=document.createElement('option');o.value='__other__';o.textContent='✏️ Altcineva...';sel.appendChild(o);
-    document.getElementById('raterCustomWrap').classList.remove('show');
+
+// ── buildRadarChart ─────────────────────────────────────────────
+let radarInstance=null;
+function buildRadarChart(p){
+    if(radarInstance){radarInstance.destroy();radarInstance=null;}
+    const labels=['General','Viteză','Tehnică','Strategie','Apărare','Win Rate'];
+    const wr=p.games>0?(1+p.wins/p.games*9):5;
+    const vals=[getCatAvg(p,'general'),getCatAvg(p,'viteza'),getCatAvg(p,'tehnica'),getCatAvg(p,'strategie'),getCatAvg(p,'aparare'),wr];
+    const colors=['#ffcc00','#ff8c00','#3d5afe','#00bcd4','#4caf50','#a78bfa'];
+    const ctx=document.getElementById('radarChart').getContext('2d');
+    radarInstance=new Chart(ctx,{type:'radar',data:{labels,datasets:[{label:p.name,data:vals,backgroundColor:'rgba(61,90,254,0.15)',borderColor:'#3d5afe',pointBackgroundColor:colors,pointRadius:5,pointBorderColor:'#0a0c10'}]},options:{responsive:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:10,ticks:{stepSize:2,color:'#444',backdropColor:'transparent',font:{size:9}},grid:{color:'rgba(255,255,255,0.06)'},pointLabels:{color:'#aaa',font:{size:11,family:"'Rajdhani',sans-serif",weight:'700'}},angleLines:{color:'rgba(255,255,255,0.06)'}}}}});
+    // Legend
+    document.getElementById('radarLegend').innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0;"></div><span style="font-size:.75rem;color:#aaa;">${l}: <strong style="color:#fff;">${vals[i].toFixed(1)}</strong></span></div>`).join('');
 }
-function onRaterSelectChange(){document.getElementById('raterCustomWrap').classList.toggle('show',document.getElementById('raterSelect').value==='__other__');}
+
+// ── buildPlayerMatchHistory ─────────────────────────────────────
+function buildPlayerMatchHistory(p){
+    const matches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name));
+    const el=document.getElementById('playerMatchHistory');
+    if(!matches.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#444;">Niciun meci înregistrat.</div>';return;}
+    const sorted=[...matches].sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
+    el.innerHTML=sorted.map(h=>{
+        const inOrange=(h.orangePlayers||[]).includes(p.name);
+        const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
+        const oppTeam=inOrange?h.greenPlayers:h.orangePlayers;
+        const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
+        const teammates=(myTeam||[]).filter(n=>n!==p.name);
+        const oppNames=(oppTeam||[]).join(', ')||'—';
+        return `<div class="mh-row">
+            <div class="mh-top">
+                <div class="mh-date">${h.date||'—'}</div>
+                <div class="mh-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNG.'}</div>
+                <div class="mh-team" style="color:${inOrange?'var(--orange)':'#4caf50'}">${inOrange?'🟠':'🟢'} ${h.winner||'—'}</div>
+            </div>
+            ${teammates.length?`<div class="mh-teammates">Echipieri: ${teammates.join(', ')}</div>`:''}
+            ${oppNames!=='—'?`<div class="mh-teammates" style="color:#333;">Adversari: ${oppNames}</div>`:''}
+        </div>`;
+    }).join('');
+}
+
+// ── buildChemistry ──────────────────────────────────────────────
+function buildChemistry(p){
+    const el=document.getElementById('chemistryList');
+    const myMatches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name));
+    if(myMatches.length===0){el.innerHTML='<div style="text-align:center;padding:20px;color:#444;">Insuficiente meciuri pentru calcul.</div>';return;}
+
+    const chemMap={};
+    myMatches.forEach(h=>{
+        const inOrange=(h.orangePlayers||[]).includes(p.name);
+        const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
+        const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
+        (myTeam||[]).forEach(name=>{
+            if(name===p.name)return;
+            if(!chemMap[name])chemMap[name]={together:0,wins:0};
+            chemMap[name].together++;
+            if(won)chemMap[name].wins++;
+        });
+    });
+
+    const total=myMatches.length;
+    const results=Object.entries(chemMap).map(([name,d])=>{
+        const freq=d.together/total;           // 0-1: cât de des au jucat împreună
+        const wr=d.together>0?d.wins/d.together:0; // 0-1: win rate împreună
+        const score=(freq*0.4+wr*0.6)*10;     // 0-10
+        return{name,score,together:d.together,wins:d.wins,freq,wr};
+    }).sort((a,b)=>b.score-a.score);
+
+    if(!results.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#444;">Niciun coechipier comun.</div>';return;}
+
+    const maxScore=results[0].score||1;
+    const chemColors=['#4caf50','#8bc34a','#ffd600','#ff8c00','#e53935'];
+    function chemColor(s){return s>=8?chemColors[0]:s>=6?chemColors[1]:s>=4?chemColors[2]:s>=2?chemColors[3]:chemColors[4];}
+
+    el.innerHTML=results.map(r=>`
+        <div class="chem-row">
+            <div class="chem-avatar">${r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+            <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                    <span class="chem-name">${r.name}</span>
+                    <span class="chem-score" style="color:${chemColor(r.score)};">${r.score.toFixed(1)}</span>
+                </div>
+                <div class="chem-bar-wrap"><div class="chem-bar" style="width:${(r.score/10)*100}%;background:${chemColor(r.score)};"></div></div>
+                <div class="chem-detail">${r.together} meciuri împreună · ${r.wins} câștigate (${(r.wr*100).toFixed(0)}%) · ${(r.freq*100).toFixed(0)}% din meciuri</div>
+            </div>
+        </div>`).join('');
+}
+
+// ── Tabela overlay ──────────────────────────────────────────────
+function openTableView(){
+    document.getElementById('balancePopup').classList.remove('show');
+    const o=db.players.filter(p=>p.status==='orange');
+    const g=db.players.filter(p=>p.status==='green');
+    const row=p=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #0f1118;"><div style="width:28px;height:28px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.65rem;color:#666;">${p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div><span style="font-weight:700;font-size:.88rem;">${p.name}</span></div>`;
+    document.getElementById('tableOrangePlayers').innerHTML=o.length?o.map(row).join(''):'<div style="color:#333;font-size:.85rem;padding:10px;">—</div>';
+    document.getElementById('tableGreenPlayers').innerHTML=g.length?g.map(row).join(''):'<div style="color:#333;font-size:.85rem;padding:10px;">—</div>';
+    document.getElementById('tableOverlay').style.display='flex';
+}
+function closeTableView(){document.getElementById('tableOverlay').style.display='none';}
 function toggleChart(){chartOpen=!chartOpen;document.getElementById('chartBody').classList.toggle('open',chartOpen);document.getElementById('chartIcon').classList.toggle('open',chartOpen);if(chartOpen){const p=db.players.find(x=>x.id==currentPlayerId);if(p)buildRatingChart(p,activeCatTab);}}
 function buildCatTabs(p){document.getElementById('catTabs').innerHTML=CATS.map(c=>`<div class="cat-tab ${c===activeCatTab?'active':''}" onclick="switchCatTab('${c}')">${CAT_LABELS[c]}</div>`).join('');}
 function switchCatTab(cat){activeCatTab=cat;const p=db.players.find(x=>x.id==currentPlayerId);buildCatTabs(p);if(chartOpen&&statsOpen)buildRatingChart(p,cat);document.getElementById('chartLabel').textContent=`📈 Evoluție Rating — ${CAT_LABELS[cat]}`;}
