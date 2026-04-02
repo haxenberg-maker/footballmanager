@@ -122,6 +122,10 @@
         .cat-bar-label{font-size:0.58rem;color:#444;text-transform:uppercase;}
         .cat-bar-track{width:22px;height:3px;background:#252836;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
+        .arch-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:1px;}
+        .arch-badge{font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;line-height:1.4;}
+        .arch-s{background:rgba(40,167,69,.18);color:#69f0ae;border:1px solid rgba(40,167,69,.35);}
+        .arch-w{background:rgba(198,40,40,.15);color:#ef9a9a;border:1px solid rgba(198,40,40,.3);}
         .lobby-section{grid-column:1/-1;background:#0c1220;border-radius:14px;border:1px solid #1a2a4a;overflow:hidden;}
         .lobby-header{background:linear-gradient(135deg,#0d2040,#1a3060);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
         .lobby-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#82b1ff;flex:1;}
@@ -1197,6 +1201,34 @@ let currentProfile = null;
 const CATS = ['general','viteza','tehnica','strategie','aparare'];
 const CAT_LABELS = {general:'⚽ General',viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
 const CAT_COLORS = {general:'#ffcc00',viteza:'#ff8c00',tehnica:'#3d5afe',strategie:'#00bcd4',aparare:'#4caf50'};
+
+// ── Archetype System ─────────────────────────────────────────────
+const ARCHETYPES_STRENGTH = {
+    viteza:    {icon:'⚡', label:'Vitezoman'},
+    aparare:   {icon:'🛡️', label:'Zid'},
+    tehnica:   {icon:'🎯', label:'Playmaker'},
+    strategie: {icon:'🧠', label:'Creierul'},
+};
+const ARCHETYPES_WEAKNESS = {
+    viteza:    {icon:'🐌', label:'Lent'},
+    tehnica:   {icon:'🧱', label:'Picior de lemn'},
+    strategie: {icon:'👤', label:'Solist'},
+    aparare:   {icon:'🪫', label:'Fără condiție'},
+};
+function getPlayerArchetype(p){
+    if(p.ratings.length < 2) return null;
+    const cats = ['viteza','tehnica','strategie','aparare'];
+    const avgs = {};
+    cats.forEach(c => avgs[c] = p.ratings.reduce((s,r)=>s+(r[c]||5),0)/p.ratings.length);
+    const sorted = cats.slice().sort((a,b)=>avgs[b]-avgs[a]);
+    const maxCat = sorted[0], minCat = sorted[sorted.length-1];
+    const spread = avgs[maxCat] - avgs[minCat];
+    if(spread < 1.2) return null; // not enough differentiation
+    return {
+        strength: ARCHETYPES_STRENGTH[maxCat],
+        weakness: ARCHETYPES_WEAKNESS[minCat],
+    };
+}
 const DEFAULT_W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20,mvpWin:0.0,mvpLoss:0.0};
 let W = JSON.parse(localStorage.getItem('smart_weights') || 'null') || {...DEFAULT_W};
 function saveWeights(){ localStorage.setItem('smart_weights', JSON.stringify(W)); }
@@ -1554,7 +1586,10 @@ function render(){
             const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
             const s=getStreak(p);
             const streakHtml=s.count?(s.type==='W'?`<span class="streak-badge streak-win">🔥 ${s.count}V</span>`:`<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`):'';
-            const catBars=CATS.filter(c=>c!=='general').map(c=>`<div class="cat-bar-item"><div class="cat-bar-track"><div class="cat-bar-fill" style="width:${getCatAvg(p,c)*10}%;background:${CAT_COLORS[c]}"></div></div><div class="cat-bar-label">${c.slice(0,3)}</div></div>`).join('');
+            const arch=getPlayerArchetype(p);
+            const archHtml=arch
+                ?`<div class="arch-badges"><span class="arch-badge arch-s">${arch.strength.icon} ${arch.strength.label}</span><span class="arch-badge arch-w">${arch.weakness.icon} ${arch.weakness.label}</span></div>`
+                :'';
             const card=document.createElement('div');
             card.className='player-card';
             card.id=`p-${p.id}`;
@@ -1568,7 +1603,7 @@ function render(){
             card.innerHTML=`<div class="player-rank-label ${rankClass}"></div>
                 <div class="card-top"><span class="player-name">${p.name}</span>
                 <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart">★ ${smart}</span></div></div>
-                <div class="cat-bars">${catBars}</div>
+                ${archHtml}
                 <div class="player-stats"><span>${p.ratings.length} voturi</span><span>V:${p.wins}/M:${p.games}(${wr})</span>${streakHtml}</div>`;
             const container = document.getElementById(`list-${team}`);
             if(container) container.appendChild(card);

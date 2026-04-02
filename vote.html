@@ -163,6 +163,15 @@
         .nf-input:focus{border-color:var(--accent);}
         .nf-ok{width:100%;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;}
 
+        /* Archetype tag buttons */
+        .arch-section{margin-bottom:8px;}
+        .arch-lbl{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;display:flex;align-items:center;gap:5px;}
+        .arch-tags{display:flex;flex-wrap:wrap;gap:5px;}
+        .arch-tag{padding:5px 10px;border-radius:8px;border:1px solid #252836;background:#1c1f2b;color:#555;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap;}
+        .arch-tag:hover{border-color:#555;color:#aaa;}
+        .arch-tag.sel-s{background:rgba(40,167,69,.2);border-color:#28a745;color:#69f0ae;}
+        .arch-tag.sel-w{background:rgba(198,40,40,.15);border-color:#c62828;color:#ef9a9a;}
+
         .empty{text-align:center;padding:24px;color:#444;font-size:.88rem;line-height:1.6;}
         .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
@@ -275,7 +284,20 @@
 const SB_URL ='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
-const CATS = {viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
+// Archetype system
+const ARCHETYPES_STR = [
+    {id:'vitezoman',  icon:'⚡', label:'Vitezoman',     vals:{viteza:10, tehnica:5,  strategie:5,  aparare:5}},
+    {id:'zid',        icon:'🛡️', label:'Zid',           vals:{viteza:5,  tehnica:5,  strategie:5,  aparare:10}},
+    {id:'playmaker',  icon:'🎯', label:'Playmaker',     vals:{viteza:5,  tehnica:10, strategie:8,  aparare:5}},
+    {id:'creierul',   icon:'🧠', label:'Creierul',      vals:{viteza:5,  tehnica:6,  strategie:10, aparare:5}},
+    {id:'finalizator',icon:'🥅', label:'Finalizator',   vals:{viteza:8,  tehnica:9,  strategie:5,  aparare:5}},
+];
+const ARCHETYPES_WEAK = [
+    {id:'lent',       icon:'🐌', label:'Lent',                vals:{viteza:3}},
+    {id:'piciorlemn', icon:'🧱', label:'Picior de lemn',      vals:{tehnica:3}},
+    {id:'solist',     icon:'👤', label:'Solist',              vals:{strategie:3}},
+    {id:'fara_cond',  icon:'🪫', label:'Fără condiție',       vals:{aparare:3}},
+];
 const today = new Date().toLocaleDateString('ro-RO');
 const LS_PLAYER = 'vote_identity';
 
@@ -483,7 +505,7 @@ function setupMvp(o,g,hasLists){
     const allIn=[...(selMatch.orange_players||[]),...(selMatch.green_players||[])];
     toVote=allIn.length?allPlayers.filter(p=>allIn.includes(p.name)&&p.name!==myName):allPlayers.filter(p=>p.name!==myName);
     votes={};detOpen={};curIdx=0;
-    toVote.forEach(p=>{votes[p.name]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};detOpen[p.name]=false;});
+    toVote.forEach(p=>{votes[p.name]={general:null,strength:null,weakness:null};detOpen[p.name]=false;});
     document.getElementById('vwho').textContent=myName;
     buildSlides();updProg();
 }
@@ -507,10 +529,16 @@ function buildSlides(){
         const inO=o.includes(p.name),hasLists=o.length>0;
         const badge=hasLists?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠':'🟢'}</span>`:'';
         let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb-${k(p.name)}-${i}" onclick="pickG('${p.name}',${i})">${i}</button>`;
-        const sg=Object.entries(CATS).map(([cat,lbl])=>`<div class="sg"><label>${lbl}<span class="sv unset" id="sv-${k(p.name)}-${cat}">—</span></label><div class="srow" id="sr-${k(p.name)}-${cat}">${Array.from({length:10},(_,i)=>`<button class="sbtn" onclick="pickS('${p.name}','${cat}',${i+1})">${i+1}</button>`).join('')}</div></div>`).join('');
+        // Archetype tag buttons
+        const strTags=ARCHETYPES_STR.map(a=>`<button class="arch-tag" id="as-${k(p.name)}-${a.id}" onclick="pickStrength('${p.name}','${a.id}')">${a.icon} ${a.label}</button>`).join('');
+        const wkTags=ARCHETYPES_WEAK.map(a=>`<button class="arch-tag" id="aw-${k(p.name)}-${a.id}" onclick="pickWeakness('${p.name}','${a.id}')">${a.icon} ${a.label}</button>`).join('');
+        const detailsHtml=`<div class="dinner">
+            <div class="arch-section"><div class="arch-lbl">💪 Punct forte</div><div class="arch-tags">${strTags}</div></div>
+            <div class="arch-section"><div class="arch-lbl">⚠️ Punct slab</div><div class="arch-tags">${wkTags}</div></div>
+        </div>`;
         const sl=document.createElement('div');
         sl.className='slide'+(idx===0?' active':'');sl.id=`sl-${k(p.name)}`;
-        sl.innerHTML=`<div class="slbl">Votează jucătorul</div><div class="sname">${p.name}</div><div class="smeta">${badge}</div><div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval e" id="gv-${k(p.name)}">—</span></div><div class="grow">${gb}</div><button class="dbtn" id="db-${k(p.name)}" onclick="togDet('${p.name}')">➕ Detalii</button><div class="dwrap" id="dw-${k(p.name)}"><div class="dinner"><div style="font-size:.6rem;color:#333;margin-bottom:6px;font-style:italic;">Opțional</div><div class="sgrid">${sg}</div></div></div>`;
+        sl.innerHTML=`<div class="slbl">Votează jucătorul</div><div class="sname">${p.name}</div><div class="smeta">${badge}</div><div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval e" id="gv-${k(p.name)}">—</span></div><div class="grow">${gb}</div><button class="dbtn" id="db-${k(p.name)}" onclick="togDet('${p.name}')">➕ Punct Forte / Slab</button><div class="dwrap" id="dw-${k(p.name)}">${detailsHtml}</div>`;
         wrap.appendChild(sl);
     });
     buildDots();updNxt();
@@ -522,15 +550,20 @@ function pickG(name,v){
     if(navigator.vibrate)navigator.vibrate(25);
     updNxt();buildDots();
 }
-function pickS(name,cat,v){
-    votes[name][cat]=v;
-    const l=document.getElementById(`sv-${k(name)}-${cat}`);if(l){l.textContent=v;l.className='sv set';}
-    document.querySelectorAll(`#sr-${k(name)}-${cat} .sbtn`).forEach((b,i)=>b.classList.toggle('sel',i+1===v));
+function pickStrength(name,id){
+    votes[name].strength=id;
+    ARCHETYPES_STR.forEach(a=>{document.getElementById(`as-${k(name)}-${a.id}`)?.classList.toggle('sel-s',a.id===id);});
+    if(navigator.vibrate)navigator.vibrate(20);
+}
+function pickWeakness(name,id){
+    votes[name].weakness=id;
+    ARCHETYPES_WEAK.forEach(a=>{document.getElementById(`aw-${k(name)}-${a.id}`)?.classList.toggle('sel-w',a.id===id);});
+    if(navigator.vibrate)navigator.vibrate(20);
 }
 function togDet(name){
     detOpen[name]=!detOpen[name];const open=detOpen[name];
     document.getElementById(`dw-${k(name)}`)?.classList.toggle('open',open);
-    const btn=document.getElementById(`db-${k(name)}`);if(btn){btn.classList.toggle('open',open);btn.innerHTML=open?'➖ Ascunde':'➕ Detalii';}
+    const btn=document.getElementById(`db-${k(name)}`);if(btn){btn.classList.toggle('open',open);btn.innerHTML=open?'➖ Ascunde':'➕ Punct Forte / Slab';}
 }
 function buildDots(){document.getElementById('dots').innerHTML=toVote.map((p,i)=>{const done=votes[p.name]?.general!==null,act=i===curIdx;return`<div class="dot ${act?'active':done?'done':''}"></div>`;}).join('');}
 function updProg(){const t=toVote.length;document.getElementById('pfill').style.width=`${(curIdx/t)*100}%`;document.getElementById('ptxt').textContent=`${curIdx+1}/${t}`;}
@@ -559,7 +592,22 @@ async function saveRatings(){
     for(const p of toVote){
         const v=votes[p.name];if(v.general===null)continue;
         const g=v.general;
-        try{await sb.from('ratings').insert({player_id:allPlayers.find(x=>x.name===p.name)?.id||null,rater:myName,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g});saved++;}
+        // Map archetypes to numeric values
+        let cats={viteza:g,tehnica:g,strategie:g,aparare:g};
+        if(v.strength){
+            const a=ARCHETYPES_STR.find(x=>x.id===v.strength);
+            if(a) Object.entries(a.vals).forEach(([cat,val])=>{cats[cat]=val;});
+        }
+        if(v.weakness){
+            const a=ARCHETYPES_WEAK.find(x=>x.id===v.weakness);
+            // weakness overrides only its specific category to 3
+            if(a) Object.entries(a.vals).forEach(([cat,val])=>{cats[cat]=val;});
+        }
+        try{await sb.from('ratings').insert({
+            player_id:allPlayers.find(x=>x.name===p.name)?.id||null,
+            rater:myName,date:today,general:g,
+            viteza:cats.viteza,tehnica:cats.tehnica,strategie:cats.strategie,aparare:cats.aparare
+        });saved++;}
         catch(e){console.error(e);}
     }
     if(saved>0){localStorage.setItem(`v_${myName}_${selMatch.id}`,'1');if(navigator.vibrate)navigator.vibrate([100,50,100]);}
