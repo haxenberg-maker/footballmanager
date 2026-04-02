@@ -171,6 +171,7 @@
         .arch-tag:hover{border-color:#555;color:#aaa;}
         .arch-tag.sel-s{background:rgba(40,167,69,.2);border-color:#28a745;color:#69f0ae;}
         .arch-tag.sel-w{background:rgba(198,40,40,.15);border-color:#c62828;color:#ef9a9a;}
+        .arch-tag.sel-n{background:rgba(61,90,254,.15);border-color:#3d5afe;color:#82b1ff;}
 
         .empty{text-align:center;padding:24px;color:#444;font-size:.88rem;line-height:1.6;}
         .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
@@ -284,20 +285,37 @@
 const SB_URL ='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
-// Archetype system
-const ARCHETYPES_STR = [
-    {id:'vitezoman',  icon:'⚡', label:'Vitezoman',     vals:{viteza:10, tehnica:5,  strategie:5,  aparare:5}},
-    {id:'zid',        icon:'🛡️', label:'Zid',           vals:{viteza:5,  tehnica:5,  strategie:5,  aparare:10}},
-    {id:'playmaker',  icon:'🎯', label:'Playmaker',     vals:{viteza:5,  tehnica:10, strategie:8,  aparare:5}},
-    {id:'creierul',   icon:'🧠', label:'Creierul',      vals:{viteza:5,  tehnica:6,  strategie:10, aparare:5}},
-    {id:'finalizator',icon:'🥅', label:'Finalizator',   vals:{viteza:8,  tehnica:9,  strategie:5,  aparare:5}},
+// Player Tags System (matches index.html)
+const PLAYER_TAGS = [
+    {id:'argint_viu',  icon:'🌪️', label:'Argint viu',    cat:'conditie',  type:'pos', cols:{viteza:9}},
+    {id:'plaman',      icon:'💪', label:'Plămân',         cat:'conditie',  type:'pos', cols:{aparare:8}},
+    {id:'pivot',       icon:'🔄', label:'Pivot',          cat:'conditie',  type:'pos', cols:{tehnica:8}},
+    {id:'static',      icon:'🪨', label:'Static',         cat:'conditie',  type:'neg', cols:{viteza:3}},
+    {id:'gropat',      icon:'🏰', label:'Gropat',         cat:'defensiva', type:'pos', cols:{aparare:9}},
+    {id:'bariera',     icon:'🧱', label:'Barieră',        cat:'defensiva', type:'pos', cols:{aparare:8}},
+    {id:'interceptor', icon:'🎯', label:'Interceptor',    cat:'defensiva', type:'pos', cols:{strategie:9}},
+    {id:'dur',         icon:'🔥', label:'Dur',            cat:'defensiva', type:'neg', cols:{aparare:4}},
+    {id:'chirurg',     icon:'🔪', label:'Chirurg',        cat:'atac',      type:'pos', cols:{tehnica:10}},
+    {id:'tunar',       icon:'💥', label:'Tunar',           cat:'atac',      type:'pos', cols:{viteza:8, tehnica:8}},
+    {id:'pasator',     icon:'🎭', label:'Pasator',        cat:'atac',      type:'pos', cols:{strategie:9}},
+    {id:'individualist',icon:'🤡',label:'Individualist',  cat:'atac',      type:'neg', cols:{strategie:3}},
+    {id:'zid_gk',      icon:'🧤', label:'Zid (GK)',       cat:'portar',    type:'pos', cols:{aparare:10}},
+    {id:'portar_juc',  icon:'🎮', label:'Portar-Jucător', cat:'portar',    type:'pos', cols:{strategie:8}},
+    {id:'de_parada',   icon:'🌟', label:'De paradă',      cat:'portar',    type:'neu', cols:{tehnica:7}},
 ];
-const ARCHETYPES_WEAK = [
-    {id:'lent',       icon:'🐌', label:'Lent',                vals:{viteza:3}},
-    {id:'piciorlemn', icon:'🧱', label:'Picior de lemn',      vals:{tehnica:3}},
-    {id:'solist',     icon:'👤', label:'Solist',              vals:{strategie:3}},
-    {id:'fara_cond',  icon:'🪫', label:'Fără condiție',       vals:{aparare:3}},
-];
+const PT_BY_ID = Object.fromEntries(PLAYER_TAGS.map(t=>[t.id,t]));
+
+function tagsToColumns(tags, general){
+    const cols={viteza:general,tehnica:general,strategie:general,aparare:general};
+    (tags||[]).forEach(id=>{
+        const t=PT_BY_ID[id];if(!t)return;
+        Object.entries(t.cols).forEach(([col,val])=>{
+            if(t.type==='pos') cols[col]=Math.max(cols[col],val);
+            else cols[col]=Math.min(cols[col],val);
+        });
+    });
+    return cols;
+}
 const today = new Date().toLocaleDateString('ro-RO');
 const LS_PLAYER = 'vote_identity';
 
@@ -505,7 +523,7 @@ function setupMvp(o,g,hasLists){
     const allIn=[...(selMatch.orange_players||[]),...(selMatch.green_players||[])];
     toVote=allIn.length?allPlayers.filter(p=>allIn.includes(p.name)&&p.name!==myName):allPlayers.filter(p=>p.name!==myName);
     votes={};detOpen={};curIdx=0;
-    toVote.forEach(p=>{votes[p.name]={general:null,strength:null,weakness:null};detOpen[p.name]=false;});
+    toVote.forEach(p=>{votes[p.name]={general:null,tags:[]};detOpen[p.name]=false;});
     document.getElementById('vwho').textContent=myName;
     buildSlides();updProg();
 }
@@ -525,20 +543,25 @@ function skipAllRatings(){finish(0);}
 function buildSlides(){
     const wrap=document.getElementById('slides');wrap.innerHTML='';
     const o=selMatch.orange_players||[];
+    const tagCats=[
+        {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
+        {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
+        {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
+        {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
+    ];
     toVote.forEach((p,idx)=>{
         const inO=o.includes(p.name),hasLists=o.length>0;
         const badge=hasLists?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠':'🟢'}</span>`:'';
         let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb-${k(p.name)}-${i}" onclick="pickG('${p.name}',${i})">${i}</button>`;
-        // Archetype tag buttons
-        const strTags=ARCHETYPES_STR.map(a=>`<button class="arch-tag" id="as-${k(p.name)}-${a.id}" onclick="pickStrength('${p.name}','${a.id}')">${a.icon} ${a.label}</button>`).join('');
-        const wkTags=ARCHETYPES_WEAK.map(a=>`<button class="arch-tag" id="aw-${k(p.name)}-${a.id}" onclick="pickWeakness('${p.name}','${a.id}')">${a.icon} ${a.label}</button>`).join('');
-        const detailsHtml=`<div class="dinner">
-            <div class="arch-section"><div class="arch-lbl">💪 Punct forte</div><div class="arch-tags">${strTags}</div></div>
-            <div class="arch-section"><div class="arch-lbl">⚠️ Punct slab</div><div class="arch-tags">${wkTags}</div></div>
-        </div>`;
+        const tagSections=tagCats.map(cat=>`
+            <div class="arch-lbl">${cat.label}</div>
+            <div class="arch-tags">${cat.ids.map(id=>{
+                const t=PT_BY_ID[id];if(!t)return '';
+                return `<button class="arch-tag" id="pt-${k(p.name)}-${id}" onclick="toggleTag('${p.name}','${id}')">${t.icon} ${t.label}</button>`;
+            }).join('')}</div>`).join('');
         const sl=document.createElement('div');
         sl.className='slide'+(idx===0?' active':'');sl.id=`sl-${k(p.name)}`;
-        sl.innerHTML=`<div class="slbl">Votează jucătorul</div><div class="sname">${p.name}</div><div class="smeta">${badge}</div><div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval e" id="gv-${k(p.name)}">—</span></div><div class="grow">${gb}</div><button class="dbtn" id="db-${k(p.name)}" onclick="togDet('${p.name}')">➕ Punct Forte / Slab</button><div class="dwrap" id="dw-${k(p.name)}">${detailsHtml}</div>`;
+        sl.innerHTML=`<div class="slbl">Votează jucătorul</div><div class="sname">${p.name}</div><div class="smeta">${badge}</div><div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval e" id="gv-${k(p.name)}">—</span></div><div class="grow">${gb}</div><button class="dbtn" id="db-${k(p.name)}" onclick="togDet('${p.name}')">➕ Statusuri jucător</button><div class="dwrap" id="dw-${k(p.name)}"><div class="dinner">${tagSections}</div></div>`;
         wrap.appendChild(sl);
     });
     buildDots();updNxt();
@@ -550,20 +573,22 @@ function pickG(name,v){
     if(navigator.vibrate)navigator.vibrate(25);
     updNxt();buildDots();
 }
-function pickStrength(name,id){
-    votes[name].strength=id;
-    ARCHETYPES_STR.forEach(a=>{document.getElementById(`as-${k(name)}-${a.id}`)?.classList.toggle('sel-s',a.id===id);});
-    if(navigator.vibrate)navigator.vibrate(20);
-}
-function pickWeakness(name,id){
-    votes[name].weakness=id;
-    ARCHETYPES_WEAK.forEach(a=>{document.getElementById(`aw-${k(name)}-${a.id}`)?.classList.toggle('sel-w',a.id===id);});
+function toggleTag(name, id){
+    if(!votes[name].tags) votes[name].tags=[];
+    const arr=votes[name].tags;
+    const idx=arr.indexOf(id);
+    if(idx>=0) arr.splice(idx,1);
+    else arr.push(id);
+    const t=PT_BY_ID[id];
+    const cls=t.type==='pos'?'sel-s':t.type==='neg'?'sel-w':'sel-n';
+    const btn=document.getElementById(`pt-${k(name)}-${id}`);
+    if(btn){btn.className='arch-tag';if(idx<0)btn.classList.add(cls);}
     if(navigator.vibrate)navigator.vibrate(20);
 }
 function togDet(name){
     detOpen[name]=!detOpen[name];const open=detOpen[name];
     document.getElementById(`dw-${k(name)}`)?.classList.toggle('open',open);
-    const btn=document.getElementById(`db-${k(name)}`);if(btn){btn.classList.toggle('open',open);btn.innerHTML=open?'➖ Ascunde':'➕ Punct Forte / Slab';}
+    const btn=document.getElementById(`db-${k(name)}`);if(btn){btn.classList.toggle('open',open);btn.innerHTML=open?'➖ Ascunde':'➕ Statusuri jucător';}
 }
 function buildDots(){document.getElementById('dots').innerHTML=toVote.map((p,i)=>{const done=votes[p.name]?.general!==null,act=i===curIdx;return`<div class="dot ${act?'active':done?'done':''}"></div>`;}).join('');}
 function updProg(){const t=toVote.length;document.getElementById('pfill').style.width=`${(curIdx/t)*100}%`;document.getElementById('ptxt').textContent=`${curIdx+1}/${t}`;}
@@ -592,21 +617,12 @@ async function saveRatings(){
     for(const p of toVote){
         const v=votes[p.name];if(v.general===null)continue;
         const g=v.general;
-        // Map archetypes to numeric values
-        let cats={viteza:g,tehnica:g,strategie:g,aparare:g};
-        if(v.strength){
-            const a=ARCHETYPES_STR.find(x=>x.id===v.strength);
-            if(a) Object.entries(a.vals).forEach(([cat,val])=>{cats[cat]=val;});
-        }
-        if(v.weakness){
-            const a=ARCHETYPES_WEAK.find(x=>x.id===v.weakness);
-            // weakness overrides only its specific category to 3
-            if(a) Object.entries(a.vals).forEach(([cat,val])=>{cats[cat]=val;});
-        }
+        const tags=v.tags||[];
+        const cols=tagsToColumns(tags,g);
         try{await sb.from('ratings').insert({
             player_id:allPlayers.find(x=>x.name===p.name)?.id||null,
-            rater:myName,date:today,general:g,
-            viteza:cats.viteza,tehnica:cats.tehnica,strategie:cats.strategie,aparare:cats.aparare
+            rater:myName,date:today,tags:tags.join(','),general:g,
+            viteza:cols.viteza,tehnica:cols.tehnica,strategie:cols.strategie,aparare:cols.aparare
         });saved++;}
         catch(e){console.error(e);}
     }

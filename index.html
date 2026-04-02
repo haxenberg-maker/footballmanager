@@ -122,6 +122,24 @@
         .cat-bar-label{font-size:0.58rem;color:#444;text-transform:uppercase;}
         .cat-bar-track{width:22px;height:3px;background:#252836;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
+        /* Player tag badges */
+        .ptag{font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap;cursor:default;line-height:1.5;}
+        .ptag.tag-pos{background:rgba(40,167,69,.15);color:#69f0ae;border:1px solid rgba(40,167,69,.3);}
+        .ptag.tag-neg{background:rgba(198,40,40,.13);color:#ef9a9a;border:1px solid rgba(198,40,40,.28);}
+        .ptag.tag-neu{background:rgba(61,90,254,.13);color:#82b1ff;border:1px solid rgba(61,90,254,.28);}
+        .ptag.ptag-admin{box-shadow:0 0 0 1px #3d5afe44;}
+        .ptag-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;}
+
+        /* Quick vote tag grid */
+        .qv-tags-section{margin-top:8px;padding-top:8px;border-top:1px solid #1e2130;}
+        .qv-tags-cat{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;margin-top:8px;}
+        .qv-tags-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px;}
+        .qv-tag-btn{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid #252836;background:#1c1f2b;color:#555;transition:all .12s;white-space:nowrap;}
+        .qv-tag-btn:hover{border-color:#555;color:#888;}
+        .qv-tag-btn.sel-pos{background:rgba(40,167,69,.2);border-color:#28a745;color:#69f0ae;}
+        .qv-tag-btn.sel-neg{background:rgba(198,40,40,.15);border-color:#c62828;color:#ef9a9a;}
+        .qv-tag-btn.sel-neu{background:rgba(61,90,254,.15);border-color:#3d5afe;color:#82b1ff;}
+
         .arch-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:1px;}
         .team-balance-indicator{font-size:.68rem;font-weight:700;padding:3px 8px;border-radius:7px;margin-bottom:5px;display:none;}
         .tbi-ok{background:rgba(40,167,69,.15);color:#69f0ae;border:1px solid rgba(40,167,69,.3);display:block;}
@@ -1210,7 +1228,75 @@ const CATS = ['general','viteza','tehnica','strategie','aparare'];
 const CAT_LABELS = {general:'⚽ General',viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
 const CAT_COLORS = {general:'#ffcc00',viteza:'#ff8c00',tehnica:'#3d5afe',strategie:'#00bcd4',aparare:'#4caf50'};
 
-// ── Archetype System ─────────────────────────────────────────────
+// ── Player Tags System ───────────────────────────────────────────
+const PLAYER_TAGS = [
+    // 🏃 Condiție & Mișcare
+    {id:'argint_viu',  icon:'🌪️', label:'Argint viu',    cat:'conditie',  type:'pos', cols:{viteza:9}},
+    {id:'plaman',      icon:'💪', label:'Plămân',         cat:'conditie',  type:'pos', cols:{aparare:8}},
+    {id:'pivot',       icon:'🔄', label:'Pivot',          cat:'conditie',  type:'pos', cols:{tehnica:8}},
+    {id:'static',      icon:'🪨', label:'Static',         cat:'conditie',  type:'neg', cols:{viteza:3}},
+    // 🛡️ Defensivă
+    {id:'gropat',      icon:'🏰', label:'Gropat',         cat:'defensiva', type:'pos', cols:{aparare:9}},
+    {id:'bariera',     icon:'🧱', label:'Barieră',        cat:'defensiva', type:'pos', cols:{aparare:8}},
+    {id:'interceptor', icon:'🎯', label:'Interceptor',    cat:'defensiva', type:'pos', cols:{strategie:9}},
+    {id:'dur',         icon:'🔥', label:'Dur',            cat:'defensiva', type:'neg', cols:{aparare:4}},
+    // ⚽ Atac & Execuție
+    {id:'chirurg',     icon:'🔪', label:'Chirurg',        cat:'atac',      type:'pos', cols:{tehnica:10}},
+    {id:'tunar',       icon:'💥', label:'Tunar',          cat:'atac',      type:'pos', cols:{viteza:8, tehnica:8}},
+    {id:'pasator',     icon:'🎭', label:'Pasator',        cat:'atac',      type:'pos', cols:{strategie:9}},
+    {id:'individualist',icon:'🤡',label:'Individualist',  cat:'atac',      type:'neg', cols:{strategie:3}},
+    // 🧤 Portar
+    {id:'zid_gk',      icon:'🧤', label:'Zid (GK)',       cat:'portar',    type:'pos', cols:{aparare:10}},
+    {id:'portar_juc',  icon:'🎮', label:'Portar-Jucător', cat:'portar',    type:'pos', cols:{strategie:8}},
+    {id:'de_parada',   icon:'🌟', label:'De paradă',      cat:'portar',    type:'neu', cols:{tehnica:7}},
+];
+const PT_BY_ID = Object.fromEntries(PLAYER_TAGS.map(t=>[t.id,t]));
+
+// Map tags array → numeric columns for DB save
+function tagsToColumns(tags, general){
+    const cols={viteza:general,tehnica:general,strategie:general,aparare:general};
+    (tags||[]).forEach(id=>{
+        const t=PT_BY_ID[id];if(!t)return;
+        Object.entries(t.cols).forEach(([col,val])=>{
+            if(t.type==='pos') cols[col]=Math.max(cols[col],val);
+            else cols[col]=Math.min(cols[col],val);
+        });
+    });
+    return cols;
+}
+
+// Get aggregated tags for a player from their ratings
+function getPlayerTags(p){
+    // Admin override takes priority
+    if(p.adminTags?.length) return p.adminTags;
+    // Compute from ratings
+    if(!p.ratings?.length) return [];
+    const counts={};
+    p.ratings.forEach(r=>{
+        (r.tags||'').split(',').filter(Boolean).forEach(id=>{
+            counts[id]=(counts[id]||0)+1;
+        });
+    });
+    // Return tags voted by >30% of raters
+    const threshold = Math.max(1, Math.floor(p.ratings.length*0.3));
+    return Object.entries(counts)
+        .filter(([,n])=>n>=threshold)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([id])=>id)
+        .filter(id=>PT_BY_ID[id]);
+}
+
+// Render tag badges HTML
+function renderTagBadges(tagIds, adminSet=false){
+    if(!tagIds?.length) return '';
+    return tagIds.map(id=>{
+        const t=PT_BY_ID[id];if(!t)return '';
+        const cls=t.type==='pos'?'tag-pos':t.type==='neg'?'tag-neg':'tag-neu';
+        return `<span class="ptag ${cls}${adminSet?' ptag-admin':''}">${t.icon} ${t.label}</span>`;
+    }).join('');
+}
+
+// ── Archetype System (kept for backward compat) ───────────────────
 const ARCHETYPES_STRENGTH = {
     viteza:    {icon:'⚡', label:'Vitezoman'},
     aparare:   {icon:'🛡️', label:'Zid'},
@@ -1482,10 +1568,11 @@ function rowToPlayer(p) {
         id: p.id, name: p.name, status: p.status||'bench',
         wins: p.wins||0, games: p.games||0,
         matchHistory: p.match_history||[],
-        mainStatus: p.main_status||null,      // admin-set archetype strength
-        negativeStatus: p.negative_status||null, // admin-set archetype weakness
+        mainStatus: p.main_status||null,
+        negativeStatus: p.negative_status||null,
+        adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
-            _dbId: r.id, rater:r.rater, date:r.date,
+            _dbId: r.id, rater:r.rater, date:r.date, tags:r.tags||'',
             general:r.general||5, viteza:r.viteza||5, tehnica:r.tehnica||5,
             strategie:r.strategie||5, aparare:r.aparare||5
         }))
@@ -1625,10 +1712,10 @@ function render(){
             const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
             const s=getStreak(p);
             const streakHtml=s.count?(s.type==='W'?`<span class="streak-badge streak-win">🔥 ${s.count}V</span>`:`<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`):'';
-            const arch=getPlayerArchetype(p);
-            const archHtml=arch
-                ?`<div class="arch-badges"><span class="arch-badge arch-s">${arch.strength.icon} ${arch.strength.label}</span><span class="arch-badge arch-w">${arch.weakness.icon} ${arch.weakness.label}</span></div>`
-                :'';
+            const playerTagIds = getPlayerTags(p);
+            const archHtml = playerTagIds.length
+                ? `<div class="ptag-row">${renderTagBadges(playerTagIds.slice(0,4), p.adminTags?.length>0)}</div>`
+                : '';
             const card=document.createElement('div');
             card.className='player-card';
             card.id=`p-${p.id}`;
@@ -1656,25 +1743,32 @@ function render(){
 
 function analyzeTeamBalance(teamPlayers){
     if(!teamPlayers.length) return null;
-    const archs = teamPlayers.map(p=>getPlayerArchetype(p)).filter(Boolean);
-    const strengths = archs.map(a=>a.strength?.label).filter(Boolean);
-    const weaknesses = archs.map(a=>a.weakness?.label).filter(Boolean);
+    // Collect all tags from team
+    const allTags = teamPlayers.flatMap(p=>getPlayerTags(p));
+    if(!allTags.length) return null;
 
-    const hasZid        = strengths.includes('Zid');
-    const hasPlaymaker  = strengths.includes('Playmaker') || strengths.includes('Creierul');
-    const hasFinalizator= strengths.includes('Finalizator') || strengths.includes('Vitezoman');
-    const solistiCount  = weaknesses.filter(w=>w==='Solist').length;
-    const lentCount     = weaknesses.filter(w=>w==='Lent').length;
-    const vitezomaniCount = strengths.filter(s=>s==='Vitezoman').length;
+    const has  = id => allTags.includes(id);
+    const count= id => allTags.filter(t=>t===id).length;
 
-    // Priority order: danger > warn > ok
-    if(!hasZid && archs.length >= 2)
+    // Defensive check
+    const hasDefense = has('gropat')||has('bariera')||has('interceptor')||has('zid_gk');
+    // Playmaker/vision check
+    const hasPasator = has('pasator')||has('interceptor');
+    // Finisher check
+    const hasFinisher = has('chirurg')||has('tunar');
+    // Problem counts
+    const individualistCount = count('individualist');
+    const staticCount = count('static');
+    const argintViu = has('argint_viu')||has('plaman');
+
+    // Priority: danger > warn > ok
+    if(!hasDefense && teamPlayers.length >= 2)
         return {cls:'tbi-danger', msg:'🛡️ Apărare descoperită!'};
-    if(solistiCount >= 2 || !hasPlaymaker)
+    if(individualistCount >= 2 || !hasPasator)
         return {cls:'tbi-warn', msg:'⚠️ Prea mulți individualiști!'};
-    if(lentCount > vitezomaniCount && lentCount >= 2)
+    if(staticCount >= 2 && !argintViu)
         return {cls:'tbi-warn', msg:'🐢 Lipsă viteză în teren'};
-    if(hasZid && hasPlaymaker && hasFinalizator)
+    if(hasDefense && hasPasator && hasFinisher)
         return {cls:'tbi-ok', msg:'✅ Echipă echilibrată'};
     return null;
 }
@@ -2682,7 +2776,7 @@ function closeMatchModal(){document.getElementById('matchModalOverlay').style.di
 function openQuickVote(){
     const activePlayers=db.players.filter(p=>p.status==='orange'||p.status==='green');
     if(activePlayers.length===0){showToast('⚠️ Niciun jucător activ în meci!');return;}
-    qvVotes={};activePlayers.forEach(p=>{qvVotes[p.id]={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};});
+    qvVotes={};activePlayers.forEach(p=>{qvVotes[p.id]={general:null,tags:[]};});
     const sel=document.getElementById('qvRaterSelect');sel.innerHTML='<option value="">— Selectează —</option>';
     db.players.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
     const o=document.createElement('option');o.value='__other__';o.textContent='✏️ Altcineva...';sel.appendChild(o);
@@ -2695,6 +2789,23 @@ function closeQuickVote(){document.getElementById('qvModalOverlay').style.displa
 function buildQvPlayersList(players){
     const container=document.getElementById('qvPlayersList');container.innerHTML='';
     const orange=players.filter(p=>p.status==='orange'),green=players.filter(p=>p.status==='green');
+
+    // Build tag buttons HTML grouped by category
+    function buildTagButtons(pid){
+        const cats=[
+            {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
+            {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
+            {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
+            {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
+        ];
+        return `<div class="qv-tags-section">`+cats.map(cat=>`
+            <div class="qv-tags-cat">${cat.label}</div>
+            <div class="qv-tags-row">${cat.ids.map(id=>{
+                const t=PT_BY_ID[id];if(!t)return '';
+                return `<button class="qv-tag-btn" id="qvtag-${pid}-${id}" onclick="qvToggleTag(${pid},'${id}')">${t.icon} ${t.label}</button>`;
+            }).join('')}</div>`).join('')+`</div>`;
+    }
+
     function renderTeam(teamPlayers,label,color){
         if(!teamPlayers.length)return;
         const lbl=document.createElement('div');lbl.className='qv-team-label';lbl.style.color=color;lbl.textContent=label;container.appendChild(lbl);
@@ -2702,18 +2813,36 @@ function buildQvPlayersList(players){
             const avg=getGeneralAvg(p).toFixed(1),row=document.createElement('div');
             row.className='qv-player-row';row.id=`qvrow-${p.id}`;
             let genBtns='';for(let i=1;i<=10;i++)genBtns+=`<button class="qv-gen-btn" data-v="${i}" onclick="qvSelectGeneral(${p.id},${i})">${i}</button>`;
-            row.innerHTML=`<div class="qv-player-top"><span class="qv-player-name">${p.name}</span><span class="qv-player-prev">⭐ ${avg}</span><button class="qv-details-btn" id="qvdetbtn-${p.id}" onclick="qvToggleDetails(${p.id})">+ detalii</button></div>
+            row.innerHTML=`
+                <div class="qv-player-top">
+                    <span class="qv-player-name">${p.name}</span>
+                    <span class="qv-player-prev">⭐ ${avg}</span>
+                    <button class="qv-details-btn" id="qvdetbtn-${p.id}" onclick="qvToggleDetails(${p.id})">+ statusuri</button>
+                </div>
                 <div class="qv-gen-row" id="qvgen-${p.id}">${genBtns}</div>
-                <div class="qv-sub-section" id="qvsub-${p.id}"><div class="qv-sub-grid">${['viteza','tehnica','strategie','aparare'].map(cat=>`<div class="qv-sub-group"><div class="qv-sub-label">${{viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'}[cat]}<span class="qv-sub-val unset" id="qvsublbl-${p.id}-${cat}">—</span></div><div class="qv-sub-row" id="qvsubrow-${p.id}-${cat}">${Array.from({length:10},(_,i)=>`<button class="qv-sub-btn" onclick="qvSelectSub(${p.id},'${cat}',${i+1})">${i+1}</button>`).join('')}</div></div>`).join('')}</div></div>`;
+                <div class="qv-sub-section" id="qvsub-${p.id}">${buildTagButtons(p.id)}</div>`;
             container.appendChild(row);
         });
     }
     renderTeam(orange,'🟠 Echipa Portocalie','var(--orange)');
     renderTeam(green,'🟢 Echipa Verde','var(--green)');
 }
-function qvSelectGeneral(playerId,val){qvVotes[playerId].general=val;document.querySelectorAll(`#qvgen-${playerId} .qv-gen-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));updateQvProgress();}
-function qvSelectSub(playerId,cat,val){qvVotes[playerId][cat]=val;const lbl=document.getElementById(`qvsublbl-${playerId}-${cat}`);lbl.textContent=val;lbl.className='qv-sub-val set';document.querySelectorAll(`#qvsubrow-${playerId}-${cat} .qv-sub-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));}
-function qvToggleDetails(playerId){const sub=document.getElementById(`qvsub-${playerId}`),btn=document.getElementById(`qvdetbtn-${playerId}`);btn.textContent=sub.classList.toggle('open')?'− detalii':'+ detalii';}
+function qvSelectGeneral(playerId,val){
+    qvVotes[playerId].general=val;
+    document.querySelectorAll(`#qvgen-${playerId} .qv-gen-btn`).forEach((b,i)=>b.classList.toggle('selected',i+1===val));
+    updateQvProgress();
+}
+function qvToggleTag(playerId,tagId){
+    if(!qvVotes[playerId].tags) qvVotes[playerId].tags=[];
+    const idx=qvVotes[playerId].tags.indexOf(tagId);
+    if(idx>=0) qvVotes[playerId].tags.splice(idx,1);
+    else qvVotes[playerId].tags.push(tagId);
+    const t=PT_BY_ID[tagId];
+    const cls=t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu';
+    const btn=document.getElementById(`qvtag-${playerId}-${tagId}`);
+    if(btn){btn.className='qv-tag-btn';if(idx<0)btn.classList.add(cls);}
+}
+function qvToggleDetails(playerId){const sub=document.getElementById(`qvsub-${playerId}`),btn=document.getElementById(`qvdetbtn-${playerId}`);btn.textContent=sub.classList.toggle('open')?'− statusuri':'+ statusuri';}
 function updateQvProgress(){const total=Object.keys(qvVotes).length,done=Object.values(qvVotes).filter(v=>v.general!==null).length;document.getElementById('qvProgress').innerHTML=`Votat: <span>${done}/${total}</span> jucători`;}
 async function submitQuickVote(){
     const selVal=document.getElementById('qvRaterSelect').value;
@@ -2722,15 +2851,16 @@ async function submitQuickVote(){
     const rated=Object.entries(qvVotes).filter(([,v])=>v.general!==null);
     if(rated.length===0){showToast('⚠️ Nu ai votat niciun jucător!');return;}
     rated.forEach(([id,v])=>{
-        const g=v.general,p=db.players.find(x=>x.id==id);
-        const r={_dbId:null,rater:name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g};
-        p.ratings.push(r);
+        const g=v.general, tags=v.tags||[];
+        const cols=tagsToColumns(tags,g);
+        const p=db.players.find(x=>x.id==id);
+        p.ratings.push({_dbId:null,rater:name,date:today,tags:tags.join(','),general:g,...cols});
     });
     render();closeQuickVote();showToast(`✅ ${rated.length} note salvate de la ${name}!`);
-    // Save all to DB
     for(const [id,v] of rated){
-        const g=v.general;
-        const rData={rater:name,date:today,general:g,viteza:v.viteza??g,tehnica:v.tehnica??g,strategie:v.strategie??g,aparare:v.aparare??g};
+        const g=v.general, tags=v.tags||[];
+        const cols=tagsToColumns(tags,g);
+        const rData={rater:name,date:today,tags:tags.join(','),general:g,...cols};
         try{
             const dbId=await dbInsertRating(id,rData);
             const p=db.players.find(x=>x.id==id);
@@ -3552,7 +3682,7 @@ function openVotingModal(match, players, raterName) {
         detailsOpen: {}
     };
     players.forEach(p => {
-        voteState.votes[p.id] = { general:null, viteza:null, tehnica:null, strategie:null, aparare:null };
+        voteState.votes[p.id] = { general:null, tags:[] };
         voteState.detailsOpen[p.id] = false;
     });
     buildVoteSlides();
@@ -3564,6 +3694,13 @@ function buildVoteSlides() {
     const container = document.getElementById('voteSlides');
     container.innerHTML = '';
 
+    const tagCats=[
+        {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
+        {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
+        {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
+        {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
+    ];
+
     voteState.players.forEach((p, idx) => {
         const avg = getGeneralAvg(p).toFixed(1);
         const inOrange = voteState.match.orange_players?.includes(p.name);
@@ -3571,28 +3708,17 @@ function buildVoteSlides() {
             ? '<span class="vote-player-team team-o">🟠 Portocaliu</span>'
             : '<span class="vote-player-team team-g">🟢 Verde</span>';
 
-        // General buttons 1-10
         let genBtns = '';
         for (let i = 1; i <= 10; i++) {
             genBtns += `<button class="vote-gen-btn" data-v="${i}" id="vgb-${p.id}-${i}" onclick="voteSelectGeneral(${p.id},${i})">${i}</button>`;
         }
 
-        // Sub-cat rows
-        const subCats = [
-            {key:'viteza',   label:'⚡ Viteză'},
-            {key:'tehnica',  label:'🎯 Tehnică'},
-            {key:'strategie',label:'🧠 Strategie'},
-            {key:'aparare',  label:'🛡️ Apărare'}
-        ];
-        const subGridHtml = subCats.map(c => `
-            <div class="vote-sub-group">
-                <div class="vote-sub-label">${c.label}
-                    <span class="vote-sub-val unset" id="vsv-${p.id}-${c.key}">—</span>
-                </div>
-                <div class="vote-sub-row" id="vsr-${p.id}-${c.key}">
-                    ${Array.from({length:10},(_,i)=>`<button class="vote-sub-btn" onclick="voteSelectSub(${p.id},'${c.key}',${i+1})">${i+1}</button>`).join('')}
-                </div>
-            </div>`).join('');
+        const tagSections = tagCats.map(cat=>`
+            <div class="qv-tags-cat">${cat.label}</div>
+            <div class="qv-tags-row">${cat.ids.map(id=>{
+                const t=PT_BY_ID[id];if(!t)return '';
+                return `<button class="qv-tag-btn" id="vtag-${p.id}-${id}" onclick="voteToggleTag(${p.id},'${id}')">${t.icon} ${t.label}</button>`;
+            }).join('')}</div>`).join('');
 
         const slide = document.createElement('div');
         slide.className = 'vote-slide' + (idx === 0 ? ' active' : '');
@@ -3606,25 +3732,19 @@ function buildVoteSlides() {
                     ${teamLabel}
                 </div>
             </div>
-
             <div class="vote-general-label">
                 <span>⚽ NOTĂ GENERALĂ</span>
                 <span class="vote-general-val empty" id="vgv-${p.id}">—</span>
             </div>
             <div class="vote-gen-row">${genBtns}</div>
-
             <button class="vote-details-toggle" id="vdt-${p.id}" onclick="voteToggleDetails(${p.id})">
-                ➕ Adaugă avantaje / dezavantaje
+                ➕ Statusuri jucător
             </button>
             <div class="vote-details-wrap" id="vdw-${p.id}">
-                <div class="vote-details-inner">
-                    <div style="font-size:0.7rem;color:#333;margin-bottom:8px;font-style:italic;">Opțional — restul = nota generală</div>
-                    <div class="vote-sub-grid">${subGridHtml}</div>
-                </div>
+                <div class="vote-details-inner">${tagSections}</div>
             </div>`;
         container.appendChild(slide);
     });
-
     buildVoteDots();
 }
 
@@ -3639,26 +3759,26 @@ function buildVoteDots() {
 
 function voteSelectGeneral(playerId, val) {
     voteState.votes[playerId].general = val;
-
-    // Update button styles
     for (let i = 1; i <= 10; i++) {
         const btn = document.getElementById(`vgb-${playerId}-${i}`);
         if (btn) btn.classList.toggle('sel', i === val);
     }
-    // Update big value display
     const valEl = document.getElementById(`vgv-${playerId}`);
     if (valEl) { valEl.textContent = val; valEl.className = 'vote-general-val filled'; }
-
-    // Unlock next button
     updateVoteNextBtn();
     buildVoteDots();
 }
 
-function voteSelectSub(playerId, cat, val) {
-    voteState.votes[playerId][cat] = val;
-    const lbl = document.getElementById(`vsv-${playerId}-${cat}`);
-    if (lbl) { lbl.textContent = val; lbl.className = 'vote-sub-val set'; }
-    document.querySelectorAll(`#vsr-${playerId}-${cat} .vote-sub-btn`).forEach((b,i) => b.classList.toggle('sel', i+1===val));
+function voteToggleTag(playerId, tagId){
+    if(!voteState.votes[playerId].tags) voteState.votes[playerId].tags=[];
+    const arr=voteState.votes[playerId].tags;
+    const idx=arr.indexOf(tagId);
+    if(idx>=0) arr.splice(idx,1);
+    else arr.push(tagId);
+    const t=PT_BY_ID[tagId];
+    const cls=t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu';
+    const btn=document.getElementById(`vtag-${playerId}-${tagId}`);
+    if(btn){btn.className='qv-tag-btn';if(idx<0)btn.classList.add(cls);}
 }
 
 function voteToggleDetails(playerId) {
@@ -3667,7 +3787,7 @@ function voteToggleDetails(playerId) {
     document.getElementById(`vdw-${playerId}`).classList.toggle('open', open);
     const btn = document.getElementById(`vdt-${playerId}`);
     btn.classList.toggle('open', open);
-    btn.innerHTML = (open ? '➖ Ascunde detalii' : '➕ Adaugă avantaje / dezavantaje');
+    btn.innerHTML = (open ? '➖ Ascunde statusuri' : '➕ Statusuri jucător');
 }
 
 function voteNext() {
