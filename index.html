@@ -1660,17 +1660,23 @@ function renderHistory(){
 function renderLobby(){
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
-    if(nm.date){
+    const bd = document.getElementById('matchBannerDate');
+
+    // Check if next match date+time is actually in the past
+    const matchIsPast = nm.date && (() => {
+        const dt = new Date(nm.date + 'T' + (nm.time || '23:59'));
+        return dt < new Date();
+    })();
+
+    if(nm.date && !matchIsPast){
         const d=new Date(nm.date+'T'+(nm.time||'00:00'));
         let str=d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
         if(nm.time)str+=' · '+nm.time;
         if(nm.location)str+=' · '+nm.location;
         dtEl.textContent=str;dtEl.className='lobby-datetime';
-        const bd = document.getElementById('matchBannerDate');
         if(bd) bd.textContent='📅 ' + str;
     }else{
         dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';
-        const bd = document.getElementById('matchBannerDate');
         if(bd) bd.textContent='';
     }
 
@@ -3294,20 +3300,33 @@ async function checkPendingVotes() {
     if (!myPlayer && currentProfile?.display_name) myPlayer = db.players.find(p => p.name.toLowerCase() === currentProfile.display_name.toLowerCase());
     if (!myPlayer) return;
 
-    // Ia meciurile din DB ordonate descrescător după created_at
+    // Ia meciurile din DB — toate, sortăm noi după data reală
     const { data: allMatches } = await sb
         .from('match_history').select('*')
-        .order('created_at', { ascending: false }).limit(30);
+        .order('created_at', { ascending: false }).limit(50);
 
     if (!allMatches?.length) return;
 
+    // Sortează după data reală a meciului, cel mai recent primul
+    allMatches.sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+
     // Găsește cel mai recent meci din trecut în care a jucat
-    const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+    const now = new Date(); // ora exactă, nu miezul nopții
 
     let lastMatch = null;
     for (const m of allMatches) {
         const md = parseMatchDate(m.date);
-        if (md >= todayDate) continue; // meci viitor sau azi — skip
+        // Consideră meciul trecut dacă data lui e < azi SAU e azi dar ora a trecut
+        const matchDateTime = new Date(md);
+        // Dacă există oră în DB, o adăugăm
+        if (m.match_time || m.time) {
+            const t = m.match_time || m.time;
+            const [h,min] = t.split(':');
+            matchDateTime.setHours(parseInt(h)||0, parseInt(min)||0, 0, 0);
+        } else {
+            matchDateTime.setHours(23, 59, 0, 0); // fără oră = consider ziua întreagă
+        }
+        if (matchDateTime >= now) continue; // meci viitor sau în curs — skip
 
         const allInMatch = [...(m.orange_players||[]), ...(m.green_players||[])];
 
