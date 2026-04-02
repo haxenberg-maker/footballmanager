@@ -488,8 +488,8 @@
         .qv-gen-btn[data-v="9"].selected,.qv-gen-btn[data-v="10"].selected{background:#00e5ff;border-color:#00e5ff;color:#000;}
         .qv-details-btn{font-size:0.72rem;color:#444;background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'Rajdhani',sans-serif;font-weight:600;transform:none;}
         .qv-details-btn:hover{color:#a78bfa;filter:none;transform:none;}
-        .qv-sub-section{max-height:0;overflow:hidden;transition:max-height 0.3s ease;}
-        .qv-sub-section.open{max-height:200px;}
+        .qv-sub-section{max-height:0;overflow:hidden;transition:max-height 0.4s ease;}
+        .qv-sub-section.open{max-height:800px;}
         .qv-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:8px;}
         .qv-sub-group{display:flex;flex-direction:column;gap:3px;}
         .qv-sub-label{font-size:0.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;}
@@ -2804,13 +2804,14 @@ function buildModalStats(p){
     const admin = isAdmin();
     const NEEDED = 3;
 
-    // Show tags with ≥1 vote OR admin-set; group by category
+    // Show tags: admin sees ALL from config; others see only voted/admin-set
     const catsWithTags = {};
     tagsConfig.forEach(tag=>{
         const tid = String(tag.id);
         const s = tagStats[tid]||{distinctVoters:0,missedMatches:0,expired:false,votes:[]};
         const isAdminSet = adminSet.has(tid);
-        if(!isAdminSet && s.distinctVoters === 0) return; // hide tags with 0 votes
+        // Admin sees everything; non-admin sees only tags with ≥1 vote or admin-set
+        if(!admin && !isAdminSet && s.distinctVoters === 0) return;
         const cat = tag.category||'other';
         if(!catsWithTags[cat]) catsWithTags[cat]=[];
         const active = isAdminSet || (s.distinctVoters>=NEEDED && !s.expired);
@@ -2820,7 +2821,9 @@ function buildModalStats(p){
 
     let gridHtml = '';
     if(Object.keys(catsWithTags).length === 0){
-        gridHtml = '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Niciun status votat încă pentru acest jucător.</div>';
+        gridHtml = admin
+            ? '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Tag-urile nu sunt configurate. Adaugă din Setări → 🏷️ Tag-uri.</div>'
+            : '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Niciun status votat încă pentru acest jucător.</div>';
     } else {
         Object.entries(catsWithTags).forEach(([cat,items])=>{
             const catLabel = CAT_LABELS_CONFIG[cat]||cat;
@@ -2833,13 +2836,13 @@ function buildModalStats(p){
                 const statusIcon = isAdminSet?'👑':active?(nearExpiry?'⏳':'✅'):'○';
                 const badgeOpacity = active?1:0.4;
 
-                // Admin toggle button
+                // Admin toggle button — visible for ALL tags when admin
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
-                    style="background:${isAdminSet?'rgba(255,140,0,.15)':'rgba(61,90,254,.1)'};
-                    border:1px solid ${isAdminSet?'var(--orange)':'var(--accent)'};
-                    color:${isAdminSet?'var(--orange)':'#82b1ff'};"
+                    style="background:${isAdminSet?'rgba(255,140,0,.15)':'rgba(61,90,254,.08)'};
+                    border:1px solid ${isAdminSet?'var(--orange)':'#2a2d40'};
+                    color:${isAdminSet?'var(--orange)':'#555'};"
                     onclick="adminToggleTag(${p.id},'${tid}')">
-                    ${isAdminSet?'👑 Dezact.':'⚡ Admin'}
+                    ${isAdminSet?'👑 Dezactivează':'+ Activează'}
                 </button>` : '';
 
                 // Vote history
