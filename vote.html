@@ -313,12 +313,15 @@ async function init(){
     const title = localStorage.getItem('site_title');
     if(title) document.getElementById('siteTitle').textContent = title;
 
-    const now=new Date();now.setHours(0,0,0,0);
+    // now = sfârșitul zilei de azi → meciurile de azi sunt incluse
+    const now=new Date();now.setHours(23,59,59,999);
     const[mr,pr]=await Promise.all([
         sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(50),
         sb.from('players').select('id,name').order('name')
     ]);
-    allMatches=(mr.data||[]).filter(m=>parseDate(m.date)<now).sort((a,b)=>parseDate(b.date)-parseDate(a.date));
+    allMatches=(mr.data||[])
+        .filter(m=>parseDate(m.date)<=now)
+        .sort((a,b)=>parseDate(b.date)-parseDate(a.date));
     allPlayers=pr.data||[];
 
     // Check if returning user
@@ -361,17 +364,27 @@ async function startAs(name){
     // Save identity
     localStorage.setItem(LS_PLAYER, name);
 
-    // Find matches where this player participated AND hasn't voted
-    const{data:voted}=await sb.from('ratings').select('rater,created_at').eq('rater',name);
+    // Ia ratingurile existente cu câmpul date (DD.MM.YYYY)
+    const{data:myRatings}=await sb.from('ratings').select('date,created_at').eq('rater',name);
     const votedAfter=new Set();
-    if(voted?.length){
-        // Map: match_id → has voted (check if rating created_at > match created_at)
-        allMatches.forEach(m=>{
-            const hasVoted=voted.some(v=>new Date(v.created_at)>new Date(m.created_at||0));
-            if(hasVoted) votedAfter.add(m.id);
+
+    if(myRatings?.length){
+        // Sortează meciurile după dată crescător pentru a putea face fereastră
+        const sorted=[...allMatches].sort((a,b)=>parseDate(a.date)-parseDate(b.date));
+        sorted.forEach((m,idx)=>{
+            const matchDate=parseDate(m.date);
+            // Fereastra de vot: de la data meciului curent până la data meciului următor
+            const nextMatch=sorted[idx+1];
+            const nextDate=nextMatch?parseDate(nextMatch.date):new Date();
+            // Dacă utilizatorul are orice rating cu data >= data meciului și < data meciului următor
+            const voted=myRatings.some(r=>{
+                const rd=parseDate(r.date);
+                return rd>=matchDate && rd<nextDate;
+            });
+            if(voted) votedAfter.add(m.id);
         });
     }
-    // Also check localStorage cache
+    // Cache localStorage
     allMatches.forEach(m=>{if(localStorage.getItem(`v_${name}_${m.id}`))votedAfter.add(m.id);});
 
     // Filter: matches with this player AND not voted
