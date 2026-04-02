@@ -285,34 +285,34 @@
 const SB_URL ='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
-// Player Tags System (matches index.html)
-const PLAYER_TAGS = [
-    {id:'argint_viu',  icon:'🌪️', label:'Argint viu',    cat:'conditie',  type:'pos', cols:{viteza:9}},
-    {id:'plaman',      icon:'💪', label:'Plămân',         cat:'conditie',  type:'pos', cols:{aparare:8}},
-    {id:'pivot',       icon:'🔄', label:'Pivot',          cat:'conditie',  type:'pos', cols:{tehnica:8}},
-    {id:'static',      icon:'🪨', label:'Static',         cat:'conditie',  type:'neg', cols:{viteza:3}},
-    {id:'gropat',      icon:'🏰', label:'Gropat',         cat:'defensiva', type:'pos', cols:{aparare:9}},
-    {id:'bariera',     icon:'🧱', label:'Barieră',        cat:'defensiva', type:'pos', cols:{aparare:8}},
-    {id:'interceptor', icon:'🎯', label:'Interceptor',    cat:'defensiva', type:'pos', cols:{strategie:9}},
-    {id:'dur',         icon:'🔥', label:'Dur',            cat:'defensiva', type:'neg', cols:{aparare:4}},
-    {id:'chirurg',     icon:'🔪', label:'Chirurg',        cat:'atac',      type:'pos', cols:{tehnica:10}},
-    {id:'tunar',       icon:'💥', label:'Tunar',           cat:'atac',      type:'pos', cols:{viteza:8, tehnica:8}},
-    {id:'pasator',     icon:'🎭', label:'Pasator',        cat:'atac',      type:'pos', cols:{strategie:9}},
-    {id:'individualist',icon:'🤡',label:'Individualist',  cat:'atac',      type:'neg', cols:{strategie:3}},
-    {id:'zid_gk',      icon:'🧤', label:'Zid (GK)',       cat:'portar',    type:'pos', cols:{aparare:10}},
-    {id:'portar_juc',  icon:'🎮', label:'Portar-Jucător', cat:'portar',    type:'pos', cols:{strategie:8}},
-    {id:'de_parada',   icon:'🌟', label:'De paradă',      cat:'portar',    type:'neu', cols:{tehnica:7}},
-];
-const PT_BY_ID = Object.fromEntries(PLAYER_TAGS.map(t=>[t.id,t]));
+// ── Dynamic Tags System (loaded from Supabase tags_config) ──────
+let tagsConfig = [];
+let PT_BY_ID = {};
+function buildPTById(){ PT_BY_ID=Object.fromEntries(tagsConfig.map(t=>[String(t.id),t])); }
+function tagById(id){ return PT_BY_ID[String(id)]||null; }
+const CAT_LABELS_CONFIG = {atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',negativ:'❌ Negative'};
 
-function tagsToColumns(tags, general){
+async function loadTagsConfig(){
+    const cacheKey='tags_config_cache', cacheTs='tags_config_ts';
+    const age=Date.now()-parseInt(localStorage.getItem(cacheTs)||'0');
+    if(age<60*60*1000){
+        const cached=localStorage.getItem(cacheKey);
+        if(cached){try{tagsConfig=JSON.parse(cached);buildPTById();return;}catch(e){}}
+    }
+    try{
+        const{data}=await sb.from('tags_config').select('*').order('sort_order');
+        if(data?.length){tagsConfig=data;localStorage.setItem(cacheKey,JSON.stringify(data));localStorage.setItem(cacheTs,Date.now().toString());}
+    }catch(e){console.warn('tags_config fetch failed:',e.message);}
+    buildPTById();
+}
+
+function tagsToColumns(tagIds, general){
     const cols={viteza:general,tehnica:general,strategie:general,aparare:general};
-    (tags||[]).forEach(id=>{
-        const t=PT_BY_ID[id];if(!t)return;
-        Object.entries(t.cols).forEach(([col,val])=>{
-            if(t.type==='pos') cols[col]=Math.max(cols[col],val);
-            else cols[col]=Math.min(cols[col],val);
-        });
+    (tagIds||[]).forEach(id=>{
+        const t=tagById(id);if(!t||!t.impact_attribute||t.impact_attribute==='general')return;
+        const attr=t.impact_attribute;
+        if(t.type==='pos') cols[attr]=Math.max(cols[attr],8);
+        else if(t.type==='neg') cols[attr]=Math.min(cols[attr],3);
     });
     return cols;
 }
@@ -349,6 +349,7 @@ function updateSteps(sid){
 }
 
 async function init(){
+    await loadTagsConfig();
     // Apply site title from localStorage
     const title = localStorage.getItem('site_title');
     if(title) document.getElementById('siteTitle').textContent = title;
@@ -543,22 +544,18 @@ function skipAllRatings(){finish(0);}
 function buildSlides(){
     const wrap=document.getElementById('slides');wrap.innerHTML='';
     const o=selMatch.orange_players||[];
-    const tagCats=[
-        {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
-        {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
-        {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
-        {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
-    ];
     toVote.forEach((p,idx)=>{
         const inO=o.includes(p.name),hasLists=o.length>0;
         const badge=hasLists?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠':'🟢'}</span>`:'';
         let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb-${k(p.name)}-${i}" onclick="pickG('${p.name}',${i})">${i}</button>`;
-        const tagSections=tagCats.map(cat=>`
-            <div class="arch-lbl">${cat.label}</div>
-            <div class="arch-tags">${cat.ids.map(id=>{
-                const t=PT_BY_ID[id];if(!t)return '';
-                return `<button class="arch-tag" id="pt-${k(p.name)}-${id}" onclick="toggleTag('${p.name}','${id}')">${t.icon} ${t.label}</button>`;
-            }).join('')}</div>`).join('');
+        // Build tag sections dynamically from tagsConfig
+        const cats=[...new Set(tagsConfig.map(t=>t.category))];
+        const tagSections=cats.map(cat=>{
+            const tags=tagsConfig.filter(t=>t.category===cat);
+            const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+            return `<div class="arch-lbl">${catLabel}</div>
+            <div class="arch-tags">${tags.map(t=>`<button class="arch-tag" id="pt-${k(p.name)}-${t.id}" onclick="toggleTag('${p.name}',${t.id})">${t.emoji} ${t.label}</button>`).join('')}</div>`;
+        }).join('');
         const sl=document.createElement('div');
         sl.className='slide'+(idx===0?' active':'');sl.id=`sl-${k(p.name)}`;
         sl.innerHTML=`<div class="slbl">Votează jucătorul</div><div class="sname">${p.name}</div><div class="smeta">${badge}</div><div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval e" id="gv-${k(p.name)}">—</span></div><div class="grow">${gb}</div><button class="dbtn" id="db-${k(p.name)}" onclick="togDet('${p.name}')">➕ Statusuri jucător</button><div class="dwrap" id="dw-${k(p.name)}"><div class="dinner">${tagSections}</div></div>`;
@@ -575,12 +572,12 @@ function pickG(name,v){
 }
 function toggleTag(name, id){
     if(!votes[name].tags) votes[name].tags=[];
+    const sid=String(id);
     const arr=votes[name].tags;
-    const idx=arr.indexOf(id);
-    if(idx>=0) arr.splice(idx,1);
-    else arr.push(id);
-    const t=PT_BY_ID[id];
-    const cls=t.type==='pos'?'sel-s':t.type==='neg'?'sel-w':'sel-n';
+    const idx=arr.indexOf(sid);
+    if(idx>=0) arr.splice(idx,1); else arr.push(sid);
+    const t=tagById(sid);
+    const cls=t?(t.type==='pos'?'sel-s':t.type==='neg'?'sel-w':'sel-n'):'sel-n';
     const btn=document.getElementById(`pt-${k(name)}-${id}`);
     if(btn){btn.className='arch-tag';if(idx<0)btn.classList.add(cls);}
     if(navigator.vibrate)navigator.vibrate(20);

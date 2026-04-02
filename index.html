@@ -1007,6 +1007,7 @@
             <div class="settings-tab" onclick="switchSettingsTab('notifications')">🔔 Notificări</div>
             <div class="settings-tab" onclick="switchSettingsTab('export')">📦 Date</div>
             <div class="settings-tab" onclick="switchSettingsTab('algorithm')">⚙️ Algoritm</div>
+            <div class="settings-tab" onclick="switchSettingsTab('tags')">🏷️ Tag-uri</div>
             <div class="settings-tab" onclick="switchSettingsTab('season')">🔄 Sezon</div>
         </div>
     </div>
@@ -1091,6 +1092,41 @@
                 <button onclick="saveAlgorithm()" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
                 <button onclick="resetAlgorithm()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;">↺ Reset</button>
             </div>
+        </div>
+
+        <div class="settings-panel" id="panel-tags">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;">Tag-uri configurabile</div>
+                <button onclick="openAddTag()" style="background:var(--accent);color:#fff;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;">+ Tag Nou</button>
+            </div>
+            <!-- Add form (hidden by default) -->
+            <div id="addTagForm" style="display:none;background:#0d1020;border:1px solid #1e2130;border-radius:10px;padding:14px;margin-bottom:14px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:#fff;margin-bottom:10px;">Tag Nou</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">EMOJI</div><input id="ntEmoji" type="text" maxlength="4" placeholder="🎯" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:1rem;outline:none;text-align:center;"></div>
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">LABEL</div><input id="ntLabel" type="text" placeholder="Șut Bun" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">TIP</div>
+                        <select id="ntType" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
+                            <option value="pos">✅ Pozitiv</option><option value="neg">❌ Negativ</option><option value="neu">⚪ Neutru</option>
+                        </select></div>
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">CATEGORIE</div>
+                        <select id="ntCat" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
+                            <option value="atac">⚽ Atac</option><option value="aparare">🛡️ Apărare</option><option value="efort">🏃 Efort</option><option value="portar">🧤 Portar</option><option value="negativ">❌ Negative</option>
+                        </select></div>
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">ATRIBUT</div>
+                        <select id="ntAttr" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
+                            <option value="viteza">Viteză</option><option value="tehnica">Tehnică</option><option value="strategie">Strategie</option><option value="aparare">Apărare</option><option value="general">General</option>
+                        </select></div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#fff;padding:9px;border-radius:8px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
+                    <button onclick="document.getElementById('addTagForm').style.display='none'" style="padding:9px 14px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;border-radius:8px;cursor:pointer;">✕</button>
+                </div>
+            </div>
+            <!-- Tags list -->
+            <div id="tagsList"></div>
         </div>
 
         <div class="settings-panel" id="panel-season">
@@ -1229,47 +1265,86 @@ const CAT_LABELS = {general:'⚽ General',viteza:'⚡ Viteză',tehnica:'🎯 Teh
 const CAT_COLORS = {general:'#ffcc00',viteza:'#ff8c00',tehnica:'#3d5afe',strategie:'#00bcd4',aparare:'#4caf50'};
 
 // ── Player Tags System ───────────────────────────────────────────
-const PLAYER_TAGS = [
-    // 🏃 Condiție & Mișcare
-    {id:'argint_viu',  icon:'🌪️', label:'Argint viu',    cat:'conditie',  type:'pos', cols:{viteza:9}},
-    {id:'plaman',      icon:'💪', label:'Plămân',         cat:'conditie',  type:'pos', cols:{aparare:8}},
-    {id:'pivot',       icon:'🔄', label:'Pivot',          cat:'conditie',  type:'pos', cols:{tehnica:8}},
-    {id:'static',      icon:'🪨', label:'Static',         cat:'conditie',  type:'neg', cols:{viteza:3}},
-    // 🛡️ Defensivă
-    {id:'gropat',      icon:'🏰', label:'Gropat',         cat:'defensiva', type:'pos', cols:{aparare:9}},
-    {id:'bariera',     icon:'🧱', label:'Barieră',        cat:'defensiva', type:'pos', cols:{aparare:8}},
-    {id:'interceptor', icon:'🎯', label:'Interceptor',    cat:'defensiva', type:'pos', cols:{strategie:9}},
-    {id:'dur',         icon:'🔥', label:'Dur',            cat:'defensiva', type:'neg', cols:{aparare:4}},
-    // ⚽ Atac & Execuție
-    {id:'chirurg',     icon:'🔪', label:'Chirurg',        cat:'atac',      type:'pos', cols:{tehnica:10}},
-    {id:'tunar',       icon:'💥', label:'Tunar',          cat:'atac',      type:'pos', cols:{viteza:8, tehnica:8}},
-    {id:'pasator',     icon:'🎭', label:'Pasator',        cat:'atac',      type:'pos', cols:{strategie:9}},
-    {id:'individualist',icon:'🤡',label:'Individualist',  cat:'atac',      type:'neg', cols:{strategie:3}},
-    // 🧤 Portar
-    {id:'zid_gk',      icon:'🧤', label:'Zid (GK)',       cat:'portar',    type:'pos', cols:{aparare:10}},
-    {id:'portar_juc',  icon:'🎮', label:'Portar-Jucător', cat:'portar',    type:'pos', cols:{strategie:8}},
-    {id:'de_parada',   icon:'🌟', label:'De paradă',      cat:'portar',    type:'neu', cols:{tehnica:7}},
-];
-const PT_BY_ID = Object.fromEntries(PLAYER_TAGS.map(t=>[t.id,t]));
+// ── Dynamic Tags System (loaded from Supabase tags_config) ──────
+let tagsConfig = []; // populated by loadTagsConfig()
 
-// Map tags array → numeric columns for DB save
-function tagsToColumns(tags, general){
+// Default tags — seeded if table is empty
+const DEFAULT_TAGS_CONFIG = [
+    // Atac
+    {label:'Șut Bun',         emoji:'🎯', type:'pos', category:'atac',    impact_attribute:'tehnica',   sort_order:1},
+    {label:'Pasează Mult',    emoji:'🎭', type:'pos', category:'atac',    impact_attribute:'strategie', sort_order:2},
+    {label:'Driblează',       emoji:'🌪️', type:'pos', category:'atac',    impact_attribute:'viteza',    sort_order:3},
+    {label:'Finalizator',     emoji:'🥅', type:'pos', category:'atac',    impact_attribute:'tehnica',   sort_order:4},
+    // Apărare
+    {label:'Stă în Spate',    emoji:'🏰', type:'pos', category:'aparare', impact_attribute:'aparare',   sort_order:5},
+    {label:'Pune Corpul',     emoji:'🧱', type:'pos', category:'aparare', impact_attribute:'aparare',   sort_order:6},
+    {label:'Interceptează',   emoji:'✋', type:'pos', category:'aparare', impact_attribute:'strategie', sort_order:7},
+    {label:'Dur',             emoji:'🔥', type:'neg', category:'aparare', impact_attribute:'aparare',   sort_order:8},
+    // Efort
+    {label:'Aleargă Mult',    emoji:'💪', type:'pos', category:'efort',   impact_attribute:'viteza',    sort_order:9},
+    {label:'Rapid',           emoji:'⚡', type:'pos', category:'efort',   impact_attribute:'viteza',    sort_order:10},
+    {label:'Static',          emoji:'🪨', type:'neg', category:'efort',   impact_attribute:'viteza',    sort_order:11},
+    {label:'Pivot',           emoji:'🔄', type:'pos', category:'efort',   impact_attribute:'tehnica',   sort_order:12},
+    // Portar
+    {label:'Reflexe',         emoji:'🧤', type:'pos', category:'portar',  impact_attribute:'aparare',   sort_order:13},
+    {label:'Iese pe Inter.',  emoji:'🎮', type:'pos', category:'portar',  impact_attribute:'strategie', sort_order:14},
+    {label:'Spectaculos',     emoji:'🌟', type:'neu', category:'portar',  impact_attribute:'tehnica',   sort_order:15},
+    // Negative
+    {label:'Nu pasează',      emoji:'🤡', type:'neg', category:'negativ', impact_attribute:'strategie', sort_order:16},
+    {label:'Picior de lemn',  emoji:'🦵', type:'neg', category:'negativ', impact_attribute:'tehnica',   sort_order:17},
+    {label:'Obosește repede', emoji:'🪫', type:'neg', category:'negativ', impact_attribute:'aparare',   sort_order:18},
+];
+
+const CAT_LABELS_CONFIG = {atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',negativ:'❌ Negative'};
+
+async function loadTagsConfig(){
+    // Try localStorage cache first (keyed by hour for freshness)
+    const cacheKey = 'tags_config_cache';
+    const cacheTs  = 'tags_config_ts';
+    const cacheAge = Date.now() - parseInt(localStorage.getItem(cacheTs)||'0');
+    if(cacheAge < 60*60*1000){ // 1h cache
+        const cached = localStorage.getItem(cacheKey);
+        if(cached){ try{ tagsConfig=JSON.parse(cached); buildPTById(); return; }catch(e){} }
+    }
+    try{
+        const{data,error}=await sb.from('tags_config').select('*').order('sort_order');
+        if(error) throw error;
+        if(data?.length){
+            tagsConfig=data;
+        } else {
+            // Seed defaults
+            const{data:seeded}=await sb.from('tags_config').insert(DEFAULT_TAGS_CONFIG).select();
+            tagsConfig=seeded||DEFAULT_TAGS_CONFIG.map((t,i)=>({...t,id:i+1}));
+        }
+        localStorage.setItem(cacheKey, JSON.stringify(tagsConfig));
+        localStorage.setItem(cacheTs, Date.now().toString());
+    }catch(e){
+        console.warn('tags_config load failed, using defaults:',e.message);
+        tagsConfig=DEFAULT_TAGS_CONFIG.map((t,i)=>({...t,id:i+1}));
+    }
+    buildPTById();
+}
+
+let PT_BY_ID = {};
+function buildPTById(){ PT_BY_ID=Object.fromEntries(tagsConfig.map(t=>[String(t.id),t])); }
+
+function tagById(id){ return PT_BY_ID[String(id)] || null; }
+
+// Map selected tag IDs → old numeric columns for DB compat
+function tagsToColumns(tagIds, general){
     const cols={viteza:general,tehnica:general,strategie:general,aparare:general};
-    (tags||[]).forEach(id=>{
-        const t=PT_BY_ID[id];if(!t)return;
-        Object.entries(t.cols).forEach(([col,val])=>{
-            if(t.type==='pos') cols[col]=Math.max(cols[col],val);
-            else cols[col]=Math.min(cols[col],val);
-        });
+    (tagIds||[]).forEach(id=>{
+        const t=tagById(id); if(!t||!t.impact_attribute||t.impact_attribute==='general') return;
+        const attr=t.impact_attribute;
+        if(t.type==='pos') cols[attr]=Math.max(cols[attr],8);
+        else if(t.type==='neg') cols[attr]=Math.min(cols[attr],3);
     });
     return cols;
 }
 
-// Get aggregated tags for a player from their ratings
+// Get aggregated tags for a player (admin override or vote-computed)
 function getPlayerTags(p){
-    // Admin override takes priority
     if(p.adminTags?.length) return p.adminTags;
-    // Compute from ratings
     if(!p.ratings?.length) return [];
     const counts={};
     p.ratings.forEach(r=>{
@@ -1277,22 +1352,21 @@ function getPlayerTags(p){
             counts[id]=(counts[id]||0)+1;
         });
     });
-    // Return tags voted by >30% of raters
-    const threshold = Math.max(1, Math.floor(p.ratings.length*0.3));
+    const threshold=Math.max(1,Math.floor(p.ratings.length*0.3));
     return Object.entries(counts)
         .filter(([,n])=>n>=threshold)
         .sort((a,b)=>b[1]-a[1])
         .map(([id])=>id)
-        .filter(id=>PT_BY_ID[id]);
+        .filter(id=>tagById(id));
 }
 
-// Render tag badges HTML
+// Render tag badges — simple style, no effects
 function renderTagBadges(tagIds, adminSet=false){
     if(!tagIds?.length) return '';
     return tagIds.map(id=>{
-        const t=PT_BY_ID[id];if(!t)return '';
+        const t=tagById(id);if(!t)return '';
         const cls=t.type==='pos'?'tag-pos':t.type==='neg'?'tag-neg':'tag-neu';
-        return `<span class="ptag ${cls}${adminSet?' ptag-admin':''}">${t.icon} ${t.label}</span>`;
+        return `<span class="ptag ${cls}">${t.emoji} ${t.label}</span>`;
     }).join('');
 }
 
@@ -1492,6 +1566,7 @@ async function onAuthSuccess(user) {
 async function loadAll() {
     showLoading(true);
     try {
+        await loadTagsConfig();
         // Players + Ratings (joined)
         const { data: playersRaw, error: pe } = await sb
             .from('players')
@@ -1742,33 +1817,28 @@ function render(){
 }
 
 function analyzeTeamBalance(teamPlayers){
-    if(!teamPlayers.length) return null;
-    // Collect all tags from team
-    const allTags = teamPlayers.flatMap(p=>getPlayerTags(p));
-    if(!allTags.length) return null;
+    if(!teamPlayers.length || !tagsConfig.length) return null;
+    const allTagIds = teamPlayers.flatMap(p=>getPlayerTags(p));
+    if(!allTagIds.length) return null;
 
-    const has  = id => allTags.includes(id);
-    const count= id => allTags.filter(t=>t===id).length;
+    const allTags = allTagIds.map(id=>tagById(id)).filter(Boolean);
+    const posAttrs = allTags.filter(t=>t.type==='pos').map(t=>t.impact_attribute);
+    const negTags  = allTags.filter(t=>t.type==='neg');
 
-    // Defensive check
-    const hasDefense = has('gropat')||has('bariera')||has('interceptor')||has('zid_gk');
-    // Playmaker/vision check
-    const hasPasator = has('pasator')||has('interceptor');
-    // Finisher check
-    const hasFinisher = has('chirurg')||has('tunar');
-    // Problem counts
-    const individualistCount = count('individualist');
-    const staticCount = count('static');
-    const argintViu = has('argint_viu')||has('plaman');
+    const hasDefense = posAttrs.includes('aparare');
+    const hasVision  = posAttrs.includes('strategie');
+    const hasAttack  = posAttrs.includes('tehnica') || posAttrs.includes('viteza');
+    const negVisionCount = negTags.filter(t=>t.impact_attribute==='strategie').length;
+    const negSpeedCount  = negTags.filter(t=>t.impact_attribute==='viteza').length;
+    const hasSpeed  = posAttrs.includes('viteza');
 
-    // Priority: danger > warn > ok
-    if(!hasDefense && teamPlayers.length >= 2)
+    if(!hasDefense && teamPlayers.length>=2)
         return {cls:'tbi-danger', msg:'🛡️ Apărare descoperită!'};
-    if(individualistCount >= 2 || !hasPasator)
-        return {cls:'tbi-warn', msg:'⚠️ Prea mulți individualiști!'};
-    if(staticCount >= 2 && !argintViu)
-        return {cls:'tbi-warn', msg:'🐢 Lipsă viteză în teren'};
-    if(hasDefense && hasPasator && hasFinisher)
+    if(negVisionCount>=2 || !hasVision)
+        return {cls:'tbi-warn', msg:'⚠️ Lipsă viziune de joc!'};
+    if(negSpeedCount>=2 && !hasSpeed)
+        return {cls:'tbi-warn', msg:'🐢 Echipă lentă!'};
+    if(hasDefense && hasVision && hasAttack)
         return {cls:'tbi-ok', msg:'✅ Echipă echilibrată'};
     return null;
 }
@@ -2154,12 +2224,13 @@ function openSettings(){
 }
 function closeSettings(){document.getElementById('settingsOverlay').style.display='none';}
 function switchSettingsTab(tab){
-    const tabNames=['players','accounts','notifications','export','algorithm','season'];
+    const tabNames=['players','accounts','notifications','export','algorithm','tags','season'];
     document.querySelectorAll('.settings-tab').forEach((t,i)=>t.classList.toggle('active',tabNames[i]===tab));
     document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
-    document.getElementById('panel-'+tab).classList.add('active');
+    document.getElementById('panel-'+tab)?.classList.add('active');
     if(tab==='accounts') buildAccountsList();
     if(tab==='algorithm') buildAlgorithmPanel();
+    if(tab==='tags') buildTagsPanel();
 }
 function buildPlayerEditList(){
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
@@ -2292,6 +2363,86 @@ function saveSiteTitle(){
     localStorage.setItem('site_title', val);
     applyRoleUI();
     showToast('✅ Titlu salvat: ' + val);
+}
+
+// ── Tags Admin CRUD ──────────────────────────────────────────────
+function buildTagsPanel(){
+    const el=document.getElementById('tagsList');if(!el)return;
+    const cats=[...new Set(tagsConfig.map(t=>t.category))];
+    el.innerHTML=cats.map(cat=>{
+        const tags=tagsConfig.filter(t=>t.category===cat);
+        const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+        return `<div style="margin-bottom:14px;">
+            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #1e2130;">${catLabel}</div>
+            ${tags.map(t=>`
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0f1118;">
+                <input type="text" value="${t.emoji}" maxlength="4"
+                    style="width:38px;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:4px;border-radius:6px;text-align:center;font-size:.9rem;outline:none;"
+                    onchange="updateTagField(${t.id},'emoji',this.value)">
+                <input type="text" value="${t.label}"
+                    style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:5px 8px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:.88rem;outline:none;"
+                    onchange="updateTagField(${t.id},'label',this.value)">
+                <select style="background:#1c1f2b;border:1px solid #2a2d40;color:${t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff'};padding:4px;border-radius:6px;font-size:.75rem;outline:none;"
+                    onchange="updateTagField(${t.id},'type',this.value)">
+                    <option value="pos" ${t.type==='pos'?'selected':''}>✅ Poz</option>
+                    <option value="neg" ${t.type==='neg'?'selected':''}>❌ Neg</option>
+                    <option value="neu" ${t.type==='neu'?'selected':''}>⚪ Neu</option>
+                </select>
+                <select style="background:#1c1f2b;border:1px solid #2a2d40;color:#aaa;padding:4px;border-radius:6px;font-size:.72rem;outline:none;"
+                    onchange="updateTagField(${t.id},'impact_attribute',this.value)">
+                    ${['viteza','tehnica','strategie','aparare','general'].map(a=>`<option value="${a}" ${t.impact_attribute===a?'selected':''}>${a}</option>`).join('')}
+                </select>
+                <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:3px 7px;border-radius:6px;font-size:.75rem;cursor:pointer;">🗑️</button>
+            </div>`).join('')}
+        </div>`;
+    }).join('');
+}
+
+function openAddTag(){ document.getElementById('addTagForm').style.display='block'; }
+
+async function saveNewTag(){
+    const emoji=document.getElementById('ntEmoji').value.trim()||'⚽';
+    const label=document.getElementById('ntLabel').value.trim();
+    const type=document.getElementById('ntType').value;
+    const category=document.getElementById('ntCat').value;
+    const impact_attribute=document.getElementById('ntAttr').value;
+    if(!label){showToast('⚠️ Introdu un label!');return;}
+    try{
+        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_attribute,sort_order:tagsConfig.length+1}).select().single();
+        if(error)throw error;
+        tagsConfig.push(data);
+        buildPTById();
+        invalidateTagsCache();
+        document.getElementById('addTagForm').style.display='none';
+        document.getElementById('ntEmoji').value='';document.getElementById('ntLabel').value='';
+        buildTagsPanel();
+        showToast(`✅ Tag adăugat: ${emoji} ${label}`);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function updateTagField(id,field,value){
+    const t=tagsConfig.find(x=>x.id===id);if(!t)return;
+    t[field]=value;
+    try{
+        await sb.from('tags_config').update({[field]:value}).eq('id',id);
+        buildPTById();invalidateTagsCache();
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function deleteTag(id){
+    showConfirm('🗑️','Șterge tag-ul?','Tag-ul va fi eliminat din configurație.','Șterge','#c62828',async()=>{
+        try{
+            await sb.from('tags_config').delete().eq('id',id);
+            tagsConfig=tagsConfig.filter(t=>t.id!==id);
+            buildPTById();invalidateTagsCache();buildTagsPanel();
+            showToast('✅ Tag șters!');
+        }catch(e){showToast('⚠️ '+e.message);}
+    });
+}
+
+function invalidateTagsCache(){
+    localStorage.removeItem('tags_config_cache');
+    localStorage.removeItem('tags_config_ts');
 }
 
 function buildAlgorithmPanel(){
@@ -2790,20 +2941,15 @@ function buildQvPlayersList(players){
     const container=document.getElementById('qvPlayersList');container.innerHTML='';
     const orange=players.filter(p=>p.status==='orange'),green=players.filter(p=>p.status==='green');
 
-    // Build tag buttons HTML grouped by category
+    // Build tag buttons dynamically from tagsConfig
     function buildTagButtons(pid){
-        const cats=[
-            {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
-            {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
-            {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
-            {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
-        ];
-        return `<div class="qv-tags-section">`+cats.map(cat=>`
-            <div class="qv-tags-cat">${cat.label}</div>
-            <div class="qv-tags-row">${cat.ids.map(id=>{
-                const t=PT_BY_ID[id];if(!t)return '';
-                return `<button class="qv-tag-btn" id="qvtag-${pid}-${id}" onclick="qvToggleTag(${pid},'${id}')">${t.icon} ${t.label}</button>`;
-            }).join('')}</div>`).join('')+`</div>`;
+        const cats=[...new Set(tagsConfig.map(t=>t.category))];
+        return `<div class="qv-tags-section">`+cats.map(cat=>{
+            const tags=tagsConfig.filter(t=>t.category===cat);
+            const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+            return `<div class="qv-tags-cat">${catLabel}</div>
+            <div class="qv-tags-row">${tags.map(t=>`<button class="qv-tag-btn" id="qvtag-${pid}-${t.id}" onclick="qvToggleTag(${pid},${t.id})">${t.emoji} ${t.label}</button>`).join('')}</div>`;
+        }).join('')+`</div>`;
     }
 
     function renderTeam(teamPlayers,label,color){
@@ -2834,11 +2980,12 @@ function qvSelectGeneral(playerId,val){
 }
 function qvToggleTag(playerId,tagId){
     if(!qvVotes[playerId].tags) qvVotes[playerId].tags=[];
-    const idx=qvVotes[playerId].tags.indexOf(tagId);
-    if(idx>=0) qvVotes[playerId].tags.splice(idx,1);
-    else qvVotes[playerId].tags.push(tagId);
-    const t=PT_BY_ID[tagId];
-    const cls=t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu';
+    const sid=String(tagId);
+    const arr=qvVotes[playerId].tags;
+    const idx=arr.indexOf(sid);
+    if(idx>=0) arr.splice(idx,1); else arr.push(sid);
+    const t=tagById(sid);
+    const cls=t?(t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu'):'sel-neu';
     const btn=document.getElementById(`qvtag-${playerId}-${tagId}`);
     if(btn){btn.className='qv-tag-btn';if(idx<0)btn.classList.add(cls);}
 }
@@ -3694,12 +3841,16 @@ function buildVoteSlides() {
     const container = document.getElementById('voteSlides');
     container.innerHTML = '';
 
-    const tagCats=[
-        {label:'🏃 Condiție & Mișcare', ids:['argint_viu','plaman','pivot','static']},
-        {label:'🛡️ Defensivă',          ids:['gropat','bariera','interceptor','dur']},
-        {label:'⚽ Atac & Execuție',    ids:['chirurg','tunar','pasator','individualist']},
-        {label:'🧤 Portar',             ids:['zid_gk','portar_juc','de_parada']},
-    ];
+    // Build dynamic tag sections from tagsConfig
+    function buildTagSections(pid){
+        const cats=[...new Set(tagsConfig.map(t=>t.category))];
+        return cats.map(cat=>{
+            const tags=tagsConfig.filter(t=>t.category===cat);
+            const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+            return `<div class="qv-tags-cat">${catLabel}</div>
+            <div class="qv-tags-row">${tags.map(t=>`<button class="qv-tag-btn" id="vtag-${pid}-${t.id}" onclick="voteToggleTag(${pid},${t.id})">${t.emoji} ${t.label}</button>`).join('')}</div>`;
+        }).join('');
+    }
 
     voteState.players.forEach((p, idx) => {
         const avg = getGeneralAvg(p).toFixed(1);
@@ -3713,12 +3864,7 @@ function buildVoteSlides() {
             genBtns += `<button class="vote-gen-btn" data-v="${i}" id="vgb-${p.id}-${i}" onclick="voteSelectGeneral(${p.id},${i})">${i}</button>`;
         }
 
-        const tagSections = tagCats.map(cat=>`
-            <div class="qv-tags-cat">${cat.label}</div>
-            <div class="qv-tags-row">${cat.ids.map(id=>{
-                const t=PT_BY_ID[id];if(!t)return '';
-                return `<button class="qv-tag-btn" id="vtag-${p.id}-${id}" onclick="voteToggleTag(${p.id},'${id}')">${t.icon} ${t.label}</button>`;
-            }).join('')}</div>`).join('');
+        const tagSections = buildTagSections(p.id);
 
         const slide = document.createElement('div');
         slide.className = 'vote-slide' + (idx === 0 ? ' active' : '');
@@ -3771,12 +3917,12 @@ function voteSelectGeneral(playerId, val) {
 
 function voteToggleTag(playerId, tagId){
     if(!voteState.votes[playerId].tags) voteState.votes[playerId].tags=[];
+    const sid=String(tagId);
     const arr=voteState.votes[playerId].tags;
-    const idx=arr.indexOf(tagId);
-    if(idx>=0) arr.splice(idx,1);
-    else arr.push(tagId);
-    const t=PT_BY_ID[tagId];
-    const cls=t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu';
+    const idx=arr.indexOf(sid);
+    if(idx>=0) arr.splice(idx,1); else arr.push(sid);
+    const t=tagById(sid);
+    const cls=t?(t.type==='pos'?'sel-pos':t.type==='neg'?'sel-neg':'sel-neu'):'sel-neu';
     const btn=document.getElementById(`vtag-${playerId}-${tagId}`);
     if(btn){btn.className='qv-tag-btn';if(idx<0)btn.classList.add(cls);}
 }
