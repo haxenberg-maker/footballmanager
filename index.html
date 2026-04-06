@@ -103,6 +103,13 @@
         .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
         #list-active,#list-bench{max-height:520px;overflow-y:auto;}
         #matchStatsBanner{grid-column:1/-1;}
+        .dash-stats-hidden .rating-badge,
+        .dash-stats-hidden .rating-badge-smart,
+        .dash-stats-hidden .player-stats { display:none !important; }
+        .dash-stats-hidden .team-avg-badge { display:none !important; }
+        .dash-stats-hidden .probOrange, .dash-stats-hidden #probOrange,
+        .dash-stats-hidden #probGreen { visibility:hidden; }
+        .dash-tags-hidden .ptag-row { display:none !important; }
         .player-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:all 0.15s;position:relative;display:flex;flex-direction:column;gap:4px;}
         .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
         .card-top{display:flex;justify-content:space-between;align-items:center;}
@@ -699,6 +706,9 @@
     <button class="btn-quick-vote admin-only" onclick="openQuickVote()">⚡ Vot Rapid</button>
     <button class="admin-only" onclick="addNewPlayer()">+ Jucător</button>
     <div class="controls-separator admin-only"></div>
+    <div class="controls-separator"></div>
+    <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
+    <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button class="btn-settings" onclick="openSettings()">⚙️ Setări</button>
 </div>
 
@@ -872,6 +882,7 @@
 
     <!-- Tab: Stats -->
     <div class="modal-tab-panel active" id="tabStats">
+        <div id="adminRatingPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div class="chart-section" style="margin-top:8px;">
@@ -1538,6 +1549,8 @@ let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare
 let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
 let chartOpen=false, statsOpen=false, detailsOpen=false, ratingsListOpen=false;
 let qvVotes = {}, confirmCallback = null;
+let statsVisible = localStorage.getItem('dash_stats_visible') !== 'false';
+let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
 let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
 
@@ -1745,6 +1758,7 @@ function rowToPlayer(p) {
         mainStatus: p.main_status||null,
         negativeStatus: p.negative_status||null,
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
+        adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
         ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
             _dbId: r.id, rater:r.rater, date:r.date, tags:r.tags||'',
             general:r.general||5, viteza:r.viteza||5, tehnica:r.tehnica||5,
@@ -1824,6 +1838,8 @@ function setupRealtime() {
 }
 
 function getSmartRating(p) {
+    // Admin hard-set rating overrides everything
+    if(p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
     const general = p.ratings.length ? p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length : 5;
     const wr = p.games>0 ? 1+(p.wins/p.games)*9 : 5;
     const mvpWinCount  = p.mvpWinCount  || 0;
@@ -1915,7 +1931,7 @@ function render(){
             }
             card.innerHTML=`<div class="player-rank-label ${rankClass}"></div>
                 <div class="card-top"><span class="player-name">${p.name}</span>
-                <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart">★ ${smart}</span></div></div>
+                <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart" style="${p.adminRating!=null?'border-color:var(--orange);color:var(--orange);':''}">★ ${smart}${p.adminRating!=null?' 👑':''}</span></div></div>
                 ${archHtml}
                 <div class="player-stats"><span>${p.ratings.length} voturi</span><span>V:${p.wins}/M:${p.games}(${wr})</span>${streakHtml}</div>`;
             const container = document.getElementById(`list-${team}`);
@@ -1926,6 +1942,8 @@ function render(){
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
     // Keep mobile tab active after re-render
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
+    applyDashStatsVisibility();
+    applyDashTagsVisibility();
 }
 
 function analyzeTeamBalance(teamPlayers){
@@ -2347,42 +2365,52 @@ function switchSettingsTab(tab){
 }
 function buildPlayerEditList(){
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    const strOpts = [
-        ['','— Fără —'],
-        ['vitezoman','⚡ Vitezoman'],['zid','🛡️ Zid'],['playmaker','🎯 Playmaker'],
-        ['creierul','🧠 Creierul'],['finalizator','🥅 Finalizator']
-    ].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
-    const wkOpts = [
-        ['','— Fără —'],
-        ['lent','🐌 Lent'],['piciorlemn','🧱 Picior de lemn'],
-        ['solist','👤 Solist'],['fara_cond','🪫 Fără condiție']
-    ].map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
 
     document.getElementById('playerEditList').innerHTML=sorted.map(p=>{
         const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+        const smartReal = p.adminRating != null
+            ? `<span style="color:var(--orange);font-weight:700;">⭐ ${p.adminRating.toFixed(1)} 👑</span>`
+            : `⭐${getGeneralAvg(p).toFixed(1)} | ★${getSmartRating(p).toFixed(1)} ${wr}`;
+        const hasOverride = p.adminRating != null;
         return `<div class="player-edit-row" style="flex-wrap:wrap;gap:4px;">
             <span class="player-edit-id">#${p.id}</span>
             <input class="player-edit-input" type="text" value="${p.name}" id="editname-${p.id}" onkeydown="if(event.key==='Enter')savePlayerName(${p.id})">
-            <span class="player-edit-stats">⭐${getGeneralAvg(p).toFixed(1)} ${wr}</span>
+            <span class="player-edit-stats" style="font-size:.72rem;">${smartReal}</span>
             <button class="btn-save-name" onclick="savePlayerName(${p.id})">✓</button>
             <button class="btn-delete-player" onclick="deletePlayer(${p.id})">🗑️</button>
-            <div style="width:100%;display:flex;gap:6px;padding-left:28px;flex-wrap:wrap;">
-                <select id="str-${p.id}" onchange="saveArchetype(${p.id})" style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#69f0ae;padding:4px 6px;border-radius:6px;font-size:.72rem;outline:none;">
-                    ${strOpts.replace(`value="${p.mainStatus||''}"`,`value="${p.mainStatus||''}" selected`)}
-                </select>
-                <select id="wk-${p.id}" onchange="saveArchetype(${p.id})" style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#ef9a9a;padding:4px 6px;border-radius:6px;font-size:.72rem;outline:none;">
-                    ${wkOpts.replace(`value="${p.negativeStatus||''}"`,`value="${p.negativeStatus||''}" selected`)}
-                </select>
+            <div style="width:100%;display:flex;gap:6px;padding-left:28px;flex-wrap:wrap;align-items:center;">
+                <!-- Hard-set rating override -->
+                <div style="display:flex;align-items:center;gap:5px;background:#0d1020;border:1px solid ${hasOverride?'var(--orange)':'#1e2130'};border-radius:8px;padding:4px 8px;flex-shrink:0;">
+                    <span style="font-size:.6rem;color:${hasOverride?'var(--orange)':'#444'};text-transform:uppercase;letter-spacing:1px;white-space:nowrap;">
+                        ${hasOverride?'👑 Rating forțat':'★ Override'}
+                    </span>
+                    <input type="number" id="ar-${p.id}" min="1" max="10" step="0.1"
+                        value="${p.adminRating != null ? p.adminRating.toFixed(1) : ''}"
+                        placeholder="—"
+                        style="width:44px;background:transparent;border:none;color:${hasOverride?'var(--orange)':'#555'};font-family:'Bebas Neue',sans-serif;font-size:.95rem;text-align:center;outline:none;"
+                        oninput="saveAdminRating(${p.id})">
+                    ${hasOverride?`<button onclick="clearAdminRating(${p.id})" title="Șterge override" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:.75rem;padding:0 2px;">✕</button>`:''}
+                </div>
             </div>
         </div>`;
     }).join('');
-    // Set selected values properly
-    sorted.forEach(p=>{
-        const s=document.getElementById(`str-${p.id}`);
-        const w=document.getElementById(`wk-${p.id}`);
-        if(s) s.value=p.mainStatus||'';
-        if(w) w.value=p.negativeStatus||'';
-    });
+}
+
+async function saveAdminRating(id){
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    const val=parseFloat(document.getElementById(`ar-${id}`)?.value);
+    const rating=(isNaN(val)||val<1||val>10)?null:Math.round(val*10)/10;
+    p.adminRating=rating;
+    try{
+        await sb.from('players').update({admin_rating:rating}).eq('id',id);
+        render();buildPlayerEditList();
+        showToast(rating!=null?`👑 Rating forțat: ${p.name} → ${rating}`:`↺ Override eliminat: ${p.name}`);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function clearAdminRating(id){
+    document.getElementById(`ar-${id}`).value='';
+    await saveAdminRating(id);
 }
 
 async function saveArchetype(id){
@@ -2712,6 +2740,76 @@ function resetAlgorithm(){
     showToast('↺ Algoritm resetat la valorile implicite.');
 }
 
+function toggleDashStats(){
+    statsVisible = !statsVisible;
+    localStorage.setItem('dash_stats_visible', statsVisible);
+    applyDashStatsVisibility();
+}
+function applyDashStatsVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    if(statsVisible){
+        dashboard.classList.remove('dash-stats-hidden');
+        document.getElementById('btnToggleStats').style.opacity='1';
+        document.getElementById('btnToggleStats').style.color='';
+    } else {
+        dashboard.classList.add('dash-stats-hidden');
+        document.getElementById('btnToggleStats').style.opacity='0.5';
+        document.getElementById('btnToggleStats').style.color='#555';
+    }
+}
+
+function toggleDashTags(){
+    tagsVisible = !tagsVisible;
+    localStorage.setItem('dash_tags_visible', tagsVisible);
+    applyDashTagsVisibility();
+}
+function applyDashTagsVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleTags');
+    if(tagsVisible){
+        dashboard.classList.remove('dash-tags-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.background=''; btn.style.color=''; btn.title='Ascunde statusuri'; }
+    } else {
+        dashboard.classList.add('dash-tags-hidden');
+        if(btn){ btn.style.opacity='0.6'; btn.style.background='rgba(0,0,0,0)'; btn.style.color='#555'; btn.title='Arată statusuri'; }
+    }
+}
+
+// Admin rating hard override
+async function saveAdminRating(id){
+    const input = document.getElementById('adminRatingInput');
+    const val = parseFloat(input?.value);
+    if(isNaN(val) || val < 1 || val > 10){
+        showToast('⚠️ Rating trebuie să fie între 1.0 și 10.0');
+        return;
+    }
+    const p = db.players.find(x=>x.id==id); if(!p) return;
+    p.adminRating = parseFloat(val.toFixed(1));
+    try{
+        await sb.from('players').update({admin_rating: p.adminRating}).eq('id', id);
+        render();
+        // Refresh modal header
+        document.getElementById('modalSmart').textContent = `★ Smart: ${getSmartRating(p).toFixed(2)}`;
+        document.getElementById('modalSmart').style.borderColor = 'var(--orange)';
+        buildModalStats(p);
+        showToast(`👑 Rating setat la ${p.adminRating} pentru ${p.name}`);
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function clearAdminRating(id){
+    const p = db.players.find(x=>x.id==id); if(!p) return;
+    p.adminRating = null;
+    try{
+        await sb.from('players').update({admin_rating: null}).eq('id', id);
+        render();
+        document.getElementById('modalSmart').textContent = `★ Smart: ${getSmartRating(p).toFixed(2)}`;
+        document.getElementById('modalSmart').style.borderColor = '';
+        buildModalStats(p);
+        showToast(`✅ Rating override șters pentru ${p.name}`);
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
 async function buildAccountsList(){
     const container=document.getElementById('accountsList');
     container.innerHTML='<div style="color:#444;font-size:0.85rem;text-align:center;padding:16px;">Se încarcă...</div>';
@@ -2816,7 +2914,12 @@ function openModal(id){
     const p=db.players.find(x=>x.id==id);
     document.getElementById('modalPlayerName').textContent=p.name;
     document.getElementById('modalAvg').textContent=`⭐ ${getGeneralAvg(p).toFixed(1)}`;
-    document.getElementById('modalSmart').textContent=`★ Smart: ${getSmartRating(p).toFixed(2)}`;
+    const smartDisplay = p.adminRating != null
+        ? `👑 ${p.adminRating.toFixed(1)} (forțat)`
+        : `★ Smart: ${getSmartRating(p).toFixed(2)}`;
+    document.getElementById('modalSmart').textContent = smartDisplay;
+    if(p.adminRating != null) document.getElementById('modalSmart').style.borderColor='var(--orange)';
+    else document.getElementById('modalSmart').style.borderColor='';
     const s=getStreak(p),el=document.getElementById('modalStreak');
     if(s.count){el.textContent=s.type==='W'?`🔥 ${s.count}V la rând`:`❄️ ${s.count}P la rând`;el.className='modal-streak-big '+(s.type==='W'?'streak-win':'streak-loss');}
     else{el.textContent='';el.className='modal-streak-big';}
@@ -2852,7 +2955,34 @@ function switchModalTab(tab){
 
 // ── buildModalStats ─────────────────────────────────────────────
 function buildModalStats(p){
-    const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
+    const admin = isAdmin();
+
+    // ── Admin Rating Override Panel ─────────────────────────────
+    const arPanel = document.getElementById('adminRatingPanel');
+    if(arPanel){
+        if(admin){
+            const curVal = p.adminRating != null ? p.adminRating : '';
+            arPanel.style.display = 'block';
+            arPanel.innerHTML = `
+                <div style="background:#0a0f1a;border:1px solid ${p.adminRating!=null?'var(--orange)':'#1e2130'};border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <span style="font-size:.7rem;color:#555;text-transform:uppercase;letter-spacing:1px;flex:1;">👑 Rating Admin Override</span>
+                    <input type="number" id="adminRatingInput" min="1" max="10" step="0.1"
+                        value="${curVal}" placeholder="—"
+                        style="width:60px;background:#1c1f2b;border:1px solid #2a2d40;color:var(--orange);padding:5px 8px;border-radius:7px;font-family:'Bebas Neue',sans-serif;font-size:1rem;text-align:center;outline:none;">
+                    <button onclick="saveAdminRating(${p.id})"
+                        style="background:rgba(255,140,0,.15);border:1px solid var(--orange);color:var(--orange);padding:5px 12px;border-radius:7px;font-size:.78rem;font-weight:700;cursor:pointer;">
+                        💾 Setează
+                    </button>
+                    ${p.adminRating!=null?`<button onclick="clearAdminRating(${p.id})"
+                        style="background:none;border:1px solid #252836;color:#555;padding:5px 10px;border-radius:7px;font-size:.75rem;cursor:pointer;">
+                        ✕ Șterge
+                    </button>`:''}
+                    ${p.adminRating!=null?`<span style="font-size:.68rem;color:var(--orange);">Activ: ${p.adminRating.toFixed(1)}</span>`:''}
+                </div>`;
+        } else {
+            arPanel.style.display = 'none';
+        }
+    }
     const mvpWinCount  = p.mvpWinCount  || 0;
     const mvpLossCount = p.mvpLossCount || 0;
     const games = Math.max(p.games,1);
