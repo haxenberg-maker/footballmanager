@@ -3010,7 +3010,6 @@ function buildModalStats(p){
     // ── Tag activation grid ───────────────────────────────────────
     const tagStats = computeTagStats(p);
     const adminSet = new Set((p.adminTags||[]).map(String));
-    const admin = isAdmin();
     const NEEDED = 3;
 
     // Show tags: admin sees ALL from config; others see only voted/admin-set
