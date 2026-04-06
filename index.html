@@ -2987,6 +2987,7 @@ function buildModalStats(p){
     const mvpLossCount = p.mvpLossCount || 0;
     const games = Math.max(p.games,1);
     const wTot = (W.general+W.viteza+W.tehnica+W.strategie+W.aparare)*100;
+    const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
 
     // Smart Rating formula
     let formulaHtml = `<strong>Smart Rating</strong>: General×${wTot.toFixed(0)}% + WinRate×${(W.winrate*100).toFixed(0)}%`;
