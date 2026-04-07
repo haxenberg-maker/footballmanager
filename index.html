@@ -110,10 +110,51 @@
         .dash-stats-hidden .probOrange, .dash-stats-hidden #probOrange,
         .dash-stats-hidden #probGreen { visibility:hidden; }
         .dash-tags-hidden .ptag-row { display:none !important; }
-        .player-card{background:var(--card);border-radius:10px;padding:11px 13px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:all 0.15s;position:relative;display:flex;flex-direction:column;gap:4px;}
-        .player-card:hover{border-color:var(--accent);background:#1e2130;transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,0.4);}
+        /* FIFA-style player card */
+        .player-card{
+            position:relative;margin-bottom:7px;cursor:pointer;
+            border-radius:10px;overflow:hidden;
+            border:1px solid rgba(255,255,255,0.06);
+            transition:transform .15s,box-shadow .15s;
+            background:linear-gradient(145deg,#1a1d2e,#0f1118);
+            display:flex;flex-direction:column;
+        }
+        .player-card::before{
+            content:'';position:absolute;inset:0;
+            background:linear-gradient(135deg,rgba(255,255,255,0.04) 0%,transparent 60%);
+            pointer-events:none;
+        }
+        .player-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.6);}
+        .player-card.team-orange{border-color:rgba(255,140,0,.25);background:linear-gradient(145deg,#1e1408,#120c04);}
+        .player-card.team-orange::before{background:linear-gradient(135deg,rgba(255,140,0,.08) 0%,transparent 60%);}
+        .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#0d1a10,#08100a);}
+        .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
+        /* FIFA card body layout */
+        .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
+        /* Left: rating column */
+        .fifa-rating-col{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:46px;padding-right:10px;border-right:1px solid rgba(255,255,255,.06);}
+        .fifa-rating-num{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;line-height:1;color:#fff;letter-spacing:1px;}
+        .fifa-rating-lbl{font-size:.5rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+        .fifa-rating-gen{font-size:.68rem;color:var(--star);font-weight:700;margin-top:2px;}
+        /* Right: name + stats */
+        .fifa-info-col{flex:1;padding-left:10px;display:flex;flex-direction:column;gap:3px;}
+        .player-name{font-weight:700;color:#fff;font-size:.92rem;line-height:1.2;letter-spacing:.3px;}
+        /* Form dots row */
+        .form-row{display:flex;align-items:center;gap:3px;margin-top:1px;}
+        .form-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px currentColor;}
+        .form-dot.W{background:#4caf50;color:#4caf50;}
+        .form-dot.L{background:#e53935;color:#e53935;}
+        .form-dot.empty{background:#252836;color:transparent;}
+        .form-label{font-size:.55rem;color:#444;text-transform:uppercase;letter-spacing:.8px;margin-left:2px;}
+        /* Stats mini row */
+        .fifa-stats-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px;}
+        .fifa-stat{font-size:.65rem;color:#555;white-space:nowrap;}
+        .fifa-stat span{color:#888;font-weight:700;}
+        /* Tags row */
         .card-top{display:flex;justify-content:space-between;align-items:center;}
-        .player-name{font-weight:700;color:#fff;font-size:0.97rem;}
+        .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+        .rating-badge{background:#252836;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
+        .rating-badge-smart{background:linear-gradient(135deg,#1a1060,#2d1b8e);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#a78bfa;font-weight:700;white-space:nowrap;}
         .player-id-tag{font-size:0.6rem;color:#333;font-family:monospace;margin-left:5px;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#252836;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
@@ -1912,6 +1953,23 @@ function getStreak(p){
     return{count,type:last};
 }
 
+// Form Index: last 5 results as dots, plus form label
+function getFormIndex(p){
+    const history = p.matchHistory || [];
+    const last5 = history.slice(-5); // last 5 results
+    const wins  = last5.filter(r=>r==='W').length;
+    const total = last5.length;
+    // Form label
+    let label='', color='#555';
+    if(total < 2) { label='—'; color='#555'; }
+    else if(wins >= 4)       { label='🔥 În formă'; color='#4caf50'; }
+    else if(wins === 3)      { label='📈 OK'; color='#8bc34a'; }
+    else if(wins === 2)      { label='😐 Mediu'; color='#ffd600'; }
+    else if(wins === 1)      { label='📉 Formă slabă'; color='#ff8c00'; }
+    else                      { label='❄️ În cădere'; color='#e53935'; }
+    return { last5, wins, total, label, color };
+}
+
 function showLoading(v){document.getElementById('loadingOverlay').classList.toggle('hidden',!v);}
 function setConnected(v){
     const b=document.getElementById('connBadge'),t=document.getElementById('connText');
@@ -1951,8 +2009,7 @@ function render(){
             const smart=getSmartRating(p).toFixed(1),general=getGeneralAvg(p).toFixed(1);
             const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
             const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-            const s=getStreak(p);
-            const streakHtml=s.count?(s.type==='W'?`<span class="streak-badge streak-win">🔥 ${s.count}V</span>`:`<span class="streak-badge streak-loss">❄️ ${s.count}P</span>`):'';
+            const s=getStreak(p); // kept for leaderboard use
             const playerTagObjs = getPlayerActiveTagObjects(p);
             const archHtml = playerTagObjs.length
                 ? `<div class="ptag-row">${renderTagBadges(playerTagObjs.slice(0,4))}</div>`
@@ -1967,11 +2024,42 @@ function render(){
                 card.ondragstart=e=>e.dataTransfer.setData("text",p.id);
                 card.style.cursor='grab';
             }
-            card.innerHTML=`<div class="player-rank-label ${rankClass}"></div>
-                <div class="card-top"><span class="player-name">${p.name}</span>
-                <div class="rating-badges"><span class="rating-badge">⭐ ${general}</span><span class="rating-badge-smart" style="${p.adminRating!=null?'border-color:var(--orange);color:var(--orange);':''}">★ ${smart}${p.adminRating!=null?' 👑':''}</span></div></div>
-                ${archHtml}
-                <div class="player-stats"><span>${p.ratings.length} voturi</span><span>V:${p.wins}/M:${p.games}(${wr})</span>${streakHtml}</div>`;
+            const form = getFormIndex(p);
+            // Form dots: 5 slots, fill from left with actual results
+            const dots5 = Array.from({length:5},(_,i)=>{
+                const res = form.last5[i];
+                if(!res) return `<div class="form-dot empty"></div>`;
+                return `<div class="form-dot ${res}" title="${res==='W'?'Victorie':'Înfrângere'}"></div>`;
+            }).join('');
+            // Smart rating color based on value
+            const smartNum = parseFloat(smart);
+            const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=8?'#69f0ae':smartNum>=6?'#ffcc00':smartNum>=4?'#ff8c00':'#e57373';
+            const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':'';
+            card.className=`player-card ${teamCls}`;
+
+            card.innerHTML=`
+                <div class="player-rank-label ${rankClass}"></div>
+                <div class="fifa-card-body">
+                    <div class="fifa-rating-col">
+                        <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.55rem;">👑</span>':''}</div>
+                        <div class="fifa-rating-lbl">Smart</div>
+                        <div class="fifa-rating-gen">⭐${general}</div>
+                    </div>
+                    <div class="fifa-info-col">
+                        <div class="player-name">${p.name}</div>
+                        <div class="form-row">
+                            ${dots5}
+                            <span class="form-label" style="color:${form.color};">${form.label}</span>
+                        </div>
+                        <div class="fifa-stats-row">
+                            <div class="fifa-stat">M:<span>${p.games}</span></div>
+                            <div class="fifa-stat">V:<span>${p.wins}</span></div>
+                            <div class="fifa-stat">WR:<span>${wr}</span></div>
+                            <div class="fifa-stat">Voturi:<span>${p.ratings.length}</span></div>
+                        </div>
+                        ${archHtml}
+                    </div>
+                </div>`;
             const container = document.getElementById(`list-${team}`);
             if(container) container.appendChild(card);
         });
@@ -2069,7 +2157,9 @@ function renderLeaderboard(){
     document.getElementById('leaderboard').innerHTML=sorted.slice(0,9).map((p,i)=>{
         const s=getStreak(p),st=s.count?(s.type==='W'?`🔥${s.count}V`:`❄️${s.count}P`):'—';
         const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-        return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">${ratingLabel} ${getRating(p).toFixed(1)} | ${wr} victorii | ${st}</div></div>`;
+        const form=getFormIndex(p);
+        const formDots=form.last5.map(r=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${r==='W'?'#4caf50':'#e53935'};margin-right:2px;"></span>`).join('');
+        return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">${ratingLabel} ${getRating(p).toFixed(1)} | ${wr} victorii | ${formDots}<span style="font-size:.6rem;color:${form.color};margin-left:2px;">${form.label}</span></div></div>`;
     }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
 }
 function renderHistory(){
