@@ -4331,6 +4331,9 @@ function recalculateAllPlayerStats() {
             p.matchHistory.push(!winnerIsOrange ? 'W' : 'L');
         });
     });
+
+    // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
+    db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
 }
 
 function confirmDeleteMatch(idx) {
