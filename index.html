@@ -351,13 +351,82 @@
         #match-history tbody tr{cursor:pointer;transition:background 0.12s;}
         #match-history tbody tr:hover td{background:#151820;}
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
-        .modal{background:#141720;width:90%;max-width:520px;border-radius:16px;padding:20px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
-        .modal-tabs{display:flex;gap:0;margin-bottom:14px;border-bottom:1px solid #1e2130;overflow-x:auto;}
-        .modal-tab{padding:8px 12px;font-size:.75rem;font-weight:700;color:#444;cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .15s;}
-        .modal-tab:hover{color:#888;}
-        .modal-tab.active{color:#fff;border-bottom-color:var(--accent);}
-        .modal-tab-panel{display:none;}
+        /* FIFA Modal */
+        @keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:none}}
+        .modal{
+            background:#0d0f18;width:92%;max-width:540px;
+            border-radius:20px;overflow:hidden;
+            border:1px solid rgba(255,255,255,.07);
+            box-shadow:0 30px 80px rgba(0,0,0,.9);
+            max-height:94vh;display:flex;flex-direction:column;
+            animation:modalIn .25s cubic-bezier(.34,1.56,.64,1);
+        }
+        /* FIFA header */
+        .modal-fifa-header{
+            position:relative;padding:22px 20px 14px;
+            display:flex;align-items:flex-end;gap:16px;
+            overflow:hidden;flex-shrink:0;
+        }
+        .modal-fifa-header::before{
+            content:'';position:absolute;inset:0;
+            background:linear-gradient(135deg,rgba(255,255,255,.04),transparent);
+        }
+        .modal-fifa-bg{position:absolute;inset:0;opacity:.15;background-size:cover;background-position:center;}
+        .modal-avatar{
+            width:72px;height:72px;border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
+            font-family:'Bebas Neue',sans-serif;font-size:1.8rem;
+            border:3px solid rgba(255,255,255,.2);
+            flex-shrink:0;position:relative;z-index:1;
+            background:rgba(0,0,0,.4);
+        }
+        .modal-header-info{flex:1;position:relative;z-index:1;}
+        .modal-player-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#fff;line-height:1;}
+        .modal-header-meta{display:flex;align-items:center;gap:10px;margin-top:5px;flex-wrap:wrap;}
+        .modal-rating-big{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;line-height:1;font-weight:700;}
+        .modal-rating-label{font-size:.6rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;}
+        .modal-form-dots-big{display:flex;gap:5px;align-items:center;}
+        .modal-form-dot{width:12px;height:12px;border-radius:50%;}
+        .modal-form-dot.W{background:#4caf50;box-shadow:0 0 8px #4caf50;}
+        .modal-form-dot.L{background:#e53935;box-shadow:0 0 8px #e53935;}
+        .modal-form-dot.empty{background:#1e2130;}
+        .modal-close-btn{position:absolute;top:14px;right:14px;z-index:2;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);width:28px;height:28px;border-radius:8px;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+        .modal-close-btn:hover{background:rgba(198,40,40,.3);color:#fff;}
+        /* FIFA tabs */
+        .modal-tabs{display:flex;gap:6px;padding:12px 16px 0;background:#080a12;flex-shrink:0;overflow-x:auto;}
+        .modal-tab{padding:8px 14px;font-size:.72rem;font-weight:700;color:#444;cursor:pointer;border:none;border-radius:8px 8px 0 0;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .15s;background:transparent;border-bottom:2px solid transparent;}
+        .modal-tab:hover{color:#888;background:rgba(255,255,255,.04);}
+        .modal-tab.active{color:#fff;background:rgba(255,255,255,.06);border-bottom-color:var(--accent);}
+        .modal-tab-panel{display:none;padding:16px;overflow-y:auto;max-height:55vh;}
         .modal-tab-panel.active{display:block;}
+        /* Hexagon SVG stats */
+        .hex-stats-wrap{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;}
+        .hex-svg{flex-shrink:0;}
+        .hex-labels{display:flex;flex-direction:column;gap:8px;}
+        .hex-lbl-row{display:flex;align-items:center;gap:8px;}
+        .hex-lbl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+        .hex-lbl-text{font-size:.78rem;color:#888;}
+        .hex-lbl-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#fff;margin-left:auto;}
+        /* Chemistry mini cards */
+        .chem-mini-card{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#141720,#0d0f18);border:1px solid rgba(255,255,255,.06);margin-bottom:8px;transition:transform .15s;}
+        .chem-mini-card:hover{transform:translateX(4px);}
+        .chem-mini-av{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.95rem;flex-shrink:0;}
+        .chem-mini-rating{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;flex-shrink:0;}
+        .chem-hearts{display:flex;gap:2px;}
+        .chem-heart{font-size:.8rem;}
+        /* Timeline */
+        .timeline{position:relative;padding-left:24px;}
+        .timeline::before{content:'';position:absolute;left:9px;top:0;bottom:0;width:2px;background:linear-gradient(to bottom,#252836,#252836 80%,transparent);}
+        .tl-item{position:relative;margin-bottom:16px;}
+        .tl-dot{position:absolute;left:-20px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid;flex-shrink:0;}
+        .tl-dot.W{background:#1a3a1a;border-color:#4caf50;box-shadow:0 0 8px rgba(76,175,80,.4);}
+        .tl-dot.L{background:#3a1a1a;border-color:#e53935;box-shadow:0 0 8px rgba(229,57,53,.3);}
+        .tl-date{font-size:.65rem;color:#444;margin-bottom:3px;}
+        .tl-result{font-size:.82rem;font-weight:700;margin-bottom:4px;}
+        .tl-result.W{color:#4caf50;}
+        .tl-result.L{color:#e57373;}
+        .tl-team{font-size:.7rem;color:#555;}
+        .tl-mates{font-size:.68rem;color:#3a3d50;margin-top:2px;line-height:1.4;}
 
         /* Chemistry */
         .chem-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #0f1118;}
@@ -906,23 +975,33 @@
 <!-- PLAYER MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
 <div class="modal">
-    <!-- Header -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-        <div class="modal-player-name" id="modalPlayerName"></div>
-        <button onclick="closeModal()" style="background:#1c1f2b;border:1px solid #252836;color:#555;width:30px;height:30px;border-radius:8px;font-size:.9rem;cursor:pointer;flex-shrink:0;">✕</button>
-    </div>
-    <!-- Stats badges -->
-    <div class="modal-stats-badges" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <span class="modal-avg-big" id="modalAvg"></span>
-        <span class="modal-smart-big" id="modalSmart"></span>
-        <span class="modal-streak-big" id="modalStreak"></span>
-        <span style="font-size:.78rem;color:#444;align-self:center;" id="modalWinRate"></span>
+    <button class="modal-close-btn" onclick="closeModal()">✕</button>
+
+    <!-- FIFA Header -->
+    <div class="modal-fifa-header" id="modalFifaHeader">
+        <div class="modal-avatar" id="modalAvatar"></div>
+        <div class="modal-header-info">
+            <div class="modal-player-name" id="modalPlayerName"></div>
+            <div class="modal-header-meta">
+                <div>
+                    <div class="modal-rating-big" id="modalRatingBig"></div>
+                    <div class="modal-rating-label" id="modalRatingLabel">SMART</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px;">
+                    <div id="modalFormDotsWrap" class="modal-form-dots-big"></div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <span class="modal-streak-big" id="modalStreak"></span>
+                        <span style="font-size:.72rem;color:rgba(255,255,255,.4);" id="modalWinRate"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Modal tabs -->
+    <!-- FIFA Tabs -->
     <div class="modal-tabs" id="modalTabs">
         <button class="modal-tab active" onclick="switchModalTab('stats')">📊 Stats</button>
-        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Radar</button>
+        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Hex</button>
         <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
         <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
         <button class="modal-tab" onclick="switchModalTab('votes')">⭐ Voturi</button>
@@ -931,11 +1010,11 @@
     <!-- Tab: Stats -->
     <div class="modal-tab-panel active" id="tabStats">
         <div id="adminRatingPanel" style="display:none;"></div>
-        <div class="algo-info" id="algoInfo" style="margin-bottom:8px;"></div>
+        <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#555;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div class="chart-section" style="margin-top:8px;">
             <div class="chart-toggle" onclick="toggleChart()">
-                <div class="chart-toggle-label" id="chartLabel">📈 Evoluție Rating — General</div>
+                <div class="chart-toggle-label" id="chartLabel">📈 Evoluție Rating</div>
                 <div class="chart-toggle-icon" id="chartIcon">▼</div>
             </div>
             <div class="chart-body" id="chartBody">
@@ -947,29 +1026,32 @@
         </div>
     </div>
 
-    <!-- Tab: Radar -->
+    <!-- Tab: Hex/Radar -->
     <div class="modal-tab-panel" id="tabRadar">
-        <div style="display:flex;justify-content:center;padding:8px 0;">
-            <canvas id="radarChart" width="280" height="280"></canvas>
+        <div class="hex-stats-wrap" id="hexStatsWrap">
+            <svg class="hex-svg" id="hexSvg" width="220" height="220" viewBox="0 0 220 220"></svg>
+            <div class="hex-labels" id="hexLabels"></div>
         </div>
-        <div id="radarLegend" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;"></div>
+        <!-- Legacy radar hidden but kept for chart.js compat -->
+        <canvas id="radarChart" width="1" height="1" style="display:none;"></canvas>
+        <div id="radarLegend" style="display:none;"></div>
     </div>
 
-    <!-- Tab: Match History -->
+    <!-- Tab: Match History Timeline -->
     <div class="modal-tab-panel" id="tabHistory">
-        <div id="playerMatchHistory" style="max-height:380px;overflow-y:auto;"></div>
+        <div class="timeline" id="playerMatchHistory"></div>
     </div>
 
     <!-- Tab: Chemistry -->
     <div class="modal-tab-panel" id="tabChemistry">
-        <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🤝 Compatibilitate cu alți jucători</div>
-        <div id="chemistryList" style="max-height:380px;overflow-y:auto;"></div>
+        <div style="font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">🤝 Compatibilitate</div>
+        <div id="chemistryList"></div>
     </div>
 
     <!-- Tab: Votes -->
     <div class="modal-tab-panel" id="tabVotes">
-        <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="ratingsListLabel">📊 Voturi existente</div>
-        <div id="ratingsList" style="max-height:380px;overflow-y:auto;"></div>
+        <div style="font-size:.65rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Voturi existente</div>
+        <div id="ratingsList"></div>
     </div>
 </div>
 </div>
@@ -3042,33 +3124,66 @@ function urlBase64ToUint8Array(base64String){
 function openModal(id){
     currentPlayerId=id;
     const p=db.players.find(x=>x.id==id);
-    document.getElementById('modalPlayerName').textContent=p.name;
-    document.getElementById('modalAvg').textContent=`⭐ ${getGeneralAvg(p).toFixed(1)}`;
-    const smartDisplay = p.adminRating != null
-        ? `👑 ${p.adminRating.toFixed(1)} (forțat)`
-        : `★ Smart: ${getSmartRating(p).toFixed(2)}`;
-    document.getElementById('modalSmart').textContent = smartDisplay;
-    if(p.adminRating != null) document.getElementById('modalSmart').style.borderColor='var(--orange)';
-    else document.getElementById('modalSmart').style.borderColor='';
+    if(!p) return;
+
+    // ── FIFA Header ───────────────────────────────────────────────
+    // Avatar initials
+    const initials = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const teamColor = p.status==='orange'?'#ff8c00':p.status==='green'?'#28a745':'#3d5afe';
+    const teamGrad  = p.status==='orange'
+        ? 'linear-gradient(145deg,#1e1408,#120c04)'
+        : p.status==='green'
+        ? 'linear-gradient(145deg,#0d1a10,#08100a)'
+        : 'linear-gradient(145deg,#0d1020,#090c18)';
+    const teamBorder = p.status==='orange'?'rgba(255,140,0,.3)':p.status==='green'?'rgba(40,167,69,.25)':'rgba(61,90,254,.2)';
+
+    document.getElementById('modalFifaHeader').style.background = teamGrad;
+    document.getElementById('modalFifaHeader').style.borderBottom = `1px solid ${teamBorder}`;
+    document.getElementById('modalAvatar').textContent = initials;
+    document.getElementById('modalAvatar').style.background = `rgba(0,0,0,.5)`;
+    document.getElementById('modalAvatar').style.borderColor = teamColor;
+    document.getElementById('modalAvatar').style.color = teamColor;
+    document.getElementById('modalPlayerName').textContent = p.name;
+
+    // Smart Rating
+    const smart = getSmartRating(p);
+    const smartNum = parseFloat(smart.toFixed(1));
+    const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=8?'#69f0ae':smartNum>=6?'#ffcc00':smartNum>=4?'#ff8c00':'#e57373';
+    document.getElementById('modalRatingBig').textContent = p.adminRating!=null ? p.adminRating.toFixed(1)+' 👑' : smart.toFixed(1);
+    document.getElementById('modalRatingBig').style.color = smartColor;
+    document.getElementById('modalRatingLabel').textContent = p.adminRating!=null ? 'FORȚAT' : 'SMART';
+
+    // Form dots (last 5)
+    const form = getFormIndex(p);
+    document.getElementById('modalFormDotsWrap').innerHTML =
+        Array.from({length:5},(_,i)=>{
+            const r=form.last5[i];
+            if(!r) return `<div class="modal-form-dot empty"></div>`;
+            return `<div class="modal-form-dot ${r}" title="${r==='W'?'Victorie':'Înfrângere'}"></div>`;
+        }).join('') +
+        `<span style="font-size:.65rem;color:${form.color};margin-left:4px;font-weight:700;">${form.label}</span>`;
+
+    // Streak + win rate
     const s=getStreak(p),el=document.getElementById('modalStreak');
     if(s.count){el.textContent=s.type==='W'?`🔥 ${s.count}V la rând`:`❄️ ${s.count}P la rând`;el.className='modal-streak-big '+(s.type==='W'?'streak-win':'streak-loss');}
     else{el.textContent='';el.className='modal-streak-big';}
     const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-    document.getElementById('modalWinRate').textContent=`V: ${p.wins}/${p.games} (${wr})`;
+    document.getElementById('modalWinRate').textContent=`${p.wins}V / ${p.games}M (${wr})`;
 
-    // Stats tab
+    // Build tabs
     buildModalStats(p);
-    // Radar tab
-    buildRadarChart(p);
-    // History tab
+    buildHexChart(p);
     buildPlayerMatchHistory(p);
-    // Chemistry tab
     buildChemistry(p);
-    // Votes tab
     buildRatingsList(p);
 
     switchModalTab('stats');
     document.getElementById('modalOverlay').style.display='flex';
+    // Restart animation
+    const modal = document.querySelector('#modalOverlay .modal');
+    modal.style.animation='none';
+    modal.offsetHeight; // reflow
+    modal.style.animation='';
     chartOpen=false;
     document.getElementById('chartBody').classList.remove('open');
     document.getElementById('chartIcon').textContent='▼';
@@ -3233,25 +3348,65 @@ function buildModalStats(p){
     buildCatTabs(p);
 }
 
-// ── buildRadarChart ─────────────────────────────────────────────
-let radarInstance=null;
-function buildRadarChart(p){
-    if(radarInstance){radarInstance.destroy();radarInstance=null;}
+// ── buildHexChart (SVG Hexagon) ──────────────────────────────────
+function buildHexChart(p){
     const labels=['General','Viteză','Tehnică','Strategie','Apărare','Win Rate'];
     const wr=p.games>0?(1+p.wins/p.games*9):5;
     const vals=[getCatAvg(p,'general'),getCatAvg(p,'viteza'),getCatAvg(p,'tehnica'),getCatAvg(p,'strategie'),getCatAvg(p,'aparare'),wr];
     const colors=['#ffcc00','#ff8c00','#3d5afe','#00bcd4','#4caf50','#a78bfa'];
-    const ctx=document.getElementById('radarChart').getContext('2d');
-    radarInstance=new Chart(ctx,{type:'radar',data:{labels,datasets:[{label:p.name,data:vals,backgroundColor:'rgba(61,90,254,0.15)',borderColor:'#3d5afe',pointBackgroundColor:colors,pointRadius:5,pointBorderColor:'#0a0c10'}]},options:{responsive:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:10,ticks:{stepSize:2,color:'#444',backdropColor:'transparent',font:{size:9}},grid:{color:'rgba(255,255,255,0.06)'},pointLabels:{color:'#aaa',font:{size:11,family:"'Rajdhani',sans-serif",weight:'700'}},angleLines:{color:'rgba(255,255,255,0.06)'}}}}});
-    // Legend
-    document.getElementById('radarLegend').innerHTML=labels.map((l,i)=>`<div style="display:flex;align-items:center;gap:6px;"><div style="width:10px;height:10px;border-radius:50%;background:${colors[i]};flex-shrink:0;"></div><span style="font-size:.75rem;color:#aaa;">${l}: <strong style="color:#fff;">${vals[i].toFixed(1)}</strong></span></div>`).join('');
-}
+    const cx=110,cy=110,R=85,r_min=8;
+    const N=6;
+    const angle=i=>( (i/N)*Math.PI*2 - Math.PI/2 );
+    const pt=(r,i)=>({x:cx+r*Math.cos(angle(i)),y:cy+r*Math.sin(angle(i))});
 
-// ── buildPlayerMatchHistory ─────────────────────────────────────
+    // Background hex rings
+    let rings='';
+    [0.2,0.4,0.6,0.8,1.0].forEach(f=>{
+        const pts=Array.from({length:N},(_,i)=>pt(R*f,i));
+        rings+=`<polygon points="${pts.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
+    });
+    // Spokes
+    let spokes='';
+    for(let i=0;i<N;i++){
+        const p2=pt(R,i);
+        spokes+=`<line x1="${cx}" y1="${cy}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
+    }
+    // Data polygon
+    const dataPts=vals.map((v,i)=>pt(Math.max(r_min,R*(v/10)),i));
+    const dataPath=dataPts.map(p=>p.x+','+p.y).join(' ');
+    // Labels
+    let lbls='';
+    labels.forEach((lbl,i)=>{
+        const p2=pt(R+18,i);
+        const anchor=p2.x<cx-5?'end':p2.x>cx+5?'start':'middle';
+        lbls+=`<text x="${p2.x}" y="${p2.y+4}" text-anchor="${anchor}" fill="${colors[i]}" font-size="9" font-family="Rajdhani,sans-serif" font-weight="700">${lbl.slice(0,3).toUpperCase()}</text>`;
+    });
+    // Dot per vertex
+    let dots='';
+    dataPts.forEach((p2,i)=>{
+        dots+=`<circle cx="${p2.x}" cy="${p2.y}" r="4" fill="${colors[i]}" stroke="#0a0c10" stroke-width="1.5"/>`;
+    });
+
+    document.getElementById('hexSvg').innerHTML=`
+        ${rings}${spokes}
+        <polygon points="${dataPath}" fill="rgba(61,90,254,.18)" stroke="#3d5afe" stroke-width="1.5" stroke-linejoin="round"/>
+        ${dots}${lbls}`;
+
+    document.getElementById('hexLabels').innerHTML=labels.map((l,i)=>`
+        <div class="hex-lbl-row">
+            <div class="hex-lbl-dot" style="background:${colors[i]};"></div>
+            <span class="hex-lbl-text">${l}</span>
+            <span class="hex-lbl-val">${vals[i].toFixed(1)}</span>
+        </div>`).join('');
+}
+// Keep old radar fn signature for compat
+function buildRadarChart(p){ buildHexChart(p); }
+
+// ── buildPlayerMatchHistory — Timeline style ─────────────────────
 function buildPlayerMatchHistory(p){
     const matches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name));
     const el=document.getElementById('playerMatchHistory');
-    if(!matches.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#444;">Niciun meci înregistrat.</div>';return;}
+    if(!matches.length){el.innerHTML='<div style="text-align:center;padding:24px;color:#444;">Niciun meci înregistrat.</div>';return;}
     const sorted=[...matches].sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
     el.innerHTML=sorted.map(h=>{
         const inOrange=(h.orangePlayers||[]).includes(p.name);
@@ -3259,15 +3414,14 @@ function buildPlayerMatchHistory(p){
         const oppTeam=inOrange?h.greenPlayers:h.orangePlayers;
         const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
-        const oppNames=(oppTeam||[]).join(', ')||'—';
-        return `<div class="mh-row">
-            <div class="mh-top">
-                <div class="mh-date">${h.date||'—'}</div>
-                <div class="mh-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNG.'}</div>
-                <div class="mh-team" style="color:${inOrange?'var(--orange)':'#4caf50'}">${inOrange?'🟠':'🟢'} ${h.winner||'—'}</div>
-            </div>
-            ${teammates.length?`<div class="mh-teammates">Echipieri: ${teammates.join(', ')}</div>`:''}
-            ${oppNames!=='—'?`<div class="mh-teammates" style="color:#333;">Adversari: ${oppNames}</div>`:''}
+        const teamColor=inOrange?'var(--orange)':'#4caf50';
+        const teamIcon=inOrange?'🟠':'🟢';
+        return `<div class="tl-item">
+            <div class="tl-dot ${won?'W':'L'}"></div>
+            <div class="tl-date">${h.date||'—'}</div>
+            <div class="tl-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNGERE'} · <span style="color:${teamColor};font-size:.75rem;">${teamIcon} ${h.winner}</span></div>
+            ${teammates.length?`<div class="tl-mates">👥 ${teammates.join(' · ')}</div>`:''}
+            ${(oppTeam||[]).length?`<div class="tl-mates" style="color:#2a2d3a;">⚔️ ${(oppTeam||[]).join(' · ')}</div>`:''}
         </div>`;
     }).join('');
 }
@@ -3299,24 +3453,37 @@ function buildChemistry(p){
         return{name,score,together:d.together,wins:d.wins,freq,wr};
     }).sort((a,b)=>b.score-a.score);
 
-    if(!results.length){el.innerHTML='<div style="text-align:center;padding:20px;color:#444;">Niciun coechipier comun.</div>';return;}
+    if(!results.length){el.innerHTML='<div style="text-align:center;padding:24px;color:#444;">Niciun coechipier comun.</div>';return;}
 
-    const maxScore=results[0].score||1;
-    const chemColors=['#4caf50','#8bc34a','#ffd600','#ff8c00','#e53935'];
-    function chemColor(s){return s>=8?chemColors[0]:s>=6?chemColors[1]:s>=4?chemColors[2]:s>=2?chemColors[3]:chemColors[4];}
+    const chemColor=s=>s>=8?'#4caf50':s>=6?'#8bc34a':s>=4?'#ffd600':s>=2?'#ff8c00':'#e53935';
+    const hearts=s=>{
+        const filled=Math.round(s/2);
+        return Array.from({length:5},(_,i)=>`<span class="chem-heart" style="opacity:${i<filled?1:.15};">❤️</span>`).join('');
+    };
 
-    el.innerHTML=results.map(r=>`
-        <div class="chem-row">
-            <div class="chem-avatar">${r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+    el.innerHTML=results.map((r,i)=>{
+        const partner=db.players.find(x=>x.name===r.name);
+        const partnerSmart=partner?getSmartRating(partner).toFixed(1):'—';
+        const rank=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        const scoreColor=chemColor(r.score);
+        const inits=r.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        return `<div class="chem-mini-card">
+            <div class="chem-mini-av" style="background:rgba(61,90,254,.12);border:2px solid rgba(61,90,254,.3);color:#82b1ff;">${inits}</div>
             <div style="flex:1;">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-                    <span class="chem-name">${r.name}</span>
-                    <span class="chem-score" style="color:${chemColor(r.score)};">${r.score.toFixed(1)}</span>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                    <span style="font-weight:700;font-size:.9rem;color:#fff;">${r.name}</span>
+                    <span style="font-size:.8rem;">${rank}</span>
                 </div>
-                <div class="chem-bar-wrap"><div class="chem-bar" style="width:${(r.score/10)*100}%;background:${chemColor(r.score)};"></div></div>
-                <div class="chem-detail">${r.together} meciuri împreună · ${r.wins} câștigate (${(r.wr*100).toFixed(0)}%) · ${(r.freq*100).toFixed(0)}% din meciuri</div>
+                <div class="chem-hearts">${hearts(r.score)}</div>
+                <div style="font-size:.65rem;color:#444;margin-top:3px;">${r.together} meciuri · ${(r.wr*100).toFixed(0)}% victorii</div>
             </div>
-        </div>`).join('');
+            <div style="text-align:right;">
+                <div class="chem-mini-rating" style="color:${scoreColor};">${r.score.toFixed(1)}</div>
+                <div style="font-size:.58rem;color:#444;">CHIMIE</div>
+                <div style="font-size:.68rem;color:#555;margin-top:2px;">★ ${partnerSmart}</div>
+            </div>
+        </div>`;
+    }).join('');
 }
 
 // ── Tabela overlay ──────────────────────────────────────────────
