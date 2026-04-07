@@ -765,14 +765,19 @@
     <div class="balance-col admin-only" style="position:relative;">
         <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
         <div class="balance-popup" id="balancePopup">
-            <div class="balance-popup-title">Reechilibrează după</div>
+            <div class="balance-popup-title">⚖️ Fă Echipele</div>
             <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Rating Smart</span></div>
             <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General</span></div>
+            <div class="balance-opt" onclick="doBalance('roles')"><span class="balance-opt-icon">🎭</span><span>Role Balance</span></div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div class="balance-opt" onclick="openDraftMode()" style="color:#ce93d8;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
+            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#ffcc00;"><span class="balance-opt-icon">🎰</span><span>Surprise Me!</span></div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div class="balance-opt" onclick="doRotation()" style="color:#4caf50;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
                 <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
             </div>
-            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
             <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
                 <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
             </div>
@@ -922,6 +927,39 @@
     <div class="modal-tab-panel" id="tabVotes">
         <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;" id="ratingsListLabel">📊 Voturi existente</div>
         <div id="ratingsList" style="max-height:380px;overflow-y:auto;"></div>
+    </div>
+</div>
+</div>
+
+<!-- DRAFT MODE MODAL -->
+<div class="modal-overlay" id="draftOverlay" onclick="if(event.target===this)closeDraft()" style="display:none;">
+<div style="background:#0a0c10;width:96%;max-width:560px;border-radius:16px;border:1px solid #252836;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9);max-height:92vh;display:flex;flex-direction:column;">
+    <div style="padding:16px 20px;border-bottom:1px solid #1e2130;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;">🎲 DRAFT MODE</div>
+            <div id="draftStatus" style="font-size:.75rem;color:#555;margin-top:2px;"></div>
+        </div>
+        <button onclick="closeDraft()" style="background:#1c1f2b;border:1px solid #252836;color:#555;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
+    </div>
+    <!-- Captains bar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #1e2130;">
+        <div id="draftCapOrange" style="padding:10px 16px;background:rgba(255,140,0,.07);border-right:1px solid #1e2130;">
+            <div style="font-size:.6rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟠 Căpitan Portocaliu</div>
+            <div id="draftCapOrangeName" style="font-weight:700;color:#fff;font-size:.9rem;">—</div>
+        </div>
+        <div id="draftCapGreen" style="padding:10px 16px;background:rgba(40,167,69,.07);">
+            <div style="font-size:.6rem;color:#4caf50;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟢 Căpitan Verde</div>
+            <div id="draftCapGreenName" style="font-weight:700;color:#fff;font-size:.9rem;">—</div>
+        </div>
+    </div>
+    <!-- Pick order indicator -->
+    <div id="draftPickIndicator" style="padding:8px 20px;font-size:.82rem;font-weight:700;text-align:center;border-bottom:1px solid #1e2130;"></div>
+    <!-- Available players grid -->
+    <div id="draftPlayerGrid" style="padding:14px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
+    <!-- Footer -->
+    <div style="padding:12px 16px;border-top:1px solid #1e2130;display:flex;gap:8px;">
+        <button onclick="confirmDraft()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;">✅ Confirmă Echipele</button>
+        <button onclick="closeDraft()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:.85rem;cursor:pointer;">Anulează</button>
     </div>
 </div>
 </div>
@@ -3917,11 +3955,77 @@ function doBalance(mode) {
     const active = db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
     if (active.length < 2) { showToast('⚠️ Minim 2 jucători activi!'); return; }
 
-    const getRating = (p) => mode === 'smart' ? getSmartRating(p) : getGeneralAvg(p);
-    const sorted = [...active].sort((a,b) => getRating(b) - getRating(a));
+    if (mode === 'surprise') {
+        // ── Surprise Me: random cu max 2 taguri negative pe echipă ──
+        const shuffled = [...active].sort(() => Math.random() - 0.5);
+        const oT = [], gT = [];
+        shuffled.forEach(p => {
+            // Count negative tags in each team
+            const negCount = t => t.reduce((s, x) => {
+                const tags = getPlayerActiveTagObjects(x);
+                return s + tags.filter(tg => tg.tag?.type === 'neg').length;
+            }, 0);
+            if (oT.length <= gT.length && negCount(oT) <= 2) { p.status = 'orange'; oT.push(p); }
+            else { p.status = 'green'; gT.push(p); }
+        });
+        render();
+        Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
+        showToast('🎰 Surprise! Echipe random (cu echilibru negativ)!');
+        return;
+    }
 
-    // Snake draft pentru echilibrare optimă
-    let oSum = 0, gSum = 0;
+    if (mode === 'roles') {
+        // ── Role Balance: snake draft + garantează un apărător și un pasator per echipă ──
+        const sorted = [...active].sort((a, b) => getSmartRating(b) - getSmartRating(a));
+        let oSum = 0, gSum = 0;
+        const orange = [], green = [];
+
+        // First pass: place players with key defensive/vision roles to balance
+        const hasTag = (p, ...cats) => {
+            const tags = getPlayerActiveTagObjects(p);
+            return tags.some(t => cats.includes(t.tag?.impact_attribute));
+        };
+
+        const defenders   = sorted.filter(p => hasTag(p, 'aparare'));
+        const visionaries = sorted.filter(p => hasTag(p, 'strategie'));
+        const rest        = sorted.filter(p => !hasTag(p, 'aparare') && !hasTag(p, 'strategie'));
+
+        const assign = (p) => {
+            if (oSum <= gSum) { p.status = 'orange'; orange.push(p); oSum += getSmartRating(p); }
+            else              { p.status = 'green';  green.push(p);  gSum += getSmartRating(p); }
+        };
+
+        // Ensure each team gets at least one defender/visionary
+        if (defenders.length >= 2) { defenders[0].status='orange'; orange.push(defenders[0]); oSum+=getSmartRating(defenders[0]); defenders[1].status='green'; green.push(defenders[1]); gSum+=getSmartRating(defenders[1]); defenders.slice(2).forEach(assign); }
+        else defenders.forEach(assign);
+
+        if (visionaries.length >= 2) {
+            const unassigned = visionaries.filter(p => p.status !== 'orange' && p.status !== 'green');
+            if (unassigned.length >= 2) { unassigned[0].status='orange'; orange.push(unassigned[0]); oSum+=getSmartRating(unassigned[0]); unassigned[1].status='green'; green.push(unassigned[1]); gSum+=getSmartRating(unassigned[1]); unassigned.slice(2).forEach(assign); }
+            else unassigned.forEach(assign);
+        }
+
+        rest.filter(p => p.status !== 'orange' && p.status !== 'green').forEach(assign);
+        render();
+        Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
+        showToast('🎭 Role Balance aplicat — echipe cu apărători și vizionari!');
+        return;
+    }
+
+    // ── Standard snake draft (smart / general) ──
+    const getRating = (p) => mode === 'smart' ? getSmartRating(p) : getGeneralAvg(p);
+    const sorted = [...active].sort((a, b) => getRating(b) - getRating(a));
+
+    // ── Handicap: dacă o echipă e pe un win streak, dezavantajeaz-o ──
+    const oPlayers = db.players.filter(p => p.status === 'orange');
+    const gPlayers = db.players.filter(p => p.status === 'green');
+    const oStreak = computeTeamStreak('orange');
+    const gStreak = computeTeamStreak('green');
+    let handicap = 0;
+    if (oStreak >= 3 && gStreak < 3) { handicap = 0.5 * oStreak; showToast(`⚡ Handicap aplicat: Portocaliu a câștigat ${oStreak} la rând!`); }
+    else if (gStreak >= 3 && oStreak < 3) { handicap = -0.5 * gStreak; showToast(`⚡ Handicap aplicat: Verde a câștigat ${gStreak} la rând!`); }
+
+    let oSum = handicap, gSum = 0;
     sorted.forEach(p => {
         if (oSum <= gSum) { p.status = 'orange'; oSum += getRating(p); }
         else              { p.status = 'green';  gSum += getRating(p); }
@@ -3930,6 +4034,145 @@ function doBalance(mode) {
     Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
     const label = mode === 'smart' ? 'Smart Rating' : 'Rating General';
     showToast(`⚖️ Echipe reechilibrate după ${label}!`);
+}
+
+// ── Compute consecutive wins for a team from history ─────────────
+function computeTeamStreak(team) {
+    const winner = team === 'orange' ? 'Portocaliu' : 'Verde';
+    const sorted = [...db.history].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+    let streak = 0;
+    for (const h of sorted) {
+        if (h.winner === winner) streak++;
+        else break;
+    }
+    return streak;
+}
+
+// ── Rotation: winner stays, loser swaps with bench ────────────────
+function doRotation() {
+    document.getElementById('balancePopup').classList.remove('show');
+    const lastMatch = db.history[0];
+    if (!lastMatch) { showToast('⚠️ Niciun meci înregistrat!'); return; }
+
+    const winTeam  = lastMatch.winner === 'Portocaliu' ? 'orange' : 'green';
+    const loseTeam = winTeam === 'orange' ? 'green' : 'orange';
+    const losers   = db.players.filter(p => p.status === loseTeam);
+    const bench    = db.players.filter(p => p.status === 'bench');
+
+    if (!bench.length) { showToast('⚠️ Nu sunt jucători pe bancă pentru rotație!'); return; }
+
+    const winLabel  = winTeam === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+    const loseLabel = loseTeam === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+
+    showConfirm('🔄', 'Rotație Echipe',
+        `${winLabel} rămâne. ${loseLabel} iese (${losers.length} jucători → Bancă).\n${bench.length} jucători de pe Bancă intră în locul lor.`,
+        'Aplică Rotația', '#28a745',
+        async () => {
+            // Loser team → bench
+            losers.forEach(p => p.status = 'bench');
+            // Bench players → loser team slot (up to loser count)
+            const incoming = bench.slice(0, losers.length);
+            incoming.forEach(p => p.status = loseTeam);
+            // Remaining bench stays bench
+            render();
+            try { await Promise.all([...losers, ...incoming].map(p => dbUpdatePlayer(p))); showToast(`✅ Rotație aplicată! ${winLabel} rămâne.`); }
+            catch(e) { showToast('⚠️ '+e.message); }
+        }
+    );
+}
+
+// ── Draft Mode ────────────────────────────────────────────────────
+let draftState = { picks: [], currentTurn: 'orange', captains: {orange:null, green:null}, available: [] };
+
+function openDraftMode() {
+    document.getElementById('balancePopup').classList.remove('show');
+    const active = db.players.filter(p => ['orange','green','bench'].includes(p.status));
+    if (active.length < 4) { showToast('⚠️ Minim 4 jucători pentru Draft!'); return; }
+
+    // Move all active to neutral pool
+    active.forEach(p => p.status = 'bench');
+
+    // Pick 2 captains: highest rated available
+    const sorted = [...active].sort((a,b) => getSmartRating(b) - getSmartRating(a));
+    const capO = sorted[0], capG = sorted[1];
+    capO.status = 'orange'; capG.status = 'green';
+    const pool = sorted.slice(2);
+
+    draftState = {
+        available: pool,
+        currentTurn: 'orange',  // orange picks first after captains
+        picks: [{player:capO,team:'orange'},{player:capG,team:'green'}],
+        captains: {orange: capO, green: capG}
+    };
+
+    document.getElementById('draftCapOrangeName').textContent = capO.name;
+    document.getElementById('draftCapGreenName').textContent  = capG.name;
+    renderDraft();
+    document.getElementById('draftOverlay').style.display = 'flex';
+    render();
+}
+
+function renderDraft() {
+    const {available, currentTurn, picks} = draftState;
+    const oCount = picks.filter(p=>p.team==='orange').length;
+    const gCount = picks.filter(p=>p.team==='green').length;
+    const color  = currentTurn === 'orange' ? 'var(--orange)' : '#4caf50';
+    const label  = currentTurn === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+
+    document.getElementById('draftStatus').textContent = `Portocaliu: ${oCount} · Verde: ${gCount} · Disponibili: ${available.length}`;
+    document.getElementById('draftPickIndicator').innerHTML = available.length
+        ? `<span style="color:${color};">Alege ${label}</span>`
+        : '<span style="color:#4caf50;">Draft complet! ✅</span>';
+
+    document.getElementById('draftPickIndicator').style.background = available.length
+        ? (currentTurn==='orange'?'rgba(255,140,0,.08)':'rgba(40,167,69,.08)') : 'rgba(40,167,69,.05)';
+
+    const grid = document.getElementById('draftPlayerGrid');
+    if (!available.length) { grid.innerHTML = '<div style="text-align:center;color:#555;padding:20px;">Toți jucătorii au fost aleși!</div>'; return; }
+
+    grid.innerHTML = available.map((p, i) => {
+        const smart = getSmartRating(p).toFixed(1);
+        const tags = getPlayerActiveTagObjects(p).slice(0,3).map(t=>`<span class="ptag ${t.tag.type==='pos'?'tag-pos':t.tag.type==='neg'?'tag-neg':'tag-neu'}" style="font-size:.58rem;padding:1px 5px;">${t.tag.emoji}</span>`).join('');
+        return `<div onclick="draftPick(${i})" style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:#141720;border:1px solid #252836;border-radius:10px;cursor:pointer;transition:all .15s;"
+            onmouseover="this.style.borderColor='${currentTurn==='orange'?'var(--orange)':'#28a745'}'"
+            onmouseout="this.style.borderColor='#252836'">
+            <div style="width:34px;height:34px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#555;">${p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div>
+            <div style="flex:1;">
+                <div style="font-weight:700;color:#fff;font-size:.9rem;">${p.name}</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">${tags}</div>
+            </div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--star);">★ ${smart}</div>
+        </div>`;
+    }).join('');
+}
+
+function draftPick(idx) {
+    const {available, currentTurn} = draftState;
+    const player = available[idx];
+    if (!player) return;
+
+    player.status = currentTurn;
+    draftState.picks.push({player, team: currentTurn});
+    draftState.available = available.filter((_,i) => i !== idx);
+
+    // Snake draft order: O G G O O G G...
+    const pickNum = draftState.picks.length - 2; // exclude captains
+    draftState.currentTurn = (Math.floor(pickNum / 2) % 2 === 0) ? 'orange' : 'green';
+
+    if (navigator.vibrate) navigator.vibrate(30);
+    renderDraft();
+    render();
+}
+
+function confirmDraft() {
+    const all = [...db.players.filter(p => p.status === 'orange' || p.status === 'green')];
+    Promise.all(all.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
+    closeDraft();
+    showToast(`✅ Draft confirmat! Echipe formate.`);
+}
+
+function closeDraft() {
+    document.getElementById('draftOverlay').style.display = 'none';
 }
 
 // ── Rating la o anumită dată (pentru calculul scorului istoric) ──
