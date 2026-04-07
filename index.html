@@ -1948,7 +1948,10 @@ async function dbUpdatePlayer(p) {
         id:p.id, name:p.name, status:p.status,
         wins:p.wins, games:p.games, match_history:p.matchHistory
     });
-    if (error) throw error;
+    if (error) {
+        console.error('dbUpdatePlayer error for', p.name, ':', error.message, error.details, error.hint);
+        throw error;
+    }
 }
 
 async function dbInsertRating(playerId, r) {
