@@ -3510,7 +3510,8 @@ function buildRatingChart(p,cat){
 function buildRatingsList(p){
     const count = p.ratings.length;
     const admin = isAdmin();
-    document.getElementById('ratingsListLabel').textContent = `📊 Voturi existente (${count})`;
+    const lbl = document.getElementById('ratingsListLabel');
+    if(lbl) lbl.textContent = `📊 Voturi existente (${count})`;
     document.getElementById('ratingsList').innerHTML = p.ratings.map((r,i) => `
         <div class="rating-entry">
             <div class="rating-entry-left">
