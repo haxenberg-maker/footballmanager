@@ -1126,6 +1126,41 @@
 </div>
 </div>
 
+<!-- GOAL SCORER MODAL -->
+<div class="modal-overlay" id="goalOverlay" style="display:none;">
+<div style="background:#0a0c10;width:94%;max-width:520px;border-radius:16px;overflow:hidden;border:1px solid #252836;box-shadow:0 20px 60px rgba(0,0,0,.9);max-height:92vh;display:flex;flex-direction:column;">
+    <div style="padding:14px 20px;border-bottom:1px solid #1e2130;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;" id="goalModalTitle">⚽ Goluri Meci</div>
+            <div style="font-size:.7rem;color:#555;margin-top:2px;">Adaugă golurile marcate — opțional, dar îmbunătățește ratingul</div>
+        </div>
+        <button onclick="skipGoals()" style="background:#1c1f2b;border:1px solid #252836;color:#555;padding:6px 12px;border-radius:8px;font-size:.8rem;cursor:pointer;">Sari peste →</button>
+    </div>
+    <!-- Score display -->
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:14px 20px;background:#080a12;border-bottom:1px solid #1e2130;">
+        <div style="text-align:center;">
+            <div style="font-size:.62rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🟠 Portocaliu</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--orange);line-height:1;" id="goalScoreO">0</div>
+        </div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#333;">:</div>
+        <div style="text-align:center;">
+            <div style="font-size:.62rem;color:#4caf50;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🟢 Verde</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:#4caf50;line-height:1;" id="goalScoreG">0</div>
+        </div>
+    </div>
+    <!-- Players grid -->
+    <div style="overflow-y:auto;flex:1;padding:12px 16px;">
+        <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Apasă pe un jucător pentru a adăuga un gol:</div>
+        <div id="goalPlayerGrid" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+    <!-- Footer -->
+    <div style="padding:12px 16px;border-top:1px solid #1e2130;display:flex;gap:8px;">
+        <button onclick="submitGoals()" style="flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;">💾 Salvează &amp; Finalizează</button>
+        <button onclick="skipGoals()" style="padding:11px 14px;border-radius:10px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:.85rem;cursor:pointer;">Sari</button>
+    </div>
+</div>
+</div>
+
 <!-- DRAFT MODE MODAL -->
 <div class="modal-overlay" id="draftOverlay" onclick="if(event.target===this)closeDraft()" style="display:none;">
 <div style="background:#0a0c10;width:96%;max-width:560px;border-radius:16px;border:1px solid #252836;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9);max-height:92vh;display:flex;flex-direction:column;">
@@ -1978,6 +2013,7 @@ async function loadAll() {
         db.history = (histRaw || []).map(h => ({
             _dbId: h.id,
             date: h.date, winner: h.winner, score: h.score,
+            imbalanced: h.imbalanced||false,
             orangePlayers: h.orange_players || [],
             greenPlayers:  h.green_players  || []
         }))
@@ -2034,6 +2070,8 @@ function rowToPlayer(p) {
         negativeStatus: p.negative_status||null,
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
+        totalGoals: p.total_goals||0,
+        lastImbalanceLoss: p.last_imbalance_loss||0,
         ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
             _dbId: r.id, rater:r.rater, date:r.date, tags:r.tags||'',
             general:r.general||5, viteza:r.viteza||5, tehnica:r.tehnica||5,
@@ -2058,7 +2096,9 @@ async function seedDefaultPlayers() {
 async function dbUpdatePlayer(p) {
     const { error } = await sb.from('players').upsert({
         id:p.id, name:p.name, status:p.status,
-        wins:p.wins, games:p.games, match_history:p.matchHistory
+        wins:p.wins, games:p.games, match_history:p.matchHistory,
+        total_goals: p.totalGoals||0,
+        last_imbalance_loss: p.lastImbalanceLoss||0
     });
     if (error) {
         console.error('dbUpdatePlayer error for', p.name, ':', error.message, error.details, error.hint);
@@ -2095,11 +2135,14 @@ async function dbSaveNextMatch() {
 }
 
 async function dbInsertMatchHistory(entry) {
-    const { error } = await sb.from('match_history').insert({
+    const { data, error } = await sb.from('match_history').insert({
         date: entry.date, winner: entry.winner, score: entry.score,
-        orange_players: entry.orangePlayers, green_players: entry.greenPlayers
-    });
+        orange_players: entry.orangePlayers, green_players: entry.greenPlayers,
+        imbalanced: entry.imbalanced||false
+    }).select().single();
     if (error) throw error;
+    if(data) entry._dbId = data.id;
+    return entry;
 }
 
 // ── Realtime: sync lobby across all devices ──
@@ -2156,35 +2199,60 @@ function computeTagBonus(activeTags){
     return {bonus: parseFloat(bonus.toFixed(3)), signals};
 }
 
-// ── Smart Rating 2.0 ────────────────────────────────────────────
+// ── Smart Rating 2.0 — Base 5, Goals, Imbalance coeff ────────────
 function getSmartRating(p) {
     if(p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
 
-    const n = p.ratings.length || 1;
-    const general   = p.ratings.reduce((s,r)=>s+(r.general||5),0) / n;
-    const viteza    = p.ratings.reduce((s,r)=>s+(r.viteza||5),0)  / n;
-    const tehnica   = p.ratings.reduce((s,r)=>s+(r.tehnica||5),0) / n;
-    const strategie = p.ratings.reduce((s,r)=>s+(r.strategie||5),0)/ n;
-    const aparare   = p.ratings.reduce((s,r)=>s+(r.aparare||5),0) / n;
+    // ── 1. Base = 5 (nu mai pornim de la voturile colegilor) ──────
+    let base = 5.0;
 
-    const wrRaw  = p.games>0 ? p.wins/p.games : 0;
-    const wrScore= 1 + wrRaw*9;
-    const games  = Math.max(p.games,1);
+    // ── 2. Win Rate contribution (scalat -2..+2 față de 5) ───────
+    const wrRaw   = p.games>0 ? p.wins/p.games : 0.5;
+    const wrDelta = (wrRaw - 0.5) * 4; // 0%→-2, 50%→0, 100%→+2
+    base += wrDelta * W.winrate;
+
+    // ── 3. Peer vote bonus — opțional, adaugă max ±1 ─────────────
+    if(p.ratings.length > 0){
+        const n = p.ratings.length;
+        const generalAvg = p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;
+        // Peer votes shift base by max ±1 point
+        const peerDelta = ((generalAvg - 5) / 5) * 1.0;
+        base += peerDelta * (W.general + W.viteza + W.tehnica + W.strategie + W.aparare);
+    }
+
+    // ── 4. MVP bonus ──────────────────────────────────────────────
+    const games = Math.max(p.games,1);
     const mvpWinScore  = Math.min(((p.mvpWinCount||0)/games)*10,10);
     const mvpLossScore = Math.min(((p.mvpLossCount||0)/games)*10,10);
+    base += (mvpWinScore/10) * W.mvpWin * 2;
+    base += (mvpLossScore/10) * W.mvpLoss * 1;
 
-    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
-    let base = general*wG + wrScore*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss;
+    // ── 5. Goals contribution: +0.1 per gol pe meci (max +1) ─────
+    if((p.totalGoals||0) > 0 && p.games > 0){
+        const gpg = Math.min(p.totalGoals / p.games, 3); // goals per game, cap 3
+        base += Math.min(gpg * 0.33, 1.0); // max +1.0 din goluri
+    }
 
-    // ── Penalizare dezechilibru: oricare atribut sub 2.5 → −10% ──
-    const THRESHOLD = 2.5;
-    const hasWeakAttr = viteza<THRESHOLD || tehnica<THRESHOLD || strategie<THRESHOLD || aparare<THRESHOLD;
-    if(hasWeakAttr) base *= 0.90;
-
-    // ── Win Rate bonus: WR > 60% și ≥3 meciuri → +0.2 ──
+    // ── 6. WR > 60% bonus ────────────────────────────────────────
     if(wrRaw > 0.60 && p.games >= 3) base += 0.2;
 
-    // ── Tag bonus auto-scalat (imun la spam) ──
+    // ── 7. Penalizare dezechilibru: oricare atribut peer < 2.5 ───
+    if(p.ratings.length > 0){
+        const n = p.ratings.length;
+        const viteza    = p.ratings.reduce((s,r)=>s+(r.viteza||5),0)/n;
+        const tehnica   = p.ratings.reduce((s,r)=>s+(r.tehnica||5),0)/n;
+        const strategie = p.ratings.reduce((s,r)=>s+(r.strategie||5),0)/n;
+        const aparare   = p.ratings.reduce((s,r)=>s+(r.aparare||5),0)/n;
+        const hasWeakAttr = viteza<2.5||tehnica<2.5||strategie<2.5||aparare<2.5;
+        if(hasWeakAttr) base *= 0.90;
+    }
+
+    // ── 8. Imbalance coeff: echipă dezechilibrată (3+ goluri diff) ─
+    // Penalizare acumulativă: -0.15 per meci pierdut cu 3+ diferență (cap 3 meciuri)
+    const imbalancePenalty = Math.min((p.lastImbalanceLoss||0), 3) * 0.15;
+    base -= imbalancePenalty;
+
+    // ── 9. Tag bonus auto-scalat ──────────────────────────────────
     const activeTags = getPlayerActiveTagObjects(p);
     const {bonus: tagBonus} = computeTagBonus(activeTags);
 
@@ -2433,9 +2501,11 @@ function renderHistory(){
             const origIdx = db.history.indexOf(h);
             const winColor = h.winner==='Portocaliu' ? 'var(--orange)' : 'var(--green)';
             const winText  = h.winner==='Portocaliu' ? '#000' : '#fff';
+            const scoreDisplay = h.score && h.score !== '—' ? ` <span style="font-size:.72rem;color:#666;">${h.score}</span>` : '';
+            const imbalBadge = h.imbalanced ? ' <span style="font-size:.6rem;color:#ef9a9a;border:1px solid #ef9a9a33;border-radius:4px;padding:1px 4px;" title="Dezechilibru 3+ goluri">⚠️</span>' : '';
             return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
                 <td>${h.date||'—'}</td>
-                <td><span class="win-tag" style="background:${winColor};color:${winText}">${h.winner||'—'}</span></td>
+                <td><span class="win-tag" style="background:${winColor};color:${winText}">${h.winner||'—'}</span>${scoreDisplay}${imbalBadge}</td>
                 ${admin?`<td style="white-space:nowrap;">
                     <button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
                     <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>
@@ -2580,25 +2650,77 @@ function formTeamsFromLobby(){
     showToast(`⚡ Echipe formate din ${confirmed.length} jucători confirmați!`);
 }
 
-async function recordMatch(winner){
+async function recordMatch(winner, goalMap={}){
     const oP=db.players.filter(p=>p.status==='orange'),gP=db.players.filter(p=>p.status==='green');
     if(oP.length<1||gP.length<1){showToast('⚠️ Ambele echipe trebuie să aibă jucători!');return;}
 
-    // Snapshot for undo
     const undoSnapshot = JSON.parse(JSON.stringify(db));
+
+    // Score from goals
+    const oGoals = Object.values(goalMap).filter(g=>g.team==='orange').reduce((s,g)=>s+g.count,0);
+    const gGoals = Object.values(goalMap).filter(g=>g.team==='green').reduce((s,g)=>s+g.count,0);
+    const scoreDiff = Math.abs(oGoals - gGoals);
+    const hasGoals = oGoals > 0 || gGoals > 0;
+    const scoreStr = hasGoals ? `${oGoals}:${gGoals}` : '—';
+
+    // Imbalance flag: losing team lost by 3+ goals
+    const imbalanced = hasGoals && scoreDiff >= 3;
+
     const oAvg=(oP.reduce((s,p)=>s+getSmartRating(p),0)/oP.length).toFixed(1);
     const gAvg=(gP.reduce((s,p)=>s+getSmartRating(p),0)/gP.length).toFixed(1);
-    oP.forEach(p=>{p.games++;if(winner==='orange')p.wins++;p.matchHistory.push(winner==='orange'?'W':'L');});
-    gP.forEach(p=>{p.games++;if(winner==='green')p.wins++;p.matchHistory.push(winner==='green'?'W':'L');});
-    // Mută toți jucătorii înapoi în Jucători Activi după meci
+
+    // Update player stats + attach goals
+    oP.forEach(p=>{
+        p.games++;
+        if(winner==='orange') p.wins++;
+        p.matchHistory.push(winner==='orange'?'W':'L');
+        p.goalsLastMatch = goalMap[p.name]?.count||0;
+        p.totalGoals = (p.totalGoals||0) + (goalMap[p.name]?.count||0);
+        // Imbalance: losing team by 3+ → flag for rating penalty
+        if(winner!=='orange' && imbalanced) p.lastImbalanceLoss = (p.lastImbalanceLoss||0)+1;
+        else if(winner==='orange') p.lastImbalanceLoss = 0;
+    });
+    gP.forEach(p=>{
+        p.games++;
+        if(winner==='green') p.wins++;
+        p.matchHistory.push(winner==='green'?'W':'L');
+        p.goalsLastMatch = goalMap[p.name]?.count||0;
+        p.totalGoals = (p.totalGoals||0) + (goalMap[p.name]?.count||0);
+        if(winner!=='green' && imbalanced) p.lastImbalanceLoss = (p.lastImbalanceLoss||0)+1;
+        else if(winner==='green') p.lastImbalanceLoss = 0;
+    });
+
     db.players.forEach(p=>{ if(p.status==='orange'||p.status==='green'||p.status==='bench') p.status='active'; });
-    const entry={date:today,winner:winner==='orange'?'Portocaliu':'Verde',score:`${oAvg} vs ${gAvg}`,orangePlayers:oP.map(p=>p.name),greenPlayers:gP.map(p=>p.name)};
-    db.history.unshift(entry);db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];
+
+    const entry={
+        date:today, winner:winner==='orange'?'Portocaliu':'Verde',
+        score:scoreStr, imbalanced,
+        orangePlayers:oP.map(p=>p.name), greenPlayers:gP.map(p=>p.name),
+        goals: Object.fromEntries(Object.entries(goalMap).map(([n,g])=>[n,g.count]))
+    };
+    db.history.unshift(entry);
+    db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];
     render();
-    showUndoToast(`🏆 ${entry.winner} câștigă! ${oAvg} vs ${gAvg}`, winner==='orange'?'o':'g', undoSnapshot);
+
+    let toastMsg = `🏆 ${entry.winner} câștigă! ${scoreStr}`;
+    if(imbalanced) toastMsg += ' ⚠️ Dezechilibru!';
+    showUndoToast(toastMsg, winner==='orange'?'o':'g', undoSnapshot);
+
     try{
         await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
-        await dbInsertMatchHistory(entry);
+        const dbEntry = await dbInsertMatchHistory(entry);
+        // Save individual goals
+        if(hasGoals && dbEntry?._dbId){
+            const goalRows = Object.entries(goalMap)
+                .filter(([,g])=>g.count>0)
+                .map(([name,g])=>({
+                    match_id: dbEntry._dbId,
+                    player_name: name,
+                    team: g.team,
+                    goals: g.count
+                }));
+            if(goalRows.length) await sb.from('match_goals').insert(goalRows);
+        }
         await dbSaveNextMatch();
     }catch(e){showToast('⚠️ Eroare salvare: '+e.message);}
 }
@@ -4395,17 +4517,69 @@ async function saveMatchEdit() {
 }
 
 // ── 2. Confirmare câștigător ──
+// ── Goal Scorer Modal ─────────────────────────────────────────────
+let _pendingWinner = null;
+let _goalMap = {};  // {playerName: {count, team}}
+
+function openGoalModal(winner, oP, gP){
+    const winLabel = winner==='orange' ? '🟠 Portocaliu câștigă' : '🟢 Verde câștigă';
+    document.getElementById('goalModalTitle').textContent = '⚽ ' + winLabel;
+    document.getElementById('goalScoreO').textContent = '0';
+    document.getElementById('goalScoreG').textContent = '0';
+    const grid = document.getElementById('goalPlayerGrid');
+    grid.innerHTML = '';
+
+    function renderTeam(players, team, color){
+        const hdr = document.createElement('div');
+        hdr.style.cssText = 'font-size:.6rem;color:'+color+';text-transform:uppercase;letter-spacing:1px;margin:8px 0 5px;padding-bottom:4px;border-bottom:1px solid #1e2130;';
+        hdr.textContent = team==='orange' ? '🟠 Echipa Portocalie' : '🟢 Echipa Verde';
+        grid.appendChild(hdr);
+        players.forEach(p=>{
+            const key = p.name.replace(/ /g,'__');
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;background:#0d0f18;border-radius:8px;border:1px solid #1e2130;margin-bottom:4px;';
+            row.innerHTML = '<span style="flex:1;font-size:.88rem;font-weight:700;color:#fff;">'+p.name+'</span>'
+                + '<button onclick="addGoal(\''+p.name+'\',\''+team+'\',-1);event.stopPropagation()" style="width:28px;height:28px;border-radius:6px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:1rem;cursor:pointer;line-height:1;">−</button>'
+                + '<span id="gcnt-'+key+'" style="font-family:\'Bebas Neue\',sans-serif;font-size:1.2rem;color:'+color+';min-width:20px;text-align:center;opacity:.3;">0</span>'
+                + '<button onclick="addGoal(\''+p.name+'\',\''+team+'\',1);event.stopPropagation()" style="width:28px;height:28px;border-radius:6px;background:rgba(40,167,69,.12);border:1px solid #28a745;color:#69f0ae;font-size:1rem;cursor:pointer;line-height:1;">+</button>';
+            grid.appendChild(row);
+        });
+    }
+    renderTeam(oP, 'orange', 'var(--orange)');
+    renderTeam(gP, 'green', '#4caf50');
+    document.getElementById('goalOverlay').style.display = 'flex';
+}
+
+function addGoal(playerName, team, delta){
+    if(!_goalMap[playerName]) _goalMap[playerName] = {count:0, team};
+    _goalMap[playerName].count = Math.max(0, _goalMap[playerName].count + delta);
+    const cnt = _goalMap[playerName].count;
+    const key = playerName.replace(/ /g,'__');
+    const el = document.getElementById('gcnt-'+key);
+    if(el){ el.textContent = cnt; el.style.opacity = cnt>0?'1':'0.3'; }
+    const oScore = Object.values(_goalMap).filter(g=>g.team==='orange').reduce((s,g)=>s+g.count,0);
+    const gScore = Object.values(_goalMap).filter(g=>g.team==='green').reduce((s,g)=>s+g.count,0);
+    document.getElementById('goalScoreO').textContent = oScore;
+    document.getElementById('goalScoreG').textContent = gScore;
+    if(navigator.vibrate) navigator.vibrate(15);
+}
+
+async function submitGoals(){
+    document.getElementById('goalOverlay').style.display = 'none';
+    await recordMatch(_pendingWinner, _goalMap);
+}
+function skipGoals(){
+    document.getElementById('goalOverlay').style.display = 'none';
+    recordMatch(_pendingWinner, {});
+}
+
 function confirmWin(winner) {
-    const color  = winner === 'orange' ? 'var(--orange)' : 'var(--green)';
-    const label  = winner === 'orange' ? 'Portocaliu' : 'Verde';
-    const oCount = db.players.filter(p=>p.status==='orange').length;
-    const gCount = db.players.filter(p=>p.status==='green').length;
-    showConfirm('🏆', `${label} câștigă?`,
-        `Portocaliu: ${oCount} jucători · Verde: ${gCount} jucători\nAceastă acțiune va actualiza statisticile tuturor jucătorilor.`,
-        `✅ Confirmă`,
-        color,
-        () => recordMatch(winner)
-    );
+    const oP = db.players.filter(p=>p.status==='orange');
+    const gP = db.players.filter(p=>p.status==='green');
+    if(!oP.length || !gP.length){ showToast('⚠️ Ambele echipe trebuie să aibă jucători!'); return; }
+    _pendingWinner = winner;
+    _goalMap = {};
+    openGoalModal(winner, oP, gP);
 }
 
 // ── 3. Mută toți Jucătorii Activi pe Bancă ──
