@@ -1623,10 +1623,16 @@ function tagById(id){ return PT_BY_ID[String(id)] || null; }
 function tagsToColumns(tagIds, general){
     const cols={viteza:general,tehnica:general,strategie:general,aparare:general};
     (tagIds||[]).forEach(id=>{
-        const t=tagById(id); if(!t||!t.impact_attribute||t.impact_attribute==='general') return;
+        const t=tagById(id); if(!t) return;
         const attr=t.impact_attribute;
-        if(t.type==='pos') cols[attr]=Math.max(cols[attr],8);
-        else if(t.type==='neg') cols[attr]=Math.min(cols[attr],3);
+        // 'general' impact → affects all attributes equally
+        const targets = (!attr || attr==='general')
+            ? ['viteza','tehnica','strategie','aparare']
+            : [attr];
+        targets.forEach(a=>{
+            if(t.type==='pos') cols[a]=Math.max(cols[a],8);
+            else if(t.type==='neg') cols[a]=Math.min(cols[a],3);
+        });
     });
     return cols;
 }
@@ -2292,20 +2298,29 @@ function render(){
 
 function analyzeTeamBalance(teamPlayers){
     if(!teamPlayers.length || !tagsConfig.length) return null;
-    // Use only ACTIVE tags for balance analysis
     const allObjs = teamPlayers.flatMap(p=>getPlayerActiveTagObjects(p));
     if(!allObjs.length) return null;
 
     const allTags = allObjs.map(o=>o.tag).filter(Boolean);
-    const posAttrs = allTags.filter(t=>t.type==='pos').map(t=>t.impact_attribute);
-    const negTags  = allTags.filter(t=>t.type==='neg');
+    // 'general' impact counts for all attribute checks
+    const posAttrs = allTags.filter(t=>t.type==='pos').flatMap(t=>
+        (!t.impact_attribute || t.impact_attribute==='general')
+            ? ['viteza','tehnica','strategie','aparare']
+            : [t.impact_attribute]
+    );
+    const negTags = allTags.filter(t=>t.type==='neg');
+    const negAttrs = negTags.flatMap(t=>
+        (!t.impact_attribute || t.impact_attribute==='general')
+            ? ['viteza','tehnica','strategie','aparare']
+            : [t.impact_attribute]
+    );
 
     const hasDefense = posAttrs.includes('aparare');
     const hasVision  = posAttrs.includes('strategie');
     const hasAttack  = posAttrs.includes('tehnica') || posAttrs.includes('viteza');
-    const negVisionCount = negTags.filter(t=>t.impact_attribute==='strategie').length;
-    const negSpeedCount  = negTags.filter(t=>t.impact_attribute==='viteza').length;
-    const hasSpeed  = posAttrs.includes('viteza');
+    const hasSpeed   = posAttrs.includes('viteza');
+    const negVisionCount = negAttrs.filter(a=>a==='strategie').length;
+    const negSpeedCount  = negAttrs.filter(a=>a==='viteza').length;
 
     if(!hasDefense && teamPlayers.length>=2)
         return {cls:'tbi-danger', msg:'🛡️ Apărare descoperită!'};
