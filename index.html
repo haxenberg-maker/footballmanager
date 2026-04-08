@@ -1406,6 +1406,14 @@
                 <div style="flex:1;">
                     <div class="algo-panel-grid" id="weightsList"></div>
                     <div id="mvpToggleSection"></div>
+                    <!-- Tag Net Cap -->
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #1e2130;margin-top:4px;">
+                        <span style="font-size:.7rem;color:#555;flex:1;">🏷️ Net maxim tag-uri</span>
+                        <button onclick="stepTagCap(-0.5)" class="algo-btn">−</button>
+                        <span id="tagCapVal" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#a78bfa;min-width:28px;text-align:center;">2.0</span>
+                        <button onclick="stepTagCap(+0.5)" class="algo-btn">+</button>
+                        <span style="font-size:.62rem;color:#444;">pt</span>
+                    </div>
                 </div>
             </div>
 
@@ -2171,7 +2179,7 @@ function setupRealtime() {
 
 // ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
 const TAG_INTENSITY_WEIGHT = {1: 0.5, 2: 1.0, 3: 1.5, 4: 2.0};
-const TAG_BONUS_CAP = 2.0; // max ±2 puncte indiferent de câte taguri
+let TAG_BONUS_CAP = parseFloat(localStorage.getItem('tag_bonus_cap') || '2.0'); // configurabil din algoritm
 
 /**
  * computeTagBonus — Sistem de impact auto-adaptiv
@@ -3223,6 +3231,8 @@ function buildAlgorithmPanel(){
         </div>`:''}`;
     }
     updateWeightsSum();
+    const _tcEl = document.getElementById('tagCapVal');
+    if(_tcEl) _tcEl.textContent = TAG_BONUS_CAP.toFixed(1);
 
     // ── Tag weights (loaded from Supabase) ───────────────────────
     const twEl = document.getElementById('tagWeightsList');
@@ -3250,6 +3260,13 @@ function buildAlgorithmPanel(){
             }).join('')}
         </div>`;
     }).join('');
+}
+
+function stepTagCap(delta){
+    TAG_BONUS_CAP = Math.max(0.5, Math.min(5.0, parseFloat((TAG_BONUS_CAP + delta).toFixed(1))));
+    const el = document.getElementById('tagCapVal');
+    if(el) el.textContent = TAG_BONUS_CAP.toFixed(1);
+    updateWeightsSum(); // re-triggers ring color
 }
 
 function toggleMvpAlgo(){
@@ -3338,6 +3355,7 @@ async function saveAlgorithm(){
         return;
     }
     saveWeights();
+    localStorage.setItem('tag_bonus_cap', TAG_BONUS_CAP.toString());
     // Save TW weights directly to Supabase tags_config.tw_weight
     try{
         const changedTags = tagsConfig.filter(t=>Math.abs(TW[String(t.id)]||0) > 0.001 || Math.abs(parseFloat(t.tw_weight)||0) > 0.001);
@@ -3352,6 +3370,8 @@ async function saveAlgorithm(){
 
 async function resetAlgorithm(){
     Object.assign(W, DEFAULT_W);
+    TAG_BONUS_CAP = 2.0;
+    localStorage.setItem('tag_bonus_cap', '2.0');
     tagsConfig.forEach(t=>{ TW[String(t.id)]=0; t.tw_weight=0; });
     saveWeights();
     try{
