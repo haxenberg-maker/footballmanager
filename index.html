@@ -3767,7 +3767,18 @@ function buildModalStats(p){
         steps.push({icon:'🏆', label:'MVP', val:null, note:'✓'+p.mvpWinCount+' câștig / ✗'+(p.mvpLossCount||0)+' pierdere', color:col(mvpB), delta:mvpB});
     }
     if(imbalPen>0) steps.push({icon:'⚠️', label:'Dezechilibru echipă', val:null, note:(p.lastImbalanceLoss||0)+' meci(uri) pierdut cu 3+ goluri', color:'#ef9a9a', delta:-imbalPen});
-    if(tagBns!==0) steps.push({icon:'🏷️', label:'Tag-uri active ('+activeTags2.length+')', val:null, note:activeTags2.map(t=>t.tag.emoji).join(' '), color:col(tagBns), delta:tagBns});
+    if(activeTags2.length>0){
+        const {bonus:tagBns, signals} = computeTagBonus(activeTags2);
+        const posCount = signals.filter(s=>s.dir>0).length;
+        const negCount = signals.filter(s=>s.dir<0).length;
+        const posSum = signals.filter(s=>s.dir>0).reduce((a,s)=>a+s.raw,0);
+        const negSum = signals.filter(s=>s.dir<0).reduce((a,s)=>a+s.raw,0);
+        const note = posCount&&negCount
+            ? `${posCount} pozitive (${posSum>0?'+':''}${posSum.toFixed(1)}) anulez ${negCount} negative (${negSum.toFixed(1)}) → net ${tagBns>=0?'+':''}${tagBns.toFixed(2)}`
+            : posCount ? `${posCount} pozitive → +${tagBns.toFixed(2)}`
+            : `${negCount} negative → ${tagBns.toFixed(2)}`;
+        steps.push({icon:'🏷️', label:`Tag-uri active (${activeTags2.length})`, val:null, note, color:col(tagBns), delta:tagBns});
+    }
 
     let running = 5.0;
     const stepsHtml = steps.map((s,i)=>{
