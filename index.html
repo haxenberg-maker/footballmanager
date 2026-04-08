@@ -172,6 +172,24 @@
         .cat-bar-label{font-size:0.58rem;color:#444;text-transform:uppercase;}
         .cat-bar-track{width:22px;height:3px;background:#252836;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
+        /* Live Stats Editor */
+        .live-edit-wrap{background:#080a12;border-radius:12px;padding:12px;margin-bottom:10px;border:1px solid #1e2130;}
+        .live-sr-badge{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+        .live-sr-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;transition:all .2s;}
+        .live-sr-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+        .live-penalty-badge{font-size:.62rem;padding:2px 8px;border-radius:5px;font-weight:700;display:none;}
+        .live-penalty-badge.show{display:inline-block;}
+        .live-penalty-badge.penalty{background:rgba(229,57,53,.15);color:#ef9a9a;border:1px solid rgba(229,57,53,.3);}
+        .live-penalty-badge.bonus{background:rgba(76,175,80,.12);color:#a5d6a7;border:1px solid rgba(76,175,80,.25);}
+        .live-attr-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+        .live-attr-lbl{font-size:.7rem;color:#666;width:70px;flex-shrink:0;}
+        .live-attr-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;}
+        .live-attr-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid #0a0c10;}
+        .live-attr-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;width:26px;text-align:center;flex-shrink:0;}
+        .live-attr-contrib{font-size:.62rem;width:54px;text-align:right;flex-shrink:0;}
+        .live-quickset{display:flex;gap:3px;margin-top:2px;margin-left:76px;}
+        .live-qs-btn{font-size:.58rem;padding:2px 6px;border-radius:4px;background:#1c1f2b;border:1px solid #252836;color:#444;cursor:pointer;white-space:nowrap;}
+        .live-qs-btn:hover{border-color:#3d5afe;color:#82b1ff;}
         /* Tag activation system */
         .tag-act-row{padding:8px 0;border-bottom:1px solid #0f1118;}
         .tag-act-top{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
@@ -3308,11 +3326,11 @@ function switchModalTab(tab){
     document.getElementById(panels[tab])?.classList.add('active');
 }
 
-// ── buildModalStats ─────────────────────────────────────────────
+// ── buildModalStats — with Live Preview Editor ───────────────────
 function buildModalStats(p){
     const admin = isAdmin();
 
-    // ── Admin Rating Override Panel ─────────────────────────────
+    // ── Admin Rating Override ─────────────────────────────────────
     const arPanel = document.getElementById('adminRatingPanel');
     if(arPanel){
         if(admin){
@@ -3338,19 +3356,24 @@ function buildModalStats(p){
             arPanel.style.display = 'none';
         }
     }
+
+    // ── Live Stats Editor (admin only) ───────────────────────────
+    if(admin){
+        buildLiveEditor(p);
+    }
+
+    // ── Formula info line ─────────────────────────────────────────
     const mvpWinCount  = p.mvpWinCount  || 0;
     const mvpLossCount = p.mvpLossCount || 0;
     const games = Math.max(p.games,1);
     const wTot = (W.general+W.viteza+W.tehnica+W.strategie+W.aparare)*100;
     const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
 
-    // Smart Rating formula
-    let formulaHtml = `<strong>Smart Rating</strong>: General×${wTot.toFixed(0)}% + WinRate×${(W.winrate*100).toFixed(0)}%`;
+    let formulaHtml = `<strong>Smart Rating 2.0</strong>: General×${wTot.toFixed(0)}% + WinRate×${(W.winrate*100).toFixed(0)}%`;
     if(W.mvpWin>0)  formulaHtml += ` + MVP✓×${(W.mvpWin*100).toFixed(0)}%`;
     if(W.mvpLoss>0) formulaHtml += ` + MVP✗×${(W.mvpLoss*100).toFixed(0)}%`;
-    formulaHtml += ` &nbsp;|&nbsp; WinRate → <strong>${wrScore}/10</strong>`;
-    if(mvpWinCount||mvpLossCount) formulaHtml += ` &nbsp;|&nbsp; MVP ✓${mvpWinCount} ✗${mvpLossCount}`;
-    // Tag bonus contribution
+    formulaHtml += ` | WR→<strong>${wrScore}/10</strong>`;
+    if(mvpWinCount||mvpLossCount) formulaHtml += ` | MVP ✓${mvpWinCount} ✗${mvpLossCount}`;
     if(Object.keys(TW).some(k=>TW[k]!==0)){
         const activeTags = getPlayerActiveTagObjects(p);
         let rawBonus=0;
@@ -3358,7 +3381,7 @@ function buildModalStats(p){
         const bonus=Math.max(-2,Math.min(2,rawBonus*10));
         if(bonus!==0){
             const bonusStr=bonus>0?`<span style="color:#4caf50">+${bonus.toFixed(2)}</span>`:`<span style="color:#e57373">${bonus.toFixed(2)}</span>`;
-            formulaHtml += ` &nbsp;|&nbsp; Tag bonus: ${bonusStr}`;
+            formulaHtml += ` | Tag: ${bonusStr}`;
         }
     }
     document.getElementById('algoInfo').innerHTML = formulaHtml;
@@ -3367,14 +3390,11 @@ function buildModalStats(p){
     const tagStats = computeTagStats(p);
     const adminSet = new Set((p.adminTags||[]).map(String));
     const NEEDED = 3;
-
-    // Show tags: admin sees ALL from config; others see only voted/admin-set
     const catsWithTags = {};
     tagsConfig.forEach(tag=>{
         const tid = String(tag.id);
         const s = tagStats[tid]||{distinctVoters:0,missedMatches:0,expired:false,votes:[]};
         const isAdminSet = adminSet.has(tid);
-        // Admin sees everything; non-admin sees only tags with ≥1 vote or admin-set
         if(!admin && !isAdminSet && s.distinctVoters === 0) return;
         const cat = tag.category||'other';
         if(!catsWithTags[cat]) catsWithTags[cat]=[];
@@ -3386,8 +3406,8 @@ function buildModalStats(p){
     let gridHtml = '';
     if(Object.keys(catsWithTags).length === 0){
         gridHtml = admin
-            ? '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Tag-urile nu sunt configurate. Adaugă din Setări → 🏷️ Tag-uri.</div>'
-            : '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Niciun status votat încă pentru acest jucător.</div>';
+            ? '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Tag-urile nu sunt configurate.</div>'
+            : '<div style="color:#444;font-size:.8rem;padding:12px 0;text-align:center;">Niciun status votat.</div>';
     } else {
         Object.entries(catsWithTags).forEach(([cat,items])=>{
             const catLabel = CAT_LABELS_CONFIG[cat]||cat;
@@ -3395,39 +3415,32 @@ function buildModalStats(p){
             items.forEach(({tag,tid,s,isAdminSet,active,nearExpiry})=>{
                 const cls = tag.type==='pos'?'tag-pos':tag.type==='neg'?'tag-neg':'tag-neu';
                 const filled = Math.min(s.distinctVoters, NEEDED);
-                const dots = Array.from({length:NEEDED},(_,i)=>
-                    `<div class="tag-dot ${i<filled?'filled':'empty'}"></div>`).join('');
+                const dots = Array.from({length:NEEDED},(_,i)=>`<div class="tag-dot ${i<filled?'filled':'empty'}"></div>`).join('');
                 const statusIcon = isAdminSet?'👑':active?(nearExpiry?'⏳':'✅'):'○';
                 const badgeOpacity = active?1:0.4;
-
-                // Admin toggle button — visible for ALL tags when admin
+                const tw = TW[tid]||0;
+                const twLabel = tw!==0 ? `<span style="font-size:.58rem;color:${tw>0?'#69f0ae':'#ef9a9a'};margin-left:3px;">${tw>0?'+':''}${(tw*10).toFixed(1)}pt</span>` : '';
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
                     style="background:${isAdminSet?'rgba(255,140,0,.15)':'rgba(61,90,254,.08)'};
                     border:1px solid ${isAdminSet?'var(--orange)':'#2a2d40'};
                     color:${isAdminSet?'var(--orange)':'#555'};"
                     onclick="adminToggleTag(${p.id},'${tid}')">
-                    ${isAdminSet?'👑 Dezactivează':'+ Activează'}
+                    ${isAdminSet?'👑 Dezact.':'+ Activ.'}
                 </button>` : '';
-
-                // Vote history
                 const histId = `th-${p.id}-${tid}`;
                 const histRows = s.votes.length
-                    ? [...s.votes].reverse().slice(0,15).map(v=>
-                        `<div class="tag-hist-row"><span>${v.rater||'?'}</span><span>${v.date||'—'}</span></div>`
-                    ).join('')
+                    ? [...s.votes].reverse().slice(0,15).map(v=>`<div class="tag-hist-row"><span>${v.rater||'?'}</span><span>${v.date||'—'}</span></div>`).join('')
                     : '<div class="tag-hist-row"><span style="color:#333">Niciun vot</span></div>';
-
                 gridHtml += `<div class="tag-act-row">
                     <div class="tag-act-top">
-                        <span class="ptag ${cls}" style="opacity:${badgeOpacity};">${tag.emoji} ${tag.label}</span>
+                        <span class="ptag ${cls}" style="opacity:${badgeOpacity};">${tag.emoji} ${tag.label}${twLabel}</span>
                         <div class="tag-act-dots">${dots}</div>
                         <span class="tag-act-count">${s.distinctVoters}/${NEEDED}</span>
                         <span class="tag-act-status">${statusIcon}</span>
                         ${toggleBtn}
                         <button onclick="document.getElementById('${histId}').classList.toggle('open')"
-                            style="margin-left:auto;background:none;border:1px solid #1e2130;color:#444;
-                            padding:2px 7px;border-radius:5px;font-size:.62rem;cursor:pointer;">
-                            ${s.votes.length} voturi ▾
+                            style="margin-left:auto;background:none;border:1px solid #1e2130;color:#444;padding:2px 7px;border-radius:5px;font-size:.62rem;cursor:pointer;">
+                            ${s.votes.length} ▾
                         </button>
                     </div>
                     <div class="tag-hist-wrap" id="${histId}">
@@ -3438,24 +3451,223 @@ function buildModalStats(p){
         });
     }
 
-    // Simplified stats
     const generalAvg = getGeneralAvg(p);
     const mvpWinScore  = Math.min((mvpWinCount/games)*10,10);
     const mvpLossScore = Math.min((mvpLossCount/games)*10,10);
     const breakdown = [
-        {label:'⚽ Notă Generală', val:generalAvg, weight:`${wTot.toFixed(0)}%`, color:'#ffcc00'},
-        {label:'📊 Win Rate',      val:p.games>0?1+p.wins/p.games*9:5, weight:`${(W.winrate*100).toFixed(0)}%`, color:'#a78bfa'},
+        {label:'⚽ General', val:generalAvg, weight:`${wTot.toFixed(0)}%`, color:'#ffcc00'},
+        {label:'📊 Win Rate', val:p.games>0?1+p.wins/p.games*9:5, weight:`${(W.winrate*100).toFixed(0)}%`, color:'#a78bfa'},
     ];
-    if(W.mvpWin>0)  breakdown.push({label:'🏆 MVP câștig.',  val:mvpWinScore,  weight:`${(W.mvpWin*100).toFixed(0)}%`, color:'#ffcc00'});
-    if(W.mvpLoss>0) breakdown.push({label:'⚔️ MVP pierdere', val:mvpLossScore, weight:`${(W.mvpLoss*100).toFixed(0)}%`, color:'#ff8c00'});
+    if(W.mvpWin>0)  breakdown.push({label:'🏆 MVP+', val:mvpWinScore, weight:`${(W.mvpWin*100).toFixed(0)}%`, color:'#ffcc00'});
+    if(W.mvpLoss>0) breakdown.push({label:'⚔️ MVP−', val:mvpLossScore, weight:`${(W.mvpLoss*100).toFixed(0)}%`, color:'#ff8c00'});
 
     document.getElementById('algoBreakdown').innerHTML =
         `<div class="algo-title" style="margin-bottom:6px;">Detaliu calcul</div>` +
         breakdown.map(b=>`<div class="algo-row"><div class="algo-label">${b.label}</div><div class="algo-track"><div class="algo-fill" style="width:${b.val*10}%;background:${b.color}"></div></div><div class="algo-val">${b.val.toFixed(1)}</div><div class="algo-weight">${b.weight}</div></div>`).join('') +
-        `<div class="algo-title" style="margin-top:12px;margin-bottom:4px;">🏷️ Profile de Jucător</div>` +
+        `<div class="algo-title" style="margin-top:12px;margin-bottom:4px;">🏷️ Statusuri</div>` +
         gridHtml;
 
     buildCatTabs(p);
+}
+
+// ── Live Stats Editor ────────────────────────────────────────────
+let _liveEditPlayerId = null;
+const LIVE_ATTRS = [
+    {key:'general',  label:'⚽ General',  color:'#ffcc00'},
+    {key:'viteza',   label:'⚡ Viteză',   color:'#ff8c00'},
+    {key:'tehnica',  label:'🎯 Tehnică',  color:'#3d5afe'},
+    {key:'strategie',label:'🧠 Strategie',color:'#00bcd4'},
+    {key:'aparare',  label:'🛡️ Apărare', color:'#4caf50'},
+];
+
+function buildLiveEditor(p){
+    _liveEditPlayerId = p.id;
+    const existing = document.getElementById('liveEditorWrap');
+    if(existing) existing.remove();
+
+    // Snapshot current averages as starting point
+    const snap = {};
+    LIVE_ATTRS.forEach(a => snap[a.key] = Math.round(getCatAvg(p, a.key)*10));
+
+    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
+
+    const attrsHtml = LIVE_ATTRS.map(a => {
+        const v = snap[a.key];
+        const contrib = ((v/10) * (a.key==='general'? wG : W[a.key] || (wG/5))).toFixed(2);
+        return `<div>
+            <div class="live-attr-row">
+                <span class="live-attr-lbl" style="color:${a.color};">${a.label}</span>
+                <input class="live-attr-slider" type="range" min="0" max="100" step="1" value="${v}"
+                    id="les-${p.id}-${a.key}"
+                    style="background:linear-gradient(to right,${a.color} ${v}%,#252836 ${v}%);"
+                    oninput="onLiveSlider(${p.id},'${a.key}',this)">
+                <span class="live-attr-val" id="lev-${p.id}-${a.key}" style="color:${a.color};">${v}</span>
+                <span class="live-attr-contrib" id="lec-${p.id}-${a.key}"
+                    style="color:#555;font-size:.6rem;">+${contrib}pt</span>
+            </div>
+            <div class="live-quickset">
+                <button class="live-qs-btn" onclick="liveQuickSet(${p.id},'${a.key}',20)">Slab (20)</button>
+                <button class="live-qs-btn" onclick="liveQuickSet(${p.id},'${a.key}',50)">Mediu (50)</button>
+                <button class="live-qs-btn" onclick="liveQuickSet(${p.id},'${a.key}',80)">Pro (80)</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    const preview = previewSmartRating(p, snap);
+    const srColor = preview.final>=8?'#69f0ae':preview.final>=6?'#ffcc00':preview.final>=4?'#ff8c00':'#e57373';
+
+    const wrap = document.createElement('div');
+    wrap.id = 'liveEditorWrap';
+    wrap.className = 'live-edit-wrap';
+    wrap.innerHTML = `
+        <!-- Live SR badge -->
+        <div class="live-sr-badge">
+            <div>
+                <div style="font-size:.6rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Smart Rating Preview</div>
+                <div class="live-sr-num" id="liveSrNum" style="color:${srColor};">${preview.final.toFixed(1)}</div>
+            </div>
+            <div class="live-sr-meta">
+                <div id="livePenaltyBadge" class="live-penalty-badge ${preview.penalized?'penalty show':''}">${preview.penalized?'⚠️ Dezechilibru −10%':''}</div>
+                <div id="liveWrBonusBadge" class="live-penalty-badge ${preview.wrBonus?'bonus show':''}">${preview.wrBonus?'📈 WR Bonus +0.2':''}</div>
+                <div style="font-size:.6rem;color:#333;margin-top:4px;">Real: <strong style="color:#aaa;">${getSmartRating(p).toFixed(2)}</strong></div>
+            </div>
+        </div>
+        <!-- Sliders -->
+        <div style="display:flex;flex-direction:column;gap:2px;">${attrsHtml}</div>
+        <!-- Save button -->
+        <button onclick="saveLiveStats(${p.id})"
+            style="margin-top:10px;width:100%;padding:9px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-size:.88rem;font-weight:700;cursor:pointer;">
+            💾 Salvează Statisticile
+        </button>`;
+
+    // Insert before algoInfo
+    const algoInfo = document.getElementById('algoInfo');
+    algoInfo.parentNode.insertBefore(wrap, algoInfo);
+}
+
+function previewSmartRating(p, snap){
+    // snap: {general:0..100, viteza:0..100, ...}
+    const v10 = k => (snap[k]||0)/10; // convert 0-100 → 0-10
+    const general   = v10('general');
+    const viteza    = v10('viteza');
+    const tehnica   = v10('tehnica');
+    const strategie = v10('strategie');
+    const aparare   = v10('aparare');
+
+    const wrRaw   = p.games>0 ? p.wins/p.games : 0;
+    const wrScore = 1 + wrRaw*9;
+    const games   = Math.max(p.games,1);
+    const mvpWinScore  = Math.min(((p.mvpWinCount||0)/games)*10,10);
+    const mvpLossScore = Math.min(((p.mvpLossCount||0)/games)*10,10);
+
+    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
+    let base = general*wG + wrScore*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss;
+
+    const THRESHOLD = 2.5;
+    const penalized = viteza<THRESHOLD || tehnica<THRESHOLD || strategie<THRESHOLD || aparare<THRESHOLD;
+    if(penalized) base *= 0.90;
+
+    const wrBonus = wrRaw > 0.60 && p.games >= 3;
+    if(wrBonus) base += 0.2;
+
+    // Tag bonus
+    let tagBonus = 0;
+    if(Object.keys(TW).length > 0){
+        getPlayerActiveTagObjects(p).forEach(obj=>{
+            const tw = TW[String(obj.id)];
+            if(tw) tagBonus += tw;
+        });
+        tagBonus = Math.max(-2, Math.min(2, tagBonus * 10));
+    }
+
+    // Per-attribute contribution for display
+    const contribs = {
+        general:   parseFloat((general*wG).toFixed(2)),
+        viteza:    parseFloat((viteza*(W.viteza||0)).toFixed(2)),
+        tehnica:   parseFloat((tehnica*(W.tehnica||0)).toFixed(2)),
+        strategie: parseFloat((strategie*(W.strategie||0)).toFixed(2)),
+        aparare:   parseFloat((aparare*(W.aparare||0)).toFixed(2)),
+    };
+
+    return {
+        final: parseFloat(Math.max(1,Math.min(10,base+tagBonus)).toFixed(2)),
+        contribs, penalized, wrBonus, tagBonus
+    };
+}
+
+function onLiveSlider(pid, key, el){
+    const val = parseInt(el.value);
+    // Update gradient
+    el.style.background = `linear-gradient(to right,${LIVE_ATTRS.find(a=>a.key===key)?.color||'#3d5afe'} ${val}%,#252836 ${val}%)`;
+    // Update displayed value
+    document.getElementById(`lev-${pid}-${key}`).textContent = val;
+    // Recalculate preview
+    const snap = {};
+    LIVE_ATTRS.forEach(a=>{
+        const el2 = document.getElementById(`les-${pid}-${a.key}`);
+        snap[a.key] = el2 ? parseInt(el2.value) : 50;
+    });
+    const p = db.players.find(x=>x.id==pid); if(!p) return;
+    const preview = previewSmartRating(p, snap);
+
+    // Update SR num with pulse animation
+    const srEl = document.getElementById('liveSrNum');
+    const srColor = preview.final>=8?'#69f0ae':preview.final>=6?'#ffcc00':preview.final>=4?'#ff8c00':'#e57373';
+    srEl.style.color = srColor;
+    srEl.textContent = preview.final.toFixed(1);
+    srEl.style.transform = 'scale(1.15)';
+    setTimeout(()=>srEl.style.transform='', 150);
+
+    // Update penalty/bonus badges
+    const penEl = document.getElementById('livePenaltyBadge');
+    const wrEl  = document.getElementById('liveWrBonusBadge');
+    penEl.textContent = preview.penalized ? '⚠️ Dezechilibru −10%' : '';
+    penEl.className = `live-penalty-badge penalty${preview.penalized?' show':''}`;
+    wrEl.textContent  = preview.wrBonus ? '📈 WR Bonus +0.2' : '';
+    wrEl.className = `live-penalty-badge bonus${preview.wrBonus?' show':''}`;
+
+    // Update contributions
+    Object.entries(preview.contribs).forEach(([k,contrib])=>{
+        const cEl = document.getElementById(`lec-${pid}-${k}`);
+        if(cEl){
+            const isLow = (snap[k]||0)/10 < 2.5 && k !== 'general';
+            cEl.textContent = `+${contrib.toFixed(2)}pt`;
+            cEl.style.color = isLow ? '#ef9a9a' : contrib > 1 ? '#69f0ae' : '#555';
+        }
+    });
+}
+
+function liveQuickSet(pid, key, val){
+    const el = document.getElementById(`les-${pid}-${key}`);
+    if(!el) return;
+    el.value = val;
+    onLiveSlider(pid, key, el);
+}
+
+async function saveLiveStats(pid){
+    const p = db.players.find(x=>x.id==pid); if(!p) return;
+    const snap = {};
+    LIVE_ATTRS.forEach(a=>{
+        const el = document.getElementById(`les-${pid}-${a.key}`);
+        snap[a.key] = el ? parseInt(el.value) : 50;
+    });
+    // Save as a new "Admin" rating entry
+    const today = new Date().toLocaleDateString('ro-RO');
+    const rData = {
+        rater:'Admin', date:today, tags:'',
+        general: snap.general/10,
+        viteza:  snap.viteza/10,
+        tehnica: snap.tehnica/10,
+        strategie: snap.strategie/10,
+        aparare: snap.aparare/10
+    };
+    try{
+        const dbId = await dbInsertRating(pid, rData);
+        p.ratings.push({...rData, _dbId:dbId});
+        render();
+        buildModalStats(p);
+        showToast('✅ Statistici salvate!');
+    }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 // ── buildHexChart (SVG Hexagon) ──────────────────────────────────
