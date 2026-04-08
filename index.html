@@ -186,6 +186,37 @@
         .tag-hist-inner{padding:6px 4px;background:#0a0d18;border-radius:7px;margin-top:5px;}
         .tag-hist-row{font-size:.68rem;color:#555;padding:2px 0;display:flex;justify-content:space-between;}
         .tag-hist-row span{color:#777;}
+        /* Algorithm Control Panel */
+        .algo-panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
+        .algo-weight-cell{background:#0d1020;border:1px solid #1e2130;border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s;}
+        .algo-weight-cell:focus-within{border-color:#3d5afe44;}
+        .algo-weight-lbl{font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+        .algo-weight-ctrl{display:flex;align-items:center;gap:4px;}
+        .algo-btn{width:24px;height:24px;border-radius:5px;border:1px solid #252836;background:#1c1f2b;color:#555;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all .1s;flex-shrink:0;padding:0;}
+        .algo-btn:hover{border-color:#3d5afe;color:#82b1ff;}
+        .algo-num{flex:1;background:transparent;border:none;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;width:0;min-width:0;}
+        .algo-pct{font-size:.65rem;color:#444;}
+        /* Power ring */
+        .algo-power-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 0;}
+        .algo-power-ring{position:relative;width:80px;height:80px;}
+        .algo-power-ring svg{transform:rotate(-90deg);}
+        .algo-power-ring-bg{fill:none;stroke:#1e2130;stroke-width:7;}
+        .algo-power-ring-fill{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .4s,stroke .3s;}
+        .algo-power-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+        .algo-power-pct{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
+        .algo-power-sub{font-size:.48rem;color:#444;text-transform:uppercase;letter-spacing:.8px;}
+        /* Presets */
+        .algo-presets{display:flex;gap:6px;margin-bottom:12px;}
+        .algo-preset-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;border:1px solid #252836;background:#1c1f2b;color:#555;transition:all .15s;text-align:center;}
+        .algo-preset-btn:hover{color:#fff;border-color:#3d5afe;}
+        /* Tag weight compact */
+        .tw-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #08090e;}
+        .tw-emoji{width:18px;text-align:center;font-size:.8rem;flex-shrink:0;}
+        .tw-label{flex:1;font-size:.74rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .tw-btn{width:20px;height:20px;border-radius:4px;border:1px solid #1e2130;background:#0d1020;color:#444;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .tw-btn:hover{border-color:#3d5afe;color:#82b1ff;}
+        .tw-val{font-family:'Bebas Neue',sans-serif;font-size:.9rem;width:34px;text-align:center;flex-shrink:0;}
+
         .tag-toggle-btn{margin-left:auto;font-size:.65rem;padding:2px 7px;border-radius:5px;cursor:pointer;font-weight:700;white-space:nowrap;}
         .ptag.near-expiry{opacity:.55;}
         .ptag.crown::after{content:' 👑';font-size:.7em;}
@@ -1264,37 +1295,56 @@
         </div>
         <div class="settings-panel" id="panel-algorithm">
             <!-- Site title -->
-            <div style="margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid #1e2130;">
-                <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🏟️ Titlul Aplicației</div>
-                <div style="display:flex;gap:8px;">
-                    <input id="siteTitleInput" type="text" value="Arena Friends FC" style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:9px 13px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;">
-                    <button onclick="saveSiteTitle()" style="background:var(--accent);color:#fff;padding:9px 16px;border-radius:9px;font-size:.85rem;font-weight:700;white-space:nowrap;">Salvează</button>
+            <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #1e2130;">
+                <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🏟️ Titlul Aplicației</div>
+                <div style="display:flex;gap:6px;">
+                    <input id="siteTitleInput" type="text" value="Arena Friends FC" style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px 11px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;">
+                    <button onclick="saveSiteTitle()" style="background:var(--accent);color:#fff;padding:7px 13px;border-radius:8px;font-size:.8rem;font-weight:700;white-space:nowrap;">Salvează</button>
                 </div>
             </div>
-            <!-- Algorithm weights -->
-            <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚙️ Greutăți Bază (General + Win Rate + MVP)</div>
-            <div style="font-size:.72rem;color:#333;margin-bottom:10px;line-height:1.5;">Suma ponderilor de bază trebuie să fie 100%.</div>
-            <div id="weightsList" style="display:flex;flex-direction:column;"></div>
-            <div style="margin-top:8px;padding:8px 12px;background:#0d1020;border-radius:8px;border:1px solid #1e2130;font-size:.76rem;color:#555;display:flex;justify-content:space-between;">
-                <span>Suma ponderi bază</span>
-                <span id="weightsSum" style="font-weight:700;"></span>
+
+            <!-- Presets row -->
+            <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚡ Presetări rapide</div>
+            <div class="algo-presets">
+                <button class="algo-preset-btn" onclick="applyPreset('balanced')">⚖️ Balanced</button>
+                <button class="algo-preset-btn" onclick="applyPreset('defensive')">🛡️ Defensive</button>
+                <button class="algo-preset-btn" onclick="applyPreset('performance')">🏆 Performance</button>
+            </div>
+
+            <!-- Power ring + weights grid side by side -->
+            <div style="display:flex;gap:12px;align-items:flex-start;">
+                <!-- Ring -->
+                <div class="algo-power-wrap" style="flex-shrink:0;">
+                    <div class="algo-power-ring">
+                        <svg width="80" height="80" viewBox="0 0 80 80">
+                            <circle class="algo-power-ring-bg" cx="40" cy="40" r="33"/>
+                            <circle class="algo-power-ring-fill" id="algoRingFill" cx="40" cy="40" r="33"
+                                stroke-dasharray="207.3" stroke-dashoffset="207.3" stroke="#3d5afe"/>
+                        </svg>
+                        <div class="algo-power-label">
+                            <span class="algo-power-pct" id="algoPowerPct" style="color:#3d5afe;">0%</span>
+                            <span class="algo-power-sub">/ 100%</span>
+                        </div>
+                    </div>
+                    <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;">Putere</div>
+                </div>
+                <!-- Weights grid -->
+                <div style="flex:1;">
+                    <div class="algo-panel-grid" id="weightsList"></div>
+                </div>
             </div>
 
             <!-- Tag weights section -->
-            <div style="margin-top:18px;padding-top:14px;border-top:1px solid #1e2130;">
-                <div style="font-size:.72rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🏷️ Coeficienți Tag-uri</div>
-                <div style="font-size:.72rem;color:#333;margin-bottom:10px;line-height:1.5;">
-                    Bonus/penalizare per tag activ. Scala: <span style="color:#4caf50;">+0.50</span> max pozitiv → <span style="color:#e57373;">−0.50</span> max negativ.
-                    Impact final: cumulat și limitat la <strong style="color:#aaa;">±2 puncte</strong> din Smart Rating.
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid #1e2130;">
+                <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+                    🏷️ Coeficienți Tag-uri
+                    <span style="font-weight:400;color:#333;font-size:.58rem;"> — bonus/penalizare per tag activ (±2 max)</span>
                 </div>
-                <div id="tagWeightsList" style="display:flex;flex-direction:column;"></div>
-                <div style="font-size:.68rem;color:#333;margin-top:8px;font-style:italic;">
-                    Taguri negative (ex: "Nu pasează") pot primi coeficient negativ pentru a scădea Smart Rating-ul.
-                </div>
+                <div id="tagWeightsList"></div>
             </div>
 
-            <div style="display:flex;gap:8px;margin-top:14px;">
-                <button onclick="saveAlgorithm()" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
+            <div style="display:flex;gap:8px;margin-top:12px;">
+                <button onclick="saveAlgorithm()" id="btnSaveAlgo" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#fff;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
                 <button onclick="resetAlgorithm()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;">↺ Reset</button>
             </div>
         </div>
@@ -2003,32 +2053,45 @@ function setupRealtime() {
         .subscribe();
 }
 
+// ── Smart Rating 2.0 ────────────────────────────────────────────
 function getSmartRating(p) {
-    // Admin hard-set rating overrides everything
     if(p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
-    const general = p.ratings.length ? p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length : 5;
-    const wr = p.games>0 ? 1+(p.wins/p.games)*9 : 5;
-    const mvpWinCount  = p.mvpWinCount  || 0;
-    const mvpLossCount = p.mvpLossCount || 0;
-    const games = Math.max(p.games, 1);
-    const mvpWinScore  = Math.min((mvpWinCount/games)*10, 10);
-    const mvpLossScore = Math.min((mvpLossCount/games)*10, 10);
-    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
 
-    // Tag bonus: sum of TW[tagId] for each active tag
-    // Each bonus is on a -0.5..+0.5 scale (relative to 10-point rating)
-    // We convert to a 0-10 additive contribution: bonus * 10, then cap total to ±2
+    const n = p.ratings.length || 1;
+    const general   = p.ratings.reduce((s,r)=>s+(r.general||5),0) / n;
+    const viteza    = p.ratings.reduce((s,r)=>s+(r.viteza||5),0)  / n;
+    const tehnica   = p.ratings.reduce((s,r)=>s+(r.tehnica||5),0) / n;
+    const strategie = p.ratings.reduce((s,r)=>s+(r.strategie||5),0)/ n;
+    const aparare   = p.ratings.reduce((s,r)=>s+(r.aparare||5),0) / n;
+
+    const wrRaw  = p.games>0 ? p.wins/p.games : 0;
+    const wrScore= 1 + wrRaw*9; // 1..10 scale
+    const games  = Math.max(p.games,1);
+    const mvpWinScore  = Math.min(((p.mvpWinCount||0)/games)*10,10);
+    const mvpLossScore = Math.min(((p.mvpLossCount||0)/games)*10,10);
+
+    // ── Weighted base (all 5 attrs collapse into one "general" factor) ──
+    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
+    let base = general*wG + wrScore*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss;
+
+    // ── Penalizare dezechilibru: oricare atribut sub 2.5 (= 25/10) → −10% ──
+    const THRESHOLD = 2.5;
+    const hasWeakAttr = viteza<THRESHOLD || tehnica<THRESHOLD || strategie<THRESHOLD || aparare<THRESHOLD;
+    if(hasWeakAttr) base *= 0.90;
+
+    // ── Win Rate bonus: WR > 60% → +0.2 ──
+    if(wrRaw > 0.60 && p.games >= 3) base += 0.2;
+
+    // ── Tag bonus (aplicat la final, cap ±2) ──
     let tagBonus = 0;
     if(Object.keys(TW).length > 0){
-        const activeTags = getPlayerActiveTagObjects(p);
-        activeTags.forEach(obj=>{
+        getPlayerActiveTagObjects(p).forEach(obj=>{
             const tw = TW[String(obj.id)];
-            if(tw) tagBonus += tw; // TW values already in -0.5..+0.5 → contrib to 10-scale
+            if(tw) tagBonus += tw;
         });
-        tagBonus = Math.max(-2, Math.min(2, tagBonus * 10)); // cap at ±2 points
+        tagBonus = Math.max(-2, Math.min(2, tagBonus * 10));
     }
 
-    const base = general*wG + wr*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss;
     return parseFloat(Math.max(1, Math.min(10, base + tagBonus)).toFixed(2));
 }
 function getCatAvg(p,cat){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
@@ -2820,89 +2883,133 @@ function invalidateTagsCache(){
     localStorage.removeItem('tags_config_ts');
 }
 
+const W_LABELS = {
+    general:'⚽ General', viteza:'⚡ Viteză', tehnica:'🎯 Tehnică',
+    strategie:'🧠 Strat.', aparare:'🛡️ Apărare',
+    winrate:'📈 Win Rate', mvpWin:'🏆 MVP+', mvpLoss:'⚔️ MVP−'
+};
+
+const PRESETS = {
+    balanced:    {general:.15,viteza:.10,tehnica:.10,strategie:.10,aparare:.10,winrate:.35,mvpWin:.05,mvpLoss:.05},
+    defensive:   {general:.10,viteza:.05,tehnica:.05,strategie:.20,aparare:.25,winrate:.25,mvpWin:.05,mvpLoss:.05},
+    performance: {general:.15,viteza:.08,tehnica:.07,strategie:.07,aparare:.08,winrate:.30,mvpWin:.15,mvpLoss:.10}
+};
+
 function buildAlgorithmPanel(){
     document.getElementById('siteTitleInput').value = siteTitle;
     db.players.forEach(p => { if(p.mvpWinCount===undefined) p.mvpWinCount=0; if(p.mvpLossCount===undefined) p.mvpLossCount=0; });
 
-    // ── Base weights ─────────────────────────────────────────────
-    const labels = {
-        general:'⚽ General', viteza:'⚡ Viteză', tehnica:'🎯 Tehnică',
-        strategie:'🧠 Strategie', aparare:'🛡️ Apărare',
-        winrate:'📈 Win Rate', mvpWin:'🏆 MVP câștig.', mvpLoss:'⚔️ MVP pierdere'
-    };
-    document.getElementById('weightsList').innerHTML = Object.entries(labels).map(([k,lbl]) => {
+    // ── Weights grid: [-] num [+] per cell ──────────────────────
+    document.getElementById('weightsList').innerHTML = Object.entries(W_LABELS).map(([k,lbl])=>{
         const pct = Math.round((W[k]||0)*100);
-        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
-            <span style="flex:1;font-size:.8rem;color:#888;">${lbl}</span>
-            <input type="range" min="0" max="100" step="1" value="${pct}" id="wrange-${k}"
-                oninput="syncWeight('${k}','range')" style="width:80px;accent-color:var(--accent);flex-shrink:0;">
-            <input type="number" min="0" max="100" value="${pct}" id="wnum-${k}"
-                oninput="syncWeight('${k}','num')"
-                style="width:44px;background:#1c1f2b;border:1px solid #2a2d40;color:#82b1ff;padding:3px 5px;border-radius:5px;font-size:.85rem;text-align:center;outline:none;">
-            <span style="font-size:.68rem;color:#444;width:14px;">%</span>
+        return `<div class="algo-weight-cell">
+            <span class="algo-weight-lbl">${lbl}</span>
+            <div class="algo-weight-ctrl">
+                <button class="algo-btn" onclick="stepWeight('${k}',-5)">−</button>
+                <input class="algo-num" type="number" id="wnum-${k}" value="${pct}" min="0" max="100"
+                    oninput="syncWeightNum('${k}')">
+                <button class="algo-btn" onclick="stepWeight('${k}',+5)">+</button>
+                <span class="algo-pct">%</span>
+            </div>
         </div>`;
     }).join('');
     updateWeightsSum();
 
-    // ── Tag weights ───────────────────────────────────────────────
+    // ── Tag weights compact ──────────────────────────────────────
     const twEl = document.getElementById('tagWeightsList');
     if(!twEl) return;
-    if(!tagsConfig.length){ twEl.innerHTML='<div style="color:#444;font-size:.8rem;">Încarcă mai întâi tag-urile (Setări → 🏷️ Tag-uri).</div>'; return; }
+    if(!tagsConfig.length){ twEl.innerHTML='<div style="color:#444;font-size:.78rem;">Configurează mai întâi tag-urile.</div>'; return; }
 
     const cats = [...new Set(tagsConfig.map(t=>t.category))];
     twEl.innerHTML = cats.map(cat=>{
         const tags = tagsConfig.filter(t=>t.category===cat);
         const catLabel = CAT_LABELS_CONFIG[cat]||cat;
-        return `<div style="margin-bottom:12px;">
-            <div style="font-size:.6rem;color:#444;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #0f1118;">${catLabel}</div>
+        return `<div style="margin-bottom:8px;">
+            <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:3px 0 4px;border-bottom:1px solid #0f1118;">${catLabel}</div>
             ${tags.map(t=>{
                 const tid = String(t.id);
-                const curVal = Math.round((TW[tid]||0)*100); // -50..+50
+                const cur = Math.round((TW[tid]||0)*100);
                 const defColor = t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff';
-                const numColor = curVal>0?'#69f0ae':curVal<0?'#ef9a9a':'#555';
-                return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #08090e;">
-                    <span style="font-size:.75rem;color:${defColor};width:16px;text-align:center;">${t.emoji}</span>
-                    <span style="flex:1;font-size:.78rem;color:#888;">${t.label}</span>
-                    <input type="range" min="-50" max="50" step="1" value="${curVal}" id="twrange-${tid}"
-                        oninput="syncTagWeight('${tid}','range')"
-                        style="width:90px;flex-shrink:0;accent-color:${curVal>=0?'#4caf50':'#e53935'};">
-                    <input type="number" min="-50" max="50" value="${curVal}" id="twnum-${tid}"
-                        oninput="syncTagWeight('${tid}','num')"
-                        style="width:44px;background:#1c1f2b;border:1px solid #2a2d40;color:${numColor};padding:3px 5px;border-radius:5px;font-size:.82rem;text-align:center;outline:none;">
+                const numColor = cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';
+                return `<div class="tw-row">
+                    <span class="tw-emoji" style="color:${defColor};">${t.emoji}</span>
+                    <span class="tw-label">${t.label}</span>
+                    <button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button>
+                    <span class="tw-val" id="twval-${tid}" style="color:${numColor};">${cur>0?'+'+cur:cur}</span>
+                    <button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button>
                 </div>`;
             }).join('')}
         </div>`;
     }).join('');
 }
 
+function stepWeight(key, delta){
+    let val = Math.round((W[key]||0)*100) + delta;
+    val = Math.max(0, Math.min(100, val));
+    W[key] = val/100;
+    const el = document.getElementById(`wnum-${key}`);
+    if(el) el.value = val;
+    updateWeightsSum();
+}
+
+function syncWeightNum(key){
+    let val = parseInt(document.getElementById(`wnum-${key}`).value)||0;
+    val = Math.max(0, Math.min(100, val));
+    W[key] = val/100;
+    updateWeightsSum();
+}
+
+function stepTagWeight(tid, delta){
+    let cur = Math.round((TW[tid]||0)*100) + delta;
+    cur = Math.max(-50, Math.min(50, cur));
+    TW[tid] = cur/100;
+    const el = document.getElementById(`twval-${tid}`);
+    if(el){
+        el.textContent = cur>0?'+'+cur:cur;
+        el.style.color = cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';
+    }
+}
+
+// Legacy compat
 function syncWeight(key, source){
-    const rangeEl=document.getElementById(`wrange-${key}`), numEl=document.getElementById(`wnum-${key}`);
-    let val=source==='range'?parseInt(rangeEl.value):parseInt(numEl.value)||0;
-    val=Math.max(0,Math.min(100,val));
-    rangeEl.value=val; numEl.value=val; W[key]=val/100; updateWeightsSum();
+    const numEl = document.getElementById(`wnum-${key}`);
+    if(numEl) syncWeightNum(key);
 }
+function syncTagWeight(tid, source){}
+function updateWeight(key,val){ stepWeight(key,0); }
 
-function syncTagWeight(tid, source){
-    const rangeEl=document.getElementById(`twrange-${tid}`), numEl=document.getElementById(`twnum-${tid}`);
-    let val=source==='range'?parseInt(rangeEl.value):parseInt(numEl.value)||0;
-    val=Math.max(-50,Math.min(50,val));
-    rangeEl.value=val; numEl.value=val;
-    TW[tid]=val/100;
-    // Update number color live
-    const numColor=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';
-    numEl.style.color=numColor;
-    // Update range accent color
-    rangeEl.style.accentColor=val>=0?'#4caf50':'#e53935';
+function applyPreset(name){
+    const p = PRESETS[name]; if(!p) return;
+    Object.entries(p).forEach(([k,v])=>{
+        W[k]=v;
+        const el=document.getElementById(`wnum-${k}`);
+        if(el) el.value=Math.round(v*100);
+    });
+    updateWeightsSum();
+    showToast(`✅ Presetare "${name}" aplicată!`);
 }
-
-function updateWeight(key,val){ syncWeight(key,'range'); }
 
 function updateWeightsSum(){
-    const sum=Object.values(W).reduce((s,v)=>s+v,0);
-    const el=document.getElementById('weightsSum');if(!el)return;
-    const pct=(sum*100).toFixed(0);
-    el.textContent=pct+'%';
-    el.style.color=Math.abs(sum-1)<0.02?'#4caf50':'#e57373';
+    const sum = Object.values(W).reduce((s,v)=>s+v,0);
+    const pct = Math.round(sum*100);
+    const ok  = Math.abs(pct-100) <= 1;
+
+    // Ring
+    const CIRC = 207.3;
+    const fill = document.getElementById('algoRingFill');
+    const pctEl = document.getElementById('algoPowerPct');
+    const saveBtn = document.getElementById('btnSaveAlgo');
+    if(fill){
+        const progress = Math.min(pct/100,1);
+        fill.style.strokeDashoffset = CIRC*(1-progress);
+        fill.style.stroke = ok?'#4caf50':pct>100?'#e53935':'#ff8c00';
+    }
+    if(pctEl){ pctEl.textContent=pct+'%'; pctEl.style.color=ok?'#4caf50':pct>100?'#e53935':'#ff8c00'; }
+    if(saveBtn){ saveBtn.disabled=!ok; saveBtn.style.opacity=ok?'1':'.45'; saveBtn.style.cursor=ok?'pointer':'not-allowed'; }
+
+    // Legacy weightsSum (hidden but keep compat)
+    const el=document.getElementById('weightsSum');
+    if(el){ el.textContent=pct+'%'; el.style.color=ok?'#4caf50':'#e57373'; }
 }
 
 async function saveAlgorithm(){
