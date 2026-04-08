@@ -1405,6 +1405,7 @@
                 <!-- Weights grid -->
                 <div style="flex:1;">
                     <div class="algo-panel-grid" id="weightsList"></div>
+                    <div id="mvpToggleSection"></div>
                 </div>
             </div>
 
@@ -1643,31 +1644,22 @@ const DEFAULT_TAGS_CONFIG = [
 const CAT_LABELS_CONFIG = {atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',negativ:'❌ Negative'};
 
 async function loadTagsConfig(){
-    // Try localStorage cache first (keyed by hour for freshness)
-    const cacheKey = 'tags_config_cache';
-    const cacheTs  = 'tags_config_ts';
-    const cacheAge = Date.now() - parseInt(localStorage.getItem(cacheTs)||'0');
-    if(cacheAge < 60*60*1000){ // 1h cache
-        const cached = localStorage.getItem(cacheKey);
-        if(cached){ try{ tagsConfig=JSON.parse(cached); buildPTById(); return; }catch(e){} }
-    }
+    // Always fetch from Supabase (no localStorage cache) so tw_weight is always fresh
     try{
         const{data,error}=await sb.from('tags_config').select('*').order('sort_order');
         if(error) throw error;
         if(data?.length){
             tagsConfig=data;
         } else {
-            // Seed defaults
             const{data:seeded}=await sb.from('tags_config').insert(DEFAULT_TAGS_CONFIG).select();
             tagsConfig=seeded||DEFAULT_TAGS_CONFIG.map((t,i)=>({...t,id:i+1}));
         }
-        localStorage.setItem(cacheKey, JSON.stringify(tagsConfig));
-        localStorage.setItem(cacheTs, Date.now().toString());
     }catch(e){
         console.warn('tags_config load failed, using defaults:',e.message);
         tagsConfig=DEFAULT_TAGS_CONFIG.map((t,i)=>({...t,id:i+1}));
     }
     buildPTById();
+    buildTWFromConfig(); // ← load TW from Supabase column, not localStorage
 }
 
 let PT_BY_ID = {};
@@ -1839,14 +1831,33 @@ function getPlayerArchetype(p){
         adminSet: false
     };
 }
-const DEFAULT_W = {general:0.32,viteza:0.12,tehnica:0.12,strategie:0.12,aparare:0.12,winrate:0.20,mvpWin:0.0,mvpLoss:0.0};
+const DEFAULT_W = {general:0.20,viteza:0.10,tehnica:0.10,strategie:0.10,aparare:0.10,winrate:0.40,mvpWin:0.0,mvpLoss:0.0};
 let W = JSON.parse(localStorage.getItem('smart_weights') || 'null') || {...DEFAULT_W};
 function saveWeights(){ localStorage.setItem('smart_weights', JSON.stringify(W)); }
 
 // Tag weights: {tagId → float, range -0.5..+0.5}
 // These are ADDITIVE bonuses per active tag, not part of the 100% sum
-let TW = JSON.parse(localStorage.getItem('tag_weights') || '{}');
-function saveTagWeights(){ localStorage.setItem('tag_weights', JSON.stringify(TW)); }
+// TW is now loaded from tags_config.tw_weight (Supabase), not localStorage
+// localStorage kept only as fallback during same session
+let TW = {};
+function buildTWFromConfig(){
+    // Rebuild TW from tagsConfig.tw_weight column
+    TW = {};
+    tagsConfig.forEach(t=>{ TW[String(t.id)] = parseFloat(t.tw_weight)||0; });
+}
+async function saveTagWeights(){
+    // Save each changed tag weight to Supabase tags_config.tw_weight
+    const updates = tagsConfig.map(t=>({id:t.id, tw_weight: TW[String(t.id)]||0}));
+    try{
+        for(const u of updates){
+            if((u.tw_weight||0) !== 0 || (parseFloat(t_cfg_find(u.id)?.tw_weight)||0) !== 0)
+                await sb.from('tags_config').update({tw_weight:u.tw_weight}).eq('id',u.id);
+        }
+    }catch(e){ console.warn('saveTagWeights error:',e.message); }
+    // Also invalidate cache so next load reads fresh values
+    invalidateTagsCache();
+}
+function t_cfg_find(id){ return tagsConfig.find(t=>t.id===id); }
 let siteTitle = localStorage.getItem('site_title') || 'Arena Friends FC';
 const DEFAULT_PLAYERS = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andrei Magazin Dez","Vlad Stan","Gabi Balan","Tudor","Andrei Rascu","Andrei Stan","Adrian Prisecaru","Om Vlad Stan 1","Om Vlad Stan 2"];
 const today = new Date().toLocaleDateString('ro-RO');
@@ -3158,23 +3169,23 @@ function invalidateTagsCache(){
     localStorage.removeItem('tags_config_ts');
 }
 
+// W_LABELS_MAIN = shown in grid; MVP is optional toggle
 const W_LABELS = {
     general:'⚽ General', viteza:'⚡ Viteză', tehnica:'🎯 Tehnică',
-    strategie:'🧠 Strat.', aparare:'🛡️ Apărare',
-    winrate:'📈 Win Rate', mvpWin:'🏆 MVP+', mvpLoss:'⚔️ MVP−'
+    strategie:'🧠 Strategie', aparare:'🛡️ Apărare',
+    winrate:'📈 Win Rate'
 };
 
 const PRESETS = {
-    balanced:    {general:.15,viteza:.10,tehnica:.10,strategie:.10,aparare:.10,winrate:.35,mvpWin:.05,mvpLoss:.05},
-    defensive:   {general:.10,viteza:.05,tehnica:.05,strategie:.20,aparare:.25,winrate:.25,mvpWin:.05,mvpLoss:.05},
-    performance: {general:.15,viteza:.08,tehnica:.07,strategie:.07,aparare:.08,winrate:.30,mvpWin:.15,mvpLoss:.10}
+    balanced:    {general:.20,viteza:.10,tehnica:.10,strategie:.10,aparare:.10,winrate:.40,mvpWin:0,mvpLoss:0},
+    defensive:   {general:.10,viteza:.05,tehnica:.05,strategie:.25,aparare:.30,winrate:.25,mvpWin:0,mvpLoss:0},
+    performance: {general:.15,viteza:.10,tehnica:.10,strategie:.10,aparare:.05,winrate:.50,mvpWin:0,mvpLoss:0}
 };
 
 function buildAlgorithmPanel(){
     document.getElementById('siteTitleInput').value = siteTitle;
-    db.players.forEach(p => { if(p.mvpWinCount===undefined) p.mvpWinCount=0; if(p.mvpLossCount===undefined) p.mvpLossCount=0; });
 
-    // ── Weights grid: [-] num [+] per cell ──────────────────────
+    // ── Weights grid (fără MVP) ──────────────────────────────────
     document.getElementById('weightsList').innerHTML = Object.entries(W_LABELS).map(([k,lbl])=>{
         const pct = Math.round((W[k]||0)*100);
         return `<div class="algo-weight-cell">
@@ -3188,9 +3199,32 @@ function buildAlgorithmPanel(){
             </div>
         </div>`;
     }).join('');
+
+    // ── MVP optional toggle ──────────────────────────────────────
+    const mvpEnabled = W.mvpWin > 0 || W.mvpLoss > 0;
+    const mvpEl = document.getElementById('mvpToggleSection');
+    if(mvpEl){
+        mvpEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #1e2130;margin-top:6px;">
+            <span style="font-size:.7rem;color:#555;flex:1;">🏆 MVP în algoritm</span>
+            <button onclick="toggleMvpAlgo()" style="padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;
+                background:${mvpEnabled?'rgba(255,204,0,.15)':'rgba(255,255,255,.04)'};
+                border:1px solid ${mvpEnabled?'var(--star)':'#252836'};
+                color:${mvpEnabled?'var(--star)':'#444'};">
+                ${mvpEnabled?'✅ Activat':'○ Dezactivat'}
+            </button>
+        </div>
+        ${mvpEnabled?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px 0;">
+            ${['mvpWin','mvpLoss'].map(k=>{
+                const lbl=k==='mvpWin'?'🏆 MVP câștig.':'⚔️ MVP pierdere';
+                const pct=Math.round((W[k]||0)*100);
+                return '<div class="algo-weight-cell" style="padding:6px 8px;"><span class="algo-weight-lbl" style="font-size:.55rem;">'+lbl+'</span><div class="algo-weight-ctrl"><button class="algo-btn" onclick="stepWeight(\''+k+'\',-5)">−</button><input class="algo-num" type="number" id="wnum-'+k+'" value="'+pct+'" min="0" max="50" oninput="syncWeightNum(\''+k+'\')"><button class="algo-btn" onclick="stepWeight(\''+k+'\',+5)">+</button><span class="algo-pct">%</span></div></div>';
+            }).join('')}
+        </div>`:''}`;
+    }
     updateWeightsSum();
 
-    // ── Tag weights compact ──────────────────────────────────────
+    // ── Tag weights (loaded from Supabase) ───────────────────────
     const twEl = document.getElementById('tagWeightsList');
     if(!twEl) return;
     if(!tagsConfig.length){ twEl.innerHTML='<div style="color:#444;font-size:.78rem;">Configurează mai întâi tag-urile.</div>'; return; }
@@ -3218,6 +3252,13 @@ function buildAlgorithmPanel(){
     }).join('');
 }
 
+function toggleMvpAlgo(){
+    const enabled = W.mvpWin > 0 || W.mvpLoss > 0;
+    if(enabled){ W.mvpWin=0; W.mvpLoss=0; }
+    else { W.mvpWin=0.05; W.mvpLoss=0.03; }
+    buildAlgorithmPanel();
+}
+
 function stepWeight(key, delta){
     let val = Math.round((W[key]||0)*100) + delta;
     val = Math.max(0, Math.min(100, val));
@@ -3238,7 +3279,10 @@ function stepTagWeight(tid, delta){
     let cur = Math.round((TW[tid]||0)*100) + delta;
     cur = Math.max(-50, Math.min(50, cur));
     TW[tid] = cur/100;
-    const el = document.getElementById(`twval-${tid}`);
+    // Also update local tagsConfig object so cache stays in sync
+    const t = tagsConfig.find(x=>String(x.id)===tid);
+    if(t) t.tw_weight = TW[tid];
+    const el = document.getElementById('twval-'+tid);
     if(el){
         el.textContent = cur>0?'+'+cur:cur;
         el.style.color = cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';
@@ -3294,47 +3338,28 @@ async function saveAlgorithm(){
         return;
     }
     saveWeights();
-    saveTagWeights();
-
-    // Reload MVP votes if mvpWin or mvpLoss > 0
-    if (W.mvpWin > 0 || W.mvpLoss > 0) {
-        try {
-            const { data: mvpVotes } = await sb.from('mvp_votes').select('mvp_player_name, mvp_type, match_id');
-            db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
-            if (mvpVotes?.length) {
-                const matchWinners = {};
-                db.history.forEach(h => { if(h._dbId) matchWinners[h._dbId] = h.winner; });
-                mvpVotes.forEach(v => {
-                    const player = db.players.find(p => p.name === v.mvp_player_name);
-                    if (!player) return;
-                    const matchH = db.history.find(h => h._dbId === v.match_id);
-                    const matchWinner = matchWinners[v.match_id];
-                    if (matchH && matchWinner) {
-                        const inOrange = matchH.orangePlayers.includes(v.mvp_player_name);
-                        const playerWon = (inOrange && matchWinner==='Portocaliu') || (!inOrange && matchWinner==='Verde');
-                        if (playerWon) player.mvpWinCount++;
-                        else player.mvpLossCount++;
-                    }
-                });
-            }
-        } catch(e) { showToast('⚠️ Nu s-au putut încărca voturile MVP: '+e.message); }
-    } else {
-        db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
-    }
+    // Save TW weights directly to Supabase tags_config.tw_weight
+    try{
+        const changedTags = tagsConfig.filter(t=>Math.abs(TW[String(t.id)]||0) > 0.001 || Math.abs(parseFloat(t.tw_weight)||0) > 0.001);
+        await Promise.all(tagsConfig.map(t=>
+            sb.from('tags_config').update({tw_weight: TW[String(t.id)]||0}).eq('id',t.id)
+        ));
+        showToast('✅ Algoritm + coeficienți tag-uri salvați!');
+    }catch(e){ showToast('⚠️ Eroare salvare tag weights: '+e.message); return; }
 
     render();
-    showToast('✅ Algoritm salvat și recalculat!');
 }
 
-function resetAlgorithm(){
+async function resetAlgorithm(){
     Object.assign(W, DEFAULT_W);
-    // Reset all tag weights to 0
-    tagsConfig.forEach(t=>{ TW[String(t.id)]=0; });
+    tagsConfig.forEach(t=>{ TW[String(t.id)]=0; t.tw_weight=0; });
     saveWeights();
-    saveTagWeights();
+    try{
+        await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
+    }catch(e){ console.warn('reset TW error:',e.message); }
     buildAlgorithmPanel();
     render();
-    showToast('↺ Algoritm resetat la valorile implicite.');
+    showToast('↺ Algoritm resetat!');
 }
 
 function toggleDashStats(){
