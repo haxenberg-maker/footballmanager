@@ -716,6 +716,15 @@
         .btn-balance{background:linear-gradient(135deg,#1a0050,#6200ea);border:1px solid #7c4dff;color:#d1b3ff;width:36px;height:36px;border-radius:50%;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 10px rgba(124,77,255,0.3);}
         .btn-balance:hover{background:linear-gradient(135deg,#2a0070,#7c4dff);transform:scale(1.1) rotate(20deg);box-shadow:0 4px 16px rgba(124,77,255,0.5);}
         .balance-popup{position:absolute;background:#1c1f2b;border:1px solid #3d2bbf;border-radius:12px;padding:8px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);min-width:170px;display:none;}
+        /* Scenario slots */
+        .scenario-bar{display:flex;gap:4px;padding:6px 10px 4px;border-top:1px solid #252836;margin-top:4px;}
+        .sc-btn{flex:1;padding:5px 2px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;border:1px solid #252836;background:#141720;color:#444;transition:all .12s;text-align:center;white-space:nowrap;}
+        .sc-btn:hover{border-color:#3d5afe;color:#82b1ff;}
+        .sc-btn.active{border-color:#3d5afe;background:rgba(61,90,254,.15);color:#a78bfa;}
+        .sc-btn.saved{border-color:#28a745;color:#69f0ae;}
+        .sc-btn.saved.active{background:rgba(40,167,69,.12);}
+        .sc-vote-link{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:700;color:#ffcc00;transition:background .12s;}
+        .sc-vote-link:hover{background:#252836;}
         .balance-popup.show{display:block;}
         .balance-popup-title{font-size:0.68rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:2px 6px 6px;border-bottom:1px solid #252836;margin-bottom:4px;}
         .balance-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;color:#ccc;transition:background 0.12s;}
@@ -941,6 +950,18 @@
             </div>
             <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
                 <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
+            </div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <!-- Scenario slots -->
+            <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:4px 8px 2px;">💾 Draftare Scenarii</div>
+            <div class="scenario-bar">
+                <button class="sc-btn active" id="scBtn1" onclick="switchScenario(1)">S1</button>
+                <button class="sc-btn" id="scBtn2" onclick="switchScenario(2)">S2</button>
+                <button class="sc-btn" id="scBtn3" onclick="switchScenario(3)">S3</button>
+                <button onclick="saveScenario()" style="flex:1;padding:5px 4px;border-radius:6px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid #28a745;background:rgba(40,167,69,.1);color:#69f0ae;">💾 Salvează</button>
+            </div>
+            <div class="sc-vote-link" onclick="openVoteTeamsLink()">
+                <span>🗳️</span><span style="flex:1;">Deschide Vot Echipe</span>
             </div>
         </div>
     </div>
@@ -1932,6 +1953,7 @@ async function loadAll() {
     showLoading(true);
     try {
         await loadTagsConfig();
+        await loadScenarios();
         // Players + Ratings (joined)
         const { data: playersRaw, error: pe } = await sb
             .from('players')
@@ -4641,6 +4663,84 @@ function moveTeamsToBench() {
     render();
     Promise.all(moved.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ ' + e.message));
     showToast(`🔵 ${moved.length} jucători mutați pe bancă!`);
+}
+
+// ── Scenario (Draft) System ──────────────────────────────────────
+let currentScenario = 1;
+let scenarios = {1:null, 2:null, 3:null};
+
+function snapshotTeams(){
+    return {
+        orange: db.players.filter(p=>p.status==='orange').map(p=>p.name),
+        green:  db.players.filter(p=>p.status==='green').map(p=>p.name)
+    };
+}
+
+function applyScenario(sc){
+    if(!sc) return;
+    db.players.forEach(p=>{
+        if(sc.orange.includes(p.name))      p.status='orange';
+        else if(sc.green.includes(p.name))  p.status='green';
+        else if(p.status==='orange'||p.status==='green') p.status='bench';
+    });
+    render();
+}
+
+function switchScenario(n){
+    currentScenario = n;
+    [1,2,3].forEach(i=>{
+        const btn = document.getElementById('scBtn'+i);
+        if(!btn) return;
+        btn.classList.toggle('active', i===n);
+        btn.classList.toggle('saved', !!scenarios[i]);
+    });
+    if(scenarios[n]){
+        applyScenario(scenarios[n]);
+        showToast('📋 Scenariu '+n+' încărcat');
+    } else {
+        showToast('📋 Scenariu '+n+' gol — aranjează echipele și salvează');
+    }
+}
+
+async function saveScenario(){
+    const sc = snapshotTeams();
+    if(!sc.orange.length && !sc.green.length){
+        showToast('⚠️ Nu există jucători în echipe!'); return;
+    }
+    scenarios[currentScenario] = sc;
+    try{
+        await sb.from('match_scenarios').upsert({
+            scenario_id: currentScenario,
+            orange_players: sc.orange,
+            green_players:  sc.green,
+            updated_at: new Date().toISOString()
+        }, {onConflict:'scenario_id'});
+    }catch(e){ console.warn('scenario save:', e.message); }
+    const btn = document.getElementById('scBtn'+currentScenario);
+    if(btn){ btn.classList.add('saved'); btn.textContent='S'+currentScenario+' ✓'; }
+    showToast('✅ Scenariu '+currentScenario+' salvat!');
+}
+
+async function loadScenarios(){
+    try{
+        const {data} = await sb.from('match_scenarios').select('*').order('scenario_id');
+        if(data && data.length){
+            data.forEach(row=>{
+                scenarios[row.scenario_id]={orange:row.orange_players||[],green:row.green_players||[]};
+            });
+            [1,2,3].forEach(i=>{
+                const btn=document.getElementById('scBtn'+i);
+                if(btn&&scenarios[i]){btn.classList.add('saved');btn.textContent='S'+i+' \u2713';}
+            });
+        }
+    }catch(e){ console.warn('scenario load:', e.message); }
+}
+
+function openVoteTeamsLink(){
+    document.getElementById('balancePopup').classList.remove('show');
+    const hasSaved = Object.values(scenarios).some(s=>s!==null);
+    if(!hasSaved){ showToast('⚠️ Salvează cel puțin un scenariu mai întâi!'); return; }
+    window.open('vote-teams.html','_blank');
 }
 
 function doBalance(mode) {

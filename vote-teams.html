@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Votează Echipele · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
+:root{--orange:#ff8c00;--green:#28a745;--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;}
+
+/* Header */
+.vt-header{background:#080a12;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;gap:12px;}
+.vt-logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.vt-subtitle{font-size:.75rem;color:#555;}
+
+/* Identity bar */
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.id-label{font-size:.7rem;color:#555;text-transform:uppercase;letter-spacing:1px;}
+.id-name{font-weight:700;color:var(--star);font-size:.9rem;}
+.id-change{font-size:.7rem;color:#444;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.id-change:hover{color:#82b1ff;}
+
+/* Identity select screen */
+.id-screen{max-width:440px;margin:60px auto;padding:0 20px;}
+.id-screen-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;margin-bottom:6px;}
+.id-screen-sub{font-size:.82rem;color:#555;margin-bottom:20px;}
+.id-select{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;margin-bottom:12px;}
+.id-select:focus{border-color:var(--accent);}
+.id-confirm-btn{width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;cursor:pointer;}
+.id-confirm-btn:hover{opacity:.9;}
+
+/* Main voting area */
+.vt-main{max-width:640px;margin:0 auto;padding:16px 16px 80px;}
+.vt-section-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#555;margin:16px 0 10px;}
+
+/* Scenario card */
+.sc-card{background:#0d0f18;border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:14px;transition:border-color .2s;}
+.sc-card.winner{border-color:var(--star);box-shadow:0 0 20px rgba(255,204,0,.12);}
+.sc-card-header{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.sc-card-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;}
+.sc-vote-count{font-size:.75rem;color:#555;}
+
+/* Teams display */
+.sc-teams{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.sc-team{padding:10px 14px;}
+.sc-team:first-child{border-right:1px solid var(--border);}
+.sc-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700;}
+.sc-team-lbl.orange{color:var(--orange);}
+.sc-team-lbl.green{color:var(--green);}
+.sc-player-list{display:flex;flex-direction:column;gap:3px;}
+.sc-player-pill{font-size:.78rem;color:#aaa;padding:3px 8px;border-radius:5px;background:#141720;border:1px solid #1e2130;}
+.sc-player-pill.me{border-color:var(--accent);color:#82b1ff;}
+
+/* Vote button + bar */
+.sc-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;}
+.sc-vote-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .15s;}
+.sc-vote-btn.default{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
+.sc-vote-btn.default:hover{background:rgba(61,90,254,.2);}
+.sc-vote-btn.voted{background:linear-gradient(135deg,rgba(40,167,69,.2),rgba(40,167,69,.1));border-color:var(--green);color:#69f0ae;cursor:default;}
+.sc-vote-btn.disabled{opacity:.4;cursor:not-allowed;}
+.sc-progress-wrap{background:#1e2130;border-radius:6px;height:6px;overflow:hidden;}
+.sc-progress-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),#a78bfa);transition:width .5s ease;}
+.sc-progress-fill.leading{background:linear-gradient(90deg,var(--star),var(--orange));}
+.sc-progress-label{display:flex;justify-content:space-between;font-size:.65rem;color:#444;margin-top:2px;}
+
+/* Admin finalize panel */
+.admin-finalize{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--border);padding:12px 16px;display:none;z-index:100;}
+.admin-finalize.show{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.admin-fin-label{font-size:.72rem;color:#555;flex:1;}
+.admin-fin-btn{padding:8px 14px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid #3d5afe;color:#fff;padding:10px 20px;border-radius:10px;font-size:.85rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+
+/* Realtime dot */
+.rt-dot{width:7px;height:7px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;display:inline-block;margin-left:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px 20px;color:#333;}
+.empty-state-icon{font-size:2.5rem;margin-bottom:10px;}
+.empty-state-text{font-size:.9rem;}
+
+@media(max-width:400px){
+    .sc-teams{grid-template-columns:1fr;}
+    .sc-team:first-child{border-right:none;border-bottom:1px solid var(--border);}
+}
+</style>
+</head>
+<body>
+
+<div class="vt-header">
+    <div>
+        <div class="vt-logo">⚽ Arena Friends FC</div>
+        <div class="vt-subtitle">Votează Varianta de Echipe<span class="rt-dot" id="rtDot" style="display:none;"></span></div>
+    </div>
+</div>
+
+<div class="id-bar" id="idBar" style="display:none;">
+    <span class="id-label">Votezi ca:</span>
+    <span class="id-name" id="idBarName"></span>
+    <span class="id-change" onclick="logout()">· schimbă</span>
+</div>
+
+<!-- Identity selection screen -->
+<div class="id-screen" id="idScreen">
+    <div class="id-screen-title">👤 Cine ești?</div>
+    <div class="id-screen-sub">Selectează numele tău pentru a putea vota.</div>
+    <select class="id-select" id="playerSelect">
+        <option value="">— Selectează jucătorul —</option>
+    </select>
+    <button class="id-confirm-btn" onclick="confirmIdentity()">⚡ Intră și Votează</button>
+</div>
+
+<!-- Main voting content -->
+<div class="vt-main" id="vtMain" style="display:none;">
+    <div class="vt-section-title" id="vtTitle">Variante de Echipe</div>
+    <div id="scenariosList"></div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <div class="empty-state-icon">⏳</div>
+        <div class="empty-state-text">Nu există scenarii salvate momentan.<br>Adminul nu a publicat încă variantele de echipe.</div>
+    </div>
+</div>
+
+<!-- Admin finalize bar -->
+<div class="admin-finalize" id="adminFinalize">
+    <span class="admin-fin-label">👑 Admin: Finalizează votarea</span>
+    <button class="admin-fin-btn" id="finalizeBtn"
+        style="background:rgba(40,167,69,.15);border:1px solid var(--green);color:#69f0ae;"
+        onclick="finalizeWinner()">✅ Aplică Câștigătorul</button>
+    <button class="admin-fin-btn"
+        style="background:rgba(198,40,40,.1);border:1px solid #c62828;color:#ef9a9a;"
+        onclick="clearVotes()">🗑️ Resetează Voturi</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const LS_KEY = 'vote_identity';
+
+let myName = null;
+let scenarios = [];
+let votes = {}; // {scenario_id: count}
+let myVote = null; // scenario_id I voted for
+let isAdmin = false;
+let allPlayers = [];
+
+// ── Toast ────────────────────────────────────────────────────────
+function showToast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ── Identity ─────────────────────────────────────────────────────
+async function loadPlayers(){
+    const {data} = await sb.from('players').select('id,name,status').order('name');
+    allPlayers = data||[];
+    const sel = document.getElementById('playerSelect');
+    allPlayers.forEach(p=>{
+        const o=document.createElement('option');
+        o.value=p.name; o.textContent=p.name;
+        sel.appendChild(o);
+    });
+}
+
+function confirmIdentity(){
+    const sel = document.getElementById('playerSelect');
+    const name = sel.value.trim();
+    if(!name){ showToast('⚠️ Selectează un jucător!'); return; }
+    myName = name;
+    localStorage.setItem(LS_KEY, name);
+    enterApp();
+}
+
+function logout(){
+    myName=null; myVote=null;
+    localStorage.removeItem(LS_KEY);
+    document.getElementById('idBar').style.display='none';
+    document.getElementById('vtMain').style.display='none';
+    document.getElementById('idScreen').style.display='block';
+}
+
+async function enterApp(){
+    document.getElementById('idScreen').style.display='none';
+    document.getElementById('idBarName').textContent=myName;
+    document.getElementById('idBar').style.display='flex';
+    document.getElementById('vtMain').style.display='block';
+    // Check admin
+    const {data:prof} = await sb.from('profiles').select('role').eq('display_name',myName).maybeSingle();
+    isAdmin = prof?.role==='admin';
+    if(isAdmin) document.getElementById('adminFinalize').classList.add('show');
+    await loadVotes();
+    await loadAndRender();
+    subscribeRealtime();
+}
+
+// ── Scenarios + Votes ─────────────────────────────────────────────
+async function loadAndRender(){
+    const {data:sc} = await sb.from('match_scenarios').select('*').order('scenario_id');
+    scenarios = sc||[];
+    if(!scenarios.length){
+        document.getElementById('emptyState').style.display='block';
+        return;
+    }
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('rtDot').style.display='inline-block';
+    renderScenarios();
+}
+
+async function loadVotes(){
+    // Total votes per scenario
+    const {data} = await sb.from('team_votes').select('scenario_id');
+    votes={};
+    (data||[]).forEach(v=>{ votes[v.scenario_id]=(votes[v.scenario_id]||0)+1; });
+    // My vote
+    const {data:myV} = await sb.from('team_votes')
+        .select('scenario_id').eq('voter_name',myName).maybeSingle();
+    myVote = myV?.scenario_id||null;
+}
+
+function renderScenarios(){
+    const container = document.getElementById('scenariosList');
+    const totalVotes = Object.values(votes).reduce((s,v)=>s+v,0);
+    const leaderId = totalVotes>0
+        ? Object.entries(votes).sort((a,b)=>b[1]-a[1])[0]?.[0]
+        : null;
+
+    const titles = ['Varianta A','Varianta B','Varianta C'];
+
+    container.innerHTML = scenarios.map((sc,idx)=>{
+        const sid = String(sc.scenario_id);
+        const vCount = votes[sc.scenario_id]||0;
+        const pct = totalVotes>0 ? Math.round((vCount/totalVotes)*100) : 0;
+        const isLeader = sid===String(leaderId) && totalVotes>0;
+        const iVoted = String(myVote)===sid;
+        const hasVotedElse = myVote!==null && !iVoted;
+        const orange = sc.orange_players||[];
+        const green  = sc.green_players||[];
+
+        const btnClass = iVoted ? 'voted' : hasVotedElse ? 'disabled default' : 'default';
+        const btnText  = iVoted ? '✅ Ai votat această variantă'
+                       : hasVotedElse ? `🔒 Ai votat deja Varianta ${titles[myVote-1]||myVote}`
+                       : `🗳️ Votează ${titles[idx]}`;
+
+        const playerPills = (players,side)=>players.map(name=>{
+            const isMe = name===myName;
+            return `<div class="sc-player-pill${isMe?' me':''}">${isMe?'👤 ':''} ${name}</div>`;
+        }).join('');
+
+        return `<div class="sc-card${isLeader?' winner':''}" id="sc-card-${sc.scenario_id}">
+            <div class="sc-card-header">
+                <span class="sc-card-title">${titles[idx]||'Varianta '+sc.scenario_id}</span>
+                <span class="sc-vote-count">${vCount} vot${vCount!==1?'uri':''}${isLeader?' 🏆':''}</span>
+            </div>
+            <div class="sc-teams">
+                <div class="sc-team">
+                    <div class="sc-team-lbl orange">🟠 Echipa Portocalie (${orange.length})</div>
+                    <div class="sc-player-list">${playerPills(orange,'orange')||'<div style="color:#333;font-size:.75rem;">—</div>'}</div>
+                </div>
+                <div class="sc-team">
+                    <div class="sc-team-lbl green">🟢 Echipa Verde (${green.length})</div>
+                    <div class="sc-player-list">${playerPills(green,'green')||'<div style="color:#333;font-size:.75rem;">—</div>'}</div>
+                </div>
+            </div>
+            <div class="sc-footer">
+                <div class="sc-progress-wrap">
+                    <div class="sc-progress-fill${isLeader?' leading':''}" style="width:${pct}%"></div>
+                </div>
+                <div class="sc-progress-label">
+                    <span>${pct}%</span><span>${totalVotes} vot${totalVotes!==1?'uri totale':'total'}</span>
+                </div>
+                <button class="sc-vote-btn ${btnClass}"
+                    onclick="${!iVoted&&!hasVotedElse?'castVote('+sc.scenario_id+')':''}">${btnText}</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── Voting ────────────────────────────────────────────────────────
+async function castVote(scenarioId){
+    if(myVote!==null){ showToast('⚠️ Ai votat deja!'); return; }
+    try{
+        const {error} = await sb.from('team_votes').insert({
+            voter_name: myName,
+            scenario_id: scenarioId,
+            voted_at: new Date().toISOString()
+        });
+        if(error) throw error;
+        myVote = scenarioId;
+        votes[scenarioId] = (votes[scenarioId]||0)+1;
+        renderScenarios();
+        showToast('✅ Vot înregistrat!');
+    }catch(e){
+        if(e.code==='23505') showToast('⚠️ Ai votat deja!');
+        else showToast('⚠️ '+e.message);
+    }
+}
+
+// ── Admin actions ─────────────────────────────────────────────────
+async function finalizeWinner(){
+    const totalVotes = Object.values(votes).reduce((s,v)=>s+v,0);
+    if(!totalVotes){ showToast('⚠️ Niciun vot înregistrat!'); return; }
+    const [winnerId] = Object.entries(votes).sort((a,b)=>b[1]-a[1])[0];
+    const winSc = scenarios.find(s=>String(s.scenario_id)===String(winnerId));
+    if(!winSc){ showToast('⚠️ Scenariu negăsit!'); return; }
+    const vIdx = scenarios.indexOf(winSc);
+    const titles=['Varianta A','Varianta B','Varianta C'];
+    if(!confirm(`Aplici ${titles[vIdx]||'Varianta '+winnerId} ca echipe oficiale?\n\n🟠 ${winSc.orange_players?.join(', ')}\n🟢 ${winSc.green_players?.join(', ')}`)) return;
+    // Update players' status in Supabase
+    try{
+        // Set all active → bench first
+        const allActive = [...(winSc.orange_players||[]),...(winSc.green_players||[])];
+        await sb.from('players').update({status:'bench'}).in('name', allActive);
+        // Set orange
+        if(winSc.orange_players?.length)
+            await sb.from('players').update({status:'orange'}).in('name',winSc.orange_players);
+        // Set green
+        if(winSc.green_players?.length)
+            await sb.from('players').update({status:'green'}).in('name',winSc.green_players);
+        showToast('✅ Echipe aplicate! Revino în aplicație.');
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function clearVotes(){
+    if(!confirm('Șterge TOATE voturile pentru toate scenariile?')) return;
+    try{
+        await sb.from('team_votes').delete().neq('id',0);
+        votes={}; myVote=null;
+        renderScenarios();
+        showToast('✅ Voturi resetate!');
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Realtime ─────────────────────────────────────────────────────
+function subscribeRealtime(){
+    sb.channel('team_votes_rt')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_votes'},payload=>{
+          const sid = payload.new.scenario_id;
+          votes[sid]=(votes[sid]||0)+1;
+          renderScenarios();
+      })
+      .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_votes'},async ()=>{
+          await loadVotes(); renderScenarios();
+      })
+      .subscribe();
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+async function init(){
+    await loadPlayers();
+    const saved = localStorage.getItem(LS_KEY);
+    if(saved && allPlayers.find(p=>p.name===saved)){
+        myName=saved;
+        document.getElementById('playerSelect').value=saved;
+        enterApp();
+    }
+}
+init();
+</script>
+</body>
+</html>
