@@ -1375,11 +1375,11 @@
             <!-- Add form (hidden by default) -->
             <div id="addTagForm" style="display:none;background:#0d1020;border:1px solid #1e2130;border-radius:10px;padding:14px;margin-bottom:14px;">
                 <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:#fff;margin-bottom:10px;">Tag Nou</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div style="display:grid;grid-template-columns:56px 1fr;gap:8px;margin-bottom:8px;">
                     <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">EMOJI</div><input id="ntEmoji" type="text" maxlength="4" placeholder="🎯" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:1rem;outline:none;text-align:center;"></div>
-                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">LABEL</div><input id="ntLabel" type="text" placeholder="Șut Bun" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;"></div>
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">LABEL</div><input id="ntLabel" type="text" placeholder="Vizionar" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;"></div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
                     <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">TIP</div>
                         <select id="ntType" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
                             <option value="pos">✅ Pozitiv</option><option value="neg">❌ Negativ</option><option value="neu">⚪ Neutru</option>
@@ -1388,10 +1388,26 @@
                         <select id="ntCat" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
                             <option value="atac">⚽ Atac</option><option value="aparare">🛡️ Apărare</option><option value="efort">🏃 Efort</option><option value="portar">🧤 Portar</option><option value="negativ">❌ Negative</option>
                         </select></div>
-                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">ATRIBUT</div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+                    <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">ATRIBUT INFLUENȚAT</div>
                         <select id="ntAttr" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
-                            <option value="viteza">Viteză</option><option value="tehnica">Tehnică</option><option value="strategie">Strategie</option><option value="aparare">Apărare</option><option value="general">General</option>
+                            <option value="viteza">⚡ Viteză</option><option value="tehnica">🎯 Tehnică</option><option value="strategie">🧠 Strategie</option><option value="aparare">🛡️ Apărare</option><option value="general">⚽ General</option>
                         </select></div>
+                    <div>
+                        <div style="font-size:.62rem;color:#555;margin-bottom:4px;">INTENSITATE IMPACT</div>
+                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;" id="ntIntensityBtns">
+                            <button type="button" class="int-btn" data-val="1" onclick="selectIntensity(1)"
+                                style="padding:5px 2px;border-radius:5px;border:1px solid #1e2130;background:#1c1f2b;color:#555;font-size:.65rem;cursor:pointer;">🟢 Slab</button>
+                            <button type="button" class="int-btn active-int" data-val="2" onclick="selectIntensity(2)"
+                                style="padding:5px 2px;border-radius:5px;border:1px solid #3d5afe;background:rgba(61,90,254,.15);color:#82b1ff;font-size:.65rem;cursor:pointer;">🔵 Mediu</button>
+                            <button type="button" class="int-btn" data-val="3" onclick="selectIntensity(3)"
+                                style="padding:5px 2px;border-radius:5px;border:1px solid #1e2130;background:#1c1f2b;color:#555;font-size:.65rem;cursor:pointer;">🟡 Ridicat</button>
+                            <button type="button" class="int-btn" data-val="4" onclick="selectIntensity(4)"
+                                style="padding:5px 2px;border-radius:5px;border:1px solid #1e2130;background:#1c1f2b;color:#555;font-size:.65rem;cursor:pointer;">🔴 Critic</button>
+                        </div>
+                        <input type="hidden" id="ntIntensity" value="2">
+                    </div>
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#fff;padding:9px;border-radius:8px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
@@ -2071,6 +2087,47 @@ function setupRealtime() {
         .subscribe();
 }
 
+// ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
+const TAG_INTENSITY_WEIGHT = {1: 0.5, 2: 1.0, 3: 1.5, 4: 2.0};
+const TAG_BONUS_CAP = 2.0; // max ±2 puncte indiferent de câte taguri
+
+/**
+ * computeTagBonus — Sistem de impact auto-adaptiv
+ *
+ * Logică:
+ *  1. Fiecare tag activ contribuie cu un "semnal" normalizat: sign × intensity_weight
+ *  2. Suma semnalelor se împarte la suma max posibilă (toate tagurile la intensitate maximă)
+ *     → rezultat în [-1, +1]
+ *  3. Se înmulțește cu TAG_BONUS_CAP → ±2 max, imun la spam
+ *  4. TW (coeficienții admin) ajustează fine: +/- max 0.3 per tag, adăugat la semnal
+ */
+function computeTagBonus(activeTags){
+    if(!activeTags.length) return {bonus:0, signals:[]};
+
+    const signals = activeTags.map(obj=>{
+        const tag = obj.tag;
+        const intensity = parseInt(tag.intensity) || 2;
+        const iw = TAG_INTENSITY_WEIGHT[intensity] || 1.0;
+        // Direcție: pos=+1, neg=-1, neu=0
+        const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
+        // Admin fine-tuning via TW: ±0.3 max per tag
+        const tw = TW[String(obj.id)] || 0; // TW în [-0.5, +0.5]
+        const twAdj = tw * 0.6; // scalăm la ±0.3
+        const raw = dir * iw + twAdj;
+        return {id: obj.id, tag, raw, iw, dir};
+    });
+
+    // Max posibil = suma tuturor la intensitate Critic (2.0)
+    const maxPossible = activeTags.length * TAG_INTENSITY_WEIGHT[4];
+
+    const sumSignals = signals.reduce((s, sg) => s + sg.raw, 0);
+    // Normalizăm la [-1, +1] față de max posibil pozitiv
+    const normalized = maxPossible > 0 ? sumSignals / maxPossible : 0;
+    const bonus = Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, normalized * TAG_BONUS_CAP));
+
+    return {bonus: parseFloat(bonus.toFixed(3)), signals};
+}
+
 // ── Smart Rating 2.0 ────────────────────────────────────────────
 function getSmartRating(p) {
     if(p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
@@ -2083,32 +2140,25 @@ function getSmartRating(p) {
     const aparare   = p.ratings.reduce((s,r)=>s+(r.aparare||5),0) / n;
 
     const wrRaw  = p.games>0 ? p.wins/p.games : 0;
-    const wrScore= 1 + wrRaw*9; // 1..10 scale
+    const wrScore= 1 + wrRaw*9;
     const games  = Math.max(p.games,1);
     const mvpWinScore  = Math.min(((p.mvpWinCount||0)/games)*10,10);
     const mvpLossScore = Math.min(((p.mvpLossCount||0)/games)*10,10);
 
-    // ── Weighted base (all 5 attrs collapse into one "general" factor) ──
     const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
     let base = general*wG + wrScore*W.winrate + mvpWinScore*W.mvpWin + mvpLossScore*W.mvpLoss;
 
-    // ── Penalizare dezechilibru: oricare atribut sub 2.5 (= 25/10) → −10% ──
+    // ── Penalizare dezechilibru: oricare atribut sub 2.5 → −10% ──
     const THRESHOLD = 2.5;
     const hasWeakAttr = viteza<THRESHOLD || tehnica<THRESHOLD || strategie<THRESHOLD || aparare<THRESHOLD;
     if(hasWeakAttr) base *= 0.90;
 
-    // ── Win Rate bonus: WR > 60% → +0.2 ──
+    // ── Win Rate bonus: WR > 60% și ≥3 meciuri → +0.2 ──
     if(wrRaw > 0.60 && p.games >= 3) base += 0.2;
 
-    // ── Tag bonus (aplicat la final, cap ±2) ──
-    let tagBonus = 0;
-    if(Object.keys(TW).length > 0){
-        getPlayerActiveTagObjects(p).forEach(obj=>{
-            const tw = TW[String(obj.id)];
-            if(tw) tagBonus += tw;
-        });
-        tagBonus = Math.max(-2, Math.min(2, tagBonus * 10));
-    }
+    // ── Tag bonus auto-scalat (imun la spam) ──
+    const activeTags = getPlayerActiveTagObjects(p);
+    const {bonus: tagBonus} = computeTagBonus(activeTags);
 
     return parseFloat(Math.max(1, Math.min(10, base + tagBonus)).toFixed(2));
 }
@@ -2822,6 +2872,31 @@ async function adminToggleTag(playerId, tagId){
 }
 
 // ── Tags Admin CRUD ──────────────────────────────────────────────
+// Intensity labels and colors
+const INT_META = {
+    1:{label:'Slab',   color:'#4caf50', icon:'🟢'},
+    2:{label:'Mediu',  color:'#82b1ff', icon:'🔵'},
+    3:{label:'Ridicat',color:'#ffd600', icon:'🟡'},
+    4:{label:'Critic', color:'#ef9a9a', icon:'🔴'},
+};
+
+function selectIntensity(val){
+    document.getElementById('ntIntensity').value = val;
+    document.querySelectorAll('.int-btn').forEach(btn=>{
+        const v = parseInt(btn.dataset.val);
+        const m = INT_META[v];
+        if(v===val){
+            btn.style.border=`1px solid ${m.color}`;
+            btn.style.background=`rgba(${v===1?'76,175,80':v===2?'130,177,255':v===3?'255,214,0':'239,154,154'},.15)`;
+            btn.style.color=m.color;
+        } else {
+            btn.style.border='1px solid #1e2130';
+            btn.style.background='#1c1f2b';
+            btn.style.color='#555';
+        }
+    });
+}
+
 function buildTagsPanel(){
     const el=document.getElementById('tagsList');if(!el)return;
     const cats=[...new Set(tagsConfig.map(t=>t.category))];
@@ -2830,31 +2905,51 @@ function buildTagsPanel(){
         const catLabel=CAT_LABELS_CONFIG[cat]||cat;
         return `<div style="margin-bottom:14px;">
             <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #1e2130;">${catLabel}</div>
-            ${tags.map(t=>`
-            <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0f1118;">
-                <input type="text" value="${t.emoji}" maxlength="4"
-                    style="width:38px;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:4px;border-radius:6px;text-align:center;font-size:.9rem;outline:none;"
-                    onchange="updateTagField(${t.id},'emoji',this.value)">
-                <input type="text" value="${t.label}"
-                    style="flex:1;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:5px 8px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:.88rem;outline:none;"
-                    onchange="updateTagField(${t.id},'label',this.value)">
-                <select style="background:#1c1f2b;border:1px solid #2a2d40;color:${t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff'};padding:4px;border-radius:6px;font-size:.75rem;outline:none;"
-                    onchange="updateTagField(${t.id},'type',this.value)">
-                    <option value="pos" ${t.type==='pos'?'selected':''}>✅ Poz</option>
-                    <option value="neg" ${t.type==='neg'?'selected':''}>❌ Neg</option>
-                    <option value="neu" ${t.type==='neu'?'selected':''}>⚪ Neu</option>
-                </select>
-                <select style="background:#1c1f2b;border:1px solid #2a2d40;color:#aaa;padding:4px;border-radius:6px;font-size:.72rem;outline:none;"
-                    onchange="updateTagField(${t.id},'impact_attribute',this.value)">
-                    ${['viteza','tehnica','strategie','aparare','general'].map(a=>`<option value="${a}" ${t.impact_attribute===a?'selected':''}>${a}</option>`).join('')}
-                </select>
-                <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:3px 7px;border-radius:6px;font-size:.75rem;cursor:pointer;">🗑️</button>
-            </div>`).join('')}
+            ${tags.map(t=>{
+                const intensity = parseInt(t.intensity)||2;
+                const im = INT_META[intensity]||INT_META[2];
+                const typeColor = t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff';
+                return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #0f1118;flex-wrap:wrap;">
+                    <input type="text" value="${t.emoji}" maxlength="4"
+                        style="width:34px;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:4px;border-radius:6px;text-align:center;font-size:.85rem;outline:none;"
+                        onchange="updateTagField(${t.id},'emoji',this.value)">
+                    <input type="text" value="${t.label}"
+                        style="flex:1;min-width:80px;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:4px 8px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:.85rem;outline:none;"
+                        onchange="updateTagField(${t.id},'label',this.value)">
+                    <select style="background:#1c1f2b;border:1px solid #2a2d40;color:${typeColor};padding:4px;border-radius:6px;font-size:.72rem;outline:none;"
+                        onchange="updateTagField(${t.id},'type',this.value)">
+                        <option value="pos" ${t.type==='pos'?'selected':''}>✅</option>
+                        <option value="neg" ${t.type==='neg'?'selected':''}>❌</option>
+                        <option value="neu" ${t.type==='neu'?'selected':''}>⚪</option>
+                    </select>
+                    <select style="background:#1c1f2b;border:1px solid #2a2d40;color:#888;padding:4px;border-radius:6px;font-size:.7rem;outline:none;"
+                        onchange="updateTagField(${t.id},'impact_attribute',this.value)">
+                        ${['viteza','tehnica','strategie','aparare','general'].map(a=>`<option value="${a}" ${t.impact_attribute===a?'selected':''}>${a}</option>`).join('')}
+                    </select>
+                    <!-- Intensity selector -->
+                    <div style="display:flex;gap:2px;">
+                        ${[1,2,3,4].map(v=>{
+                            const m=INT_META[v];
+                            const active=v===intensity;
+                            return `<button type="button" title="${m.label}"
+                                onclick="updateTagField(${t.id},'intensity',${v}); this.closest('div').querySelectorAll('button').forEach((b,i)=>{b.style.background=i+1===${v}?'rgba(0,0,0,.4)':'transparent';b.style.border=i+1===${v}?'1px solid ${m.color}':'1px solid #1e2130';})"
+                                style="width:18px;height:18px;border-radius:4px;cursor:pointer;font-size:.6rem;display:flex;align-items:center;justify-content:center;
+                                border:1px solid ${active?m.color:'#1e2130'};background:${active?'rgba(0,0,0,.4)':'transparent'};"
+                                >${m.icon}</button>`;
+                        }).join('')}
+                    </div>
+                    <span style="font-size:.6rem;color:${im.color};min-width:40px;">${im.icon} ${im.label}</span>
+                    <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
+                </div>`;
+            }).join('')}
         </div>`;
     }).join('');
 }
 
-function openAddTag(){ document.getElementById('addTagForm').style.display='block'; }
+function openAddTag(){
+    document.getElementById('addTagForm').style.display='block';
+    selectIntensity(2);
+}
 
 async function saveNewTag(){
     const emoji=document.getElementById('ntEmoji').value.trim()||'⚽';
@@ -2862,26 +2957,29 @@ async function saveNewTag(){
     const type=document.getElementById('ntType').value;
     const category=document.getElementById('ntCat').value;
     const impact_attribute=document.getElementById('ntAttr').value;
+    const intensity=parseInt(document.getElementById('ntIntensity').value)||2;
     if(!label){showToast('⚠️ Introdu un label!');return;}
     try{
-        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_attribute,sort_order:tagsConfig.length+1}).select().single();
+        const{data,error}=await sb.from('tags_config')
+            .insert({emoji,label,type,category,impact_attribute,intensity,sort_order:tagsConfig.length+1})
+            .select().single();
         if(error)throw error;
         tagsConfig.push(data);
-        buildPTById();
-        invalidateTagsCache();
+        buildPTById();invalidateTagsCache();
         document.getElementById('addTagForm').style.display='none';
         document.getElementById('ntEmoji').value='';document.getElementById('ntLabel').value='';
         buildTagsPanel();
-        showToast(`✅ Tag adăugat: ${emoji} ${label}`);
+        showToast(`✅ Tag adăugat: ${emoji} ${label} (${INT_META[intensity].label})`);
     }catch(e){showToast('⚠️ '+e.message);}
 }
 
 async function updateTagField(id,field,value){
     const t=tagsConfig.find(x=>x.id===id);if(!t)return;
-    t[field]=value;
+    t[field]=field==='intensity'?parseInt(value):value;
     try{
-        await sb.from('tags_config').update({[field]:value}).eq('id',id);
+        await sb.from('tags_config').update({[field]:t[field]}).eq('id',id);
         buildPTById();invalidateTagsCache();
+        if(field==='intensity') buildTagsPanel();
     }catch(e){showToast('⚠️ '+e.message);}
 }
 
@@ -3374,15 +3472,13 @@ function buildModalStats(p){
     if(W.mvpLoss>0) formulaHtml += ` + MVP✗×${(W.mvpLoss*100).toFixed(0)}%`;
     formulaHtml += ` | WR→<strong>${wrScore}/10</strong>`;
     if(mvpWinCount||mvpLossCount) formulaHtml += ` | MVP ✓${mvpWinCount} ✗${mvpLossCount}`;
-    if(Object.keys(TW).some(k=>TW[k]!==0)){
-        const activeTags = getPlayerActiveTagObjects(p);
-        let rawBonus=0;
-        activeTags.forEach(obj=>{ const tw=TW[String(obj.id)]; if(tw) rawBonus+=tw; });
-        const bonus=Math.max(-2,Math.min(2,rawBonus*10));
-        if(bonus!==0){
-            const bonusStr=bonus>0?`<span style="color:#4caf50">+${bonus.toFixed(2)}</span>`:`<span style="color:#e57373">${bonus.toFixed(2)}</span>`;
-            formulaHtml += ` | Tag: ${bonusStr}`;
-        }
+    const _activeTags = getPlayerActiveTagObjects(p);
+    if(_activeTags.length>0){
+        const {bonus:_tb, signals:_sigs} = computeTagBonus(_activeTags);
+        const bonusStr=_tb>0?`<span style="color:#4caf50">+${_tb.toFixed(2)}</span>`:`<span style="color:#e57373">${_tb.toFixed(2)}</span>`;
+        formulaHtml += ` | Tags(${_activeTags.length}): ${bonusStr}`;
+        const posCount=_sigs.filter(s=>s.dir>0).length, negCount=_sigs.filter(s=>s.dir<0).length;
+        if(posCount||negCount) formulaHtml+=` <span style="font-size:.6em;color:#444;">(+${posCount}/−${negCount})</span>`;
     }
     document.getElementById('algoInfo').innerHTML = formulaHtml;
 
@@ -3418,8 +3514,14 @@ function buildModalStats(p){
                 const dots = Array.from({length:NEEDED},(_,i)=>`<div class="tag-dot ${i<filled?'filled':'empty'}"></div>`).join('');
                 const statusIcon = isAdminSet?'👑':active?(nearExpiry?'⏳':'✅'):'○';
                 const badgeOpacity = active?1:0.4;
+                const intensity = parseInt(tagById(tid)?.intensity)||2;
+                const im = INT_META[intensity]||INT_META[2];
+                const iw = TAG_INTENSITY_WEIGHT[intensity]||1;
+                const dir = tag.type==='pos'?1:tag.type==='neg'?-1:0;
                 const tw = TW[tid]||0;
-                const twLabel = tw!==0 ? `<span style="font-size:.58rem;color:${tw>0?'#69f0ae':'#ef9a9a'};margin-left:3px;">${tw>0?'+':''}${(tw*10).toFixed(1)}pt</span>` : '';
+                // Contribution estimate: signal * (cap/maxPossible_single)
+                const singleContrib = ((dir*iw + tw*0.6) * TAG_BONUS_CAP / (TAG_INTENSITY_WEIGHT[4])).toFixed(2);
+                const twLabel = `<span style="font-size:.58rem;color:${im.color};margin-left:3px;">${im.icon}${dir>=0?'+':''}${singleContrib}pt</span>`;
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
                     style="background:${isAdminSet?'rgba(255,140,0,.15)':'rgba(61,90,254,.08)'};
                     border:1px solid ${isAdminSet?'var(--orange)':'#2a2d40'};
@@ -3570,15 +3672,9 @@ function previewSmartRating(p, snap){
     const wrBonus = wrRaw > 0.60 && p.games >= 3;
     if(wrBonus) base += 0.2;
 
-    // Tag bonus
-    let tagBonus = 0;
-    if(Object.keys(TW).length > 0){
-        getPlayerActiveTagObjects(p).forEach(obj=>{
-            const tw = TW[String(obj.id)];
-            if(tw) tagBonus += tw;
-        });
-        tagBonus = Math.max(-2, Math.min(2, tagBonus * 10));
-    }
+    // Tag bonus auto-scalat
+    const activeTags = getPlayerActiveTagObjects(p);
+    const {bonus: tagBonus, signals} = computeTagBonus(activeTags);
 
     // Per-attribute contribution for display
     const contribs = {
@@ -3591,7 +3687,7 @@ function previewSmartRating(p, snap){
 
     return {
         final: parseFloat(Math.max(1,Math.min(10,base+tagBonus)).toFixed(2)),
-        contribs, penalized, wrBonus, tagBonus
+        contribs, penalized, wrBonus, tagBonus, signals
     };
 }
 
