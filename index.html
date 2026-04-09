@@ -4279,11 +4279,11 @@ function buildHexChart(p){
     const dataPath=dataPts.map(p=>p.x+','+p.y).join(' ');
 
     let lbls='';
-    catDefs.forEach((cd,i)=>{
+    radarAxes.forEach((ax,i)=>{
         const p2=pt(R+20,i);
         const anchor=p2.x<cx-5?'end':p2.x>cx+5?'start':'middle';
-        lbls+=`<text x="${p2.x}" y="${p2.y}" text-anchor="${anchor}" fill="${cd.color}" font-size="8.5" font-family="Rajdhani,sans-serif" font-weight="700">${cd.icon}</text>`;
-        lbls+=`<text x="${p2.x}" y="${p2.y+10}" text-anchor="${anchor}" fill="${cd.color}" font-size="7.5" font-family="Rajdhani,sans-serif">${cd.label}</text>`;
+        lbls+=`<text x="${p2.x}" y="${p2.y}" text-anchor="${anchor}" fill="${ax.color}" font-size="8.5" font-family="Rajdhani,sans-serif" font-weight="700">${ax.icon}</text>`;
+        lbls+=`<text x="${p2.x}" y="${p2.y+10}" text-anchor="${anchor}" fill="${ax.color}" font-size="7.5" font-family="Rajdhani,sans-serif">${ax.label}</text>`;
     });
 
     let dots='';
