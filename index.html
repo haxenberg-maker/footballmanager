@@ -969,6 +969,7 @@
                 <button class="sc-btn" id="scBtn2" onclick="switchScenario(2)">S2</button>
                 <button class="sc-btn" id="scBtn3" onclick="switchScenario(3)">S3</button>
                 <button onclick="saveScenario()" style="flex:1;padding:5px 4px;border-radius:6px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid #28a745;background:rgba(40,167,69,.1);color:#69f0ae;">💾 Salvează</button>
+                <button onclick="resetScenarios()" title="Șterge toate scenariile" style="padding:5px 7px;border-radius:6px;font-size:.7rem;cursor:pointer;border:1px solid #c62828;background:rgba(198,40,40,.08);color:#ef9a9a;">🗑️</button>
             </div>
             <div class="sc-vote-link" onclick="openVoteTeamsLink()">
                 <span>🗳️</span><span style="flex:1;">Deschide Vot Echipe</span>
@@ -5168,6 +5169,17 @@ function switchScenario(n){
     } else {
         showToast('📋 Scenariu '+n+' gol — aranjează echipele și salvează');
     }
+}
+
+async function resetScenarios(){
+    scenarios = {1:null, 2:null, 3:null};
+    currentScenario = 1;
+    [1,2,3].forEach(i=>{
+        const btn=document.getElementById('scBtn'+i);
+        if(btn){ btn.classList.remove('saved'); btn.classList.toggle('active', i===1); btn.textContent='S'+i; }
+    });
+    try{ await sb.from('match_scenarios').delete().neq('scenario_id',0); }catch(e){}
+    showToast('🗑️ Scenarii resetate!');
 }
 
 async function saveScenario(){
