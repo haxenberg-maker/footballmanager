@@ -1494,7 +1494,7 @@
                         </select></div>
                     <div><div style="font-size:.62rem;color:#555;margin-bottom:4px;">CATEGORIE</div>
                         <select id="ntCat" style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#fff;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
-                            <option value="atac">⚽ Atac</option><option value="aparare">🛡️ Apărare</option><option value="efort">🏃 Efort</option><option value="portar">🧤 Portar</option><option value="negativ">❌ Negative</option>
+                            <option value="atac">⚽ Atac</option><option value="aparare">🛡️ Apărare</option><option value="efort">🏃 Efort</option><option value="portar">🧤 Portar</option><option value="mentalitate">💡 Mentalitate / IQ</option><option value="fizic">💪 Profil Fizic</option><option value="executie">🎯 Execuție</option><option value="pozitionare">📍 Poziționare</option><option value="negativ">❌ Negative</option>
                         </select></div>
                 </div>
                 <!-- Impact Profile sliders -->
@@ -1677,7 +1677,7 @@ const DEFAULT_TAGS_CONFIG = [
     {label:'Obosește repede', emoji:'🪫', type:'neg', category:'negativ', impact_attribute:'aparare',   sort_order:18},
 ];
 
-const CAT_LABELS_CONFIG = {atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',negativ:'❌ Negative'};
+const CAT_LABELS_CONFIG = {atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',mentalitate:'💡 Mentalitate / IQ',fizic:'💪 Profil Fizic',executie:'🎯 Execuție',pozitionare:'📍 Poziționare',negativ:'❌ Negative'};
 
 async function loadTagsConfig(){
     // Always fetch from Supabase (no localStorage cache) so tw_weight is always fresh
@@ -2211,7 +2211,7 @@ function setupRealtime() {
 let TAG_BONUS_CAP = parseFloat(localStorage.getItem('tag_bonus_cap') || '2.0'); // configurabil din algoritm
 
 // Profile attrs used in multi-impact system
-const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort'];
+const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
 
 /**
  * getTagProfileStrength — suma absolută a impact_profile (înlocuiește intensity)
@@ -2231,11 +2231,26 @@ function getTagProfileNet(tag){
 }
 
 /**
- * computeTagBonus — bazat pe impact_profile multi-axă
- * Suma net a profilurilor → normalizat → ±TAG_BONUS_CAP
+ * computeTagBonus 3.0 — 4 bucket-uri dimensionale
+ *
+ * TEHNIC   = tehnica + executie
+ * TACTIC   = strategie + pozitionare + mentalitate
+ * FIZIC    = viteza + efort + fizic
+ * DEFENSIV = aparare + pozitionare
+ *
+ * Fiecare bucket: suma valorilor active / max posibil → [-1,+1]
+ * Bonus per bucket: ±(TAG_BONUS_CAP / 4)
+ * Total: ±TAG_BONUS_CAP
  */
+const TAG_BUCKETS = {
+    tehnic:   {axes:['tehnica','executie'],        weight:0.25},
+    tactic:   {axes:['strategie','pozitionare','mentalitate'], weight:0.25},
+    fizic:    {axes:['viteza','efort','fizic'],     weight:0.25},
+    defensiv: {axes:['aparare','pozitionare'],      weight:0.25},
+};
+
 function computeTagBonus(activeTags){
-    if(!activeTags.length) return {bonus:0, signals:[]};
+    if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
 
     const signals = activeTags.map(obj=>{
         const tag = obj.tag;
@@ -2244,18 +2259,39 @@ function computeTagBonus(activeTags){
         const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
         const tw = TW[String(obj.id)] || 0;
         const twAdj = tw * 0.6;
-        // Raw = net impact from profile + TW fine-tune
-        const raw = (net > 0 ? 1 : net < 0 ? -1 : dir) * Math.min(strength, 3.0) + twAdj;
+        const raw = (net !== 0 ? Math.sign(net) : dir) * Math.min(strength, 3.0) + twAdj;
         return {id: obj.id, tag, raw, dir, strength, net};
     });
 
-    // Max posibil = fiecare tag la forță 3.0
-    const maxPossible = activeTags.length * 3.0;
-    const sumSignals = signals.reduce((s, sg) => s + sg.raw, 0);
-    const normalized = maxPossible > 0 ? sumSignals / maxPossible : 0;
-    const bonus = Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, normalized * TAG_BONUS_CAP));
+    // Compute per-bucket bonus
+    const bucketBonuses = {};
+    let totalBonus = 0;
 
-    return {bonus: parseFloat(bonus.toFixed(3)), signals};
+    Object.entries(TAG_BUCKETS).forEach(([bucket, def])=>{
+        let bucketSum = 0;
+        let maxSum = 0;
+        activeTags.forEach(obj=>{
+            const ip = obj.tag?.impact_profile || {};
+            def.axes.forEach(ax=>{
+                const v = parseFloat(ip[ax])||0;
+                bucketSum += v;
+                maxSum += 3; // max per axis per tag
+            });
+        });
+        const maxPossible = maxSum || (activeTags.length * def.axes.length * 3);
+        const normalized = maxPossible > 0 ? bucketSum / maxPossible : 0;
+        const bucketCap = TAG_BONUS_CAP * def.weight;
+        const bucketBonus = Math.max(-bucketCap, Math.min(bucketCap, normalized * bucketCap * 4));
+        bucketBonuses[bucket] = parseFloat(bucketBonus.toFixed(3));
+        totalBonus += bucketBonus;
+    });
+
+    // TW global fine-tune (±10% of cap)
+    const twAdjTotal = signals.reduce((s,sg)=> s + (TW[String(sg.id)]||0) * 0.1, 0);
+    totalBonus += Math.max(-TAG_BONUS_CAP*0.1, Math.min(TAG_BONUS_CAP*0.1, twAdjTotal));
+
+    const bonus = Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
+    return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets: bucketBonuses};
 }
 
 /**
@@ -2274,61 +2310,53 @@ function computeTeamAttrProfile(teamPlayers){
 }
 
 // ── Smart Rating 2.0 — Base 5, Goals, Imbalance coeff ────────────
+// ── Smart Rating 3.0 ─────────────────────────────────────────────
+//
+// base(5) + performanță(±2.5) + goluri(+1) + bucket tags(±CAP)
+// Buckets: TEHNIC · TACTIC · FIZIC · DEFENSIV (fiecare ±CAP/4)
+//
 function getSmartRating(p) {
     if(p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
 
-    // ── 1. Base = 5 (nu mai pornim de la voturile colegilor) ──────
     let base = 5.0;
 
-    // ── 2. Win Rate contribution (scalat -2..+2 față de 5) ───────
+    // ── A. PERFORMANȚĂ ────────────────────────────────────────────
+    // Win Rate: 0%→-2, 50%→0, 100%→+2 (scalat cu W.winrate)
     const wrRaw   = p.games>0 ? p.wins/p.games : 0.5;
-    const wrDelta = (wrRaw - 0.5) * 4; // 0%→-2, 50%→0, 100%→+2
-    base += wrDelta * W.winrate;
+    base += (wrRaw - 0.5) * 4 * W.winrate;
 
-    // ── 3. Peer vote bonus — opțional, adaugă max ±1 ─────────────
-    if(p.ratings.length > 0){
-        const n = p.ratings.length;
-        const generalAvg = p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;
-        // Peer votes shift base by max ±1 point
-        const peerDelta = ((generalAvg - 5) / 5) * 1.0;
-        base += peerDelta * (W.general + W.viteza + W.tehnica + W.strategie + W.aparare);
-    }
-
-    // ── 4. MVP bonus ──────────────────────────────────────────────
-    const games = Math.max(p.games,1);
-    const mvpWinScore  = Math.min(((p.mvpWinCount||0)/games)*10,10);
-    const mvpLossScore = Math.min(((p.mvpLossCount||0)/games)*10,10);
-    base += (mvpWinScore/10) * W.mvpWin * 2;
-    base += (mvpLossScore/10) * W.mvpLoss * 1;
-
-    // ── 5. Goals contribution: +0.1 per gol pe meci (max +1) ─────
-    if((p.totalGoals||0) > 0 && p.games > 0){
-        const gpg = Math.min(p.totalGoals / p.games, 3); // goals per game, cap 3
-        base += Math.min(gpg * 0.33, 1.0); // max +1.0 din goluri
-    }
-
-    // ── 6. WR > 60% bonus ────────────────────────────────────────
+    // WR consistency bonus
     if(wrRaw > 0.60 && p.games >= 3) base += 0.2;
 
-    // ── 7. Penalizare dezechilibru: oricare atribut peer < 2.5 ───
-    if(p.ratings.length > 0){
-        const n = p.ratings.length;
-        const viteza    = p.ratings.reduce((s,r)=>s+(r.viteza||5),0)/n;
-        const tehnica   = p.ratings.reduce((s,r)=>s+(r.tehnica||5),0)/n;
-        const strategie = p.ratings.reduce((s,r)=>s+(r.strategie||5),0)/n;
-        const aparare   = p.ratings.reduce((s,r)=>s+(r.aparare||5),0)/n;
-        const hasWeakAttr = viteza<2.5||tehnica<2.5||strategie<2.5||aparare<2.5;
-        if(hasWeakAttr) base *= 0.90;
+    // Goals per game (max +1.0)
+    if((p.totalGoals||0) > 0 && p.games > 0){
+        const gpg = Math.min(p.totalGoals / p.games, 3);
+        base += Math.min(gpg * 0.33, 1.0);
     }
 
-    // ── 8. Imbalance coeff: echipă dezechilibrată (3+ goluri diff) ─
-    // Penalizare acumulativă: -0.15 per meci pierdut cu 3+ diferență (cap 3 meciuri)
-    const imbalancePenalty = Math.min((p.lastImbalanceLoss||0), 3) * 0.15;
-    base -= imbalancePenalty;
+    // ── B. VOTURI COLEGI (opțional, max ±0.8) ────────────────────
+    if(p.ratings.length > 0 && (W.general + W.viteza + W.tehnica + W.strategie + W.aparare) > 0){
+        const n = p.ratings.length;
+        const genAvg = p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;
+        base += ((genAvg - 5) / 5) * 0.8;
+    }
 
-    // ── 9. Tag bonus auto-scalat ──────────────────────────────────
+    // ── C. MVP (opțional, max +0.6 / +0.3) ──────────────────────
+    if(W.mvpWin > 0 || W.mvpLoss > 0){
+        const games = Math.max(p.games,1);
+        const mvpWS = Math.min(((p.mvpWinCount||0)/games)*10,10);
+        const mvpLS = Math.min(((p.mvpLossCount||0)/games)*10,10);
+        base += (mvpWS/10) * W.mvpWin * 2;
+        base += (mvpLS/10) * W.mvpLoss;
+    }
+
+    // ── D. PENALIZĂRI ─────────────────────────────────────────────
+    // Dezechilibru echipă
+    base -= Math.min((p.lastImbalanceLoss||0), 3) * 0.15;
+
+    // ── E. TAG BUCKETS (4 dimensiuni, fiecare ±TAG_BONUS_CAP/4) ──
     const activeTags = getPlayerActiveTagObjects(p);
-    const {bonus: tagBonus} = computeTagBonus(activeTags);
+    const {bonus: tagBonus, buckets} = computeTagBonus(activeTags);
 
     return parseFloat(Math.max(1, Math.min(10, base + tagBonus)).toFixed(2));
 }
@@ -2473,31 +2501,30 @@ function analyzeTeamBalance(teamPlayers){
     const profile = computeTeamAttrProfile(teamPlayers);
     const warnings = [];
     const n = teamPlayers.length;
+    // Threshold scales with team size
+    const thr = n >= 5 ? -3 : n >= 3 ? -2 : -1;
 
-    // Thresholds per echipă (mai stricte cu mai mulți jucători)
-    const threshold = n >= 4 ? -2 : -1;
+    // BUCKET checks (sum of bucket axes vs threshold)
+    const tehnicSum   = (profile.tehnica||0) + (profile.executie||0);
+    const tacticSum   = (profile.strategie||0) + (profile.pozitionare||0) + (profile.mentalitate||0);
+    const fizicSum    = (profile.viteza||0) + (profile.efort||0) + (profile.fizic||0);
+    const defensivSum = (profile.aparare||0) + (profile.pozitionare||0);
 
-    // Apărare
-    if(profile.aparare < threshold)
+    // Scale threshold by number of axes in bucket
+    if(defensivSum < thr * 2)
         warnings.push({cls:'tbi-danger', msg:'🛡️ Apărare descoperită'});
+    if(tacticSum < thr * 3)
+        warnings.push({cls:'tbi-warn', msg:'🧠 Lipsă viziune / IQ tactic'});
+    if(fizicSum < thr * 3)
+        warnings.push({cls:'tbi-warn', msg:'💪 Profil fizic slab'});
+    if(tehnicSum < thr * 2)
+        warnings.push({cls:'tbi-warn', msg:'🎯 Lipsă execuție tehnică'});
+    if((profile.mentalitate||0) < thr)
+        warnings.push({cls:'tbi-warn', msg:'💡 Mentalitate fragilă'});
+    if((profile.pozitionare||0) < thr)
+        warnings.push({cls:'tbi-warn', msg:'📍 Poziționare slabă'});
 
-    // Strategie / viziune
-    if(profile.strategie < threshold)
-        warnings.push({cls:'tbi-warn', msg:'🧠 Lipsă viziune de joc'});
-
-    // Viteză
-    if(profile.viteza < threshold)
-        warnings.push({cls:'tbi-warn', msg:'🐢 Echipă prea lentă'});
-
-    // Tehnică / atac
-    if(profile.tehnica < threshold)
-        warnings.push({cls:'tbi-warn', msg:'🎯 Lipsă tehnicitate'});
-
-    // Efort
-    if(profile.efort < threshold)
-        warnings.push({cls:'tbi-warn', msg:'🔋 Efort scăzut'});
-
-    // Prea mulți negativi?
+    // Too many negative tags?
     const negCount = teamPlayers.flatMap(p=>getPlayerActiveTagObjects(p))
         .filter(o=>o.tag?.type==='neg').length;
     if(negCount >= n * 2)
@@ -3137,11 +3164,15 @@ async function adminToggleTag(playerId, tagId){
 // Intensity labels and colors
 // Profile attr labels + colors for UI
 const PROFILE_ATTR_META = {
-    viteza:    {label:'⚡ Viteză',    color:'#ff8c00'},
-    tehnica:   {label:'🎯 Tehnică',   color:'#82b1ff'},
-    strategie: {label:'🧠 Strategie', color:'#00bcd4'},
-    aparare:   {label:'🛡️ Apărare',  color:'#4caf50'},
-    efort:     {label:'🏃 Efort',     color:'#ffcc00'},
+    viteza:      {label:'⚡ Viteză',       color:'#ff8c00'},
+    tehnica:     {label:'🎯 Tehnică',      color:'#82b1ff'},
+    strategie:   {label:'🧠 Strategie',    color:'#00bcd4'},
+    aparare:     {label:'🛡️ Apărare',     color:'#4caf50'},
+    efort:       {label:'🏃 Efort',        color:'#ffcc00'},
+    mentalitate: {label:'💡 Mentalitate',  color:'#ce93d8'},
+    fizic:       {label:'💪 Fizic',        color:'#ef9a9a'},
+    executie:    {label:'🎯 Execuție',     color:'#a5d6a7'},
+    pozitionare: {label:'📍 Poziționare',  color:'#80deea'},
 };
 
 // Render impact profile sliders into a container element
@@ -4200,56 +4231,37 @@ async function saveLiveStats(pid){
 // ── buildHexChart — Tag Category Radar ───────────────────────────
 function buildHexChart(p){
     // Axes = tag categories with scores derived from active tags
-    const catDefs = [
-        {key:'atac',    label:'Atac',    color:'#ff8c00', icon:'⚽'},
-        {key:'aparare', label:'Apărare', color:'#4caf50', icon:'🛡️'},
-        {key:'efort',   label:'Efort',   color:'#ffcc00', icon:'🏃'},
-        {key:'portar',  label:'Portar',  color:'#82b1ff', icon:'🧤'},
-        {key:'negativ', label:'Impact−', color:'#ef9a9a', icon:'❌'},
-        {key:'_wr',     label:'Win Rate',color:'#a78bfa', icon:'📈'},
+    // 6 radar axes = 4 buckets + WR + Rezistență
+    const radarAxes = [
+        {key:'tehnic',   label:'Tehnic',    color:'#82b1ff', icon:'🎯', axes:['tehnica','executie']},
+        {key:'tactic',   label:'Tactic/IQ', color:'#00bcd4', icon:'🧠', axes:['strategie','pozitionare','mentalitate']},
+        {key:'fizic',    label:'Fizic',     color:'#ffcc00', icon:'💪', axes:['viteza','efort','fizic']},
+        {key:'defensiv', label:'Defensiv',  color:'#4caf50', icon:'🛡️', axes:['aparare','pozitionare']},
+        {key:'_wr',      label:'Win Rate',  color:'#a78bfa', icon:'📈', axes:[]},
+        {key:'_res',     label:'Rezistență',color:'#ef9a9a', icon:'🔋', axes:[]},
     ];
 
-    // Compute score per category from active tag objects
     const activeTags = getPlayerActiveTagObjects(p);
-    const catScores = {};
-    catDefs.forEach(cd=>{ catScores[cd.key]=5; }); // default mid
 
-    // For each tag category: pos tags add, neg tags subtract from base 5
-    const tagsByCat = {};
+    // Aggregate impact_profile across all active tags
+    const aggProfile = {};
+    PROFILE_ATTRS.forEach(a=>{ aggProfile[a]=0; });
     activeTags.forEach(obj=>{
-        const cat = obj.tag?.category||'negativ';
-        if(!tagsByCat[cat]) tagsByCat[cat]=[];
-        tagsByCat[cat].push(obj);
+        const ip = obj.tag?.impact_profile||{};
+        PROFILE_ATTRS.forEach(a=>{ aggProfile[a]+=(parseFloat(ip[a])||0); });
     });
 
-    catDefs.forEach(cd=>{
-        if(cd.key==='_wr'){
-            catScores[cd.key] = p.games>0 ? (1+p.wins/p.games*9) : 5;
-            return;
+    const vals = radarAxes.map(ax=>{
+        if(ax.key==='_wr') return p.games>0 ? (1+p.wins/p.games*9) : 5;
+        if(ax.key==='_res'){
+            const negCount = activeTags.filter(o=>o.tag?.type==='neg').length;
+            return Math.max(1, Math.min(10, 5 + (aggProfile.mentalitate||0)*0.5 - negCount*0.8));
         }
-        if(cd.key==='negativ'){
-            const negTags = activeTags.filter(o=>o.tag?.type==='neg');
-            catScores[cd.key] = Math.max(1, 10 - negTags.length * 1.5);
-            return;
-        }
-        const tags = tagsByCat[cd.key]||[];
-        if(!tags.length){ catScores[cd.key]=3; return; }
-        // Sum the impact_profile attr matching this category's primary attr
-        // atac→tehnica+viteza, aparare→aparare, efort→efort, portar→aparare
-        const catAttrMap = {atac:['tehnica','viteza'], aparare:['aparare'], efort:['efort'], portar:['aparare']};
-        const attrs = catAttrMap[cd.key]||['tehnica'];
-        let netImpact = 0;
-        tags.forEach(obj=>{
-            const ip = obj.tag?.impact_profile||{};
-            attrs.forEach(a=>{ netImpact += parseFloat(ip[a])||0; });
-        });
-        // Scale: netImpact [-9,+9] → [1,10] around 5
-        catScores[cd.key] = Math.max(1, Math.min(10, 5 + netImpact * 0.5));
+        const sum = ax.axes.reduce((s,a)=>s+(aggProfile[a]||0),0);
+        return Math.max(1, Math.min(10, 5 + sum * 0.6));
     });
-
-    const vals = catDefs.map(cd=>catScores[cd.key]);
-    const colors = catDefs.map(cd=>cd.color);
-    const labels = catDefs.map(cd=>cd.label);
+    const colors = radarAxes.map(ax=>ax.color);
+    const labels = radarAxes.map(ax=>ax.label);
 
     const cx=110,cy=110,R=80,r_min=8,N=6;
     const angle=i=>((i/N)*Math.PI*2 - Math.PI/2);
@@ -4284,14 +4296,18 @@ function buildHexChart(p){
         ${dots}${lbls}`;
 
     // Legend with tag count and score
-    document.getElementById('hexLabels').innerHTML = catDefs.map((cd,i)=>{
-        const tags = cd.key==='_wr'?[]:cd.key==='negativ'
-            ? activeTags.filter(o=>o.tag?.type==='neg')
-            : (tagsByCat[cd.key]||[]);
-        const tagStr = tags.length ? tags.map(t=>t.tag.emoji).join('')+` (${tags.length})` : '—';
+    document.getElementById('hexLabels').innerHTML = radarAxes.map((ax,i)=>{
+        let tagStr='—';
+        if(ax.key!=='_wr'&&ax.key!=='_res'){
+            const relevant = activeTags.filter(o=>{
+                const ip=o.tag?.impact_profile||{};
+                return ax.axes.some(a=>Math.abs(parseFloat(ip[a])||0)>0);
+            });
+            tagStr = relevant.length ? relevant.slice(0,4).map(t=>t.tag.emoji).join('')+(relevant.length>4?'…':'') : '—';
+        }
         return `<div class="hex-lbl-row">
-            <div class="hex-lbl-dot" style="background:${cd.color};"></div>
-            <span class="hex-lbl-text">${cd.label}</span>
+            <div class="hex-lbl-dot" style="background:${ax.color};"></div>
+            <span class="hex-lbl-text">${ax.icon} ${ax.label}</span>
             <span style="font-size:.65rem;color:#555;flex:1;text-align:right;overflow:hidden;white-space:nowrap;">${tagStr}</span>
             <span class="hex-lbl-val">${vals[i].toFixed(1)}</span>
         </div>`;
