@@ -2408,25 +2408,17 @@ function render(){
             const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':'';
             card.className=`player-card ${teamCls}`;
 
-            // FIFA-style attribute bars (scaled 0-100)
-            const attrs6 = [
-                {k:'general',   lbl:'GEN', color:'#ffcc00'},
-                {k:'viteza',    lbl:'PAC', color:'#ff8c00'},
-                {k:'tehnica',   lbl:'DRI', color:'#82b1ff'},
-                {k:'strategie', lbl:'PAS', color:'#00bcd4'},
-                {k:'aparare',   lbl:'DEF', color:'#4caf50'},
-            ];
-            const attrBars = attrs6.map(a=>{
-                const val = Math.round(getCatAvg(p, a.key)*10);
-                const barColor = val>=80?'#69f0ae':val>=60?'#ffcc00':val>=40?'#ff8c00':'#e57373';
-                return `<div class="fifa-attr-row">
-                    <span class="fifa-attr-lbl">${a.lbl}</span>
-                    <div class="fifa-attr-track"><div class="fifa-attr-fill" style="width:${val}%;background:${barColor};"></div></div>
-                    <span class="fifa-attr-val" style="color:${barColor};">${val}</span>
-                </div>`;
+            // Active tag badges (max 6, grouped pos/neg)
+            const posTagObjs = playerTagObjs.filter(t=>t.tag?.type==='pos').slice(0,3);
+            const negTagObjs = playerTagObjs.filter(t=>t.tag?.type==='neg').slice(0,2);
+            const tagPreviewHtml = [...posTagObjs,...negTagObjs].map(t=>{
+                const cls = t.tag.type==='pos'?'tag-pos':t.tag.type==='neg'?'tag-neg':'tag-neu';
+                return `<span class="ptag ${cls}" style="font-size:.55rem;padding:1px 5px;">${t.tag.emoji} ${t.tag.label}</span>`;
             }).join('');
-            const goalsDisplay = (p.totalGoals||0) > 0 ? `⚽${p.totalGoals}` : '';
-            const gcDisplay = (p.totalGoalsConceded||0) > 0 ? ` 🧤${p.totalGoalsConceded}` : '';
+            const goalsLine = (p.totalGoals||0)>0
+                ? `<div class="fifa-stat" style="color:#69f0ae;">⚽<span>${p.totalGoals}</span></div>` : '';
+            const gcLine = (p.totalGoalsConceded||0)>0
+                ? `<div class="fifa-stat" style="color:#ef9a9a;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
                 <div class="fifa-card-body">
@@ -2439,13 +2431,12 @@ function render(){
                     </div>
                     <div class="fifa-info-col">
                         <div class="player-name">${p.name}</div>
-                        <div class="fifa-attr-grid">${attrBars}</div>
-                        <div class="fifa-stats-row">
+                        <div class="fifa-stats-row" style="margin:4px 0;">
                             <div class="fifa-stat">WR:<span>${wr}</span></div>
-                            ${goalsDisplay?`<div class="fifa-stat"><span style="color:#69f0ae;">${goalsDisplay}${gcDisplay}</span></div>`:''}
                             <div class="fifa-stat">M:<span>${p.games}</span></div>
+                            ${goalsLine}${gcLine}
                         </div>
-                        ${archHtml}
+                        <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#333;">Fără statusuri</span>'}</div>
                     </div>
                 </div>`;
             const container = document.getElementById(`list-${team}`);
@@ -4104,58 +4095,101 @@ async function saveLiveStats(pid){
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
-// ── buildHexChart (SVG Hexagon) ──────────────────────────────────
+// ── buildHexChart — Tag Category Radar ───────────────────────────
 function buildHexChart(p){
-    const labels=['General','Viteză','Tehnică','Strategie','Apărare','Win Rate'];
-    const wr=p.games>0?(1+p.wins/p.games*9):5;
-    const vals=[getCatAvg(p,'general'),getCatAvg(p,'viteza'),getCatAvg(p,'tehnica'),getCatAvg(p,'strategie'),getCatAvg(p,'aparare'),wr];
-    const colors=['#ffcc00','#ff8c00','#3d5afe','#00bcd4','#4caf50','#a78bfa'];
-    const cx=110,cy=110,R=85,r_min=8;
-    const N=6;
-    const angle=i=>( (i/N)*Math.PI*2 - Math.PI/2 );
+    // Axes = tag categories with scores derived from active tags
+    const catDefs = [
+        {key:'atac',    label:'Atac',    color:'#ff8c00', icon:'⚽'},
+        {key:'aparare', label:'Apărare', color:'#4caf50', icon:'🛡️'},
+        {key:'efort',   label:'Efort',   color:'#ffcc00', icon:'🏃'},
+        {key:'portar',  label:'Portar',  color:'#82b1ff', icon:'🧤'},
+        {key:'negativ', label:'Impact−', color:'#ef9a9a', icon:'❌'},
+        {key:'_wr',     label:'Win Rate',color:'#a78bfa', icon:'📈'},
+    ];
+
+    // Compute score per category from active tag objects
+    const activeTags = getPlayerActiveTagObjects(p);
+    const catScores = {};
+    catDefs.forEach(cd=>{ catScores[cd.key]=5; }); // default mid
+
+    // For each tag category: pos tags add, neg tags subtract from base 5
+    const tagsByCat = {};
+    activeTags.forEach(obj=>{
+        const cat = obj.tag?.category||'negativ';
+        if(!tagsByCat[cat]) tagsByCat[cat]=[];
+        tagsByCat[cat].push(obj);
+    });
+
+    catDefs.forEach(cd=>{
+        if(cd.key==='_wr'){
+            catScores[cd.key] = p.games>0 ? (1+p.wins/p.games*9) : 5;
+            return;
+        }
+        if(cd.key==='negativ'){
+            // Negative impact: more neg tags = lower score (inverted for radar)
+            const negTags = activeTags.filter(o=>o.tag?.type==='neg');
+            const total = activeTags.length || 1;
+            catScores[cd.key] = Math.max(1, 10 - negTags.length * 1.5);
+            return;
+        }
+        const tags = tagsByCat[cd.key]||[];
+        if(!tags.length){ catScores[cd.key]=3; return; } // no tags = below average
+        const posCount = tags.filter(t=>t.tag?.type==='pos').length;
+        const negCount = tags.filter(t=>t.tag?.type==='neg').length;
+        // Score: base 5 + 1.5 per pos − 1.5 per neg, capped 1-10
+        catScores[cd.key] = Math.max(1, Math.min(10, 5 + posCount*1.5 - negCount*1.5));
+    });
+
+    const vals = catDefs.map(cd=>catScores[cd.key]);
+    const colors = catDefs.map(cd=>cd.color);
+    const labels = catDefs.map(cd=>cd.label);
+
+    const cx=110,cy=110,R=80,r_min=8,N=6;
+    const angle=i=>((i/N)*Math.PI*2 - Math.PI/2);
     const pt=(r,i)=>({x:cx+r*Math.cos(angle(i)),y:cy+r*Math.sin(angle(i))});
 
-    // Background hex rings
     let rings='';
     [0.2,0.4,0.6,0.8,1.0].forEach(f=>{
         const pts=Array.from({length:N},(_,i)=>pt(R*f,i));
         rings+=`<polygon points="${pts.map(p=>p.x+','+p.y).join(' ')}" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
     });
-    // Spokes
     let spokes='';
-    for(let i=0;i<N;i++){
-        const p2=pt(R,i);
-        spokes+=`<line x1="${cx}" y1="${cy}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;
-    }
-    // Data polygon
+    for(let i=0;i<N;i++){const p2=pt(R,i);spokes+=`<line x1="${cx}" y1="${cy}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(255,255,255,.05)" stroke-width="1"/>`;}
+
     const dataPts=vals.map((v,i)=>pt(Math.max(r_min,R*(v/10)),i));
     const dataPath=dataPts.map(p=>p.x+','+p.y).join(' ');
-    // Labels
+
     let lbls='';
-    labels.forEach((lbl,i)=>{
-        const p2=pt(R+18,i);
+    catDefs.forEach((cd,i)=>{
+        const p2=pt(R+20,i);
         const anchor=p2.x<cx-5?'end':p2.x>cx+5?'start':'middle';
-        lbls+=`<text x="${p2.x}" y="${p2.y+4}" text-anchor="${anchor}" fill="${colors[i]}" font-size="9" font-family="Rajdhani,sans-serif" font-weight="700">${lbl.slice(0,3).toUpperCase()}</text>`;
-    });
-    // Dot per vertex
-    let dots='';
-    dataPts.forEach((p2,i)=>{
-        dots+=`<circle cx="${p2.x}" cy="${p2.y}" r="4" fill="${colors[i]}" stroke="#0a0c10" stroke-width="1.5"/>`;
+        lbls+=`<text x="${p2.x}" y="${p2.y}" text-anchor="${anchor}" fill="${cd.color}" font-size="8.5" font-family="Rajdhani,sans-serif" font-weight="700">${cd.icon}</text>`;
+        lbls+=`<text x="${p2.x}" y="${p2.y+10}" text-anchor="${anchor}" fill="${cd.color}" font-size="7.5" font-family="Rajdhani,sans-serif">${cd.label}</text>`;
     });
 
+    let dots='';
+    dataPts.forEach((p2,i)=>{dots+=`<circle cx="${p2.x}" cy="${p2.y}" r="4" fill="${colors[i]}" stroke="#0a0c10" stroke-width="1.5"/>`;});
+
+    // Color polygon by dominant category
     document.getElementById('hexSvg').innerHTML=`
         ${rings}${spokes}
-        <polygon points="${dataPath}" fill="rgba(61,90,254,.18)" stroke="#3d5afe" stroke-width="1.5" stroke-linejoin="round"/>
+        <polygon points="${dataPath}" fill="rgba(167,139,250,.15)" stroke="#a78bfa" stroke-width="1.5" stroke-linejoin="round"/>
         ${dots}${lbls}`;
 
-    document.getElementById('hexLabels').innerHTML=labels.map((l,i)=>`
-        <div class="hex-lbl-row">
-            <div class="hex-lbl-dot" style="background:${colors[i]};"></div>
-            <span class="hex-lbl-text">${l}</span>
+    // Legend with tag count and score
+    document.getElementById('hexLabels').innerHTML = catDefs.map((cd,i)=>{
+        const tags = cd.key==='_wr'?[]:cd.key==='negativ'
+            ? activeTags.filter(o=>o.tag?.type==='neg')
+            : (tagsByCat[cd.key]||[]);
+        const tagStr = tags.length ? tags.map(t=>t.tag.emoji).join('')+` (${tags.length})` : '—';
+        return `<div class="hex-lbl-row">
+            <div class="hex-lbl-dot" style="background:${cd.color};"></div>
+            <span class="hex-lbl-text">${cd.label}</span>
+            <span style="font-size:.65rem;color:#555;flex:1;text-align:right;overflow:hidden;white-space:nowrap;">${tagStr}</span>
             <span class="hex-lbl-val">${vals[i].toFixed(1)}</span>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
-// Keep old radar fn signature for compat
 function buildRadarChart(p){ buildHexChart(p); }
 
 // ── buildPlayerMatchHistory — Timeline style ─────────────────────
