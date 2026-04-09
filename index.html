@@ -2408,32 +2408,32 @@ function render(){
             const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':'';
             card.className=`player-card ${teamCls}`;
 
-            // FIFA-style 6 attribute bars (scaled 0-10)
+            // FIFA-style attribute bars (scaled 0-100)
             const attrs6 = [
-                {k:'general',  lbl:'PAS', color:'#ffcc00'},
-                {k:'viteza',   lbl:'PAC', color:'#ff8c00'},
-                {k:'tehnica',  lbl:'DRI', color:'#3d5afe'},
-                {k:'strategie',lbl:'PAS', color:'#00bcd4'},
-                {k:'aparare',  lbl:'DEF', color:'#4caf50'},
+                {k:'general',   lbl:'GEN', color:'#ffcc00'},
+                {k:'viteza',    lbl:'PAC', color:'#ff8c00'},
+                {k:'tehnica',   lbl:'DRI', color:'#82b1ff'},
+                {k:'strategie', lbl:'PAS', color:'#00bcd4'},
+                {k:'aparare',   lbl:'DEF', color:'#4caf50'},
             ];
             const attrBars = attrs6.map(a=>{
                 const val = Math.round(getCatAvg(p, a.key)*10);
-                const barPct = val;
                 const barColor = val>=80?'#69f0ae':val>=60?'#ffcc00':val>=40?'#ff8c00':'#e57373';
                 return `<div class="fifa-attr-row">
                     <span class="fifa-attr-lbl">${a.lbl}</span>
-                    <div class="fifa-attr-track"><div class="fifa-attr-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+                    <div class="fifa-attr-track"><div class="fifa-attr-fill" style="width:${val}%;background:${barColor};"></div></div>
                     <span class="fifa-attr-val" style="color:${barColor};">${val}</span>
                 </div>`;
             }).join('');
-            const gpg = p.games>0 ? ((p.totalGoals||0)/p.games).toFixed(1) : '—';
+            const goalsDisplay = (p.totalGoals||0) > 0 ? `⚽${p.totalGoals}` : '';
+            const gcDisplay = (p.totalGoalsConceded||0) > 0 ? ` 🧤${p.totalGoalsConceded}` : '';
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
                 <div class="fifa-card-body">
                     <div class="fifa-rating-col">
-                        <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.55rem;">👑</span>':''}</div>
-                        <div class="fifa-rating-lbl" style="color:${smartColor};">SMART</div>
-                        <div style="margin-top:6px;border-top:1px solid rgba(255,255,255,.06);padding-top:5px;width:100%;">
+                        <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.5rem;">👑</span>':''}</div>
+                        <div class="fifa-rating-lbl" style="color:${smartColor};font-size:.45rem;letter-spacing:.8px;">SMART</div>
+                        <div class="form-row" style="margin-top:5px;justify-content:center;padding-top:4px;border-top:1px solid rgba(255,255,255,.05);">
                             ${dots5}
                         </div>
                     </div>
@@ -2442,7 +2442,7 @@ function render(){
                         <div class="fifa-attr-grid">${attrBars}</div>
                         <div class="fifa-stats-row">
                             <div class="fifa-stat">WR:<span>${wr}</span></div>
-                            <div class="fifa-stat">⚽<span>${p.totalGoals||0}G</span></div>
+                            ${goalsDisplay?`<div class="fifa-stat"><span style="color:#69f0ae;">${goalsDisplay}${gcDisplay}</span></div>`:''}
                             <div class="fifa-stat">M:<span>${p.games}</span></div>
                         </div>
                         ${archHtml}
