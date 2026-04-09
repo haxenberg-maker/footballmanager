@@ -2751,6 +2751,7 @@ async function recordMatch(winner, goalMap={}, goalConcededMap={}){
         p.goalsLastMatch = goalMap[p.name]?.count||0;
         p.totalGoals = (p.totalGoals||0) + (goalMap[p.name]?.count||0);
         p.totalGoalsConceded = (p.totalGoalsConceded||0) + (goalConcededMap[p.name]?.count||0);
+        if(winner!=='orange' && imbalanced) p.lastImbalanceLoss = (p.lastImbalanceLoss||0)+1;
         else if(winner==='orange') p.lastImbalanceLoss = 0;
     });
     gP.forEach(p=>{
