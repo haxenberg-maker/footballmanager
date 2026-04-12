@@ -2319,12 +2319,14 @@ function getSmartRating(p) {
         base += ((p.bordaScore - 5) / 5) * 4 * W.borda;
     }
 
-    // ── C. VOTURI COLEGI vechi (opțional, pondere mică) ──────────
-    if(p.ratings.length > 0 && W.general > 0){
-        const n = p.ratings.length;
-        const genAvg = p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;
-        base += ((genAvg - 5) / 5) * 4 * W.general;
-    }
+    // ── D. PENALIZĂRI ─────────────────────────────────────────────
+    base -= Math.min((p.lastImbalanceLoss||0), 3) * 0.15;
+
+    // ── E. TAG BUCKETS (4 dimensiuni) ────────────────────────────
+    const activeTags = getPlayerActiveTagObjects(p);
+    const {bonus: tagBonus} = computeTagBonus(activeTags);
+
+    return parseFloat(Math.max(1, Math.min(10, base + tagBonus)).toFixed(2));
 }
 function getCatAvg(p,cat){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
 function getGeneralAvg(p){return getCatAvg(p,'general');}
