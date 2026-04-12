@@ -4403,11 +4403,12 @@ function buildRatingChart(p,cat){
     ratingChartInstance=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'Rating',data:vals,borderColor:CAT_COLORS[cat],backgroundColor:CAT_COLORS[cat]+'15',pointBackgroundColor:CAT_COLORS[cat],pointRadius:4,tension:0.35,fill:true},{label:'Medie',data:vals.map(()=>avg),borderColor:'rgba(255,255,255,0.15)',borderDash:[5,5],pointRadius:0,fill:false}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:10,ticks:{color:'#555',stepSize:2},grid:{color:'rgba(255,255,255,0.04)'}},x:{ticks:{color:'#555',maxRotation:0,font:{size:9}},grid:{display:false}}}}});
 }
 function buildRatingsList(p){
+    const el=document.getElementById('ratingsList'); if(!el) return;
     const count = p.ratings.length;
     const admin = isAdmin();
     const lbl = document.getElementById('ratingsListLabel');
     if(lbl) lbl.textContent = `📊 Voturi existente (${count})`;
-    document.getElementById('ratingsList').innerHTML = p.ratings.map((r,i) => `
+    el.innerHTML = p.ratings.map((r,i) => `
         <div class="rating-entry">
             <div class="rating-entry-left">
                 <span class="rating-entry-name">
