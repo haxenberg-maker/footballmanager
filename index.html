@@ -1868,8 +1868,19 @@ function getPlayerArchetype(p){
     };
 }
 const DEFAULT_W = {general:0.20,viteza:0.10,tehnica:0.10,strategie:0.10,aparare:0.10,winrate:0.40,mvpWin:0.0,mvpLoss:0.0};
-let W = JSON.parse(localStorage.getItem('smart_weights') || 'null') || {...DEFAULT_W};
-function saveWeights(){ localStorage.setItem('smart_weights', JSON.stringify(W)); }
+let W = {...DEFAULT_W};
+function saveWeights(){ /* now saved to Supabase in saveAlgorithm */ }
+
+async function loadAlgoSettings(){
+    try{
+        const {data} = await sb.from('algo_settings').select('key,value');
+        if(!data?.length) return;
+        data.forEach(row=>{
+            if(row.key==='weights') Object.assign(W, row.value);
+            if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||2.0;
+        });
+    }catch(e){ console.warn('loadAlgoSettings:', e.message); }
+}
 
 // Tag weights: {tagId → float, range -0.5..+0.5}
 // These are ADDITIVE bonuses per active tag, not part of the 100% sum
@@ -2035,6 +2046,7 @@ async function loadAll() {
     showLoading(true);
     try {
         await loadTagsConfig();
+        await loadAlgoSettings();
         await loadScenarios();
         // Players + Ratings (joined)
         const { data: playersRaw, error: pe } = await sb
@@ -2208,7 +2220,7 @@ function setupRealtime() {
 }
 
 // ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
-let TAG_BONUS_CAP = parseFloat(localStorage.getItem('tag_bonus_cap') || '2.0'); // configurabil din algoritm
+let TAG_BONUS_CAP = 2.0; // loaded from algo_settings in Supabase
 
 // Profile attrs used in multi-impact system
 const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
@@ -2712,6 +2724,7 @@ async function toggleLobbyPresence(playerId){
     }
 
     renderLobby();
+    render();
     try{ await dbSaveNextMatch(); }catch(e){ showToast('⚠️ '+e.message); }
 }
 
@@ -3550,29 +3563,32 @@ async function saveAlgorithm(){
         showToast(`⚠️ Suma ponderi bază e ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
         return;
     }
-    saveWeights();
-    localStorage.setItem('tag_bonus_cap', TAG_BONUS_CAP.toString());
-    // Save TW weights directly to Supabase tags_config.tw_weight
     try{
-        const changedTags = tagsConfig.filter(t=>Math.abs(TW[String(t.id)]||0) > 0.001 || Math.abs(parseFloat(t.tw_weight)||0) > 0.001);
+        // Save weights + tag_bonus_cap to algo_settings table
+        await sb.from('algo_settings').upsert([
+            {key:'weights', value: W},
+            {key:'tag_bonus_cap', value: TAG_BONUS_CAP}
+        ], {onConflict:'key'});
+        // Save TW weights to tags_config
         await Promise.all(tagsConfig.map(t=>
             sb.from('tags_config').update({tw_weight: TW[String(t.id)]||0}).eq('id',t.id)
         ));
-        showToast('✅ Algoritm + coeficienți tag-uri salvați!');
-    }catch(e){ showToast('⚠️ Eroare salvare tag weights: '+e.message); return; }
-
+        showToast('✅ Algoritm salvat în baza de date!');
+    }catch(e){ showToast('⚠️ Eroare: '+e.message); return; }
     render();
 }
 
 async function resetAlgorithm(){
     Object.assign(W, DEFAULT_W);
     TAG_BONUS_CAP = 2.0;
-    localStorage.setItem('tag_bonus_cap', '2.0');
     tagsConfig.forEach(t=>{ TW[String(t.id)]=0; t.tw_weight=0; });
-    saveWeights();
     try{
+        await sb.from('algo_settings').upsert([
+            {key:'weights', value: DEFAULT_W},
+            {key:'tag_bonus_cap', value: 2.0}
+        ], {onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
-    }catch(e){ console.warn('reset TW error:',e.message); }
+    }catch(e){ console.warn('reset algo error:',e.message); }
     buildAlgorithmPanel();
     render();
     showToast('↺ Algoritm resetat!');
