@@ -144,8 +144,10 @@ body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:
             <div class="rank-list" id="rankList"></div>
         </div>
         <!-- Live results -->
-        <div class="section-title">📊 Voturi până acum</div>
-        <div class="results-card" id="liveResults"></div>
+        <div id="resultsSection" style="display:none;">
+            <div class="section-title">📊 Rezultate</div>
+            <div class="results-card" id="liveResults"></div>
+        </div>
     </div>
 </div>
 
@@ -288,16 +290,20 @@ function renderRankList(){
         const teamColor = pl.team==='orange'?'var(--orange)':'#4caf50';
         const medal = rankPos===0?'🥇':rankPos===1?'🥈':rankPos===2?'🥉':'';
         const rankLabel = isRanked ? (medal||(rankPos+1)+'°') : '—';
+        // Whole card: if not ranked → rank it; if ranked → unrank it
+        const onclickFn = isRanked
+            ? `unsetRank(event,'${pl.name.replace(/'/g,"\\'")}');`
+            : `toggleRank('${pl.name.replace(/'/g,"\\'")}');`;
         return `<div class="rank-item ${isRanked?'ranked':''} ${rankPos===0?'ranked-1':''}"
                     id="ritem-${pl.name.replace(/ /g,'_')}"
-                    onclick="toggleRank('${pl.name.replace(/'/g,'\\\'')}')" >
+                    onclick="${onclickFn}" >
             <div class="rank-badge ${isRanked?'set':''} ${rankPos===0?'set-1':''}">${rankLabel}</div>
             <div class="rank-team-dot" style="background:${teamColor};"></div>
             <div>
                 <div class="rank-name">${pl.name}</div>
                 <div class="rank-sub">${pl.team==='orange'?'🟠 Portocaliu':'🟢 Verde'}</div>
             </div>
-            ${isRanked?`<button class="rank-unset" onclick="unsetRank(event,'${pl.name.replace(/'/g,'\\\'')}')" title="Scoate din ranking">✕</button>`:''}
+            ${isRanked?'<span style="font-size:.7rem;color:#444;margin-left:auto;">✕</span>':''}
         </div>`;
     }).join('');
 
@@ -340,10 +346,10 @@ async function submitVote(){
         if(error) throw error;
         votedMatchIds.add(selMatch.id);
         showToast('✅ Vot trimis!');
-        // Update live results
+        // Show results after voting
+        document.getElementById('resultsSection').style.display='block';
         await loadLiveResults();
-        // Go back to match list after short delay
-        setTimeout(()=>{ showMatchList(); renderMatchList(); }, 1200);
+        setTimeout(()=>{ showMatchList(); renderMatchList(); }, 2000);
     }catch(e){
         if(e.code==='23505') showToast('⚠️ Ai votat deja acest meci!');
         else showToast('⚠️ '+e.message);
@@ -380,12 +386,13 @@ async function loadLiveResults(){
         const isTop = idx===0;
         const pl = matchPlayers.find(p=>p.name===name);
         const teamColor = pl?.team==='orange'?'var(--orange)':'#4caf50';
+        const displayPct = totalVoters>0 ? Math.round((pts/maxPts)*100) : 0;
         return `<div class="results-row">
             <div class="results-rank ${rankClass}">${medal}</div>
             <div class="rank-team-dot" style="background:${teamColor||'#555'};"></div>
             <div class="results-name">${name}${idx===0?'<span class="mvp-badge">MVP</span>':''}</div>
             <div class="results-bar-wrap"><div class="results-bar ${isTop?'top':''}" style="width:${pct}%;"></div></div>
-            <div class="results-pts">${pts}pt</div>
+            <div class="results-pts">${displayPct}%</div>
         </div>`;
     }).join('')
     + `<div style="padding:8px 14px;font-size:.65rem;color:#333;">${totalVoters} vot${totalVoters!==1?'uri':''}</div>`;
