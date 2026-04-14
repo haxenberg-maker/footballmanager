@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Setări · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
+:root{--accent:#3d5afe;--orange:#ff8c00;--green:#28a745;--star:#ffcc00;--border:#1e2130;--purple:#7c4dff;}
+
+/* Layout */
+.layout{display:flex;min-height:100vh;}
+.sidebar{width:200px;background:#080a12;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.main-area{flex:1;min-width:0;padding:0 0 60px;}
+
+/* Sidebar */
+.sb-header{padding:16px 14px 12px;border-bottom:1px solid var(--border);}
+.sb-logo{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:#fff;}
+.sb-back{display:flex;align-items:center;gap:5px;font-size:.72rem;color:#555;cursor:pointer;margin-top:6px;text-decoration:none;}
+.sb-back:hover{color:#82b1ff;}
+.sb-nav{padding:8px 0;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;font-size:.85rem;font-weight:700;color:#555;border-left:3px solid transparent;transition:all .1s;}
+.sb-item:hover{background:#0d0f18;color:#aaa;}
+.sb-item.active{color:#fff;border-left-color:var(--accent);background:rgba(61,90,254,.06);}
+.sb-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0;}
+.sb-label{}
+.sb-admin-only{display:none;}
+.sb-divider{height:1px;background:var(--border);margin:6px 14px;}
+
+/* Main area header */
+.panel-header{padding:18px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:10px;}
+.panel-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;}
+.panel-sub{font-size:.72rem;color:#555;}
+.panel-body{padding:16px 20px;}
+
+/* Sections */
+.section{display:none;}
+.section.active{display:block;}
+
+/* Cards */
+.card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#888;margin-bottom:10px;}
+
+/* Player list */
+.player-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #0f1118;flex-wrap:wrap;}
+.player-row:last-child{border-bottom:none;}
+.p-id{font-size:.6rem;color:#333;min-width:24px;}
+.p-input{flex:1;min-width:100px;background:#141720;border:1px solid var(--border);color:#fff;padding:6px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.88rem;outline:none;}
+.p-input:focus{border-color:var(--accent);}
+.p-stats{font-size:.7rem;color:#555;white-space:nowrap;}
+.btn-sm{padding:5px 10px;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;border:1px solid;}
+.btn-save{background:rgba(40,167,69,.1);border-color:#28a745;color:#69f0ae;}
+.btn-del{background:none;border-color:#c62828;color:#c62828;}
+.btn-del:hover{background:rgba(198,40,40,.1);}
+.ar-wrap{display:flex;align-items:center;gap:5px;background:#0a0c14;border:1px solid var(--border);border-radius:7px;padding:4px 8px;}
+.ar-wrap.forced{border-color:var(--orange);}
+.ar-lbl{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+.ar-lbl.forced{color:var(--orange);}
+.ar-input{width:40px;background:transparent;border:none;color:#888;font-family:'Bebas Neue',sans-serif;font-size:.95rem;text-align:center;outline:none;}
+.ar-input.forced{color:var(--orange);}
+.ar-clear{background:none;border:none;color:#c62828;cursor:pointer;font-size:.75rem;padding:0 2px;}
+
+/* Add player */
+.add-player-btn{width:100%;padding:9px;background:#0a100a;border:1px dashed #28a745;color:#28a745;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer;margin-top:6px;}
+
+/* Algorithm weights */
+.weights-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;}
+.w-cell{background:#141720;border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.w-lbl{font-size:.65rem;color:#888;margin-bottom:6px;display:block;}
+.w-ctrl{display:flex;align-items:center;gap:4px;}
+.w-btn{width:24px;height:24px;border-radius:5px;background:#1c1f2b;border:1px solid #252836;color:#888;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.w-btn:hover{border-color:var(--accent);color:#fff;}
+.w-num{width:42px;background:#0d0f18;border:1px solid var(--border);color:#fff;padding:4px;border-radius:5px;font-family:'Rajdhani',sans-serif;font-size:.88rem;text-align:center;outline:none;}
+.w-pct{font-size:.7rem;color:#555;}
+
+/* Ring */
+.algo-ring-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:12px;}
+.algo-ring{width:64px;height:64px;border-radius:50%;border:4px solid;display:flex;align-items:center;justify-content:center;transition:border-color .2s;}
+.algo-power{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;line-height:1;}
+.algo-power-sub{font-size:.55rem;color:#555;}
+
+/* Cap slider */
+.cap-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);margin-top:6px;}
+.cap-lbl{font-size:.72rem;color:#555;flex:1;}
+.cap-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#a78bfa;min-width:28px;text-align:center;}
+
+/* Presets */
+.presets-row{display:flex;gap:6px;margin-bottom:10px;}
+.preset-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;border:1px solid var(--border);background:#141720;color:#555;text-align:center;}
+.preset-btn:hover{border-color:var(--accent);color:#fff;}
+
+/* Tag weights */
+.tw-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #08090e;}
+.tw-emoji{font-size:.85rem;flex-shrink:0;}
+.tw-label{flex:1;font-size:.74rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tw-btn{width:20px;height:20px;border-radius:4px;border:1px solid #1e2130;background:#0d1020;color:#444;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tw-btn:hover{border-color:var(--accent);color:#82b1ff;}
+.tw-val{font-family:'Bebas Neue',sans-serif;font-size:.9rem;width:34px;text-align:center;flex-shrink:0;}
+.tw-section-title{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:6px 0 4px;border-bottom:1px solid #0f1118;}
+
+/* Tags CRUD */
+.tag-row{border-bottom:1px solid #0f1118;padding:6px 0;}
+.tag-row-main{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.tag-input-sm{background:#141720;border:1px solid var(--border);color:#fff;padding:4px 7px;border-radius:6px;font-family:'Rajdhani',sans-serif;font-size:.82rem;outline:none;}
+.tag-input-sm:focus{border-color:var(--accent);}
+.tag-select-sm{background:#141720;border:1px solid var(--border);color:#888;padding:4px;border-radius:6px;font-size:.7rem;outline:none;}
+.tag-profile-btn{padding:3px 8px;border-radius:6px;background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;font-size:.62rem;cursor:pointer;}
+.tag-profile-panel{display:none;background:#080a12;border-radius:8px;padding:10px;margin-top:6px;border:1px solid var(--border);}
+.tag-profile-panel.open{display:block;}
+.ip-row{display:flex;align-items:center;gap:6px;padding:3px 0;}
+.ip-lbl{font-size:.65rem;width:76px;flex-shrink:0;}
+.ip-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;}
+.ip-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;cursor:pointer;background:#a78bfa;}
+.ip-val{font-family:'Bebas Neue',sans-serif;font-size:.82rem;min-width:24px;text-align:right;}
+.tag-impact-summary{font-size:.6rem;color:#444;padding:2px 4px;}
+
+/* Add tag form */
+.add-tag-form{background:#080a12;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;display:none;}
+.add-tag-form.open{display:block;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.form-label{font-size:.6rem;color:#555;margin-bottom:3px;display:block;}
+.form-input{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:8px 10px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.88rem;outline:none;}
+.form-input:focus{border-color:var(--accent);}
+
+/* Season actions */
+.action-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #0f1118;}
+.action-row:last-child{border-bottom:none;}
+.action-info{}
+.action-title{font-weight:700;font-size:.88rem;}
+.action-desc{font-size:.7rem;color:#555;margin-top:2px;}
+
+/* Save bar */
+.save-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--border);padding:10px 16px;display:none;gap:8px;z-index:100;align-items:center;}
+.save-bar.show{display:flex;}
+.save-btn{flex:1;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:var(--accent);border:1px solid var(--accent);color:#fff;}
+.reset-btn-sm{padding:11px 14px;border-radius:9px;background:#141720;border:1px solid var(--border);color:#555;font-size:.82rem;cursor:pointer;}
+
+/* Export/Import */
+.data-btn{width:100%;padding:11px;border-radius:9px;font-weight:700;font-size:.88rem;cursor:pointer;margin-bottom:8px;border:1px solid;}
+.btn-export{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
+.btn-import{background:rgba(255,204,0,.08);border-color:var(--star);color:var(--star);}
+
+/* Toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:9px 18px;border-radius:10px;font-size:.85rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9999;white-space:nowrap;}
+.toast.show{opacity:1;}
+
+/* Mobile nav */
+@media(max-width:640px){
+    .sidebar{display:none;}
+    .mobile-tabs{display:flex;overflow-x:auto;background:#080a12;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;-webkit-overflow-scrolling:touch;}
+    .mobile-tab{flex-shrink:0;padding:10px 14px;font-size:.72rem;font-weight:700;color:#555;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+    .mobile-tab.active{color:#fff;border-bottom-color:var(--accent);}
+    .panel-body{padding:12px 14px;}
+    .weights-grid{grid-template-columns:1fr;}
+    .form-grid{grid-template-columns:1fr;}
+}
+@media(min-width:641px){
+    .mobile-tabs{display:none;}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- Sidebar (desktop) -->
+<div class="sidebar">
+    <div class="sb-header">
+        <div class="sb-logo">⚙️ Setări</div>
+        <a class="sb-back" href="index.html">← Înapoi la aplicație</a>
+    </div>
+    <div class="sb-nav">
+        <div class="sb-item active" onclick="switchSection('players')" id="sb-players">
+            <span class="sb-icon">👤</span><span class="sb-label">Jucători</span>
+        </div>
+        <div class="sb-divider"></div>
+        <div class="sb-item" onclick="switchSection('algorithm')" id="sb-algorithm">
+            <span class="sb-icon">⚙️</span><span class="sb-label">Algoritm</span>
+        </div>
+        <div class="sb-item" onclick="switchSection('tags')" id="sb-tags">
+            <span class="sb-icon">🏷️</span><span class="sb-label">Tag-uri</span>
+        </div>
+        <div class="sb-divider"></div>
+        <div class="sb-item" onclick="switchSection('data')" id="sb-data">
+            <span class="sb-icon">📦</span><span class="sb-label">Date</span>
+        </div>
+        <div class="sb-item" onclick="switchSection('season')" id="sb-season">
+            <span class="sb-icon">🔄</span><span class="sb-label">Sezon</span>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile tabs -->
+<div class="mobile-tabs">
+    <div class="mobile-tab active" onclick="switchSection('players')">👤 Jucători</div>
+    <div class="mobile-tab" onclick="switchSection('algorithm')">⚙️ Algoritm</div>
+    <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
+    <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
+    <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
+</div>
+
+<!-- Main -->
+<div class="main-area">
+
+<!-- ── JUCĂTORI ──────────────────────────────────────────────── -->
+<div class="section active" id="sec-players">
+    <div class="panel-header">
+        <div class="panel-title">Jucători</div>
+        <div class="panel-sub">Editează name, rating override</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div id="playerEditList"></div>
+            <button class="add-player-btn" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── ALGORITM ──────────────────────────────────────────────── -->
+<div class="section" id="sec-algorithm">
+    <div class="panel-header">
+        <div class="panel-title">Algoritm Smart Rating</div>
+        <div class="panel-sub">Ponderi, cap taguri, coeficienți</div>
+    </div>
+    <div class="panel-body">
+        <!-- Ring + presets -->
+        <div class="card">
+            <div class="card-title">Putere Algoritm</div>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">
+                <div class="algo-ring-wrap">
+                    <div class="algo-ring" id="algoRing" style="border-color:var(--accent);">
+                        <div>
+                            <div class="algo-power" id="algoPower">100</div>
+                            <div class="algo-power-sub">/ 100%</div>
+                        </div>
+                    </div>
+                    <div style="font-size:.58rem;color:#444;margin-top:4px;">Putere</div>
+                </div>
+                <div style="flex:1;">
+                    <div class="card-title" style="margin-bottom:6px;">Presetări</div>
+                    <div class="presets-row">
+                        <div class="preset-btn" onclick="applyPreset('balanced')">⚖️ Balanced</div>
+                        <div class="preset-btn" onclick="applyPreset('defensive')">🛡️ Defensiv</div>
+                        <div class="preset-btn" onclick="applyPreset('performance')">🏆 Performance</div>
+                    </div>
+                </div>
+            </div>
+            <div class="algo-panel-grid weights-grid" id="weightsList"></div>
+            <div id="mvpToggleSection"></div>
+            <!-- Tag cap -->
+            <div class="cap-row">
+                <span class="cap-lbl">🏷️ Net maxim tag-uri</span>
+                <button onclick="stepTagCap(-0.5)" class="w-btn">−</button>
+                <span class="cap-val" id="tagCapVal">2.0</span>
+                <button onclick="stepTagCap(+0.5)" class="w-btn">+</button>
+                <span style="font-size:.62rem;color:#444;">pt</span>
+            </div>
+        </div>
+        <!-- Tag weights -->
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div class="card-title" style="margin-bottom:0;">Coeficienți Tag-uri</div>
+                <span style="font-size:.6rem;color:#333;">bonus/penalizare per tag activ</span>
+            </div>
+            <div id="tagWeightsList"></div>
+        </div>
+        <div class="save-bar show" id="algoSaveBar">
+            <button class="reset-btn-sm" onclick="resetAlgorithm()">↺ Reset</button>
+            <button class="save-btn" onclick="saveAlgorithm()">💾 Salvează Algoritmul</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── TAG-URI ────────────────────────────────────────────────── -->
+<div class="section" id="sec-tags">
+    <div class="panel-header">
+        <div class="panel-title">Tag-uri</div>
+        <div class="panel-sub">Configurează tag-urile și profilurile de impact</div>
+    </div>
+    <div class="panel-body">
+        <div class="add-tag-form" id="addTagForm">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;margin-bottom:10px;">Tag Nou</div>
+            <div class="form-grid">
+                <div>
+                    <label class="form-label">EMOJI</label>
+                    <input id="ntEmoji" type="text" maxlength="4" placeholder="🎯" class="form-input" style="text-align:center;">
+                </div>
+                <div>
+                    <label class="form-label">LABEL</label>
+                    <input id="ntLabel" type="text" placeholder="Vizionar" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">TIP</label>
+                    <select id="ntType" class="form-input">
+                        <option value="pos">✅ Pozitiv</option>
+                        <option value="neg">❌ Negativ</option>
+                        <option value="neu">⚪ Neutru</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">CATEGORIE</label>
+                    <select id="ntCat" class="form-input">
+                        <option value="atac">⚽ Atac</option>
+                        <option value="aparare">🛡️ Apărare</option>
+                        <option value="efort">🏃 Efort</option>
+                        <option value="portar">🧤 Portar</option>
+                        <option value="mentalitate">💡 Mentalitate</option>
+                        <option value="fizic">💪 Profil Fizic</option>
+                        <option value="executie">🎯 Execuție</option>
+                        <option value="pozitionare">📍 Poziționare</option>
+                        <option value="negativ">❌ Negative</option>
+                    </select>
+                </div>
+            </div>
+            <div style="background:#080a12;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid var(--border);">
+                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Profil Impact (−3 → +3)</div>
+                <div id="ntProfileSliders"></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#fff;padding:9px;border-radius:8px;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
+                <button onclick="document.getElementById('addTagForm').classList.remove('open')" style="padding:9px 14px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;border-radius:8px;cursor:pointer;">✕</button>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:.72rem;color:#555;">Tag-uri configurate</div>
+            <button onclick="openAddTag()" style="background:var(--accent);color:#fff;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;">+ Tag Nou</button>
+        </div>
+        <div id="tagsList"></div>
+    </div>
+</div>
+
+<!-- ── DATE ──────────────────────────────────────────────────── -->
+<div class="section" id="sec-data">
+    <div class="panel-header">
+        <div class="panel-title">Date</div>
+        <div class="panel-sub">Export și import date aplicație</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div class="card-title">Export</div>
+            <button class="data-btn btn-export" onclick="exportData()">⬇️ Exportă JSON</button>
+        </div>
+        <div class="card">
+            <div class="card-title">Import</div>
+            <label style="display:block;">
+                <button class="data-btn btn-import" onclick="document.getElementById('importFile').click()">⬆️ Importă JSON</button>
+                <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importData(event)">
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- ── SEZON ──────────────────────────────────────────────────── -->
+<div class="section" id="sec-season">
+    <div class="panel-header">
+        <div class="panel-title">Sezon</div>
+        <div class="panel-sub">Reset și ștergere date</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div class="action-row">
+                <div class="action-info">
+                    <div class="action-title">Reset Sezon</div>
+                    <div class="action-desc">Șterge scoruri și istoricul meciurilor. Ratingurile rămân.</div>
+                </div>
+                <button class="btn-sm btn-del" onclick="resetSeason()">↺ Reset</button>
+            </div>
+            <div class="action-row">
+                <div class="action-info">
+                    <div class="action-title">Resetează Goluri Jucători</div>
+                    <div class="action-desc">Șterge total_goals și total_goals_conceded din profilul fiecărui jucător.</div>
+                </div>
+                <button class="btn-sm btn-del" onclick="resetAllGoals()">⚽ Reset</button>
+            </div>
+            <div class="action-row">
+                <div class="action-info">
+                    <div class="action-title">Șterge Toate Datele</div>
+                    <div class="action-desc">Resetare completă din Supabase. Irecuperabil.</div>
+                </div>
+                <button class="btn-sm" style="background:#7b1010;border-color:#c62828;color:#ef9a9a;" onclick="nukeAll()">💥 Șterge Tot</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div><!-- /main-area -->
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Supabase ──────────────────────────────────────────────────────
+const SUPABASE_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+
+// ── State ─────────────────────────────────────────────────────────
+let db={players:[],history:[]};
+let tagsConfig=[];
+const DEFAULT_W={winrate:0.40,borda:0.30,general:0.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0};
+let W={...DEFAULT_W};
+let TW={};
+let TAG_BONUS_CAP=2.0;
+let csvParsed=null;
+const CATS=['general','viteza','tehnica','strategie','aparare'];
+
+// ── Constants ─────────────────────────────────────────────────────
+const PROFILE_ATTRS=['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
+const PROFILE_ATTR_META={
+    viteza:{label:'⚡ Viteză',color:'#ff8c00'},
+    tehnica:{label:'🎯 Tehnică',color:'#82b1ff'},
+    strategie:{label:'🧠 Strategie',color:'#00bcd4'},
+    aparare:{label:'🛡️ Apărare',color:'#4caf50'},
+    efort:{label:'🏃 Efort',color:'#ffcc00'},
+    mentalitate:{label:'💡 Mentalitate',color:'#ce93d8'},
+    fizic:{label:'💪 Fizic',color:'#ef9a9a'},
+    executie:{label:'🎯 Execuție',color:'#a5d6a7'},
+    pozitionare:{label:'📍 Poziționare',color:'#80deea'},
+};
+const CAT_LABELS_CONFIG={atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',mentalitate:'💡 Mentalitate / IQ',fizic:'💪 Profil Fizic',executie:'🎯 Execuție',pozitionare:'📍 Poziționare',negativ:'❌ Negative'};
+const W_LABELS={winrate:'📈 Win Rate',borda:'🏆 Vot Borda',general:'⭐ Voturi colegi'};
+const PRESETS={
+    balanced:{winrate:.40,borda:.30,general:.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0},
+    defensive:{winrate:.30,borda:.40,general:.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0},
+    performance:{winrate:.50,borda:.35,general:.05,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0}
+};
+
+// ── Utilities ─────────────────────────────────────────────────────
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showConfirm(icon,title,msg,yesLabel,yesBg,cb){if(confirm(icon+' '+title+'\n'+msg))cb();}
+function getSmartRating(p){
+    if(p.adminRating!=null) return parseFloat(p.adminRating.toFixed(2));
+    const wrRaw=p.games>0?p.wins/p.games:0.5;
+    let base=5+(wrRaw-.5)*4*W.winrate;
+    if(wrRaw>.6&&p.games>=3) base+=.2;
+    if((p.totalGoals||0)>0&&p.games>0) base+=Math.min(Math.min(p.totalGoals/p.games,3)*.33,1);
+    if(p.ratings.length>0&&W.general>0){const n=p.ratings.length;const g=p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;base+=((g-5)/5)*4*W.general;}
+    return parseFloat(Math.max(1,Math.min(10,base)).toFixed(2));
+}
+function getGeneralAvg(p){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length:5;}
+function invalidateTagsCache(){localStorage.removeItem('tags_config_cache');localStorage.removeItem('tags_config_ts');}
+
+// ── Navigation ────────────────────────────────────────────────────
+let currentSection='players';
+function switchSection(name){
+    currentSection=name;
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('sec-'+name).classList.add('active');
+    document.querySelectorAll('.sb-item').forEach(s=>s.classList.remove('active'));
+    const sb=document.getElementById('sb-'+name);if(sb)sb.classList.add('active');
+    document.querySelectorAll('.mobile-tab').forEach((t,i)=>{
+        const names=['players','algorithm','tags','data','season'];
+        t.classList.toggle('active',names[i]===name);
+    });
+    // Show/hide save bar
+    document.getElementById('algoSaveBar').classList.toggle('show', name==='algorithm');
+    // Build panel on switch
+    if(name==='players') buildPlayerEditList();
+    if(name==='algorithm') buildAlgorithmPanel();
+    if(name==='tags') buildTagsPanel();
+}
+
+// ── Load ──────────────────────────────────────────────────────────
+async function loadAll(){
+    // Tags
+    const{data:tc}=await sb.from('tags_config').select('*').order('sort_order');
+    tagsConfig=tc||[];
+    TW={};tagsConfig.forEach(t=>{TW[String(t.id)]=parseFloat(t.tw_weight)||0;});
+    // Algo settings
+    const{data:as}=await sb.from('algo_settings').select('key,value');
+    (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);if(r.key==='tag_bonus_cap')TAG_BONUS_CAP=parseFloat(r.value)||2;});
+    // Players
+    const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
+    db.players=(pr||[]).map(p=>({
+        id:p.id,name:p.name,status:p.status||'bench',
+        wins:p.wins||0,games:p.games||0,
+        matchHistory:p.match_history||[],
+        adminRating:p.admin_rating!=null?parseFloat(p.admin_rating):null,
+        adminTags:p.admin_tags?p.admin_tags.split(',').filter(Boolean):[],
+        totalGoals:p.total_goals||0,totalGoalsConceded:p.total_goals_conceded||0,
+        lastImbalanceLoss:p.last_imbalance_loss||0,
+        ratings:(p.ratings||[]).map(r=>({general:r.general||5,viteza:r.viteza||5,tehnica:r.tehnica||5,strategie:r.strategie||5,aparare:r.aparare||5}))
+    }));
+    // History
+    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(50);
+    db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[]}));
+    // Build initial panel
+    buildPlayerEditList();
+}
+
+// ── PLAYERS SECTION ───────────────────────────────────────────────
+function buildPlayerEditList(){
+    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+    document.getElementById('playerEditList').innerHTML=sorted.map(p=>{
+        const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+        const forced=p.adminRating!=null;
+        return `<div class="player-row">
+            <span class="p-id">#${p.id}</span>
+            <input class="p-input" type="text" value="${p.name}" id="editname-${p.id}"
+                onkeydown="if(event.key==='Enter')savePlayerName(${p.id})">
+            <span class="p-stats">★${getSmartRating(p).toFixed(1)} · ${wr}</span>
+            <button class="btn-sm btn-save" onclick="savePlayerName(${p.id})">✓</button>
+            <button class="btn-sm btn-del" onclick="deletePlayer(${p.id})">🗑️</button>
+            <div style="width:100%;padding-left:32px;margin-top:3px;">
+                <div class="ar-wrap${forced?' forced':''}">
+                    <span class="ar-lbl${forced?' forced':''}">${forced?'👑 Rating forțat':'★ Override'}</span>
+                    <input type="number" class="ar-input${forced?' forced':''}" id="ar-${p.id}"
+                        min="1" max="10" step="0.1"
+                        value="${forced?p.adminRating.toFixed(1):''}" placeholder="—"
+                        oninput="saveAdminRating(${p.id})">
+                    ${forced?`<button class="ar-clear" onclick="clearAdminRating(${p.id})">✕</button>`:''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function savePlayerName(id){
+    const el=document.getElementById('editname-'+id);if(!el)return;
+    const name=el.value.trim();if(!name)return;
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    p.name=name;
+    try{await sb.from('players').update({name}).eq('id',id);showToast('✅ '+name+' salvat!');}
+    catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function deletePlayer(id){
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    if(!confirm('Ștergi jucătorul '+p.name+'? Irecuperabil.')) return;
+    try{
+        await sb.from('ratings').delete().eq('player_id',id);
+        await sb.from('players').delete().eq('id',id);
+        db.players=db.players.filter(x=>x.id!=id);
+        buildPlayerEditList();showToast('🗑️ '+p.name+' șters!');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function saveAdminRating(id){
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    const val=parseFloat(document.getElementById('ar-'+id)?.value);
+    const rating=(isNaN(val)||val<1||val>10)?null:Math.round(val*10)/10;
+    p.adminRating=rating;
+    try{
+        await sb.from('players').update({admin_rating:rating}).eq('id',id);
+        buildPlayerEditList();
+        showToast(rating!=null?`👑 ${p.name} → ${rating}`:`↺ Override eliminat: ${p.name}`);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function clearAdminRating(id){
+    const el=document.getElementById('ar-'+id);if(el)el.value='';
+    await saveAdminRating(id);
+}
+
+function addNewPlayerFromSettings(){
+    const name=prompt('Numele jucătorului:');if(!name?.trim())return;
+    const newP={id:Date.now(),name:name.trim(),status:'active',wins:0,games:0,matchHistory:[],ratings:[],adminRating:null,adminTags:[],totalGoals:0,totalGoalsConceded:0,lastImbalanceLoss:0};
+    sb.from('players').insert({id:newP.id,name:newP.name,status:'active',wins:0,games:0,match_history:[]}).then(()=>{
+        db.players.push(newP);buildPlayerEditList();showToast('✅ '+newP.name+' adăugat!');
+    }).catch(e=>showToast('⚠️ '+e.message));
+}
+
+// ── ALGORITHM SECTION ─────────────────────────────────────────────
+function buildAlgorithmPanel(){
+    document.getElementById('weightsList').innerHTML=Object.entries(W_LABELS).map(([k,lbl])=>{
+        const pct=Math.round((W[k]||0)*100);
+        return `<div class="w-cell">
+            <span class="w-lbl">${lbl}</span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepWeight('${k}',-5)">−</button>
+                <input class="w-num" type="number" id="wnum-${k}" value="${pct}" min="0" max="100" oninput="syncWeightNum('${k}')">
+                <button class="w-btn" onclick="stepWeight('${k}',+5)">+</button>
+                <span class="w-pct">%</span>
+            </div>
+        </div>`;
+    }).join('');
+    // MVP toggle
+    const mvpEnabled=W.mvpWin>0||W.mvpLoss>0;
+    const mvpEl=document.getElementById('mvpToggleSection');
+    if(mvpEl){
+        mvpEl.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);margin-top:6px;">
+            <span style="font-size:.7rem;color:#555;flex:1;">🏆 MVP în algoritm</span>
+            <button onclick="toggleMvpAlgo()" style="padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;background:${mvpEnabled?'rgba(255,204,0,.15)':'rgba(255,255,255,.04)'};border:1px solid ${mvpEnabled?'var(--star)':'#252836'};color:${mvpEnabled?'var(--star)':'#444'};">${mvpEnabled?'✅ Activat':'○ Dezactivat'}</button>
+        </div>
+        ${mvpEnabled?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px 0;">
+            ${['mvpWin','mvpLoss'].map(k=>{const lbl=k==='mvpWin'?'🏆 MVP câștig':'⚔️ MVP pierdere';const pct=Math.round((W[k]||0)*100);
+            return '<div class="w-cell"><span class="w-lbl" style="font-size:.55rem;">'+lbl+'</span><div class="w-ctrl"><button class="w-btn" onclick="stepWeight(\''+k+'\',-5)">−</button><input class="w-num" type="number" id="wnum-'+k+'" value="'+pct+'" min="0" max="50" oninput="syncWeightNum(\''+k+'\')"><button class="w-btn" onclick="stepWeight(\''+k+'\',+5)">+</button><span class="w-pct">%</span></div></div>';}).join('')}
+        </div>`:''}`;
+    }
+    updateWeightsSum();
+    const tcEl=document.getElementById('tagCapVal');if(tcEl)tcEl.textContent=TAG_BONUS_CAP.toFixed(1);
+    // Tag weights
+    const twEl=document.getElementById('tagWeightsList');if(!twEl)return;
+    if(!tagsConfig.length){twEl.innerHTML='<div style="color:#444;font-size:.78rem;">Configurează mai întâi tag-urile.</div>';return;}
+    const cats=[...new Set(tagsConfig.map(t=>t.category))];
+    twEl.innerHTML=cats.map(cat=>{
+        const tags=tagsConfig.filter(t=>t.category===cat);
+        const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+        return `<div style="margin-bottom:8px;">
+            <div class="tw-section-title">${catLabel}</div>
+            ${tags.map(t=>{const tid=String(t.id);const cur=Math.round((TW[tid]||0)*100);const defColor=t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff';const numColor=cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';
+            return `<div class="tw-row"><span class="tw-emoji" style="color:${defColor};">${t.emoji}</span><span class="tw-label">${t.label}</span><button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button><span class="tw-val" id="twval-${tid}" style="color:${numColor};">${cur>0?'+'+cur:cur}</span><button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button></div>`;}).join('')}
+        </div>`;
+    }).join('');
+}
+
+function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
+function syncWeightNum(key){let v=parseInt(document.getElementById('wnum-'+key).value)||0;v=Math.max(0,Math.min(100,v));W[key]=v/100;updateWeightsSum();}
+function stepTagCap(delta){TAG_BONUS_CAP=Math.max(0.5,Math.min(5,parseFloat((TAG_BONUS_CAP+delta).toFixed(1))));const el=document.getElementById('tagCapVal');if(el)el.textContent=TAG_BONUS_CAP.toFixed(1);updateWeightsSum();}
+function toggleMvpAlgo(){const en=W.mvpWin>0||W.mvpLoss>0;if(en){W.mvpWin=0;W.mvpLoss=0;}else{W.mvpWin=0.05;W.mvpLoss=0.03;}buildAlgorithmPanel();}
+function stepTagWeight(tid,delta){let cur=Math.round((TW[tid]||0)*100)+delta;cur=Math.max(-50,Math.min(50,cur));TW[tid]=cur/100;const t=tagsConfig.find(x=>String(x.id)===tid);if(t)t.tw_weight=TW[tid];const el=document.getElementById('twval-'+tid);if(el){el.textContent=cur>0?'+'+cur:cur;el.style.color=cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';}}
+function updateWeightsSum(){
+    const mainKeys=['winrate','borda','general'];
+    const sum=mainKeys.reduce((s,k)=>s+(W[k]||0),0);
+    const pct=Math.round(sum*100);
+    const ring=document.getElementById('algoRing');const pw=document.getElementById('algoPower');
+    if(ring&&pw){pw.textContent=pct;const col=Math.abs(pct-100)<2?'#69f0ae':pct>100?'#ef9a9a':'#ffcc00';ring.style.borderColor=col;pw.style.color=col;}
+}
+function applyPreset(name){
+    const p=PRESETS[name];if(!p)return;
+    Object.entries(p).forEach(([k,v])=>{W[k]=v;const el=document.getElementById('wnum-'+k);if(el)el.value=Math.round(v*100);});
+    buildAlgorithmPanel();showToast('✅ Presetare aplicată!');
+}
+async function saveAlgorithm(){
+    const mainKeys=['winrate','borda','general'];
+    const sum=mainKeys.reduce((s,k)=>s+(W[k]||0),0);
+    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
+    try{
+        await sb.from('algo_settings').upsert([{key:'weights',value:W},{key:'tag_bonus_cap',value:TAG_BONUS_CAP}],{onConflict:'key'});
+        await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:TW[String(t.id)]||0}).eq('id',t.id)));
+        showToast('✅ Algoritm salvat în baza de date!');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+async function resetAlgorithm(){
+    Object.assign(W,DEFAULT_W);TAG_BONUS_CAP=2.0;
+    tagsConfig.forEach(t=>{TW[String(t.id)]=0;t.tw_weight=0;});
+    try{
+        await sb.from('algo_settings').upsert([{key:'weights',value:DEFAULT_W},{key:'tag_bonus_cap',value:2.0}],{onConflict:'key'});
+        await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
+    }catch(e){console.warn(e);}
+    buildAlgorithmPanel();showToast('↺ Algoritm resetat!');
+}
+
+// ── TAGS SECTION ──────────────────────────────────────────────────
+function buildTagsPanel(){
+    const el=document.getElementById('tagsList');if(!el)return;
+    const cats=[...new Set(tagsConfig.map(t=>t.category))];
+    el.innerHTML=cats.map(cat=>{
+        const tags=tagsConfig.filter(t=>t.category===cat);
+        const catLabel=CAT_LABELS_CONFIG[cat]||cat;
+        return `<div style="margin-bottom:14px;">
+            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border);">${catLabel}</div>
+            ${tags.map(t=>{
+                const typeColor=t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff';
+                const ip=t.impact_profile||{};
+                const profileStr=PROFILE_ATTRS.map(a=>{const v=parseFloat(ip[a])||0;return v!==0?(PROFILE_ATTR_META[a]?.label.split(' ')[0]||a)+(v>0?'+'+v:v):null;}).filter(Boolean).join(', ')||'—';
+                const expandId='tag-profile-'+t.id;
+                return `<div class="tag-row">
+                    <div class="tag-row-main">
+                        <input type="text" value="${t.emoji}" maxlength="4" class="tag-input-sm" style="width:34px;text-align:center;" onchange="updateTagField(${t.id},'emoji',this.value)">
+                        <input type="text" value="${t.label}" class="tag-input-sm" style="flex:1;min-width:80px;" onchange="updateTagField(${t.id},'label',this.value)">
+                        <select class="tag-select-sm" style="color:${typeColor};" onchange="updateTagField(${t.id},'type',this.value)">
+                            <option value="pos" ${t.type==='pos'?'selected':''}>✅</option>
+                            <option value="neg" ${t.type==='neg'?'selected':''}>❌</option>
+                            <option value="neu" ${t.type==='neu'?'selected':''}>⚪</option>
+                        </select>
+                        <select class="tag-select-sm" onchange="updateTagField(${t.id},'category',this.value)">
+                            ${Object.entries(CAT_LABELS_CONFIG).map(([v,l])=>`<option value="${v}" ${t.category===v?'selected':''}>${l.split(' ')[0]}</option>`).join('')}
+                        </select>
+                        <button class="tag-profile-btn" onclick="toggleTagProfile('${expandId}')">📊 Profil</button>
+                        <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
+                    </div>
+                    <div class="tag-impact-summary">Impact: ${profileStr}</div>
+                    <div class="tag-profile-panel" id="${expandId}">
+                        <div style="font-size:.6rem;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📊 Profil Impact (−3 → +3)</div>
+                        <div id="ipSliders-${t.id}"></div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }).join('');
+}
+
+function toggleTagProfile(id){
+    const el=document.getElementById(id);if(!el)return;
+    const tagId=id.replace('tag-profile-','');
+    const t=tagsConfig.find(x=>String(x.id)===tagId);
+    const isOpen=el.classList.toggle('open');
+    if(isOpen) renderProfileSliders('ipSliders-'+tagId,t?.impact_profile||{},tagId);
+}
+
+function renderProfileSliders(containerId,profile={},tagId=null){
+    const el=document.getElementById(containerId);if(!el)return;
+    el.innerHTML=PROFILE_ATTRS.map(a=>{
+        const meta=PROFILE_ATTR_META[a];
+        const val=parseFloat(profile[a])||0;
+        const pct=((val+3)/6)*100;
+        const col=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';
+        const sliderId=tagId?`ip-${tagId}-${a}`:a;
+        const onin=tagId?`onProfileSlider(this,'${a}','${tagId}')`:`onProfileSlider(this,'${a}',null)`;
+        return `<div class="ip-row">
+            <span class="ip-lbl" style="color:${meta.color};">${meta.label}</span>
+            <input class="ip-slider" type="range" min="-3" max="3" step="1" value="${val}" id="${sliderId}"
+                style="background:linear-gradient(to right,${meta.color} ${pct}%,#1e2130 ${pct}%);"
+                oninput="${onin}">
+            <span class="ip-val" id="${sliderId}-v" style="color:${col};">${val>0?'+':''}${val}</span>
+        </div>`;
+    }).join('');
+}
+
+function onProfileSlider(input,attr,tagId){
+    const val=parseInt(input.value);
+    const col=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';
+    const vEl=document.getElementById(input.id+'-v');
+    if(vEl){vEl.textContent=(val>0?'+':'')+val;vEl.style.color=col;}
+    const meta=PROFILE_ATTR_META[attr];
+    const pct=((val+3)/6)*100;
+    input.style.background='linear-gradient(to right,'+meta.color+' '+pct+'%,#1e2130 '+pct+'%)';
+    if(tagId){
+        const t=tagsConfig.find(x=>String(x.id)===String(tagId));
+        if(t){if(!t.impact_profile)t.impact_profile={};t.impact_profile[attr]=val;
+            clearTimeout(window._ipSaveTimer);window._ipSaveTimer=setTimeout(()=>saveTagProfile(tagId),600);}
+    }
+}
+
+async function saveTagProfile(tagId){
+    const t=tagsConfig.find(x=>String(x.id)===String(tagId));if(!t)return;
+    try{await sb.from('tags_config').update({impact_profile:t.impact_profile}).eq('id',tagId);invalidateTagsCache();}
+    catch(e){console.warn('saveTagProfile:',e.message);}
+}
+
+function getNewTagProfile(){
+    const p={};
+    PROFILE_ATTRS.forEach(a=>{const el=document.getElementById(a);p[a]=el?parseInt(el.value):0;});
+    return p;
+}
+
+function openAddTag(){
+    const form=document.getElementById('addTagForm');
+    form.classList.add('open');
+    renderProfileSliders('ntProfileSliders',{});
+    form.scrollIntoView({behavior:'smooth'});
+}
+
+async function saveNewTag(){
+    const emoji=document.getElementById('ntEmoji').value.trim()||'⚽';
+    const label=document.getElementById('ntLabel').value.trim();
+    const type=document.getElementById('ntType').value;
+    const category=document.getElementById('ntCat').value;
+    const impact_profile=getNewTagProfile();
+    if(!label){showToast('⚠️ Introdu un label!');return;}
+    try{
+        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_profile,sort_order:tagsConfig.length+1}).select().single();
+        if(error)throw error;
+        tagsConfig.push(data);invalidateTagsCache();
+        document.getElementById('addTagForm').classList.remove('open');
+        document.getElementById('ntEmoji').value='';document.getElementById('ntLabel').value='';
+        buildTagsPanel();showToast('✅ Tag adăugat: '+emoji+' '+label);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function updateTagField(id,field,value){
+    const t=tagsConfig.find(x=>x.id===id);if(!t)return;
+    t[field]=value;
+    try{await sb.from('tags_config').update({[field]:t[field]}).eq('id',id);invalidateTagsCache();}
+    catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function deleteTag(id){
+    if(!confirm('Ștergi tag-ul? Irecuperabil.')) return;
+    try{
+        await sb.from('tags_config').delete().eq('id',id);
+        tagsConfig=tagsConfig.filter(t=>t.id!==id);invalidateTagsCache();buildTagsPanel();
+        showToast('✅ Tag șters!');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+// ── DATA SECTION ──────────────────────────────────────────────────
+function exportData(){
+    const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='arena_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);
+}
+async function importData(event){
+    const file=event.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async e=>{
+        try{
+            const imported=JSON.parse(e.target.result);
+            if(!imported.players)throw new Error('Format invalid');
+            if(!confirm('Importezi '+imported.players.length+' jucători? Datele actuale vor fi suprascrise.'))return;
+            for(const p of imported.players){
+                await sb.from('players').upsert({id:p.id,name:p.name,status:p.status||'bench',wins:p.wins||0,games:p.games||0,match_history:p.matchHistory||[]});
+                if(p.ratings?.length) for(const r of p.ratings) if(r._dbId) await sb.from('ratings').upsert({id:r._dbId,player_id:p.id,...r});
+            }
+            showToast('✅ Import reușit!');await loadAll();
+        }catch(err){showToast('❌ '+err.message);}
+    };reader.readAsText(file);
+}
+
+// ── SEASON SECTION ────────────────────────────────────────────────
+async function resetSeason(){
+    showConfirm('↺','Reset Sezon','Victoriile și istoricul se șterg. Ratingurile rămân.','Reset','#c62828',async()=>{
+        db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];});
+        try{
+            await Promise.all(db.players.map(p=>sb.from('players').update({wins:0,games:0,match_history:[]}).eq('id',p.id)));
+            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            showToast('↺ Sezon resetat!');buildPlayerEditList();
+        }catch(e){showToast('⚠️ '+e.message);}
+    });
+}
+
+async function resetAllGoals(){
+    showConfirm('⚽','Resetezi toate golurile?','Se șterg golurile marcate/primite din profilul tuturor jucătorilor.','Reset','#c62828',async()=>{
+        try{
+            await sb.from('players').update({total_goals:0,total_goals_conceded:0}).neq('id',0);
+            await sb.from('match_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            try{await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');}catch(_){}
+            db.players.forEach(p=>{p.totalGoals=0;p.totalGoalsConceded=0;});
+            showToast('✅ Goluri resetate!');buildPlayerEditList();
+        }catch(e){showToast('⚠️ '+e.message);}
+    });
+}
+
+async function nukeAll(){
+    showConfirm('💥','Șterge Tot?','TOATE datele din Supabase vor fi șterse definitiv.','Șterge Tot','#7b1010',async()=>{
+        try{
+            await sb.from('ratings').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            await sb.from('players').delete().neq('id',0);
+            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            await sb.from('next_match').upsert({id:1,match_date:null,match_time:null,location:null,confirmed_ids:[],absent_ids:[]});
+            localStorage.clear();location.href='index.html';
+        }catch(e){showToast('⚠️ '+e.message);}
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
