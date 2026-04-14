@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Live · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -150,7 +151,9 @@ function render(){
     const oScore=teamScore('orange');
     const gScore=teamScore('green');
     const gpMap=goalsByPlayer();
-    const lastG=goals[goals.length-1];
+    // Only consider real (non-temp) goals for undo
+    const realGoals=goals.filter(g=>!g.id.toString().startsWith('tmp_'));
+    const lastG=realGoals[realGoals.length-1]||null;
     lastGoalId=lastG?.id||null;
 
     // Score
@@ -235,7 +238,7 @@ async function removeGoal(name,team){
 }
 
 async function undoLast(){
-    if(!lastGoalId) return;
+    if(!lastGoalId||String(lastGoalId).startsWith('tmp_')) return;
     const g=goals.find(x=>x.id===lastGoalId);
     if(!g) return;
     goals=goals.filter(x=>x.id!==lastGoalId);
