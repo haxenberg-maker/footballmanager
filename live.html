@@ -11,106 +11,168 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;}
-:root{--o:#ff8c00;--g:#28a745;--border:#1e2130;}
+:root{--o:#ff8c00;--g:#28a745;--b:#1e2130;}
 
-/* Header */
-.hd{background:#080a12;border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
-.hd-logo{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;}
-.hd-right{display:flex;align-items:center;gap:10px;}
-.live-dot{width:8px;height:8px;border-radius:50%;background:#28a745;box-shadow:0 0 8px #28a745;animation:p 1.5s infinite;}
+/* ── Top bar ──────────────────────────────────────────────────── */
+.topbar{
+    background:#080a12;border-bottom:1px solid var(--b);
+    padding:8px 14px;display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;z-index:20;
+}
+.topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:3px;color:#fff;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.live-pill{display:flex;align-items:center;gap:5px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);padding:3px 9px;border-radius:20px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#28a745;box-shadow:0 0 7px #28a745;animation:p 1.5s infinite;}
 @keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
-.clock{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#555;letter-spacing:2px;}
-.reset-btn{background:rgba(198,40,40,.1);border:1px solid #c62828;color:#ef9a9a;padding:5px 12px;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;}
-.reset-btn:hover{background:rgba(198,40,40,.2);}
+.live-lbl{font-size:.65rem;font-weight:700;color:#69f0ae;text-transform:uppercase;letter-spacing:1px;}
+.clock{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#333;letter-spacing:2px;}
+.reset-btn{background:none;border:1px solid #1e2130;color:#444;padding:4px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;}
+.reset-btn:hover{border-color:#c62828;color:#ef9a9a;}
 
-/* Big scoreboard */
-.score-wrap{background:#080a12;border-bottom:2px solid var(--border);padding:16px 12px 12px;}
-.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
-.score-team-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
-.score-team-name.o{color:var(--o);}
-.score-team-name.g{color:var(--g);text-align:right;}
-.score-nums{display:flex;align-items:center;gap:6px;justify-content:center;}
-.score-n{font-family:'Bebas Neue',sans-serif;font-size:5rem;line-height:1;transition:transform .15s;}
-.score-n.bump{transform:scale(1.25);}
+/* ── Score hero ───────────────────────────────────────────────── */
+.score-hero{
+    background:linear-gradient(180deg,#080a12 0%,#0a0c10 100%);
+    padding:14px 0 10px;border-bottom:2px solid var(--b);
+}
+.score-block{
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;padding:0 16px;gap:4px;
+}
+.score-side{display:flex;flex-direction:column;}
+.score-side.right{align-items:flex-end;}
+.score-team-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:3px;}
+.score-team-lbl.o{color:var(--o);}
+.score-team-lbl.g{color:var(--g);}
+.score-n{
+    font-family:'Bebas Neue',sans-serif;font-size:5.5rem;line-height:.9;
+    transition:transform .15s,text-shadow .15s;
+}
 .score-n.o{color:var(--o);}
 .score-n.g{color:var(--g);}
-.score-sep{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:#252836;}
-.score-meta{display:flex;justify-content:space-between;margin-top:4px;font-size:.62rem;color:#333;}
+.score-n.bump{transform:scale(1.2);text-shadow:0 0 30px currentColor;}
+.score-vs{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:#1e2130;padding:0 4px;}
+/* win probability bar */
+.prob-wrap{padding:8px 16px 0;}
+.prob-bar{height:4px;background:#1e2130;border-radius:2px;display:flex;overflow:hidden;}
+.prob-o{height:100%;background:linear-gradient(90deg,var(--o),rgba(255,140,0,.5));transition:width .6s;}
+.prob-g{height:100%;background:linear-gradient(90deg,rgba(40,167,69,.5),var(--g));transition:width .6s;}
+.prob-lbls{display:flex;justify-content:space-between;padding:3px 0 0;font-size:.6rem;}
 
-/* Undo bar */
-.undo-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:6px 16px;display:flex;align-items:center;gap:8px;min-height:34px;}
-.last-goal{flex:1;font-size:.75rem;color:#555;}
-.last-goal span{color:#fff;}
-.undo-btn{background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;display:none;}
+/* ── Undo bar ─────────────────────────────────────────────────── */
+.undo-bar{
+    background:#0d0f18;border-bottom:1px solid var(--b);
+    padding:6px 14px;display:flex;align-items:center;gap:8px;min-height:34px;
+}
+.undo-lbl{flex:1;font-size:.72rem;color:#555;}
+.undo-lbl span{color:#fff;}
+.undo-btn{background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;padding:4px 12px;border-radius:6px;font-size:.7rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;}
 .undo-btn.show{display:block;}
 
-/* Teams */
-.teams{display:grid;grid-template-columns:1fr 1fr;height:calc(100vh - 180px);overflow:hidden;}
-.team-col{display:flex;flex-direction:column;overflow:hidden;}
-.team-col.o{border-right:1px solid var(--border);}
-.team-hd{padding:8px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.team-hd-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;font-weight:700;}
+/* ── Teams layout ─────────────────────────────────────────────── */
+.teams-wrap{display:grid;grid-template-columns:1fr 1fr;}
+.team-col{padding:8px 6px 80px;}
+.team-col.o-col{border-right:1px solid var(--b);}
+
+.team-hd{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:4px 6px 8px;border-bottom:1px solid #0f1118;margin-bottom:6px;
+}
+.team-hd-lbl{font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:1.5px;}
 .team-hd-lbl.o{color:var(--o);}
 .team-hd-lbl.g{color:var(--g);}
-.team-hd-count{font-size:.6rem;color:#333;}
-.player-list{flex:1;overflow-y:auto;padding:6px;}
+.team-hd-cnt{font-size:.6rem;color:#333;}
 
-/* Player row */
-.pr{display:flex;align-items:center;gap:0;padding:2px 0;}
-.pr-name{flex:1;font-weight:700;font-size:.85rem;padding:8px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pr-goals{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;min-width:28px;text-align:center;color:#555;transition:all .15s;}
-.pr-goals.scored{color:#fff;}
-.pr-minus{width:32px;height:40px;background:none;border:none;color:#252836;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:6px;}
-.pr-minus:hover{background:#1c1f2b;color:#ef9a9a;}
-.pr-plus{width:44px;height:44px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.25);color:#69f0ae;font-size:1.4rem;cursor:pointer;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .12s;-webkit-tap-highlight-color:transparent;}
-.pr-plus:active{background:rgba(40,167,69,.3);transform:scale(.9);}
-.o-col .pr-plus{background:rgba(255,140,0,.1);border-color:rgba(255,140,0,.25);color:var(--o);}
-.o-col .pr-plus:active{background:rgba(255,140,0,.25);}
+/* ── Player row ───────────────────────────────────────────────── */
+.pr{
+    display:flex;align-items:center;
+    padding:4px 2px;border-radius:8px;margin-bottom:2px;
+    gap:4px;
+}
+.pr-name{
+    flex:1;font-weight:700;font-size:.82rem;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    line-height:1.2;
+}
+.pr-cnt{
+    font-family:'Bebas Neue',sans-serif;font-size:1.3rem;
+    min-width:22px;text-align:center;color:#252836;
+    transition:color .15s;
+}
+.pr-cnt.has{color:#fff;}
+/* − button: only visible when player has goals */
+.pr-minus{
+    width:24px;height:36px;background:none;border:none;
+    color:#333;font-size:.9rem;cursor:pointer;
+    border-radius:5px;display:none;flex-shrink:0;
+    align-items:center;justify-content:center;
+}
+.pr-minus.show{display:flex;}
+.pr-minus:active{background:#1c1f2b;color:#ef9a9a;}
+/* + button: big tap target */
+.pr-plus{
+    width:40px;height:40px;
+    border-radius:9px;border:1px solid;
+    font-size:1.3rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;transition:transform .1s,background .1s;
+    -webkit-tap-highlight-color:transparent;
+}
+.pr-plus:active{transform:scale(.88);}
+.o-col .pr-plus{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.2);color:var(--o);}
+.o-col .pr-plus:active{background:rgba(255,140,0,.22);}
+.g-col .pr-plus{background:rgba(40,167,69,.08);border-color:rgba(40,167,69,.2);color:var(--g);}
+.g-col .pr-plus:active{background:rgba(40,167,69,.22);}
 
-/* Empty / loading */
-.empty{text-align:center;padding:40px 16px;color:#333;grid-column:span 2;}
+/* ── Empty ────────────────────────────────────────────────────── */
+.empty{text-align:center;padding:50px 16px;color:#333;grid-column:span 2;}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid #3d5afe;color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;}
 </style>
 </head>
 <body>
 
-<div class="hd">
-  <div>
-    <div class="hd-logo">⚽ Arena Friends FC</div>
-  </div>
-  <div class="hd-right">
-    <span class="live-dot"></span>
+<div class="topbar">
+  <div class="topbar-logo">⚽ Arena FC · Live</div>
+  <div class="topbar-right">
+    <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
     <span class="clock" id="clock"></span>
-    <button class="reset-btn" onclick="confirmReset()">↺ Reset</button>
+    <button class="reset-btn" onclick="confirmReset()">↺</button>
   </div>
 </div>
 
-<!-- Big score -->
-<div class="score-wrap">
-  <div class="score-row">
-    <div class="score-team-name o" id="nameO">PORTOCALIU</div>
-    <div class="score-nums">
+<!-- Score hero -->
+<div class="score-hero">
+  <div class="score-block">
+    <div class="score-side">
+      <div class="score-team-lbl o">🟠 Portocaliu</div>
       <div class="score-n o" id="scoreO">0</div>
-      <div class="score-sep">:</div>
+    </div>
+    <div class="score-vs">:</div>
+    <div class="score-side right">
+      <div class="score-team-lbl g">Verde 🟢</div>
       <div class="score-n g" id="scoreG">0</div>
     </div>
-    <div class="score-team-name g" id="nameG">VERDE</div>
   </div>
-  <div class="score-meta">
-    <span id="metaLeft"></span>
-    <span id="metaRight"></span>
+  <div class="prob-wrap" id="probWrap" style="display:none;">
+    <div class="prob-bar">
+      <div class="prob-o" id="probO" style="width:50%;"></div>
+      <div class="prob-g" id="probG" style="width:50%;"></div>
+    </div>
+    <div class="prob-lbls">
+      <span id="probLblO" style="color:var(--o);"></span>
+      <span id="probLblG" style="color:var(--g);"></span>
+    </div>
   </div>
 </div>
 
-<!-- Undo bar -->
+<!-- Undo -->
 <div class="undo-bar">
-  <div class="last-goal" id="lastGoalLabel">Niciun gol înregistrat</div>
+  <div class="undo-lbl" id="undoLbl">Niciun gol înregistrat</div>
   <button class="undo-btn" id="undoBtn" onclick="undoLast()">↩ Anulează</button>
 </div>
 
 <!-- Teams -->
-<div class="teams" id="teamsWrap">
+<div class="teams-wrap" id="teamsWrap">
   <div class="empty">Se încarcă...</div>
 </div>
 
@@ -121,155 +183,147 @@ const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-let players=[], goals=[], lastGoalId=null;
+let players=[], goals=[], lastRealGoalId=null;
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
-// ── Clock ─────────────────────────────────────────────────────────
+// Clock
 setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
 
-// ── Load ──────────────────────────────────────────────────────────
+// Load
 async function loadAll(){
-    const{data:pl}=await sb.from('players').select('id,name,status').order('name');
+    const[{data:pl},{data:gl}]=await Promise.all([
+        sb.from('players').select('id,name,status').order('name'),
+        sb.from('live_goals').select('*').order('created_at',{ascending:true})
+    ]);
     players=pl||[];
-    const{data:gl}=await sb.from('live_goals').select('*').order('created_at',{ascending:true});
     goals=gl||[];
     render();
 }
 
-function goalsByPlayer(){
-    const m={};
-    goals.forEach(g=>{if(!m[g.player_name])m[g.player_name]=0;m[g.player_name]++;});
-    return m;
-}
 function teamScore(team){return goals.filter(g=>g.team===team).length;}
+function goalsMap(){const m={};goals.forEach(g=>{m[g.player_name]=(m[g.player_name]||0)+1;});return m;}
 
-// ── Render ────────────────────────────────────────────────────────
 function render(){
     const orange=players.filter(p=>p.status==='orange');
     const green=players.filter(p=>p.status==='green');
     const oScore=teamScore('orange');
     const gScore=teamScore('green');
-    const gpMap=goalsByPlayer();
-    // Only consider real (non-temp) goals for undo
-    const realGoals=goals.filter(g=>!g.id.toString().startsWith('tmp_'));
-    const lastG=realGoals[realGoals.length-1]||null;
-    lastGoalId=lastG?.id||null;
+    const gpm=goalsMap();
 
-    // Score
+    // Scores
     document.getElementById('scoreO').textContent=oScore;
     document.getElementById('scoreG').textContent=gScore;
 
-    // Last goal label
-    if(lastG){
-        document.getElementById('lastGoalLabel').innerHTML='Ultimul gol: <span>'+lastG.player_name+'</span>';
-        document.getElementById('undoBtn').classList.add('show');
+    // Win probability from score difference
+    const total=oScore+gScore;
+    if(total>0){
+        const oP=Math.round((oScore/total)*100);
+        const gP=100-oP;
+        document.getElementById('probO').style.width=oP+'%';
+        document.getElementById('probG').style.width=gP+'%';
+        document.getElementById('probLblO').textContent='🟠 '+oP+'%';
+        document.getElementById('probLblG').textContent=gP+'% 🟢';
+        document.getElementById('probWrap').style.display='block';
     } else {
-        document.getElementById('lastGoalLabel').textContent='Niciun gol înregistrat';
-        document.getElementById('undoBtn').classList.remove('show');
+        document.getElementById('probWrap').style.display='none';
     }
+
+    // Last real goal for undo
+    const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
+    const lastG=realGoals[realGoals.length-1]||null;
+    lastRealGoalId=lastG?.id||null;
+    document.getElementById('undoLbl').innerHTML=lastG
+        ?'Ultimul gol: <span>'+lastG.player_name+'</span>'
+        :'Niciun gol înregistrat';
+    document.getElementById('undoBtn').classList.toggle('show',!!lastG);
 
     // Teams
     const wrap=document.getElementById('teamsWrap');
     if(!orange.length&&!green.length){
-        wrap.innerHTML='<div class="empty">Nicio echipă activă.<br><span style="font-size:.8rem;">Setează jucătorii în aplicație.</span></div>';
+        wrap.innerHTML='<div class="empty">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
         return;
     }
 
-    const makeList=(pls,team)=>{
-        if(!pls.length) return '<div style="color:#333;font-size:.75rem;padding:12px 8px;text-align:center;">—</div>';
-        return pls.map(p=>{
-            const cnt=gpMap[p.name]||0;
-            return '<div class="pr">'+
-                '<div class="pr-name">'+p.name+'</div>'+
-                (cnt>0?'<button class="pr-minus" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>':'')+
-                '<div class="pr-goals'+(cnt?' scored':'')+'">'+( cnt||'·' )+'</div>'+
-                '<button class="pr-plus" onclick="addGoal(\''+p.name+'\',\''+team+'\')">+</button>'+
-            '</div>';
-        }).join('');
-    };
+    const makeRows=(pls,team)=>pls.map(p=>{
+        const cnt=gpm[p.name]||0;
+        return '<div class="pr">'+
+            '<div class="pr-name">'+p.name+'</div>'+
+            '<button class="pr-minus'+(cnt?' show':'')
+                +'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'+
+            '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'+
+            '<button class="pr-plus" onclick="addGoal(\''+p.name+'\',\''+team+'\')">+</button>'+
+        '</div>';
+    }).join('');
 
     wrap.innerHTML=
         '<div class="team-col o-col">'+
-            '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span><span class="team-hd-count">'+orange.length+' jucători · '+oScore+' goluri</span></div>'+
-            '<div class="player-list">'+makeList(orange,'orange')+'</div>'+
+            '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span><span class="team-hd-cnt">'+oScore+' gol'+(oScore!==1?'uri':'')+'</span></div>'+
+            makeRows(orange,'orange')+
         '</div>'+
         '<div class="team-col g-col">'+
-            '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span><span class="team-hd-count">'+green.length+' jucători · '+gScore+' goluri</span></div>'+
-            '<div class="player-list">'+makeList(green,'green')+'</div>'+
+            '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span><span class="team-hd-cnt">'+gScore+' gol'+(gScore!==1?'uri':'')+'</span></div>'+
+            makeRows(green,'green')+
         '</div>';
 }
 
-// ── Goal actions ──────────────────────────────────────────────────
-async function addGoal(name,team){
-    if(navigator.vibrate) navigator.vibrate(30);
-    // Optimistic update
-    const tempId='tmp_'+Date.now();
-    goals.push({id:tempId,player_name:name,team,created_at:new Date().toISOString()});
-    render();
-    bumpScore(team);
-    try{
-        const{data,error}=await sb.from('live_goals').insert({player_name:name,team}).select().single();
-        if(error) throw error;
-        // Replace temp with real
-        goals=goals.map(g=>g.id===tempId?data:g);
-    }catch(e){
-        goals=goals.filter(g=>g.id!==tempId);
-        render();
-        showToast('⚠️ '+e.message);
-    }
-}
-
-async function removeGoal(name,team){
-    // Find last goal by this player
-    const idx=[...goals].reverse().findIndex(g=>g.player_name===name&&g.team===team);
-    if(idx===-1) return;
-    const realIdx=goals.length-1-idx;
-    const g=goals[realIdx];
-    goals.splice(realIdx,1);
-    render();
-    try{
-        await sb.from('live_goals').delete().eq('id',g.id);
-    }catch(e){
-        goals.splice(realIdx,0,g);
-        render();
-        showToast('⚠️ '+e.message);
-    }
-}
-
-async function undoLast(){
-    if(!lastGoalId||String(lastGoalId).startsWith('tmp_')) return;
-    const g=goals.find(x=>x.id===lastGoalId);
-    if(!g) return;
-    goals=goals.filter(x=>x.id!==lastGoalId);
-    render();
-    try{await sb.from('live_goals').delete().eq('id',lastGoalId);}
-    catch(e){showToast('⚠️ '+e.message);}
-}
-
-async function confirmReset(){
-    if(!confirm('Resetezi scoreboard-ul live? (Golurile din baza de date a meciului nu se șterg)')) return;
-    goals=[];render();
-    try{await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');}
-    catch(e){showToast('⚠️ '+e.message);}
-}
-
-function bumpScore(team){
+function bump(team){
     const el=document.getElementById(team==='orange'?'scoreO':'scoreG');
     el.classList.add('bump');
     setTimeout(()=>el.classList.remove('bump'),200);
 }
 
-// ── Realtime ──────────────────────────────────────────────────────
+async function addGoal(name,team){
+    if(navigator.vibrate) navigator.vibrate(40);
+    const tmpId='tmp_'+Date.now();
+    goals.push({id:tmpId,player_name:name,team,created_at:new Date().toISOString()});
+    render(); bump(team);
+    try{
+        const{data,error}=await sb.from('live_goals').insert({player_name:name,team}).select().single();
+        if(error) throw error;
+        goals=goals.map(g=>g.id===tmpId?data:g);
+    }catch(e){
+        goals=goals.filter(g=>g.id!==tmpId);
+        render(); showToast('⚠️ '+e.message);
+    }
+}
+
+async function removeGoal(name,team){
+    const realIdx=[...goals].map((g,i)=>({g,i})).filter(({g})=>g.player_name===name&&g.team===team&&!String(g.id).startsWith('tmp_')).pop();
+    if(!realIdx) return;
+    const {g,i}=realIdx;
+    goals.splice(i,1); render();
+    try{ await sb.from('live_goals').delete().eq('id',g.id); }
+    catch(e){ goals.splice(i,0,g); render(); showToast('⚠️ '+e.message); }
+}
+
+async function undoLast(){
+    if(!lastRealGoalId) return;
+    const g=goals.find(x=>x.id===lastRealGoalId); if(!g) return;
+    goals=goals.filter(x=>x.id!==lastRealGoalId); render();
+    try{ await sb.from('live_goals').delete().eq('id',lastRealGoalId); }
+    catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function confirmReset(){
+    if(!confirm('Resetezi scorul live?')) return;
+    goals=[]; render();
+    try{ await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'); }
+    catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// Realtime
 function subscribe(){
-    sb.channel('live_goals_rt')
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'},payload=>{
-            // Avoid duplicate if we did the optimistic insert
-            const exists=goals.some(g=>g.id===payload.new.id||g.player_name===payload.new.player_name&&g.id.startsWith('tmp_'));
-            if(!exists){goals.push(payload.new);render();bumpScore(payload.new.team);}
-            else{goals=goals.map(g=>g.player_name===payload.new.player_name&&g.id.startsWith('tmp_')?payload.new:g);}
+    sb.channel('live_rt')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'},p=>{
+            if(!goals.some(g=>g.id===p.new.id)){
+                // Replace matching temp if exists, else push
+                const ti=goals.findIndex(g=>String(g.id).startsWith('tmp_')&&g.player_name===p.new.player_name);
+                if(ti!==-1) goals[ti]=p.new; else goals.push(p.new);
+                render(); bump(p.new.team);
+            }
         })
-        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'},()=>{loadAll();})
+        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'},()=>loadAll())
         .on('postgres_changes',{event:'*',schema:'public',table:'players'},()=>{
             sb.from('players').select('id,name,status').order('name').then(({data})=>{players=data||[];render();});
         })

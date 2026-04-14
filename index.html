@@ -1517,6 +1517,10 @@
                     <button style="background:#c62828;padding:8px 16px;border-radius:7px;" onclick="resetSeason()">↺ Reset</button>
                 </div>
                 <div class="settings-action-item">
+                    <div class="settings-action-info"><div class="settings-action-title">Resetează Goluri Jucători</div><div class="settings-action-desc">Șterge toate golurile marcate/primite din profilul fiecărui jucător și din match_goals.</div></div>
+                    <button style="background:rgba(198,40,40,.12);border:1px solid #c62828;padding:8px 16px;border-radius:7px;color:#ef9a9a;" onclick="resetAllGoals()">⚽ Reset Goluri</button>
+                </div>
+                <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Șterge Toate Datele</div><div class="settings-action-desc">Resetare completă din Supabase. Irecuperabil.</div></div>
                     <button style="background:#7b1010;border:1px solid #c62828;padding:8px 16px;border-radius:7px;" onclick="nukeAll()">💥 Șterge Tot</button>
                 </div>
@@ -2854,6 +2858,27 @@ async function resetSeason(){
             showToast('↺ Sezon resetat!');
         }catch(e){showToast('⚠️ '+e.message);}
     });
+}
+
+async function resetAllGoals(){
+    showConfirm('⚽','Resetezi toate golurile?',
+        'Se șterg total_goals, total_goals_conceded din profilul tuturor jucătorilor și toate înregistrările din match_goals. Istoricul meciurilor rămâne.',
+        '⚽ Resetează Goluri','#c62828',
+        async()=>{
+            try{
+                // Reset player goal counters
+                await sb.from('players').update({total_goals:0, total_goals_conceded:0}).neq('id',0);
+                // Delete all match_goals entries
+                await sb.from('match_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+                // Also clear live_goals if any
+                try{ await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'); }catch(_){}
+                // Update local state
+                db.players.forEach(p=>{ p.totalGoals=0; p.totalGoalsConceded=0; });
+                render();
+                showToast('✅ Goluri resetate pentru toți jucătorii!');
+            }catch(e){ showToast('⚠️ '+e.message); }
+        }
+    );
 }
 
 async function nukeAll(){
