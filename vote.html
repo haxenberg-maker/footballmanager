@@ -54,8 +54,8 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .drag-list{padding:6px;display:flex;flex-direction:column;gap:4px;min-height:50px;}
 .drag-item{display:flex;align-items:center;gap:7px;padding:8px 9px;background:#141720;border-radius:8px;border:1px solid #1e2130;cursor:grab;user-select:none;transition:border-color .1s,opacity .15s;touch-action:none;}
 .drag-item:active{cursor:grabbing;}
-.drag-item.dragging{opacity:.35;border-style:dashed;}
-.drag-item.drag-over{border-color:var(--accent);background:rgba(61,90,254,.08);}
+.drag-item.dragging{opacity:.25;border-style:dashed;border-color:#555;}
+.drag-placeholder{height:44px;border-radius:8px;border:2px dashed var(--accent);background:rgba(61,90,254,.06);margin-bottom:4px;transition:height .1s;}
 .drag-pos{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:18px;text-align:center;color:#333;}
 .drag-pos.p1{color:var(--star);}
 .drag-pos.p2{color:#aaa;}
@@ -245,73 +245,139 @@ function updateSubmitBar(){
 }
 
 // ── Drag & Drop ───────────────────────────────────────────────────
-let dragSrc=null;
+// ── Sortable drag & drop (desktop + touch) ───────────────────────
+// Uses placeholder element for clear visual feedback.
+// Insert position determined by cursor vs target midpoint.
+
+let _dragSrc = null;     // the item being dragged
+let _placeholder = null; // visual placeholder div
+let _touchClone = null;  // floating clone for touch
+
+function makePlaceholder(){
+    const p = document.createElement('div');
+    p.className = 'drag-placeholder';
+    p.id = '_dragPlaceholder';
+    return p;
+}
+
+function removePlaceholder(){
+    const p = document.getElementById('_dragPlaceholder');
+    if(p) p.remove();
+}
+
+function getInsertIndex(list, clientY, excludeEl){
+    const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==excludeEl);
+    for(let i=0;i<items.length;i++){
+        const r=items[i].getBoundingClientRect();
+        if(clientY < r.top + r.height/2) return i;
+    }
+    return items.length;
+}
+
+function applyReorder(which, srcName, insertIdx){
+    const arr = which==='mine' ? orderMine : orderOpp;
+    const fi = arr.findIndex(p=>p.name===srcName);
+    if(fi===-1) return;
+    const [mv] = arr.splice(fi,1);
+    // insertIdx was computed excluding the dragged item, so it's correct
+    const clampedIdx = Math.min(insertIdx, arr.length);
+    arr.splice(clampedIdx, 0, mv);
+    renderList(which); initDrag();
+    if(navigator.vibrate) navigator.vibrate(20);
+}
+
 function initDrag(){
     document.querySelectorAll('.drag-list').forEach(list=>{
-        list.addEventListener('dragover',e=>{
+        // Desktop dragover — move placeholder
+        list.addEventListener('dragover', e=>{
             e.preventDefault();
-            const over=e.target.closest('.drag-item');
-            document.querySelectorAll('.drag-item').forEach(i=>i.classList.remove('drag-over'));
-            if(over&&over!==dragSrc) over.classList.add('drag-over');
+            e.dataTransfer.dropEffect='move';
+            if(!_dragSrc) return;
+            const idx = getInsertIndex(list, e.clientY, _dragSrc);
+            const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==_dragSrc);
+            // Insert placeholder at correct position
+            if(idx >= items.length){
+                list.appendChild(_placeholder);
+            } else {
+                list.insertBefore(_placeholder, items[idx]);
+            }
         });
-        list.addEventListener('drop',e=>{
+        // Desktop drop
+        list.addEventListener('drop', e=>{
             e.preventDefault();
-            document.querySelectorAll('.drag-item').forEach(i=>i.classList.remove('drag-over'));
-            const over=e.target.closest('.drag-item');
-            if(!over||!dragSrc||over===dragSrc) return;
-            const which=list.dataset.list;
-            const arr=which==='mine'?orderMine:orderOpp;
-            const fi=arr.findIndex(p=>p.name===dragSrc.dataset.name);
-            const ti=arr.findIndex(p=>p.name===over.dataset.name);
-            if(fi!==-1&&ti!==-1){const[mv]=arr.splice(fi,1);arr.splice(ti,0,mv);}
-            renderList(which);initDrag();if(navigator.vibrate)navigator.vibrate(20);
+            if(!_dragSrc) return;
+            const idx = getInsertIndex(list, e.clientY, _dragSrc);
+            const which = list.dataset.list;
+            removePlaceholder();
+            applyReorder(which, _dragSrc.dataset.name, idx);
         });
     });
     document.querySelectorAll('.drag-item').forEach(item=>{
-        item.addEventListener('dragstart',e=>{dragSrc=item;item.classList.add('dragging');e.dataTransfer.effectAllowed='move';});
-        item.addEventListener('dragend',()=>{item.classList.remove('dragging');document.querySelectorAll('.drag-item').forEach(i=>i.classList.remove('drag-over'));});
+        item.addEventListener('dragstart', e=>{
+            _dragSrc = item;
+            _placeholder = makePlaceholder();
+            _placeholder.style.height = item.offsetHeight+'px';
+            setTimeout(()=>item.classList.add('dragging'), 0);
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        item.addEventListener('dragend', ()=>{
+            item.classList.remove('dragging');
+            removePlaceholder();
+            _dragSrc = null;
+        });
+        // Touch
         initTouch(item);
     });
 }
 
 function initTouch(item){
-    let startY,startX,clone,origRect,moved=false;
-    item.addEventListener('touchstart',e=>{
-        const t=e.touches[0];startY=t.clientY;startX=t.clientX;moved=false;
-        origRect=item.getBoundingClientRect();
-        clone=item.cloneNode(true);
-        clone.style.cssText='position:fixed;top:'+origRect.top+'px;left:'+origRect.left+'px;width:'+origRect.width+'px;z-index:1000;opacity:.8;pointer-events:none;border:1px solid var(--accent);border-radius:8px;';
-        document.body.appendChild(clone);
-        item.style.opacity='.3';
+    let startY, origRect, lastIdx=-1, lastList=null;
+    item.addEventListener('touchstart', e=>{
+        const t = e.touches[0];
+        startY = t.clientY;
+        origRect = item.getBoundingClientRect();
+        _placeholder = makePlaceholder();
+        _placeholder.style.height = item.offsetHeight+'px';
+        _touchClone = item.cloneNode(true);
+        _touchClone.style.cssText = 'position:fixed;top:'+origRect.top+'px;left:'+origRect.left+'px;width:'+origRect.width+'px;z-index:1000;opacity:.85;pointer-events:none;border:1px solid var(--accent);border-radius:8px;background:#1a2060;';
+        document.body.appendChild(_touchClone);
+        item.style.visibility = 'hidden';
+        // Insert placeholder where item was
+        item.parentNode.insertBefore(_placeholder, item);
     },{passive:true});
-    item.addEventListener('touchmove',e=>{
-        e.preventDefault();moved=true;
-        const t=e.touches[0];
-        clone.style.top=(origRect.top+t.clientY-startY)+'px';
-        clone.style.left=(origRect.left+t.clientX-startX)+'px';
-        clone.style.display='none';
-        const under=document.elementFromPoint(t.clientX,t.clientY);
-        clone.style.display='';
-        document.querySelectorAll('.drag-item').forEach(i=>i.classList.remove('drag-over'));
-        const overItem=under&&under.closest('.drag-item');
-        if(overItem&&overItem!==item) overItem.classList.add('drag-over');
-    },{passive:false});
-    item.addEventListener('touchend',e=>{
-        if(clone){clone.remove();clone=null;}
-        item.style.opacity='';
-        document.querySelectorAll('.drag-item').forEach(i=>i.classList.remove('drag-over'));
-        if(!moved) return;
-        const t=e.changedTouches[0];
-        const under=document.elementFromPoint(t.clientX,t.clientY);
-        const overItem=under&&under.closest('.drag-item');
-        if(overItem&&overItem!==item){
-            const which=item.dataset.list;
-            const arr=which==='mine'?orderMine:orderOpp;
-            const fi=arr.findIndex(p=>p.name===item.dataset.name);
-            const ti=arr.findIndex(p=>p.name===overItem.dataset.name);
-            if(fi!==-1&&ti!==-1){const[mv]=arr.splice(fi,1);arr.splice(ti,0,mv);}
-            renderList(which);initDrag();if(navigator.vibrate)navigator.vibrate(20);
+
+    item.addEventListener('touchmove', e=>{
+        e.preventDefault();
+        const t = e.touches[0];
+        const dy = t.clientY - startY;
+        _touchClone.style.top = (origRect.top + dy)+'px';
+        // Find list under finger
+        _touchClone.style.display='none';
+        const under = document.elementFromPoint(t.clientX, t.clientY);
+        _touchClone.style.display='';
+        const list = under && under.closest('.drag-list');
+        if(list){
+            lastList = list;
+            const idx = getInsertIndex(list, t.clientY, item);
+            lastIdx = idx;
+            const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==item);
+            if(idx >= items.length){
+                list.appendChild(_placeholder);
+            } else {
+                list.insertBefore(_placeholder, items[idx]);
+            }
         }
+    },{passive:false});
+
+    item.addEventListener('touchend', e=>{
+        if(_touchClone){_touchClone.remove();_touchClone=null;}
+        item.style.visibility='';
+        removePlaceholder();
+        if(lastList && lastIdx !== -1){
+            const which = lastList.dataset.list;
+            applyReorder(which, item.dataset.name, lastIdx);
+        }
+        lastIdx=-1; lastList=null;
     });
 }
 
