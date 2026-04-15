@@ -9,6 +9,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0a0c10">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Arena FC">
     <link rel="apple-touch-icon" href="/icon-192.png">
@@ -3060,6 +3061,7 @@ function exportTeamsText(){
         teamNames.green.toUpperCase()+' ('+green.length+')'+'\n'+
         fmtRaw(green);
 
+    window._exportRaw = textRaw;
     const overlay=document.createElement('div');
     overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:flex-end;justify-content:center;';
     overlay.innerHTML=`<div style="background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;">
@@ -3068,7 +3070,7 @@ function exportTeamsText(){
         <div style="display:flex;gap:6px;">
             <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:10px 12px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;cursor:pointer;font-size:.78rem;">✕</button>
             <button id="exportBtnEmoji" onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Cu Emoji',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;">📋 Cu Emoji</button>
-            <button onclick="navigator.clipboard.writeText('${textRaw.replace(/'/g,"\\'")}').then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📄 RAW',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a2a50,var(--accent));border:1px solid var(--accent);color:#fff;">📄 RAW</button>
+            <button onclick="navigator.clipboard.writeText(window._exportRaw||'').then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📄 RAW',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a2a50,var(--accent));border:1px solid var(--accent);color:#fff;">📄 RAW</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
