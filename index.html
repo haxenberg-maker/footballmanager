@@ -2186,9 +2186,11 @@ function setupRealtime() {
             if (nm) {
                 db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] };
                 renderLobby();
+                updateScenarioBadge();
             }
         })
         .subscribe();
+    setupScenariosRealtime();
 }
 
 // ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
@@ -4952,6 +4954,7 @@ function toggleBalancePopup(e) {
     e.stopPropagation();
     const popup = document.getElementById('balancePopup');
     popup.classList.toggle('show');
+    if(popup.classList.contains('show')) updateScenarioBadge();
 }
 document.addEventListener('click', () => {
     document.getElementById('balancePopup')?.classList.remove('show');
@@ -5179,6 +5182,16 @@ function moveTeamsToBench() {
 let currentScenario = 1;
 let scenarios = {1:null, 2:null, 3:null};
 
+// ── Jucătorii eligibili = confirmați pentru meciul activ ──────────
+function getEligiblePlayers(){
+    const confirmed = db.nextMatch?.confirmedIds || [];
+    if(confirmed.length > 0){
+        return db.players.filter(p => confirmed.includes(p.id));
+    }
+    // Fallback: jucători bench/orange/green (activi în dashboard)
+    return db.players.filter(p => ['bench','orange','green'].includes(p.status));
+}
+
 function snapshotTeams(){
     return {
         orange: db.players.filter(p=>p.status==='orange').map(p=>p.name),
@@ -5188,10 +5201,13 @@ function snapshotTeams(){
 
 function applyScenario(sc){
     if(!sc) return;
+    // Only move eligible players — don't touch others
+    const eligible = getEligiblePlayers().map(p=>p.name);
     db.players.forEach(p=>{
+        if(!eligible.includes(p.name)) return; // skip non-eligible
         if(sc.orange.includes(p.name))      p.status='orange';
         else if(sc.green.includes(p.name))  p.status='green';
-        else if(p.status==='orange'||p.status==='green') p.status='bench';
+        else                                p.status='bench';
     });
     render();
 }
@@ -5210,6 +5226,16 @@ function switchScenario(n){
     } else {
         showToast('📋 Scenariu '+n+' gol — aranjează echipele și salvează');
     }
+    updateScenarioBadge();
+}
+
+function updateScenarioBadge(){
+    // Show eligible count in popup title
+    const el = document.querySelector('.balance-popup-title');
+    if(!el) return;
+    const eligible = getEligiblePlayers();
+    const hasCon = (db.nextMatch?.confirmedIds||[]).length > 0;
+    el.innerHTML = '⚖️ Fă Echipele'+(hasCon?` <span style="font-size:.55rem;color:#69f0ae;font-family:'Rajdhani',sans-serif;">(${eligible.length} confirmați)</span>`:'');
 }
 
 async function resetScenarios(){
@@ -5236,7 +5262,7 @@ async function saveScenario(){
             green_players:  sc.green,
             updated_at: new Date().toISOString()
         }, {onConflict:'scenario_id'});
-    }catch(e){ console.warn('scenario save:', e.message); }
+    }catch(e){ showToast('⚠️ '+e.message); return; }
     const btn = document.getElementById('scBtn'+currentScenario);
     if(btn){ btn.classList.add('saved'); btn.textContent='S'+currentScenario+' ✓'; }
     showToast('✅ Scenariu '+currentScenario+' salvat!');
@@ -5257,6 +5283,26 @@ async function loadScenarios(){
     }catch(e){ console.warn('scenario load:', e.message); }
 }
 
+// ── Realtime pentru scenarii ──────────────────────────────────────
+function setupScenariosRealtime(){
+    sb.channel('match_scenarios_rt')
+        .on('postgres_changes',{event:'*',schema:'public',table:'match_scenarios'}, async ()=>{
+            // Reload scenarios from DB when another client saves
+            const{data}=await sb.from('match_scenarios').select('*').order('scenario_id');
+            scenarios={1:null,2:null,3:null};
+            [1,2,3].forEach(i=>{
+                const btn=document.getElementById('scBtn'+i);
+                if(btn){btn.classList.remove('saved');btn.textContent='S'+i;btn.classList.toggle('active',i===currentScenario);}
+            });
+            (data||[]).forEach(row=>{
+                scenarios[row.scenario_id]={orange:row.orange_players||[],green:row.green_players||[]};
+                const btn=document.getElementById('scBtn'+row.scenario_id);
+                if(btn){btn.classList.add('saved');btn.textContent='S'+row.scenario_id+' \u2713';}
+            });
+        })
+        .subscribe();
+}
+
 function openVoteTeamsLink(){
     document.getElementById('balancePopup').classList.remove('show');
     const hasSaved = Object.values(scenarios).some(s=>s!==null);
@@ -5264,10 +5310,17 @@ function openVoteTeamsLink(){
     window.open('vote-teams.html','_blank');
 }
 
+
 function doBalance(mode) {
     document.getElementById('balancePopup').classList.remove('show');
-    const active = db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
-    if (active.length < 2) { showToast('⚠️ Minim 2 jucători activi!'); return; }
+    // Preferă jucătorii confirmați; fallback la bench/orange/green
+    const eligible = getEligiblePlayers();
+    const active = eligible.length >= 2
+        ? eligible
+        : db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
+    if (active.length < 2) { showToast('⚠️ Minim 2 jucători confirmați!'); return; }
+    // Move eligible players to bench before balancing
+    active.forEach(p=>{ if(p.status==='active') p.status='bench'; });
 
     if (mode === 'surprise') {
         // ── Surprise Me: random cu max 2 taguri negative pe echipă ──
@@ -5400,7 +5453,10 @@ let draftState = { picks: [], currentTurn: 'orange', captains: {orange:null, gre
 
 function openDraftMode() {
     document.getElementById('balancePopup').classList.remove('show');
-    const active = db.players.filter(p => ['orange','green','bench'].includes(p.status));
+    const eligible = getEligiblePlayers();
+    const active = eligible.length >= 4
+        ? eligible
+        : db.players.filter(p => ['orange','green','bench'].includes(p.status));
     if (active.length < 4) { showToast('⚠️ Minim 4 jucători pentru Draft!'); return; }
 
     // Move all active to neutral pool
