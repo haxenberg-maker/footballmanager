@@ -1037,14 +1037,19 @@ async function refreshPollResults(){
     ).join('');
     // Per-voter breakdown
     document.getElementById('pollBreakdownWrap').style.display='block';
+    // Store votes for editing
+    window._pollVotes=votes;
     document.getElementById('pollBreakdownList').innerHTML=votes.map(v=>{
         const rank=v.ranking||[];
         const ms=['🥇','🥈','🥉'];
-        return `<div style="padding:7px 0;border-bottom:1px solid #0a0c14;">
-            <div style="font-size:.68rem;font-weight:700;color:#888;margin-bottom:4px;">👤 ${v.voter_name}</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                ${rank.map((name,i)=>`<span style="font-size:.65rem;padding:2px 7px;border-radius:5px;background:#0d1020;border:1px solid var(--border);color:#888;">${ms[i]||(i+1)+'. '}${name}</span>`).join('')}
+        return `<div style="padding:7px 0;border-bottom:1px solid #0a0c14;display:flex;align-items:flex-start;gap:8px;">
+            <div style="flex:1;">
+                <div style="font-size:.68rem;font-weight:700;color:#888;margin-bottom:4px;">👤 ${v.voter_name}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                    ${rank.map((name,i)=>`<span style="font-size:.65rem;padding:2px 7px;border-radius:5px;background:#0d1020;border:1px solid var(--border);color:#888;">${ms[i]||(i+1)+'. '}${name}</span>`).join('')}
+                </div>
             </div>
+            <button onclick="openVoteEdit('${v.voter_name}')" style="background:rgba(255,204,0,.07);border:1px solid rgba(255,204,0,.2);color:var(--star);padding:4px 8px;border-radius:6px;font-size:.65rem;cursor:pointer;white-space:nowrap;margin-top:2px;flex-shrink:0;">✏️ Edit</button>
         </div>`;
     }).join('');
 }
@@ -1194,8 +1199,102 @@ function copyAllCodes(){
     navigator.clipboard.writeText(lines).then(()=>showToast('📋 Coduri copiate!'));
 }
 
+
+// ── Admin: Edit a voter's ranking ─────────────────────────────────
+let _editVoter=null, _editSelected=[];
+
+function openVoteEdit(voterName){
+    _editVoter=voterName;
+    const vote=(window._pollVotes||[]).find(v=>v.voter_name===voterName);
+    _editSelected=vote?.ranking?[...vote.ranking]:[];
+    // Make sure all poll players present
+    const allP=activePoll?.players||[];
+    allP.forEach(n=>{if(!_editSelected.includes(n))_editSelected.push(n);});
+    _editSelected=_editSelected.filter(n=>allP.includes(n));
+    document.getElementById('voteEditWho').textContent='Votul lui '+voterName;
+    document.getElementById('voteEditOverlay').style.display='flex';
+    renderVoteEditGrid();
+}
+
+function closeVoteEdit(){
+    document.getElementById('voteEditOverlay').style.display='none';
+    _editVoter=null;_editSelected=[];
+}
+
+function renderVoteEditGrid(){
+    const allP=activePoll?.players||[];
+    const medals=['🥇','🥈','🥉'];
+    const grid=document.getElementById('voteEditGrid');
+    grid.innerHTML=allP.map(name=>{
+        const pos=_editSelected.indexOf(name);
+        const isSet=pos>=0;
+        const lbl=isSet?(medals[pos]||(pos+1)+'°'):'—';
+        const col=pos===0?'var(--star)':pos===1?'#aaa':pos===2?'#cd7f32':isSet?'var(--accent)':'#252836';
+        const bg=pos===0?'rgba(255,204,0,.06)':isSet?'rgba(61,90,254,.06)':'#0d0f18';
+        const border=pos===0?'rgba(255,204,0,.3)':isSet?'var(--accent)':'var(--border)';
+        return `<div onclick="veToggle('${name.replace(/'/g,"\'")}')
+            " style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;border:2px solid ${border};background:${bg};cursor:pointer;transition:all .1s;-webkit-tap-highlight-color:transparent;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:26px;text-align:center;color:${col};">${lbl}</span>
+            <span style="flex:1;font-weight:700;font-size:.88rem;">${name}</span>
+            ${isSet?`<span onclick="veDesel(event,'${name.replace(/'/g,"\'")}')
+                " style="font-size:.7rem;color:#ef9a9a;background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.2);padding:2px 6px;border-radius:5px;cursor:pointer;">✕</span>`:''}
+        </div>`;
+    }).join('');
+    const done=_editSelected.length,total=allP.length;
+    document.getElementById('voteEditSaveBtn').disabled=done<total;
+    document.getElementById('voteEditSaveBtn').textContent=done<total?`💾 Salvează (${done}/${total})`:'💾 Salvează';
+}
+
+function veToggle(name){
+    if(_editSelected.includes(name)) return;
+    _editSelected.push(name);
+    renderVoteEditGrid();
+}
+function veDesel(e,name){
+    e.stopPropagation();
+    _editSelected=_editSelected.filter(n=>n!==name);
+    renderVoteEditGrid();
+}
+function resetVoteEdit(){
+    _editSelected=[];
+    renderVoteEditGrid();
+}
+
+async function saveVoteEdit(){
+    if(!_editVoter||!activePoll) return;
+    const allP=activePoll.players||[];
+    if(_editSelected.length<allP.length){showToast('⚠️ Selectează toți jucătorii!');return;}
+    try{
+        await sb.from('player_poll_votes')
+            .upsert({poll_id:activePoll.id,voter_name:_editVoter,ranking:_editSelected},{onConflict:'poll_id,voter_name'});
+        showToast('✅ Votul lui '+_editVoter+' actualizat!');
+        closeVoteEdit();
+        await refreshPollResults();
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 loadAll();
 </script>
+
+<!-- Poll Vote Edit Modal -->
+<div id="voteEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end;justify-content:center;">
+  <div style="background:#141720;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;">✏️ Editează Vot</div>
+        <div style="font-size:.7rem;color:#555;margin-top:2px;" id="voteEditWho"></div>
+      </div>
+      <button onclick="closeVoteEdit()" style="background:#252836;border:1px solid #2a2d40;color:#888;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:.8rem;">✕</button>
+    </div>
+    <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Apasă în ordinea preferinței (primul = cel mai bun):</div>
+    <!-- Player picker inside modal -->
+    <div id="voteEditGrid" style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button onclick="resetVoteEdit()" style="padding:10px 14px;border-radius:9px;background:#0a0c14;border:1px solid var(--border);color:#555;font-size:.78rem;cursor:pointer;">↺ Reset</button>
+      <button onclick="saveVoteEdit()" id="voteEditSaveBtn" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;" disabled>💾 Salvează</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
