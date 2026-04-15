@@ -54,35 +54,39 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .instruction{font-size:.7rem;color:#444;text-align:center;padding:4px 0 10px;display:flex;align-items:center;justify-content:center;gap:6px;}
 
 /* Drag list */
-.drag-list{display:flex;flex-direction:column;gap:5px;}
+.drag-list{display:flex;flex-direction:column;gap:6px;}
 
-.drag-item{
-    display:flex;align-items:center;gap:9px;
-    padding:10px 12px;
+.rank-card{
+    display:flex;align-items:center;gap:10px;
+    padding:11px 12px;
     background:#0d0f18;border-radius:10px;
     border:1px solid var(--border);
-    cursor:grab;user-select:none;touch-action:none;
-    transition:border-color .1s, opacity .12s;
+    user-select:none;
 }
-.drag-item:active{cursor:grabbing;}
-.drag-item.dragging{opacity:.25;border-style:dashed;border-color:#444;}
-.drag-placeholder{
-    border-radius:10px;border:2px dashed var(--accent);
-    background:rgba(61,90,254,.05);
-    transition:height .08s;
+.rc-pos{
+    font-family:'Bebas Neue',sans-serif;font-size:1.3rem;
+    min-width:28px;text-align:center;color:#252836;
+    transition:color .15s;
 }
-
-.di-handle{color:#252836;font-size:.95rem;flex-shrink:0;line-height:1;}
-.di-pos{
-    font-family:'Bebas Neue',sans-serif;font-size:1.2rem;
-    min-width:26px;text-align:center;
-    color:#252836;transition:color .1s;
+.rc-pos.p1{color:var(--star);}
+.rc-pos.p2{color:#aaa;}
+.rc-pos.p3{color:#cd7f32;}
+.rc-name{flex:1;font-weight:700;font-size:.9rem;}
+.rc-me{font-size:.55rem;color:var(--accent);margin-left:3px;}
+.rc-btns{display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.rc-btn{
+    width:36px;height:30px;
+    border-radius:7px;border:1px solid var(--border);
+    background:#141720;color:#555;
+    font-size:.85rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .1s,border-color .1s,color .1s;
+    -webkit-tap-highlight-color:transparent;
 }
-.di-pos.p1{color:var(--star);}
-.di-pos.p2{color:#aaa;}
-.di-pos.p3{color:#cd7f32;}
-.di-name{flex:1;font-weight:700;font-size:.9rem;}
-.di-me{font-size:.55rem;color:var(--accent);margin-left:3px;}
+.rc-btn:active{background:#252836;}
+.rc-btn.up:active{background:rgba(61,90,254,.2);border-color:var(--accent);color:#fff;}
+.rc-btn.down:active{background:rgba(255,140,0,.15);border-color:var(--star);color:#fff;}
+.rc-btn:disabled{opacity:.2;cursor:not-allowed;}
 
 /* Submit bar */
 .submit-bar{
@@ -191,7 +195,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
       <div class="poll-label" id="votePollLabel"></div>
       <div class="poll-meta" id="votePollMeta"></div>
     </div>
-    <div class="instruction">⠿ Trage pentru a reordona · Sus = cel mai bun jucător</div>
+    <div class="instruction">▲▼ Apasă săgețile pentru a reordona · Sus = cel mai bun jucător</div>
     <div class="drag-list" id="dragList"></div>
   </div>
 
@@ -270,106 +274,39 @@ async function loadActivePoll(){
     ordering=[...(activePoll.players||[])];
     document.getElementById('votePollLabel').textContent=activePoll.label||'Sondaj';
     document.getElementById('votePollMeta').textContent=ordering.length+' jucători · de la cel mai bun la cel mai slab';
-    renderDragList();
+    renderRankList();
     showScreen('screenVote');
     subscribePollStatus();
 }
 
 // ── Drag list ─────────────────────────────────────────────────────
-function renderDragList(){
+function renderRankList(){
     const list=document.getElementById('dragList');
     const medals=['🥇','🥈','🥉'];
+    const N=ordering.length;
     list.innerHTML=ordering.map((name,i)=>`
-        <div class="drag-item" draggable="true" data-name="${name}">
-            <span class="di-handle">⠿</span>
-            <span class="di-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${medals[i]||(i+1)}</span>
-            <span class="di-name">${name}${name===myName?'<span class="di-me">tu</span>':''}</span>
+        <div class="rank-card" id="rc-${i}">
+            <div class="rc-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${medals[i]||(i+1)}</div>
+            <div class="rc-name">${name}${name===myName?'<span class="rc-me">tu</span>':''}</div>
+            <div class="rc-btns">
+                <button class="rc-btn up" onclick="moveUp(${i})" ${i===0?'disabled':''} aria-label="Sus">▲</button>
+                <button class="rc-btn down" onclick="moveDown(${i})" ${i===N-1?'disabled':''} aria-label="Jos">▼</button>
+            </div>
         </div>`).join('');
-    initDrag();
 }
 
-// ── Drag & Drop (placeholder-based, identical to vote.html) ───────
-let _dragSrc=null, _placeholder=null, _touchClone=null;
-
-function makePH(h){const p=document.createElement('div');p.className='drag-placeholder';p.id='_ph';p.style.height=h+'px';return p;}
-function removePH(){const p=document.getElementById('_ph');if(p)p.remove();}
-
-function getInsertIdx(list,clientY,exclude){
-    const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==exclude);
-    for(let i=0;i<items.length;i++){const r=items[i].getBoundingClientRect();if(clientY<r.top+r.height/2)return i;}
-    return items.length;
+// ── Up / Down buttons ────────────────────────────────────────────
+function moveUp(i){
+    if(i===0) return;
+    [ordering[i],ordering[i-1]]=[ordering[i-1],ordering[i]];
+    renderRankList();
+    if(navigator.vibrate) navigator.vibrate(15);
 }
-
-function reorder(srcName,idx){
-    const fi=ordering.indexOf(srcName);
-    if(fi===-1)return;
-    const[mv]=ordering.splice(fi,1);
-    ordering.splice(Math.min(idx,ordering.length),0,mv);
-    renderDragList();
-    if(navigator.vibrate)navigator.vibrate(18);
-}
-
-function initDrag(){
-    const list=document.getElementById('dragList');
-    list.addEventListener('dragover',e=>{
-        e.preventDefault();e.dataTransfer.dropEffect='move';
-        if(!_dragSrc)return;
-        const idx=getInsertIdx(list,e.clientY,_dragSrc);
-        const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==_dragSrc);
-        if(idx>=items.length)list.appendChild(_placeholder);
-        else list.insertBefore(_placeholder,items[idx]);
-    });
-    list.addEventListener('drop',e=>{
-        e.preventDefault();
-        if(!_dragSrc)return;
-        const idx=getInsertIdx(list,e.clientY,_dragSrc);
-        removePH();
-        reorder(_dragSrc.dataset.name,idx);
-    });
-    list.querySelectorAll('.drag-item').forEach(item=>{
-        item.addEventListener('dragstart',e=>{
-            _dragSrc=item;_placeholder=makePH(item.offsetHeight);
-            setTimeout(()=>item.classList.add('dragging'),0);
-            e.dataTransfer.effectAllowed='move';
-        });
-        item.addEventListener('dragend',()=>{item.classList.remove('dragging');removePH();_dragSrc=null;});
-        initTouch(item);
-    });
-}
-
-function initTouch(item){
-    let sy,origRect,lastIdx=-1,moved=false;
-    item.addEventListener('touchstart',e=>{
-        const t=e.touches[0];sy=t.clientY;moved=false;
-        origRect=item.getBoundingClientRect();
-        _placeholder=makePH(item.offsetHeight);
-        _touchClone=item.cloneNode(true);
-        _touchClone.style.cssText='position:fixed;top:'+origRect.top+'px;left:'+origRect.left+'px;width:'+origRect.width+'px;z-index:1000;opacity:.85;pointer-events:none;border:1px solid var(--accent);border-radius:10px;background:#1a2060;';
-        document.body.appendChild(_touchClone);
-        item.style.visibility='hidden';
-        item.parentNode.insertBefore(_placeholder,item);
-    },{passive:true});
-    item.addEventListener('touchmove',e=>{
-        e.preventDefault();moved=true;
-        const t=e.touches[0];
-        _touchClone.style.top=(origRect.top+t.clientY-sy)+'px';
-        _touchClone.style.display='none';
-        const under=document.elementFromPoint(t.clientX,t.clientY);
-        _touchClone.style.display='';
-        const list=document.getElementById('dragList');
-        const idx=getInsertIdx(list,t.clientY,item);
-        lastIdx=idx;
-        const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==item);
-        if(idx>=items.length)list.appendChild(_placeholder);
-        else list.insertBefore(_placeholder,items[idx]);
-    },{passive:false});
-    item.addEventListener('touchend',()=>{
-        if(_touchClone){_touchClone.remove();_touchClone=null;}
-        item.style.visibility='';
-        removePH();
-        if(moved&&lastIdx!==-1)reorder(item.dataset.name,lastIdx);
-        lastIdx=-1;
-    });
+function moveDown(i){
+    if(i>=ordering.length-1) return;
+    [ordering[i],ordering[i+1]]=[ordering[i+1],ordering[i]];
+    renderRankList();
+    if(navigator.vibrate) navigator.vibrate(15);
 }
 
 // ── Submit ────────────────────────────────────────────────────────
