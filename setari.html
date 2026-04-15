@@ -449,13 +449,26 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 <button onclick="copyPollLink()" style="background:rgba(61,90,254,.1);border:1px solid var(--accent);color:#82b1ff;padding:4px 10px;border-radius:6px;font-size:.7rem;cursor:pointer;">📋 Copiază</button>
             </div>
             <!-- Live vote progress -->
-            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Voturi primite <span id="pollVoteCount" style="color:#69f0ae;">0</span> / <span id="pollTotalEligible">0</span></div>
-            <div id="pollVotersList" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-            <!-- Results preview (shown after stop) -->
-            <div id="pollResultsPreview" style="display:none;margin-top:12px;">
-                <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Clasament Borda</div>
-                <div id="pollResultsList"></div>
-                <button onclick="applyPollToBorda()" style="width:100%;margin-top:10px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">💾 Aplică în Smart Rating</button>
+            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
+                Voturi primite <span id="pollVoteCount" style="color:#69f0ae;font-size:.85rem;">0</span> / <span id="pollTotalEligible">0</span>
+            </div>
+            <div id="pollVotersList" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
+
+            <!-- Live Borda results — always visible once there's at least 1 vote -->
+            <div id="pollLiveResults" style="display:none;">
+                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-top:10px;border-top:1px solid var(--border);">📊 Clasament Live</div>
+                <div id="pollLiveResultsList"></div>
+            </div>
+
+            <!-- Per-voter breakdown (toggle) -->
+            <div id="pollBreakdownWrap" style="display:none;margin-top:10px;">
+                <button onclick="toggleBreakdown()" style="width:100%;padding:7px;border-radius:7px;background:#0a0c14;border:1px solid var(--border);color:#555;font-size:.72rem;cursor:pointer;margin-bottom:8px;" id="breakdownToggleBtn">▼ Vezi cum a votat fiecare</button>
+                <div id="pollBreakdownList" style="display:none;"></div>
+            </div>
+
+            <!-- Apply after stop -->
+            <div id="pollResultsPreview" style="display:none;margin-top:10px;">
+                <button onclick="applyPollToBorda()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">💾 Aplică în Smart Rating</button>
             </div>
         </div>
     </div>
@@ -989,6 +1002,7 @@ async function loadPollVotes(){
     const{data}=await sb.from('player_poll_votes').select('voter_name').eq('poll_id',activePoll.id);
     pollVoters=new Set((data||[]).map(v=>v.voter_name));
     renderPollVoters();
+    refreshPollResults();
 }
 
 function renderPollVoters(){
@@ -999,12 +1013,57 @@ function renderPollVoters(){
     ).join('');
 }
 
+async function refreshPollResults(){
+    if(!activePoll) return;
+    const{data:votes}=await sb.from('player_poll_votes').select('voter_name,ranking').eq('poll_id',activePoll.id);
+    if(!votes?.length){ document.getElementById('pollLiveResults').style.display='none'; return; }
+    // Aggregate Borda
+    const totals={};
+    votes.forEach(v=>{const rank=v.ranking||[];const N=rank.length;rank.forEach((name,i)=>{totals[name]=(totals[name]||0)+(N-i);});});
+    const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+    const maxPts=sorted[0]?.[1]||1;
+    // Live results (no percentages, just rank + bar)
+    const medals=['🥇','🥈','🥉'];
+    document.getElementById('pollLiveResults').style.display='block';
+    document.getElementById('pollLiveResultsList').innerHTML=sorted.map(([name,pts],i)=>
+        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;min-width:22px;text-align:center;color:${i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#333'}">${medals[i]||(i+1)}</span>
+            <span style="flex:1;font-weight:700;font-size:.82rem;">${name}</span>
+            <div style="width:80px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;">
+                <div style="width:${Math.round((pts/maxPts)*100)}%;height:100%;background:${i===0?'linear-gradient(90deg,var(--star),#ff8c00)':'linear-gradient(90deg,var(--accent),#a78bfa)'};border-radius:2px;"></div>
+            </div>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;min-width:28px;text-align:right;">${pts}pt</span>
+        </div>`
+    ).join('');
+    // Per-voter breakdown
+    document.getElementById('pollBreakdownWrap').style.display='block';
+    document.getElementById('pollBreakdownList').innerHTML=votes.map(v=>{
+        const rank=v.ranking||[];
+        const ms=['🥇','🥈','🥉'];
+        return `<div style="padding:7px 0;border-bottom:1px solid #0a0c14;">
+            <div style="font-size:.68rem;font-weight:700;color:#888;margin-bottom:4px;">👤 ${v.voter_name}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                ${rank.map((name,i)=>`<span style="font-size:.65rem;padding:2px 7px;border-radius:5px;background:#0d1020;border:1px solid var(--border);color:#888;">${ms[i]||(i+1)+'. '}${name}</span>`).join('')}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleBreakdown(){
+    const bd=document.getElementById('pollBreakdownList');
+    const btn=document.getElementById('breakdownToggleBtn');
+    const open=bd.style.display==='none';
+    bd.style.display=open?'block':'none';
+    btn.textContent=open?'▲ Ascunde':'▼ Vezi cum a votat fiecare';
+}
+
 function subscribePollRealtime(){
     if(pollChannel) sb.removeChannel(pollChannel);
     pollChannel=sb.channel('poll_rt_'+activePoll.id)
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'player_poll_votes',filter:'poll_id=eq.'+activePoll.id},payload=>{
             pollVoters.add(payload.new.voter_name);
             renderPollVoters();
+            refreshPollResults();
             showToast('🗳️ '+payload.new.voter_name+' a votat!');
         })
         .subscribe();
