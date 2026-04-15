@@ -139,6 +139,17 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .save-btn{flex:1;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:var(--accent);border:1px solid var(--accent);color:#fff;}
 .reset-btn-sm{padding:11px 14px;border-radius:9px;background:#141720;border:1px solid var(--border);color:#555;font-size:.82rem;cursor:pointer;}
 
+
+/* Codes panel */
+.codes-table{width:100%;border-collapse:collapse;margin-top:8px;}
+.codes-table th{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;}
+.codes-table td{padding:8px;border-bottom:1px solid #0f1118;font-size:.82rem;vertical-align:middle;}
+.codes-table tr:last-child td{border-bottom:none;}
+.code-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:var(--star);background:#0d1020;padding:3px 10px;border-radius:6px;display:inline-block;}
+.code-regen{background:none;border:1px solid #1e2130;color:#555;padding:3px 8px;border-radius:6px;font-size:.65rem;cursor:pointer;white-space:nowrap;}
+.code-regen:hover{border-color:var(--accent);color:#82b1ff;}
+.codes-copy-btn{width:100%;padding:9px;border-radius:8px;background:rgba(61,90,254,.1);border:1px solid var(--accent);color:#82b1ff;font-size:.82rem;font-weight:700;cursor:pointer;margin-top:8px;}
+
 /* Export/Import */
 .data-btn{width:100%;padding:11px;border-radius:9px;font-weight:700;font-size:.88rem;cursor:pointer;margin-bottom:8px;border:1px solid;}
 .btn-export{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
@@ -218,6 +229,16 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
     <div class="panel-body">
         <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-size:.72rem;color:#555;">Editează jucătorii</div>
+                <button onclick="toggleCodesPanel()" style="background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.2);color:var(--star);padding:5px 12px;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;">🔑 Coduri Secrete</button>
+            </div>
+            <!-- Codes panel -->
+            <div id="codesPanel" style="display:none;margin-bottom:12px;background:#0a0c14;border:1px solid var(--border);border-radius:9px;padding:10px;">
+                <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Coduri secrete per jucător</div>
+                <table class="codes-table" id="codesTable"><tr><th>Jucător</th><th>Cod</th><th></th></tr></table>
+                <button class="codes-copy-btn" onclick="copyAllCodes()">📋 Copiază toate codurile</button>
+            </div>
             <div id="playerEditList"></div>
             <button class="add-player-btn" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
         </div>
@@ -530,7 +551,7 @@ async function loadAll(){
     (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);if(r.key==='tag_bonus_cap')TAG_BONUS_CAP=parseFloat(r.value)||2;});
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
-    db.players=(pr||[]).map(p=>({
+    db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,
         id:p.id,name:p.name,status:p.status||'bench',
         wins:p.wins||0,games:p.games||0,
         matchHistory:p.match_history||[],
@@ -1056,6 +1077,62 @@ async function applyPollToBorda(){
         await sb.from('borda_votes').insert(rows);
         showToast('✅ Scoruri Borda actualizate pentru '+rows.length+' jucători!');
     }catch(e){showToast('⚠️ '+e.message);}
+}
+
+
+// ── SECRET CODES ──────────────────────────────────────────────────
+function genCode(){
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0,O,1,I for clarity
+    let code='';for(let i=0;i<5;i++)code+=chars[Math.floor(Math.random()*chars.length)];
+    return code;
+}
+
+async function ensureAllCodes(){
+    // Players without codes get one generated
+    const needCode=db.players.filter(p=>!p.secretCode);
+    if(!needCode.length) return;
+    for(const p of needCode){
+        let code,tries=0;
+        do{ code=genCode();tries++; }while(db.players.some(x=>x.secretCode===code)&&tries<20);
+        p.secretCode=code;
+        try{ await sb.from('players').update({secret_code:code}).eq('id',p.id); }
+        catch(e){ console.warn('code gen:', e.message); }
+    }
+}
+
+function toggleCodesPanel(){
+    const panel=document.getElementById('codesPanel');
+    const visible=panel.style.display==='none';
+    panel.style.display=visible?'block':'none';
+    if(visible){ ensureAllCodes().then(renderCodesTable); }
+}
+
+function renderCodesTable(){
+    const tbody=document.getElementById('codesTable');
+    const rows=db.players.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`
+        <tr>
+            <td style="font-weight:700;">${p.name}</td>
+            <td><span class="code-val">${p.secretCode||'—'}</span></td>
+            <td><button class="code-regen" onclick="regenCode(${p.id})">↺ Nou</button></td>
+        </tr>`).join('');
+    tbody.innerHTML='<tr><th>Jucător</th><th>Cod</th><th></th></tr>'+rows;
+}
+
+async function regenCode(id){
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    let code,tries=0;
+    do{ code=genCode();tries++; }while(db.players.some(x=>x.secretCode===code&&x.id!=id)&&tries<20);
+    p.secretCode=code;
+    try{
+        await sb.from('players').update({secret_code:code}).eq('id',id);
+        renderCodesTable();showToast('✅ Cod nou: '+p.name+' → '+code);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+function copyAllCodes(){
+    const lines=db.players.sort((a,b)=>a.name.localeCompare(b.name))
+        .map(p=>p.name+': '+( p.secretCode||'—' )).join('\n');
+    navigator.clipboard.writeText(lines).then(()=>showToast('📋 Coduri copiate!'));
 }
 
 // ── Init ──────────────────────────────────────────────────────────

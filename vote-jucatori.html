@@ -32,7 +32,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .id-screen{max-width:380px;margin:44px auto;padding:0 16px;}
 .id-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;margin-bottom:3px;}
 .id-hint{font-size:.76rem;color:#555;margin-bottom:14px;line-height:1.5;}
-.id-sel{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+.id-code-input{width:100%;background:#141720;border:2px solid var(--border);color:#fff;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:8px;text-align:center;outline:none;margin-bottom:10px;transition:border-color .15s;}
+.id-code-input:focus{border-color:var(--accent);}
+.id-code-input::placeholder{color:#252836;letter-spacing:4px;}
 .id-sel:focus{border-color:var(--accent);}
 .id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;}
 
@@ -140,10 +142,15 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <!-- ─── IDENTITY SCREEN ─────────────────────────────── -->
 <div class="screen active" id="screenIdentity">
   <div class="id-screen">
-    <div class="id-title">👤 Cine ești?</div>
-    <div class="id-hint">Selectează-ți numele pentru a vota.</div>
-    <select class="id-sel" id="playerSel"><option value="">— Selectează —</option></select>
-    <button class="id-btn" onclick="confirmIdentity()">⚡ Votează</button>
+    <div class="id-title">🔑 Cod Secret</div>
+    <div class="id-hint">Introdu codul secret primit de la administrator.</div>
+    <input class="id-code-input" id="codeInput" type="text" maxlength="5"
+        placeholder="ex: AB3K7"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')confirmCode()">
+    <button class="id-btn" onclick="confirmCode()">⚡ Intră</button>
+    <div id="codeError" style="color:#ef9a9a;font-size:.75rem;text-align:center;margin-top:8px;display:none;"></div>
   </div>
 </div>
 
@@ -208,21 +215,30 @@ let myName=null, allPlayers=[], activePoll=null, ordering=[], liveChannel=null;
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
 
-// ── Identity ──────────────────────────────────────────────────────
+// ── Identity via secret code ──────────────────────────────────────
 async function loadPlayers(){
-    const{data}=await sb.from('players').select('id,name').order('name');
+    const{data}=await sb.from('players').select('id,name,secret_code').order('name');
     allPlayers=data||[];
-    const sel=document.getElementById('playerSel');
-    allPlayers.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
 }
 
-function confirmIdentity(){
-    const name=document.getElementById('playerSel').value.trim();
-    if(!name){showToast('⚠️ Selectează un jucător!');return;}
-    myName=name;localStorage.setItem(LS_KEY,name);enterApp();
+async function confirmCode(){
+    const code=document.getElementById('codeInput').value.trim().toUpperCase();
+    const errEl=document.getElementById('codeError');
+    if(!code||code.length<4){errEl.textContent='⚠️ Introdu codul complet.';errEl.style.display='block';return;}
+    const player=allPlayers.find(p=>p.secret_code&&p.secret_code.toUpperCase()===code);
+    if(!player){
+        errEl.textContent='❌ Cod incorect. Verifică codul primit.';errEl.style.display='block';
+        document.getElementById('codeInput').style.borderColor='#c62828';
+        setTimeout(()=>{document.getElementById('codeInput').style.borderColor='';},1500);
+        return;
+    }
+    errEl.style.display='none';
+    myName=player.name;
+    localStorage.setItem(LS_KEY, JSON.stringify({name:player.name, code}));
+    enterApp();
 }
 function logout(){
-    myName=null;localStorage.removeItem(LS_KEY);
+    myName=null;localStorage.removeItem(LS_KEY);document.getElementById('codeInput').value='';
     document.getElementById('idBar').style.display='none';
     if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
     showScreen('screenIdentity');
@@ -429,12 +445,15 @@ function subscribePollStatus(){
 async function init(){
     await loadPlayers();
     const saved=localStorage.getItem(LS_KEY);
-    if(saved&&allPlayers.find(p=>p.name===saved)){
-        document.getElementById('playerSel').value=saved;
-        myName=saved;enterApp();
-    } else {
-        showScreen('screenIdentity');
+    if(saved){
+        try{
+            const {name,code}=JSON.parse(saved);
+            const player=allPlayers.find(p=>p.name===name&&p.secret_code&&p.secret_code.toUpperCase()===code.toUpperCase());
+            if(player){myName=name;enterApp();return;}
+        }catch(_){}
+        localStorage.removeItem(LS_KEY);
     }
+    showScreen('screenIdentity');
 }
 init();
 </script>
