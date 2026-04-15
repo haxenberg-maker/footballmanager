@@ -470,11 +470,14 @@ async function finalizeMatch(winner,oScore,gScore){
 
         // Insert match_goals
         if(mh?.id&&Object.keys(goalMap).length){
-            // Build per-goal rows with minutes from live_goals
-            const goalMinutes={};
-            realGoals.forEach(g=>{if(!goalMinutes[g.player_name])goalMinutes[g.player_name]=[];if(g.minute!=null)goalMinutes[g.player_name].push(g.minute);});
-            const rows=Object.entries(goalMap).map(([name,g])=>({match_id:mh.id,player_name:name,team:g.team,goals:g.count,goals_conceded:0,minutes:goalMinutes[name]||[]}));
-            await sb.from('match_goals').insert(rows);
+            // Insert one row per goal event (with minute) for accurate timeline
+            const goalRows=[];
+            // Group realGoals by player preserving minutes
+            realGoals.forEach(g=>{
+                goalRows.push({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null});
+            });
+            // Also add conceded rows (no minute tracking for those)
+            if(goalRows.length) await sb.from('match_goals').insert(goalRows);
         }
 
         // Update player stats

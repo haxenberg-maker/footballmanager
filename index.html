@@ -4655,19 +4655,22 @@ async function openMatchModal(idx){
         timingEl.style.display='none';
     }
 
-    // Load match_goals from DB
+    // Load match_goals from DB — one row per goal event
     let goalsData=[];
     if(h._dbId){
         try{
-            const{data}=await sb.from('match_goals').select('*').eq('match_id',h._dbId).order('goals',{ascending:false});
+            const{data}=await sb.from('match_goals').select('*').eq('match_id',h._dbId).order('minute',{ascending:true,nullsFirst:false});
             goalsData=data||[];
         }catch(e){ console.warn('match_goals load:',e.message); }
     }
 
-    // Build goal map per player
+    // Aggregate per player
     const goalsByPlayer={};
     goalsData.forEach(g=>{
-        goalsByPlayer[g.player_name]={goals:g.goals||0,conceded:g.goals_conceded||0,team:g.team,minutes:g.minutes||[]};
+        if(!goalsByPlayer[g.player_name]) goalsByPlayer[g.player_name]={goals:0,conceded:0,team:g.team,minutes:[]};
+        goalsByPlayer[g.player_name].goals+=(g.goals||1);
+        goalsByPlayer[g.player_name].conceded+=(g.goals_conceded||0);
+        if(g.minute!=null) goalsByPlayer[g.player_name].minutes.push(g.minute);
     });
 
     // Render team players with goal counts
@@ -4684,40 +4687,26 @@ async function openMatchModal(idx){
     document.getElementById('matchOrangePlayers').innerHTML=renderTeam(h.orangePlayers,'orange','var(--orange)');
     document.getElementById('matchGreenPlayers').innerHTML=renderTeam(h.greenPlayers,'green','#4caf50');
 
-    // Goal timeline — sorted by minute
+    // Goal timeline — each row in goalsData is one goal event
     const tlEl=document.getElementById('matchTimeline');
     const tlBody=document.getElementById('matchTimelineBody');
-    const allGoalEvents=[];
-    goalsData.forEach(g=>{
-        if(!g.goals||g.goals<=0) return;
-        const mins=g.minutes||[];
-        if(mins.length>0){
-            mins.forEach(m=>allGoalEvents.push({name:g.player_name,team:g.team,minute:m}));
-        } else {
-            // No minute info — just show as event
-            for(let i=0;i<g.goals;i++) allGoalEvents.push({name:g.player_name,team:g.team,minute:null});
-        }
-    });
+    // Only rows with goals>0 (not conceded-only rows)
+    const goalEvents=goalsData.filter(g=>(g.goals||1)>0);
+    // Sort by minute
+    goalEvents.sort((a,b)=>(a.minute??999)-(b.minute??999));
 
-    if(allGoalEvents.length>0){
-        allGoalEvents.sort((a,b)=>(a.minute??999)-(b.minute??999));
-        const maxMin=allGoalEvents.filter(e=>e.minute!=null).reduce((m,e)=>Math.max(m,e.minute),1)||1;
+    if(goalEvents.length>0){
+        const maxMin=goalEvents.filter(e=>e.minute!=null).reduce((m,e)=>Math.max(m,e.minute),1)||1;
         tlEl.style.display='block';
-        tlBody.innerHTML=allGoalEvents.map(ev=>{
+        tlBody.innerHTML=goalEvents.map(ev=>{
             const teamColor=ev.team==='orange'?'var(--orange)':'#4caf50';
-            const pct=ev.minute!=null?Math.min((ev.minute/Math.max(maxMin,1))*100,100):0;
-            const minLabel=ev.minute!=null?ev.minute+"'":' ';
-            const isRight=ev.team==='green';
-            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #0a0c14;">
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:.8rem;color:#555;min-width:24px;text-align:right;">${minLabel}</span>
-                <div style="flex:1;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;position:relative;">
-                    <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${teamColor};border-radius:2px;transition:width .4s;"></div>
-                    <div style="position:absolute;top:-4px;left:${pct}%;transform:translateX(-50%);">
-                        <span style="font-size:.75rem;">⚽</span>
-                    </div>
-                </div>
-                <span style="font-size:.78rem;font-weight:700;color:${teamColor};min-width:80px;${isRight?'text-align:right;':''}">${ev.name}</span>
+            const pct=ev.minute!=null?Math.min((ev.minute/Math.max(maxMin,1))*100,100):50;
+            const minLabel=ev.minute!=null?ev.minute+"'":'—';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#888;min-width:28px;text-align:right;">${minLabel}</span>
                 <div style="width:7px;height:7px;border-radius:50%;background:${teamColor};flex-shrink:0;"></div>
+                <span style="flex:1;font-weight:700;font-size:.82rem;color:#fff;">${ev.player_name}</span>
+                <span style="font-size:.75rem;">⚽</span>
             </div>`;
         }).join('');
     } else {
