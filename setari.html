@@ -190,6 +190,10 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('season')" id="sb-season">
             <span class="sb-icon">🔄</span><span class="sb-label">Sezon</span>
         </div>
+        <div class="sb-divider"></div>
+        <div class="sb-item" onclick="switchSection('poll')" id="sb-poll">
+            <span class="sb-icon">🗳️</span><span class="sb-label">Sondaj Jucători</span>
+        </div>
     </div>
 </div>
 
@@ -200,6 +204,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
+    <div class="mobile-tab" onclick="switchSection('poll')">🗳️ Sondaj</div>
 </div>
 
 <!-- Main -->
@@ -386,6 +391,55 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
 </div>
 
+<!-- ── SONDAJ ────────────────────────────────────────────────── -->
+<div class="section" id="sec-poll">
+    <div class="panel-header">
+        <div class="panel-title">Sondaj Jucători</div>
+        <div class="panel-sub">Configurează și gestionează votul de clasament</div>
+    </div>
+    <div class="panel-body">
+        <!-- Create new poll -->
+        <div class="card" id="pollCreateCard">
+            <div class="card-title">📋 Sondaj Nou</div>
+            <div style="margin-bottom:8px;">
+                <label class="form-label">Titlu / Descriere</label>
+                <input id="pollLabel" type="text" class="p-input" placeholder="ex: Meciuri Aprilie 2026" style="width:100%;">
+            </div>
+            <div style="margin-bottom:10px;">
+                <label class="form-label" style="margin-bottom:6px;display:block;">Selectează jucătorii care participă la vot:</label>
+                <div id="pollPlayerPicks" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="startPoll()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">▶ Start Vot</button>
+            </div>
+        </div>
+        <!-- Active poll panel -->
+        <div class="card" id="pollActiveCard" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div>
+                    <div class="card-title" style="margin-bottom:2px;">🟢 Vot Activ</div>
+                    <div style="font-size:.72rem;color:#555;" id="pollActiveLabel"></div>
+                </div>
+                <button onclick="stopPoll()" style="padding:6px 14px;border-radius:7px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#ef9a9a;font-size:.78rem;font-weight:700;cursor:pointer;">■ Stop</button>
+            </div>
+            <!-- Share link -->
+            <div style="background:#0a0c14;border:1px dashed #2a2d40;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                <span style="font-size:.7rem;color:#555;flex:1;" id="pollShareUrl"></span>
+                <button onclick="copyPollLink()" style="background:rgba(61,90,254,.1);border:1px solid var(--accent);color:#82b1ff;padding:4px 10px;border-radius:6px;font-size:.7rem;cursor:pointer;">📋 Copiază</button>
+            </div>
+            <!-- Live vote progress -->
+            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Voturi primite <span id="pollVoteCount" style="color:#69f0ae;">0</span> / <span id="pollTotalEligible">0</span></div>
+            <div id="pollVotersList" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+            <!-- Results preview (shown after stop) -->
+            <div id="pollResultsPreview" style="display:none;margin-top:12px;">
+                <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Clasament Borda</div>
+                <div id="pollResultsList"></div>
+                <button onclick="applyPollToBorda()" style="width:100%;margin-top:10px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">💾 Aplică în Smart Rating</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </div><!-- /main-area -->
 </div><!-- /layout -->
 
@@ -462,6 +516,7 @@ function switchSection(name){
     if(name==='players') buildPlayerEditList();
     if(name==='algorithm') buildAlgorithmPanel();
     if(name==='tags') buildTagsPanel();
+    if(name==='poll') initPollSection();
 }
 
 // ── Load ──────────────────────────────────────────────────────────
@@ -836,6 +891,171 @@ async function nukeAll(){
             localStorage.clear();location.href='index.html';
         }catch(e){showToast('⚠️ '+e.message);}
     });
+}
+
+// ── POLL SECTION ─────────────────────────────────────────────────
+let activePoll = null;
+let pollVoters = new Set();
+let pollChannel = null;
+let pollSelectedPlayers = new Set();
+
+async function initPollSection(){
+    // Build player picker
+    buildPollPlayerPicks();
+    // Check for active poll
+    const{data}=await sb.from('player_poll').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
+    if(data){
+        activePoll=data;
+        showActivePoll();
+        await loadPollVotes();
+        subscribePollRealtime();
+    } else {
+        document.getElementById('pollCreateCard').style.display='block';
+        document.getElementById('pollActiveCard').style.display='none';
+    }
+}
+
+function buildPollPlayerPicks(){
+    const el=document.getElementById('pollPlayerPicks');if(!el)return;
+    el.innerHTML=db.players.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>{
+        const sel=pollSelectedPlayers.has(p.name);
+        return `<div onclick="togglePollPlayer('${p.name}')" id="ppick-${p.id}"
+            style="padding:5px 10px;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:700;border:1px solid;
+            background:${sel?'rgba(61,90,254,.15)':'#141720'};border-color:${sel?'var(--accent)':'var(--border)'};color:${sel?'#82b1ff':'#555'};">
+            ${p.name}</div>`;
+    }).join('');
+}
+
+function togglePollPlayer(name){
+    if(pollSelectedPlayers.has(name)) pollSelectedPlayers.delete(name);
+    else pollSelectedPlayers.add(name);
+    buildPollPlayerPicks();
+}
+
+async function startPoll(){
+    if(pollSelectedPlayers.size < 2){showToast('⚠️ Selectează minim 2 jucători!');return;}
+    const label=document.getElementById('pollLabel').value.trim()||'Sondaj '+new Date().toLocaleDateString('ro-RO');
+    const players=[...pollSelectedPlayers];
+    try{
+        // Close any existing open polls
+        await sb.from('player_poll').update({status:'closed'}).eq('status','open');
+        const{data,error}=await sb.from('player_poll').insert({players,status:'open',label}).select().single();
+        if(error)throw error;
+        activePoll=data;
+        pollVoters=new Set();
+        showActivePoll();
+        subscribePollRealtime();
+        showToast('✅ Vot pornit! '+players.length+' jucători.');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+function showActivePoll(){
+    document.getElementById('pollCreateCard').style.display='none';
+    document.getElementById('pollActiveCard').style.display='block';
+    document.getElementById('pollActiveLabel').textContent=activePoll.label+' · '+(activePoll.players||[]).length+' jucători';
+    const url=location.origin+location.pathname.replace('setari.html','')+'vote-jucatori.html';
+    document.getElementById('pollShareUrl').textContent=url;
+    document.getElementById('pollTotalEligible').textContent=(activePoll.players||[]).length;
+}
+
+function copyPollLink(){
+    const url=location.origin+location.pathname.replace('setari.html','')+'vote-jucatori.html';
+    navigator.clipboard.writeText(url).then(()=>showToast('📋 Link copiat!'));
+}
+
+async function loadPollVotes(){
+    if(!activePoll) return;
+    const{data}=await sb.from('player_poll_votes').select('voter_name').eq('poll_id',activePoll.id);
+    pollVoters=new Set((data||[]).map(v=>v.voter_name));
+    renderPollVoters();
+}
+
+function renderPollVoters(){
+    document.getElementById('pollVoteCount').textContent=pollVoters.size;
+    const el=document.getElementById('pollVotersList');
+    el.innerHTML=[...pollVoters].map(name=>
+        `<span style="background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.2);color:#69f0ae;padding:3px 8px;border-radius:5px;font-size:.72rem;">✅ ${name}</span>`
+    ).join('');
+}
+
+function subscribePollRealtime(){
+    if(pollChannel) sb.removeChannel(pollChannel);
+    pollChannel=sb.channel('poll_rt_'+activePoll.id)
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'player_poll_votes',filter:'poll_id=eq.'+activePoll.id},payload=>{
+            pollVoters.add(payload.new.voter_name);
+            renderPollVoters();
+            showToast('🗳️ '+payload.new.voter_name+' a votat!');
+        })
+        .subscribe();
+}
+
+async function stopPoll(){
+    if(!activePoll||!confirm('Oprești votarea și calculezi rezultatele?')) return;
+    try{
+        await sb.from('player_poll').update({status:'closed'}).eq('id',activePoll.id);
+        // Calculate Borda results
+        const{data:votes}=await sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id);
+        const totals={};
+        (votes||[]).forEach(v=>{
+            const ranking=v.ranking||[];
+            const N=ranking.length;
+            ranking.forEach((name,idx)=>{totals[name]=(totals[name]||0)+(N-idx);});
+        });
+        const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+        const maxPts=sorted[0]?.[1]||1;
+        // Show results
+        document.getElementById('pollResultsPreview').style.display='block';
+        document.getElementById('pollResultsList').innerHTML=sorted.map(([name,pts],i)=>{
+            const pct=Math.round((pts/maxPts)*100);
+            const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0f1118;">
+                <span style="font-size:.85rem;min-width:22px;">${medal}</span>
+                <span style="flex:1;font-weight:700;font-size:.82rem;">${name}</span>
+                <div style="width:80px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;">
+                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--accent),#a78bfa);border-radius:2px;"></div>
+                </div>
+                <span style="font-size:.72rem;color:#555;min-width:30px;text-align:right;">${pts}pt</span>
+            </div>`;
+        }).join('');
+        if(pollChannel) sb.removeChannel(pollChannel);
+        showToast('✅ Vot oprit! '+pollVoters.size+' voturi înregistrate.');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function applyPollToBorda(){
+    if(!activePoll) return;
+    const{data:votes}=await sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id);
+    if(!votes?.length){showToast('⚠️ Niciun vot!');return;}
+    // Build borda totals
+    const totals={},counts={};
+    votes.forEach(v=>{
+        const ranking=v.ranking||[];const N=ranking.length;
+        ranking.forEach((name,idx)=>{
+            totals[name]=(totals[name]||0)+(N-idx);
+            counts[name]=(counts[name]||0)+1;
+        });
+    });
+    // Insert into borda_votes (link to a virtual match_id or use null)
+    // We use player_poll_id as reference — insert one aggregate row per player
+    const maxPts=Math.max(...Object.values(totals),1);
+    try{
+        // Update bordaScore directly on players via a dedicated column
+        // We'll insert rows with a special match_id based on poll
+        // Actually: insert borda_votes rows so the existing algorithm picks them up
+        // Use a special marker match_id = '00000000-0000-0000-0000-'+ poll_id padded
+        const fakeMatchId='00000000-0000-0000-0000-'+String(activePoll.id).padStart(12,'0');
+        // Delete old poll votes for this poll
+        await sb.from('borda_votes').delete().eq('match_id',fakeMatchId);
+        const rows=Object.entries(totals).map(([name,pts])=>({
+            match_id:fakeMatchId,
+            voter_name:'_poll_'+activePoll.id,
+            player_name:name,
+            borda_pts:pts,
+            ranked_pos:Object.entries(totals).sort((a,b)=>b[1]-a[1]).findIndex(([n])=>n===name)+1
+        }));
+        await sb.from('borda_votes').insert(rows);
+        showToast('✅ Scoruri Borda actualizate pentru '+rows.length+' jucători!');
+    }catch(e){showToast('⚠️ '+e.message);}
 }
 
 // ── Init ──────────────────────────────────────────────────────────

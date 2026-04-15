@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Votează Jucători · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;}
+:root{--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;--green:#28a745;}
+
+/* Header */
+.hd{background:#080a12;border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;}
+.hd-logo{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;}
+.hd-sub{font-size:.65rem;color:#555;margin-top:1px;}
+
+/* Identity bar */
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:7px 16px;display:flex;align-items:center;gap:8px;display:none;}
+.id-name{font-weight:700;color:var(--star);font-size:.85rem;}
+.id-change{font-size:.6rem;color:#333;cursor:pointer;text-decoration:underline;}
+.id-change:hover{color:#82b1ff;}
+
+/* Screens */
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* Identity screen */
+.id-screen{max-width:380px;margin:44px auto;padding:0 16px;}
+.id-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;margin-bottom:3px;}
+.id-hint{font-size:.76rem;color:#555;margin-bottom:14px;line-height:1.5;}
+.id-sel{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+.id-sel:focus{border-color:var(--accent);}
+.id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;}
+
+/* Closed / Loading screens */
+.status-screen{max-width:380px;margin:60px auto;padding:0 16px;text-align:center;}
+.status-icon{font-size:2.8rem;margin-bottom:12px;}
+.status-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;margin-bottom:6px;}
+.status-sub{font-size:.8rem;color:#555;line-height:1.6;}
+
+/* Vote screen */
+.vote-wrap{max-width:500px;margin:0 auto;padding:12px 12px 90px;}
+
+.poll-banner{background:#0d0f18;border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-bottom:12px;}
+.poll-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
+.poll-meta{font-size:.68rem;color:#555;margin-top:2px;}
+
+.instruction{font-size:.7rem;color:#444;text-align:center;padding:4px 0 10px;display:flex;align-items:center;justify-content:center;gap:6px;}
+
+/* Drag list */
+.drag-list{display:flex;flex-direction:column;gap:5px;}
+
+.drag-item{
+    display:flex;align-items:center;gap:9px;
+    padding:10px 12px;
+    background:#0d0f18;border-radius:10px;
+    border:1px solid var(--border);
+    cursor:grab;user-select:none;touch-action:none;
+    transition:border-color .1s, opacity .12s;
+}
+.drag-item:active{cursor:grabbing;}
+.drag-item.dragging{opacity:.25;border-style:dashed;border-color:#444;}
+.drag-placeholder{
+    border-radius:10px;border:2px dashed var(--accent);
+    background:rgba(61,90,254,.05);
+    transition:height .08s;
+}
+
+.di-handle{color:#252836;font-size:.95rem;flex-shrink:0;line-height:1;}
+.di-pos{
+    font-family:'Bebas Neue',sans-serif;font-size:1.2rem;
+    min-width:26px;text-align:center;
+    color:#252836;transition:color .1s;
+}
+.di-pos.p1{color:var(--star);}
+.di-pos.p2{color:#aaa;}
+.di-pos.p3{color:#cd7f32;}
+.di-name{flex:1;font-weight:700;font-size:.9rem;}
+.di-me{font-size:.55rem;color:var(--accent);margin-left:3px;}
+
+/* Submit bar */
+.submit-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#080a12;border-top:1px solid var(--border);
+    padding:10px 14px;display:flex;align-items:center;gap:8px;z-index:40;
+}
+.submit-hint{font-size:.7rem;color:#555;flex:1;}
+.submit-btn{
+    padding:11px 20px;border-radius:9px;
+    font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;
+    cursor:pointer;white-space:nowrap;
+    background:linear-gradient(135deg,#1a3a2a,var(--green));
+    border:1px solid var(--green);color:#fff;
+}
+.submit-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* Already voted screen — results */
+.results-wrap{max-width:500px;margin:0 auto;padding:12px 12px 30px;}
+.res-row{
+    display:flex;align-items:center;gap:8px;
+    padding:9px 12px;border-bottom:1px solid #0a0c14;
+    background:#0d0f18;
+}
+.res-row:first-child{border-radius:10px 10px 0 0;}
+.res-row:last-child{border-bottom:none;border-radius:0 0 10px 10px;}
+.res-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:24px;text-align:center;color:#555;}
+.res-rank.gold{color:var(--star);}
+.res-rank.silver{color:#aaa;}
+.res-rank.bronze{color:#cd7f32;}
+.res-name{flex:1;font-weight:700;font-size:.85rem;}
+.res-bar-wrap{width:70px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;}
+.res-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#a78bfa);}
+.res-bar.top{background:linear-gradient(90deg,var(--star),#ff8c00);}
+.res-pct{font-size:.72rem;color:#555;min-width:30px;text-align:right;}
+.mvp-badge{font-size:.55rem;padding:1px 5px;border-radius:4px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.35);color:var(--star);margin-left:3px;}
+
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div>
+    <div class="hd-logo">⚽ Arena Friends FC</div>
+    <div class="hd-sub">Clasament Jucători</div>
+  </div>
+</div>
+
+<div class="id-bar" id="idBar">
+  <span style="font-size:.6rem;color:#555;">Votezi ca:</span>
+  <span class="id-name" id="idBarName"></span>
+  <span class="id-change" onclick="logout()">· schimbă</span>
+</div>
+
+<!-- ─── IDENTITY SCREEN ─────────────────────────────── -->
+<div class="screen active" id="screenIdentity">
+  <div class="id-screen">
+    <div class="id-title">👤 Cine ești?</div>
+    <div class="id-hint">Selectează-ți numele pentru a vota.</div>
+    <select class="id-sel" id="playerSel"><option value="">— Selectează —</option></select>
+    <button class="id-btn" onclick="confirmIdentity()">⚡ Votează</button>
+  </div>
+</div>
+
+<!-- ─── LOADING ─────────────────────────────────────── -->
+<div class="screen" id="screenLoading">
+  <div class="status-screen">
+    <div class="status-icon">⏳</div>
+    <div class="status-title">Se încarcă</div>
+  </div>
+</div>
+
+<!-- ─── CLOSED ──────────────────────────────────────── -->
+<div class="screen" id="screenClosed">
+  <div class="status-screen">
+    <div class="status-icon">🔒</div>
+    <div class="status-title">Niciun Vot Activ</div>
+    <div class="status-sub">Administratorul nu a pornit niciun sondaj.<br>Revino mai târziu.</div>
+  </div>
+</div>
+
+<!-- ─── ALREADY VOTED ───────────────────────────────── -->
+<div class="screen" id="screenVoted">
+  <div class="results-wrap">
+    <div class="poll-banner">
+      <div class="poll-label" id="votedPollLabel"></div>
+      <div class="poll-meta">✅ Ai votat deja · rezultatele de mai jos sunt live</div>
+    </div>
+    <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📊 Clasament curent</div>
+    <div id="liveResults" style="border-radius:10px;overflow:hidden;border:1px solid var(--border);"></div>
+    <div id="liveVoterCount" style="font-size:.62rem;color:#252836;padding:6px 0;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- ─── VOTE SCREEN ─────────────────────────────────── -->
+<div class="screen" id="screenVote">
+  <div class="vote-wrap">
+    <div class="poll-banner">
+      <div class="poll-label" id="votePollLabel"></div>
+      <div class="poll-meta" id="votePollMeta"></div>
+    </div>
+    <div class="instruction">⠿ Trage pentru a reordona · Sus = cel mai bun jucător</div>
+    <div class="drag-list" id="dragList"></div>
+  </div>
+
+  <div class="submit-bar">
+    <span class="submit-hint">Reordonează, apoi trimite votul</span>
+    <button class="submit-btn" id="submitBtn" onclick="submitVote()">✅ Trimite</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const LS_KEY='vj_identity';
+
+let myName=null, allPlayers=[], activePoll=null, ordering=[], liveChannel=null;
+
+// ── Utilities ─────────────────────────────────────────────────────
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+// ── Identity ──────────────────────────────────────────────────────
+async function loadPlayers(){
+    const{data}=await sb.from('players').select('id,name').order('name');
+    allPlayers=data||[];
+    const sel=document.getElementById('playerSel');
+    allPlayers.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
+}
+
+function confirmIdentity(){
+    const name=document.getElementById('playerSel').value.trim();
+    if(!name){showToast('⚠️ Selectează un jucător!');return;}
+    myName=name;localStorage.setItem(LS_KEY,name);enterApp();
+}
+function logout(){
+    myName=null;localStorage.removeItem(LS_KEY);
+    document.getElementById('idBar').style.display='none';
+    if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
+    showScreen('screenIdentity');
+}
+async function enterApp(){
+    document.getElementById('idBarName').textContent=myName;
+    document.getElementById('idBar').style.display='flex';
+    showScreen('screenLoading');
+    await loadActivePoll();
+}
+
+// ── Poll loading ───────────────────────────────────────────────────
+async function loadActivePoll(){
+    const{data}=await sb.from('player_poll').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
+    activePoll=data||null;
+    if(!activePoll){showScreen('screenClosed');subscribePollStatus();return;}
+
+    // Check if already voted
+    const{data:myVote}=await sb.from('player_poll_votes').select('id,ranking').eq('poll_id',activePoll.id).eq('voter_name',myName).maybeSingle();
+    if(myVote){
+        document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
+        showScreen('screenVoted');
+        await loadLiveResults();
+        subscribeResults();
+        return;
+    }
+
+    // Show vote screen
+    ordering=[...(activePoll.players||[])];
+    document.getElementById('votePollLabel').textContent=activePoll.label||'Sondaj';
+    document.getElementById('votePollMeta').textContent=ordering.length+' jucători · de la cel mai bun la cel mai slab';
+    renderDragList();
+    showScreen('screenVote');
+    subscribePollStatus();
+}
+
+// ── Drag list ─────────────────────────────────────────────────────
+function renderDragList(){
+    const list=document.getElementById('dragList');
+    const medals=['🥇','🥈','🥉'];
+    list.innerHTML=ordering.map((name,i)=>`
+        <div class="drag-item" draggable="true" data-name="${name}">
+            <span class="di-handle">⠿</span>
+            <span class="di-pos ${i===0?'p1':i===1?'p2':i===2?'p3':''}">${medals[i]||(i+1)}</span>
+            <span class="di-name">${name}${name===myName?'<span class="di-me">tu</span>':''}</span>
+        </div>`).join('');
+    initDrag();
+}
+
+// ── Drag & Drop (placeholder-based, identical to vote.html) ───────
+let _dragSrc=null, _placeholder=null, _touchClone=null;
+
+function makePH(h){const p=document.createElement('div');p.className='drag-placeholder';p.id='_ph';p.style.height=h+'px';return p;}
+function removePH(){const p=document.getElementById('_ph');if(p)p.remove();}
+
+function getInsertIdx(list,clientY,exclude){
+    const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==exclude);
+    for(let i=0;i<items.length;i++){const r=items[i].getBoundingClientRect();if(clientY<r.top+r.height/2)return i;}
+    return items.length;
+}
+
+function reorder(srcName,idx){
+    const fi=ordering.indexOf(srcName);
+    if(fi===-1)return;
+    const[mv]=ordering.splice(fi,1);
+    ordering.splice(Math.min(idx,ordering.length),0,mv);
+    renderDragList();
+    if(navigator.vibrate)navigator.vibrate(18);
+}
+
+function initDrag(){
+    const list=document.getElementById('dragList');
+    list.addEventListener('dragover',e=>{
+        e.preventDefault();e.dataTransfer.dropEffect='move';
+        if(!_dragSrc)return;
+        const idx=getInsertIdx(list,e.clientY,_dragSrc);
+        const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==_dragSrc);
+        if(idx>=items.length)list.appendChild(_placeholder);
+        else list.insertBefore(_placeholder,items[idx]);
+    });
+    list.addEventListener('drop',e=>{
+        e.preventDefault();
+        if(!_dragSrc)return;
+        const idx=getInsertIdx(list,e.clientY,_dragSrc);
+        removePH();
+        reorder(_dragSrc.dataset.name,idx);
+    });
+    list.querySelectorAll('.drag-item').forEach(item=>{
+        item.addEventListener('dragstart',e=>{
+            _dragSrc=item;_placeholder=makePH(item.offsetHeight);
+            setTimeout(()=>item.classList.add('dragging'),0);
+            e.dataTransfer.effectAllowed='move';
+        });
+        item.addEventListener('dragend',()=>{item.classList.remove('dragging');removePH();_dragSrc=null;});
+        initTouch(item);
+    });
+}
+
+function initTouch(item){
+    let sy,origRect,lastIdx=-1,moved=false;
+    item.addEventListener('touchstart',e=>{
+        const t=e.touches[0];sy=t.clientY;moved=false;
+        origRect=item.getBoundingClientRect();
+        _placeholder=makePH(item.offsetHeight);
+        _touchClone=item.cloneNode(true);
+        _touchClone.style.cssText='position:fixed;top:'+origRect.top+'px;left:'+origRect.left+'px;width:'+origRect.width+'px;z-index:1000;opacity:.85;pointer-events:none;border:1px solid var(--accent);border-radius:10px;background:#1a2060;';
+        document.body.appendChild(_touchClone);
+        item.style.visibility='hidden';
+        item.parentNode.insertBefore(_placeholder,item);
+    },{passive:true});
+    item.addEventListener('touchmove',e=>{
+        e.preventDefault();moved=true;
+        const t=e.touches[0];
+        _touchClone.style.top=(origRect.top+t.clientY-sy)+'px';
+        _touchClone.style.display='none';
+        const under=document.elementFromPoint(t.clientX,t.clientY);
+        _touchClone.style.display='';
+        const list=document.getElementById('dragList');
+        const idx=getInsertIdx(list,t.clientY,item);
+        lastIdx=idx;
+        const items=[...list.querySelectorAll('.drag-item')].filter(i=>i!==item);
+        if(idx>=items.length)list.appendChild(_placeholder);
+        else list.insertBefore(_placeholder,items[idx]);
+    },{passive:false});
+    item.addEventListener('touchend',()=>{
+        if(_touchClone){_touchClone.remove();_touchClone=null;}
+        item.style.visibility='';
+        removePH();
+        if(moved&&lastIdx!==-1)reorder(item.dataset.name,lastIdx);
+        lastIdx=-1;
+    });
+}
+
+// ── Submit ────────────────────────────────────────────────────────
+async function submitVote(){
+    if(!activePoll){showToast('⚠️ Niciun sondaj activ!');return;}
+    document.getElementById('submitBtn').disabled=true;
+    try{
+        const{error}=await sb.from('player_poll_votes').insert({
+            poll_id:activePoll.id,
+            voter_name:myName,
+            ranking:ordering
+        });
+        if(error)throw error;
+        showToast('✅ Vot trimis! Mulțumim!');
+        // Switch to voted screen
+        document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
+        showScreen('screenVoted');
+        await loadLiveResults();
+        subscribeResults();
+    }catch(e){
+        document.getElementById('submitBtn').disabled=false;
+        if(e.code==='23505')showToast('⚠️ Ai votat deja!');
+        else showToast('⚠️ '+e.message);
+    }
+}
+
+// ── Live results ──────────────────────────────────────────────────
+async function loadLiveResults(){
+    if(!activePoll)return;
+    const{data:votes}=await sb.from('player_poll_votes').select('ranking,voter_name').eq('poll_id',activePoll.id);
+    const totals={},voters=new Set();
+    (votes||[]).forEach(v=>{
+        const rank=v.ranking||[];const N=rank.length;
+        rank.forEach((name,i)=>{totals[name]=(totals[name]||0)+(N-i);});
+        voters.add(v.voter_name);
+    });
+    const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+    const maxPts=sorted[0]?.[1]||1;
+    const el=document.getElementById('liveResults');
+    if(!sorted.length){el.innerHTML='<div style="padding:14px;text-align:center;color:#333;font-size:.8rem;">Așteptăm voturi...</div>';return;}
+    el.innerHTML=sorted.map(([name,pts],i)=>{
+        const pct=Math.round((pts/maxPts)*100);
+        const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
+        return `<div class="res-row">
+            <div class="res-rank ${rc}">${medal}</div>
+            <div class="res-name">${name}${i===0?'<span class="mvp-badge">MVP</span>':''}</div>
+            <div class="res-bar-wrap"><div class="res-bar${i===0?' top':''}" style="width:${pct}%;"></div></div>
+            <div class="res-pct">${pct}%</div>
+        </div>`;
+    }).join('');
+    document.getElementById('liveVoterCount').textContent=voters.size+' vot'+(voters.size!==1?'uri':'');
+}
+
+// ── Realtime ──────────────────────────────────────────────────────
+function subscribeResults(){
+    if(liveChannel)sb.removeChannel(liveChannel);
+    liveChannel=sb.channel('poll_votes_rt')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'player_poll_votes',filter:'poll_id=eq.'+activePoll.id},
+            ()=>loadLiveResults())
+        .subscribe();
+}
+
+function subscribePollStatus(){
+    // If poll closes/opens while on the page — reload
+    sb.channel('poll_status_rt')
+        .on('postgres_changes',{event:'*',schema:'public',table:'player_poll'},
+            ()=>{if(myName)loadActivePoll();})
+        .subscribe();
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+async function init(){
+    await loadPlayers();
+    const saved=localStorage.getItem(LS_KEY);
+    if(saved&&allPlayers.find(p=>p.name===saved)){
+        document.getElementById('playerSel').value=saved;
+        myName=saved;enterApp();
+    } else {
+        showScreen('screenIdentity');
+    }
+}
+init();
+</script>
+</body>
+</html>
