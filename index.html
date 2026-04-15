@@ -2094,7 +2094,7 @@ async function loadAll() {
 
 function rowToPlayer(p) {
     return {
-        id: p.id, name: p.name, status: p.status||'bench',
+        id: p.id, name: p.name, status: p.status||'bench', role: p.role||null,
         wins: p.wins||0, games: p.games||0,
         matchHistory: p.match_history||[],
         mainStatus: p.main_status||null,
@@ -2192,6 +2192,15 @@ function setupRealtime() {
         .subscribe();
     setupScenariosRealtime();
 }
+
+
+// ── Roluri jucători ───────────────────────────────────────────────
+const ROLES = {
+    atacant:  {label:'Atacant',   emoji:'⚽', color:'#ff8c00'},
+    mijlocas: {label:'Mijlocaș',  emoji:'🎯', color:'#82b1ff'},
+    fundas:   {label:'Fundaș',    emoji:'🛡️', color:'#69f0ae'},
+    portar:   {label:'Portar',    emoji:'🧤', color:'#ce93d8'},
+};
 
 // ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
 let TAG_BONUS_CAP = 2.0; // loaded from algo_settings in Supabase
@@ -2450,7 +2459,7 @@ function render(){
                         </div>
                     </div>
                     <div class="fifa-info-col">
-                        <div class="player-name">${p.name}</div>
+                        <div class="player-name">${p.name}${p.role&&ROLES[p.role]?` <span style="font-size:.5rem;padding:1px 4px;border-radius:3px;background:${ROLES[p.role].color}22;border:1px solid ${ROLES[p.role].color}44;color:${ROLES[p.role].color};">${ROLES[p.role].emoji}</span>`:''}</div>
                         <div class="fifa-stats-row" style="margin:4px 0;">
                             <div class="fifa-stat">WR:<span>${wr}</span></div>
                             <div class="fifa-stat">M:<span>${p.games}</span></div>
@@ -5313,92 +5322,127 @@ function openVoteTeamsLink(){
 
 function doBalance(mode) {
     document.getElementById('balancePopup').classList.remove('show');
-    // Preferă jucătorii confirmați; fallback la bench/orange/green
     const eligible = getEligiblePlayers();
     const active = eligible.length >= 2
         ? eligible
         : db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
     if (active.length < 2) { showToast('⚠️ Minim 2 jucători confirmați!'); return; }
-    // Move eligible players to bench before balancing
     active.forEach(p=>{ if(p.status==='active') p.status='bench'; });
 
+    const half = Math.floor(active.length / 2);
+
+    // ── Helper: assign respecting equal team sizes ────────────────
+    const assignBalanced = (oArr, gArr, oSum, gSum, p, rating) => {
+        // Prefer size balance first; then rating
+        if (oArr.length < half)      { p.status='orange'; oArr.push(p); return oSum + rating; }
+        if (gArr.length < half)      { p.status='green';  gArr.push(p); return gSum; }
+        if (oSum <= gSum)            { p.status='orange'; oArr.push(p); return oSum + rating; }
+                                       p.status='green';  gArr.push(p); return gSum;
+    };
+
     if (mode === 'surprise') {
-        // ── Surprise Me: random cu max 2 taguri negative pe echipă ──
         const shuffled = [...active].sort(() => Math.random() - 0.5);
         const oT = [], gT = [];
+        const negCount = t => t.reduce((s, x) => s + getPlayerActiveTagObjects(x).filter(tg=>tg.tag?.type==='neg').length, 0);
+        let oSum = 0, gSum = 0;
         shuffled.forEach(p => {
-            // Count negative tags in each team
-            const negCount = t => t.reduce((s, x) => {
-                const tags = getPlayerActiveTagObjects(x);
-                return s + tags.filter(tg => tg.tag?.type === 'neg').length;
-            }, 0);
-            if (oT.length <= gT.length && negCount(oT) <= 2) { p.status = 'orange'; oT.push(p); }
-            else { p.status = 'green'; gT.push(p); }
+            const r = getSmartRating(p);
+            if (oT.length < half || (oT.length === gT.length && negCount(oT) <= negCount(gT))) {
+                p.status='orange'; oT.push(p); oSum+=r;
+            } else {
+                p.status='green'; gT.push(p); gSum+=r;
+            }
         });
         render();
-        Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
-        showToast('🎰 Surprise! Echipe random (cu echilibru negativ)!');
+        Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
+        showToast('🎰 Surprise! Echipe random echilibrate!');
         return;
     }
 
     if (mode === 'roles') {
-        // ── Role Balance: snake draft + garantează un apărător și un pasator per echipă ──
-        const sorted = [...active].sort((a, b) => getSmartRating(b) - getSmartRating(a));
+        // ── Role Balance: garantează distribuție de roluri + echipe egale ──
+        const roleOrder = ['portar','fundas','mijlocas','atacant']; // priority for placement
+        const oArr = [], gArr = [];
         let oSum = 0, gSum = 0;
-        const orange = [], green = [];
 
-        // First pass: place players with key defensive/vision roles to balance
-        const hasTag = (p, ...cats) => {
-            const tags = getPlayerActiveTagObjects(p);
-            return tags.some(t => cats.includes(t.tag?.impact_attribute));
+        // Group by role
+        const byRole = {};
+        roleOrder.forEach(r => byRole[r] = []);
+        const noRole = [];
+        [...active].sort((a,b)=>getSmartRating(b)-getSmartRating(a)).forEach(p => {
+            if(p.role && byRole[p.role]) byRole[p.role].push(p);
+            else noRole.push(p);
+        });
+
+        const assignR = (p) => {
+            const r = getSmartRating(p);
+            if (oArr.length < half || (oArr.length === gArr.length && oSum <= gSum)) {
+                p.status='orange'; oArr.push(p); oSum+=r;
+            } else {
+                p.status='green'; gArr.push(p); gSum+=r;
+            }
         };
 
-        const defenders   = sorted.filter(p => hasTag(p, 'aparare'));
-        const visionaries = sorted.filter(p => hasTag(p, 'strategie'));
-        const rest        = sorted.filter(p => !hasTag(p, 'aparare') && !hasTag(p, 'strategie'));
+        // For each role: alternate O/G starting with the higher-rated player
+        roleOrder.forEach(role => {
+            const players = byRole[role].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+            players.forEach((p, i) => {
+                // First player goes to team with lower role count, else snake by rating
+                const oHas = oArr.filter(x=>x.role===role).length;
+                const gHas = gArr.filter(x=>x.role===role).length;
+                if (oHas <= gHas && oArr.length < active.length - gArr.length) {
+                    p.status='orange'; oArr.push(p); oSum+=getSmartRating(p);
+                } else {
+                    p.status='green'; gArr.push(p); gSum+=getSmartRating(p);
+                }
+            });
+        });
+        noRole.forEach(assignR);
 
-        const assign = (p) => {
-            if (oSum <= gSum) { p.status = 'orange'; orange.push(p); oSum += getSmartRating(p); }
-            else              { p.status = 'green';  green.push(p);  gSum += getSmartRating(p); }
-        };
-
-        // Ensure each team gets at least one defender/visionary
-        if (defenders.length >= 2) { defenders[0].status='orange'; orange.push(defenders[0]); oSum+=getSmartRating(defenders[0]); defenders[1].status='green'; green.push(defenders[1]); gSum+=getSmartRating(defenders[1]); defenders.slice(2).forEach(assign); }
-        else defenders.forEach(assign);
-
-        if (visionaries.length >= 2) {
-            const unassigned = visionaries.filter(p => p.status !== 'orange' && p.status !== 'green');
-            if (unassigned.length >= 2) { unassigned[0].status='orange'; orange.push(unassigned[0]); oSum+=getSmartRating(unassigned[0]); unassigned[1].status='green'; green.push(unassigned[1]); gSum+=getSmartRating(unassigned[1]); unassigned.slice(2).forEach(assign); }
-            else unassigned.forEach(assign);
+        // Size correction: move players from larger to smaller team
+        while (Math.abs(oArr.length - gArr.length) > 1) {
+            const [bigger, smaller, bigStatus, smallStatus] =
+                oArr.length > gArr.length
+                ? [oArr, gArr, 'orange', 'green']
+                : [gArr, oArr, 'green', 'orange'];
+            // Move the lowest-rated non-unique-role player
+            const idx = bigger.map((p,i)=>({p,i,r:getSmartRating(p)})).sort((a,b)=>a.r-b.r)[0].i;
+            const moved = bigger.splice(idx, 1)[0];
+            moved.status = smallStatus;
+            smaller.push(moved);
         }
 
-        rest.filter(p => p.status !== 'orange' && p.status !== 'green').forEach(assign);
+        const oRoles = [...new Set(oArr.map(p=>p.role).filter(Boolean))];
+        const gRoles = [...new Set(gArr.map(p=>p.role).filter(Boolean))];
+        const roleStr = r => (r.includes('portar')?'🧤':'') + (r.includes('fundas')?'🛡️':'') + (r.includes('mijlocas')?'🎯':'') + (r.includes('atacant')?'⚽':'');
+
         render();
-        Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
-        showToast('🎭 Role Balance aplicat — echipe cu apărători și vizionari!');
+        Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
+        showToast(`🎭 Role Balance! 🟠${roleStr(oRoles)} vs 🟢${roleStr(gRoles)}`);
         return;
     }
 
     // ── Standard snake draft (smart / general) ──
     const getRating = (p) => mode === 'smart' ? getSmartRating(p) : getGeneralAvg(p);
     const sorted = [...active].sort((a, b) => getRating(b) - getRating(a));
-
-    // ── Handicap: dacă o echipă e pe un win streak, dezavantajeaz-o ──
-    const oPlayers = db.players.filter(p => p.status === 'orange');
-    const gPlayers = db.players.filter(p => p.status === 'green');
     const oStreak = computeTeamStreak('orange');
     const gStreak = computeTeamStreak('green');
     let handicap = 0;
-    if (oStreak >= 3 && gStreak < 3) { handicap = 0.5 * oStreak; showToast(`⚡ Handicap aplicat: Portocaliu a câștigat ${oStreak} la rând!`); }
-    else if (gStreak >= 3 && oStreak < 3) { handicap = -0.5 * gStreak; showToast(`⚡ Handicap aplicat: Verde a câștigat ${gStreak} la rând!`); }
+    if (oStreak >= 3 && gStreak < 3) { handicap = 0.5 * oStreak; showToast(`⚡ Handicap: Portocaliu a câștigat ${oStreak} la rând!`); }
+    else if (gStreak >= 3 && oStreak < 3) { handicap = -0.5 * gStreak; showToast(`⚡ Handicap: Verde a câștigat ${gStreak} la rând!`); }
 
-    let oSum = handicap, gSum = 0;
+    const oArr2 = [], gArr2 = [];
+    let oSum2 = handicap, gSum2 = 0;
     sorted.forEach(p => {
-        if (oSum <= gSum) { p.status = 'orange'; oSum += getRating(p); }
-        else              { p.status = 'green';  gSum += getRating(p); }
+        const r = getRating(p);
+        if (oArr2.length < half || (oArr2.length === gArr2.length && oSum2 <= gSum2)) {
+            p.status='orange'; oArr2.push(p); oSum2+=r;
+        } else {
+            p.status='green'; gArr2.push(p); gSum2+=r;
+        }
     });
     render();
-    Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
+    Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
     const label = mode === 'smart' ? 'Smart Rating' : 'Rating General';
     showToast(`⚖️ Echipe reechilibrate după ${label}!`);
 }

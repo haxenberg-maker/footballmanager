@@ -518,6 +518,9 @@ const PRESETS={
 };
 
 // ── Utilities ─────────────────────────────────────────────────────
+
+const ROLES={atacant:{label:'Atacant',emoji:'⚽',color:'#ff8c00'},mijlocas:{label:'Mijlocaș',emoji:'🎯',color:'#82b1ff'},fundas:{label:'Fundaș',emoji:'🛡️',color:'#69f0ae'},portar:{label:'Portar',emoji:'🧤',color:'#ce93d8'}};
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showConfirm(icon,title,msg,yesLabel,yesBg,cb){if(confirm(icon+' '+title+'\n'+msg))cb();}
 function getSmartRating(p){
@@ -564,7 +567,7 @@ async function loadAll(){
     (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);if(r.key==='tag_bonus_cap')TAG_BONUS_CAP=parseFloat(r.value)||2;});
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
-    db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,
+    db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
         id:p.id,name:p.name,status:p.status||'bench',
         wins:p.wins||0,games:p.games||0,
         matchHistory:p.match_history||[],
@@ -595,6 +598,13 @@ function buildPlayerEditList(){
             <button class="btn-sm btn-save" onclick="savePlayerName(${p.id})">✓</button>
             <button class="btn-sm btn-del" onclick="deletePlayer(${p.id})">🗑️</button>
             <div style="width:100%;padding-left:32px;margin-top:3px;">
+    <div class="ar-wrap" style="margin-right:4px;">
+                    <span class="ar-lbl">🎮 Rol</span>
+                    <select class="ar-input" id="role-${p.id}" style="width:90px;color:${p.role&&ROLES[p.role]?ROLES[p.role].color:'#888'};" onchange="savePlayerRole(${p.id})">
+                        <option value="">—</option>
+                        ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${p.role===k?'selected':''}>${v.emoji} ${v.label}</option>`).join('')}
+                    </select>
+                </div>
                 <div class="ar-wrap${forced?' forced':''}">
                     <span class="ar-lbl${forced?' forced':''}">${forced?'👑 Rating forțat':'★ Override'}</span>
                     <input type="number" class="ar-input${forced?' forced':''}" id="ar-${p.id}"
@@ -628,6 +638,16 @@ async function deletePlayer(id){
     }catch(e){showToast('⚠️ '+e.message);}
 }
 
+
+async function savePlayerRole(id){
+    const p=db.players.find(x=>x.id==id);if(!p)return;
+    const val=document.getElementById('role-'+id)?.value||null;
+    p.role=val||null;
+    const sel=document.getElementById('role-'+id);
+    if(sel) sel.style.color=val&&ROLES[val]?ROLES[val].color:'#888';
+    try{await sb.from('players').update({role:p.role}).eq('id',id);showToast('✅ Rol salvat: '+(p.role?ROLES[p.role]?.label||p.role:'—'));}
+    catch(e){showToast('⚠️ '+e.message);}
+}
 async function saveAdminRating(id){
     const p=db.players.find(x=>x.id==id);if(!p)return;
     const val=parseFloat(document.getElementById('ar-'+id)?.value);
