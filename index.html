@@ -4690,25 +4690,35 @@ async function openMatchModal(idx){
     // Goal timeline — each row in goalsData is one goal event
     const tlEl=document.getElementById('matchTimeline');
     const tlBody=document.getElementById('matchTimelineBody');
-    // Only rows with goals>0 (not conceded-only rows)
-    const goalEvents=goalsData.filter(g=>(g.goals||1)>0);
-    // Sort by minute
-    goalEvents.sort((a,b)=>(a.minute??999)-(b.minute??999));
+    // Only rows with goals=1 (new format, one row per goal with minute)
+    const goalEvents=goalsData.filter(g=>g.goals===1&&g.minute!=null);
+    goalEvents.sort((a,b)=>a.minute-b.minute);
 
     if(goalEvents.length>0){
-        const maxMin=goalEvents.filter(e=>e.minute!=null).reduce((m,e)=>Math.max(m,e.minute),1)||1;
         tlEl.style.display='block';
         tlBody.innerHTML=goalEvents.map(ev=>{
             const teamColor=ev.team==='orange'?'var(--orange)':'#4caf50';
-            const pct=ev.minute!=null?Math.min((ev.minute/Math.max(maxMin,1))*100,100):50;
-            const minLabel=ev.minute!=null?ev.minute+"'":'—';
             return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#888;min-width:28px;text-align:right;">${minLabel}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--star);min-width:32px;text-align:right;letter-spacing:-.5px;">${ev.minute}'</span>
                 <div style="width:7px;height:7px;border-radius:50%;background:${teamColor};flex-shrink:0;"></div>
-                <span style="flex:1;font-weight:700;font-size:.82rem;color:#fff;">${ev.player_name}</span>
-                <span style="font-size:.75rem;">⚽</span>
+                <span style="flex:1;font-weight:700;font-size:.85rem;">${ev.player_name}</span>
+                <span style="font-size:.8rem;">⚽</span>
             </div>`;
         }).join('');
+    } else if(goalsData.some(g=>g.goals>0)){
+        // Old format — has goals but no per-minute rows; show compact list
+        tlEl.style.display='block';
+        const allScoredOld=goalsData.filter(g=>g.goals>0).sort((a,b)=>b.goals-a.goals);
+        tlBody.innerHTML='<div style="font-size:.68rem;color:#444;margin-bottom:6px;">Minute indisponibile — rulează SQL migration pentru meciuri viitoare</div>'
+            +allScoredOld.map(ev=>{
+                const teamColor=ev.team==='orange'?'var(--orange)':'#4caf50';
+                const balls='⚽'.repeat(Math.min(ev.goals,8))+(ev.goals>8?'×'+ev.goals:'');
+                return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #0a0c14;">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${teamColor};flex-shrink:0;margin-left:8px;"></div>
+                    <span style="flex:1;font-weight:700;font-size:.85rem;">${ev.player_name}</span>
+                    <span style="font-size:.75rem;">${balls}</span>
+                </div>`;
+            }).join('');
     } else {
         tlEl.style.display='none';
     }
