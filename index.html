@@ -950,6 +950,7 @@
     </div>
     <div class="balance-col admin-only" style="position:relative;">
         <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
+        <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#69f0ae;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">⚖️ Fă Echipele</div>
             <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Rating Smart</span></div>
@@ -3033,29 +3034,41 @@ function exportTeamsText(){
     const green  = db.players.filter(p=>p.status==='green');
     if(!orange.length && !green.length){ showToast('⚠️ Nicio echipă formată!'); return; }
 
-    const fmt = (players) => players
+    const fmtEmoji = (players) => players
         .sort((a,b)=>getSmartRating(b)-getSmartRating(a))
         .map(p=>{
             const role = p.role&&ROLES[p.role]?ROLES[p.role].emoji+' ':' ';
             return '  '+role+p.name;
         }).join('\n');
 
-    const text =
+    const fmtRaw = (players) => players
+        .sort((a,b)=>getSmartRating(b)-getSmartRating(a))
+        .map(p => '  '+p.name)
+        .join('\n');
+
+    const textEmoji =
         '🟠 '+teamNames.orange+' ('+orange.length+')'+'\n'+
-        fmt(orange)+
+        fmtEmoji(orange)+
         '\n\nvs\n\n'+
         '🟢 '+teamNames.green+' ('+green.length+')'+'\n'+
-        fmt(green);
+        fmtEmoji(green);
 
-    // Show copy modal
+    const textRaw =
+        teamNames.orange.toUpperCase()+' ('+orange.length+')'+'\n'+
+        fmtRaw(orange)+
+        '\n\nvs\n\n'+
+        teamNames.green.toUpperCase()+' ('+green.length+')'+'\n'+
+        fmtRaw(green);
+
     const overlay=document.createElement('div');
-    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;display:flex;align-items:flex-end;justify-content:center;';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:flex-end;justify-content:center;';
     overlay.innerHTML=`<div style="background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;margin-bottom:12px;">📋 Exportă Echipe</div>
-        <pre id="exportPreview" style="background:#0a0c14;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Rajdhani',sans-serif;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;">${text}</pre>
-        <div style="display:flex;gap:8px;">
-            <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;cursor:pointer;">✕ Închide</button>
-            <button onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Copiază',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;">📋 Copiază</button>
+        <pre id="exportPreview" style="background:#0a0c14;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Rajdhani',sans-serif;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;">${textEmoji}</pre>
+        <div style="display:flex;gap:6px;">
+            <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:10px 12px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;cursor:pointer;font-size:.78rem;">✕</button>
+            <button id="exportBtnEmoji" onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Cu Emoji',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;">📋 Cu Emoji</button>
+            <button onclick="navigator.clipboard.writeText('${textRaw.replace(/'/g,"\\'")}').then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📄 RAW',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a2a50,var(--accent));border:1px solid var(--accent);color:#fff;">📄 RAW</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
