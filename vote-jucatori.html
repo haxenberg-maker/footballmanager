@@ -215,9 +215,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <!-- Already voted -->
 <div class="screen" id="screenVoted">
   <div class="results-wrap">
-    <div class="poll-banner">
-      <div class="poll-label" id="votedPollLabel"></div>
-      <div class="poll-meta">✅ Ai votat · clasament live</div>
+    <div class="poll-banner" style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;">
+        <div class="poll-label" id="votedPollLabel"></div>
+        <div class="poll-meta">✅ Ai votat · clasament live</div>
+      </div>
+      <button onclick="editVote()" style="background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.25);color:var(--star);padding:6px 12px;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">✏️ Editează</button>
     </div>
     <div class="results-card" id="liveResults"></div>
     <div id="liveVoterCount" style="font-size:.62rem;color:#252836;padding:6px 0 2px;text-align:center;"></div>
@@ -258,7 +261,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div id="confirmList"></div>
     <div class="confirm-actions">
       <button class="btn-back" onclick="closeConfirm()">← Înapoi</button>
-      <button class="btn-confirm" onclick="submitVote()">✅ Trimite Votul</button>
+      <button class="btn-confirm" id="btnConfirmSubmit" onclick="submitVote()">✅ Trimite Votul</button>
     </div>
   </div>
 </div>
@@ -274,6 +277,8 @@ const LS_KEY='vj_identity';
 let myName=null, allPlayers=[], activePoll=null, liveChannel=null;
 let pollPlayers=[];    // names from poll config
 let selected=[];       // ordered array of names user has tapped
+let myVoteId=null;     // id of existing vote row (for editing)
+let isEditing=false;
 
 // ── Utilities ─────────────────────────────────────────────────────
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
@@ -325,6 +330,7 @@ async function loadActivePoll(){
     // Already voted?
     const{data:myVote}=await sb.from('player_poll_votes').select('id,ranking').eq('poll_id',activePoll.id).eq('voter_name',myName).maybeSingle();
     if(myVote){
+        myVoteId=myVote.id;
         document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
         showScreen('screenVoted');
         await loadLiveResults(myVote.ranking||[]);
@@ -413,13 +419,18 @@ async function submitVote(){
     closeConfirm();
     document.getElementById('submitBtn').disabled=true;
     try{
-        const{error}=await sb.from('player_poll_votes').insert({
+        const{error}=await sb.from('player_poll_votes').upsert({
+            ...(myVoteId?{id:myVoteId}:{}),
             poll_id:activePoll.id,
             voter_name:myName,
             ranking:selected
-        });
+        },{onConflict:'poll_id,voter_name'});
         if(error) throw error;
-        showToast('✅ Vot trimis! Mulțumim!');
+        // On upsert we get the row back
+        const{data:saved}=await sb.from('player_poll_votes').select('id').eq('poll_id',activePoll.id).eq('voter_name',myName).single();
+        if(saved) myVoteId=saved.id;
+        isEditing=false;
+        showToast(isEditing?'✅ Vot actualizat!':'✅ Vot trimis! Mulțumim!');
         document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
         showScreen('screenVoted');
         await loadLiveResults(selected);
@@ -476,6 +487,29 @@ function subscribePollStatus(){
         .on('postgres_changes',{event:'*',schema:'public',table:'player_poll'},
             ()=>{if(myName) loadActivePoll();})
         .subscribe();
+}
+
+
+// ── Edit existing vote ────────────────────────────────────────────
+function editVote(){
+    if(!activePoll) return;
+    isEditing=true;
+    pollPlayers=[...(activePoll.players||[])];
+    // Pre-populate selected with existing ranking if available
+    // myRanking is stored as last known — re-fetch to be safe
+    sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id).eq('voter_name',myName).single().then(({data})=>{
+        selected=data?.ranking||[];
+        // Make sure all pollPlayers are in selected (in case poll changed)
+        // Add any missing at end
+        pollPlayers.forEach(name=>{if(!selected.includes(name))selected.push(name);});
+        // Remove any that are no longer in poll
+        selected=selected.filter(n=>pollPlayers.includes(n));
+        document.getElementById('votePollLabel').textContent=activePoll.label||'Sondaj';
+        document.getElementById('votePollMeta').textContent='Editezi votul · '+pollPlayers.length+' jucători';
+        document.getElementById('btnConfirmSubmit').textContent='✅ Salvează Modificările';
+        renderGrid();
+        showScreen('screenVote');
+    });
 }
 
 // ── Init ──────────────────────────────────────────────────────────
