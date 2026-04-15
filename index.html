@@ -1537,13 +1537,27 @@
 
 <!-- MATCH DETAIL MODAL -->
 <div class="modal-overlay" id="matchModalOverlay" onclick="if(event.target===this)closeMatchModal()">
-<div class="match-modal">
+<div class="match-modal" style="max-height:88vh;overflow-y:auto;padding:20px;">
     <div class="match-modal-date" id="matchModalDate"></div>
     <div class="match-winner-banner" id="matchWinnerBanner"></div>
-    <div style="text-align:center;font-size:0.85rem;color:#555;margin-bottom:10px;" id="matchScore"></div>
+    <!-- Score + timing -->
+    <div style="text-align:center;font-size:0.85rem;color:#555;margin-bottom:4px;" id="matchScore"></div>
+    <div id="matchTiming" style="display:none;text-align:center;font-size:.72rem;color:#444;margin-bottom:12px;line-height:1.7;"></div>
+    <!-- Goal timeline -->
+    <div id="matchTimeline" style="display:none;margin-bottom:12px;background:#080a12;border-radius:10px;border:1px solid #1e2130;padding:10px 12px;">
+        <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⏱️ Timeline Goluri</div>
+        <div id="matchTimelineBody"></div>
+    </div>
+    <!-- Teams -->
     <div class="match-teams">
-        <div class="match-team-block"><div class="match-team-title" style="color:var(--orange)">🟠 Portocaliu</div><div id="matchOrangePlayers"></div></div>
-        <div class="match-team-block"><div class="match-team-title" style="color:var(--green)">🟢 Verde</div><div id="matchGreenPlayers"></div></div>
+        <div class="match-team-block">
+            <div class="match-team-title" id="matchOrangeTitle" style="color:var(--orange)">🟠 Portocaliu</div>
+            <div id="matchOrangePlayers"></div>
+        </div>
+        <div class="match-team-block">
+            <div class="match-team-title" id="matchGreenTitle" style="color:var(--green)">🟢 Verde</div>
+            <div id="matchGreenPlayers"></div>
+        </div>
     </div>
     <button onclick="closeMatchModal()" style="width:100%;margin-top:16px;background:#252836;">✕ Închide</button>
 </div>
@@ -2050,6 +2064,8 @@ async function loadAll() {
             _dbId: h.id,
             date: h.date, winner: h.winner, score: h.score,
             imbalanced: h.imbalanced||false,
+            startedAt: h.started_at||null,
+            endedAt: h.ended_at||null,
             orangePlayers: h.orange_players || [],
             greenPlayers:  h.green_players  || []
         }))
@@ -4612,16 +4628,102 @@ async function deleteRating(index){
 }
 
 // ── Match Detail Modal ──
-function openMatchModal(idx){
+async function openMatchModal(idx){
     const h=db.history[idx];
-    document.getElementById('matchModalDate').textContent=`📅 ${h.date}`;
     const isO=h.winner==='Portocaliu';
+    const isEq=!isO&&h.winner!=='Verde';
+
+    document.getElementById('matchModalDate').textContent=`📅 ${h.date||'—'}`;
     const banner=document.getElementById('matchWinnerBanner');
     banner.textContent=`🏆 ${h.winner} a câștigat`;
     banner.style.cssText=`background:${isO?'rgba(255,140,0,0.15)':'rgba(40,167,69,0.15)'};border:1px solid ${isO?'var(--orange)':'var(--green)'};color:${isO?'var(--orange)':'var(--green)'}`;
-    document.getElementById('matchScore').textContent=`Rating echipe: ${h.score}`;
-    document.getElementById('matchOrangePlayers').innerHTML=(h.orangePlayers||[]).map(n=>`<div class="match-team-player">${n}</div>`).join('')||'<div class="match-team-player" style="color:#444">—</div>';
-    document.getElementById('matchGreenPlayers').innerHTML=(h.greenPlayers||[]).map(n=>`<div class="match-team-player">${n}</div>`).join('')||'<div class="match-team-player" style="color:#444">—</div>';
+    document.getElementById('matchScore').textContent=h.score&&h.score!=='—'?`Scor: ${h.score}`:'';
+
+    // Timing info (started_at / ended_at)
+    const timingEl=document.getElementById('matchTiming');
+    if(h.startedAt||h.endedAt){
+        timingEl.style.display='block';
+        let lines=[];
+        const fmt=iso=>{if(!iso)return null;const d=new Date(iso);return d.toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});};
+        const fmtDur=(s,e)=>{if(!s||!e)return null;const diff=Math.round((new Date(e)-new Date(s))/60000);return diff>0?diff+' minute':null;};
+        if(h.startedAt) lines.push('▶ Start: '+fmt(h.startedAt));
+        if(h.endedAt)   lines.push('⏹ Final: '+fmt(h.endedAt));
+        const dur=fmtDur(h.startedAt,h.endedAt);
+        if(dur) lines.push('⏱ Durată: '+dur);
+        timingEl.innerHTML=lines.join(' &nbsp;·&nbsp; ');
+    } else {
+        timingEl.style.display='none';
+    }
+
+    // Load match_goals from DB
+    let goalsData=[];
+    if(h._dbId){
+        try{
+            const{data}=await sb.from('match_goals').select('*').eq('match_id',h._dbId).order('goals',{ascending:false});
+            goalsData=data||[];
+        }catch(e){ console.warn('match_goals load:',e.message); }
+    }
+
+    // Build goal map per player
+    const goalsByPlayer={};
+    goalsData.forEach(g=>{
+        goalsByPlayer[g.player_name]={goals:g.goals||0,conceded:g.goals_conceded||0,team:g.team,minutes:g.minutes||[]};
+    });
+
+    // Render team players with goal counts
+    const renderTeam=(names,team,color)=>{
+        if(!names?.length) return '<div class="match-team-player" style="color:#444">—</div>';
+        return names.map(n=>{
+            const gd=goalsByPlayer[n];
+            const goalsHtml=gd?.goals>0?` <span style="color:#69f0ae;font-size:.7rem;">⚽×${gd.goals}${gd.minutes?.length?' ('+gd.minutes.map(m=>m+"'").join(', ')+')':''}</span>`:'';
+            const gcHtml=gd?.conceded>0?` <span style="color:#ef9a9a;font-size:.7rem;">🧤×${gd.conceded}</span>`:'';
+            return `<div class="match-team-player">${n}${goalsHtml}${gcHtml}</div>`;
+        }).join('');
+    };
+
+    document.getElementById('matchOrangePlayers').innerHTML=renderTeam(h.orangePlayers,'orange','var(--orange)');
+    document.getElementById('matchGreenPlayers').innerHTML=renderTeam(h.greenPlayers,'green','#4caf50');
+
+    // Goal timeline — sorted by minute
+    const tlEl=document.getElementById('matchTimeline');
+    const tlBody=document.getElementById('matchTimelineBody');
+    const allGoalEvents=[];
+    goalsData.forEach(g=>{
+        if(!g.goals||g.goals<=0) return;
+        const mins=g.minutes||[];
+        if(mins.length>0){
+            mins.forEach(m=>allGoalEvents.push({name:g.player_name,team:g.team,minute:m}));
+        } else {
+            // No minute info — just show as event
+            for(let i=0;i<g.goals;i++) allGoalEvents.push({name:g.player_name,team:g.team,minute:null});
+        }
+    });
+
+    if(allGoalEvents.length>0){
+        allGoalEvents.sort((a,b)=>(a.minute??999)-(b.minute??999));
+        const maxMin=allGoalEvents.filter(e=>e.minute!=null).reduce((m,e)=>Math.max(m,e.minute),1)||1;
+        tlEl.style.display='block';
+        tlBody.innerHTML=allGoalEvents.map(ev=>{
+            const teamColor=ev.team==='orange'?'var(--orange)':'#4caf50';
+            const pct=ev.minute!=null?Math.min((ev.minute/Math.max(maxMin,1))*100,100):0;
+            const minLabel=ev.minute!=null?ev.minute+"'":' ';
+            const isRight=ev.team==='green';
+            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #0a0c14;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.8rem;color:#555;min-width:24px;text-align:right;">${minLabel}</span>
+                <div style="flex:1;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;position:relative;">
+                    <div style="position:absolute;left:0;top:0;height:100%;width:${pct}%;background:${teamColor};border-radius:2px;transition:width .4s;"></div>
+                    <div style="position:absolute;top:-4px;left:${pct}%;transform:translateX(-50%);">
+                        <span style="font-size:.75rem;">⚽</span>
+                    </div>
+                </div>
+                <span style="font-size:.78rem;font-weight:700;color:${teamColor};min-width:80px;${isRight?'text-align:right;':''}">${ev.name}</span>
+                <div style="width:7px;height:7px;border-radius:50%;background:${teamColor};flex-shrink:0;"></div>
+            </div>`;
+        }).join('');
+    } else {
+        tlEl.style.display='none';
+    }
+
     document.getElementById('matchModalOverlay').style.display='flex';
 }
 function closeMatchModal(){document.getElementById('matchModalOverlay').style.display='none';}

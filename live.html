@@ -195,7 +195,7 @@ const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-let players=[], goals=[];
+let players=[], goals=[], matchStartedAt=null;
 
 // ── Timer state ───────────────────────────────────────────────────
 let timerState='idle'; // idle | running | paused
@@ -214,6 +214,7 @@ function timerToggle(){
     if(timerState==='idle'||timerState==='paused'){
         timerStart=Date.now();
         timerState='running';
+        if(!matchStartedAt) matchStartedAt=new Date().toISOString();
         btn.textContent='⏸ Pauză';btn.className='timer-btn pause';
         disp.className='timer-display running';
         timerInterval=setInterval(()=>{
@@ -457,16 +458,22 @@ async function finalizeMatch(winner,oScore,gScore){
 
     try{
         // Insert match_history
+        const endedAt=new Date().toISOString();
         const{data:mh,error:mhErr}=await sb.from('match_history').insert({
             date:new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.'),
             winner:winnerLabel,score:scoreStr,imbalanced,
-            orange_players:orange,green_players:green
+            orange_players:orange,green_players:green,
+            started_at:matchStartedAt||null,
+            ended_at:endedAt
         }).select().single();
         if(mhErr) throw mhErr;
 
         // Insert match_goals
         if(mh?.id&&Object.keys(goalMap).length){
-            const rows=Object.entries(goalMap).map(([name,g])=>({match_id:mh.id,player_name:name,team:g.team,goals:g.count,goals_conceded:0}));
+            // Build per-goal rows with minutes from live_goals
+            const goalMinutes={};
+            realGoals.forEach(g=>{if(!goalMinutes[g.player_name])goalMinutes[g.player_name]=[];if(g.minute!=null)goalMinutes[g.player_name].push(g.minute);});
+            const rows=Object.entries(goalMap).map(([name,g])=>({match_id:mh.id,player_name:name,team:g.team,goals:g.count,goals_conceded:0,minutes:goalMinutes[name]||[]}));
             await sb.from('match_goals').insert(rows);
         }
 
@@ -494,6 +501,18 @@ async function finalizeMatch(winner,oScore,gScore){
         // Clear live goals
         await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
         goals=[];
+        matchStartedAt=null;
+
+        // Move all orange/green players to bench + reset confirmed_ids
+        try{
+            const activePlayers=players.filter(p=>p.status==='orange'||p.status==='green');
+            if(activePlayers.length){
+                await Promise.all(activePlayers.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));
+                activePlayers.forEach(p=>p.status='bench');
+            }
+            // Reset confirmed/absent from next_match
+            await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);
+        }catch(e){ console.warn('post-match reset:',e.message); }
 
         // Stop timer
         timerReset();
