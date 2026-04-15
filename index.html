@@ -941,7 +941,7 @@
 <div class="dashboard" id="dashGrid">
     <div class="column header-orange" id="col-orange" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title">Echipa Portocalie</div>
+            <div class="col-header-title" id="titleOrange" onclick="startEditTeamName('orange')" title="Click pentru editare" style="cursor:pointer;">Echipa Portocalie</div>
             <div class="team-balance-indicator" id="balance-orange"></div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
@@ -964,6 +964,9 @@
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
                 <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
             </div>
+            <div class="balance-opt" onclick="exportTeamsText()" style="color:#69f0ae;">
+                <span class="balance-opt-icon">📋</span><span>Exportă Echipe</span>
+            </div>
             <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
                 <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
             </div>
@@ -984,7 +987,7 @@
     </div>
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title">Echipa Verde</div>
+            <div class="col-header-title" id="titleGreen" onclick="startEditTeamName('green')" title="Click pentru editare" style="cursor:pointer;">Echipa Verde</div>
             <div class="team-balance-indicator" id="balance-green"></div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-green">★ —</span><span class="team-count-badge" id="count-green">0 jucători</span></div>
             <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-green" style="width:0%"></div></div>
@@ -2472,7 +2475,7 @@ function render(){
             if(container) container.appendChild(card);
         });
     });
-    updateTeamStats();renderLeaderboard();renderHistory();renderLobby();
+    updateTeamStats();renderLeaderboard();renderHistory();renderLobby();renderTeamTitles();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
     // Keep mobile tab active after re-render
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
@@ -2982,6 +2985,81 @@ async function adminDrop(e){
             await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
         }
     }
+}
+
+
+// ── Editable team names ───────────────────────────────────────────
+function renderTeamTitles(){
+    const tO=document.getElementById('titleOrange');
+    const tG=document.getElementById('titleGreen');
+    if(tO) tO.textContent=teamNames.orange;
+    if(tG) tG.textContent=teamNames.green;
+    // Update all other references
+    document.querySelectorAll('.me-team-header').forEach((el,i)=>{
+        if(i===0) el.textContent='🟠 '+teamNames.orange;
+        if(i===1) el.textContent='🟢 '+teamNames.green;
+    });
+}
+
+function startEditTeamName(side){
+    if(!isAdmin()) return;
+    const elId = side==='orange'?'titleOrange':'titleGreen';
+    const el = document.getElementById(elId);
+    if(!el) return;
+    const current = teamNames[side];
+    const input = document.createElement('input');
+    input.value = current;
+    input.style.fontFamily="Bebas Neue,sans-serif";input.style.fontSize=".85rem";input.style.letterSpacing="2px";input.style.background="transparent";input.style.border="none";input.style.borderBottom="1px solid var(--accent)";input.style.color="#fff";input.style.outline="none";input.style.width="100%";input.style.textTransform="uppercase";
+    el.innerHTML='';
+    el.appendChild(input);
+    el.onclick=null;
+    input.focus();
+    input.select();
+    const save=()=>{
+        const val=input.value.trim()||current;
+        teamNames[side]=val;
+        localStorage.setItem('team_name_'+side, val);
+        renderTeamTitles();
+        el.onclick=()=>startEditTeamName(side);
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape'){renderTeamTitles();el.onclick=()=>startEditTeamName(side);}});
+}
+
+// ── Export teams as copyable text ─────────────────────────────────
+function exportTeamsText(){
+    document.getElementById('balancePopup').classList.remove('show');
+    const orange = db.players.filter(p=>p.status==='orange');
+    const green  = db.players.filter(p=>p.status==='green');
+    if(!orange.length && !green.length){ showToast('⚠️ Nicio echipă formată!'); return; }
+
+    const fmt = (players) => players
+        .sort((a,b)=>getSmartRating(b)-getSmartRating(a))
+        .map(p=>{
+            const role = p.role&&ROLES[p.role]?ROLES[p.role].emoji+' ':' ';
+            return '  '+role+p.name;
+        }).join('\n');
+
+    const text =
+        '🟠 '+teamNames.orange+' ('+orange.length+')'+'\n'+
+        fmt(orange)+
+        '\n\nvs\n\n'+
+        '🟢 '+teamNames.green+' ('+green.length+')'+'\n'+
+        fmt(green);
+
+    // Show copy modal
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;display:flex;align-items:flex-end;justify-content:center;';
+    overlay.innerHTML=`<div style="background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;margin-bottom:12px;">📋 Exportă Echipe</div>
+        <pre id="exportPreview" style="background:#0a0c14;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Rajdhani',sans-serif;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;">${text}</pre>
+        <div style="display:flex;gap:8px;">
+            <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:10px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;cursor:pointer;">✕ Închide</button>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Copiază',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;">📋 Copiază</button>
+        </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
 }
 
 function openSettings(){
@@ -5189,6 +5267,7 @@ function moveTeamsToBench() {
 
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
+let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde' };
 let scenarios = {1:null, 2:null, 3:null};
 
 // ── Jucătorii eligibili = confirmați pentru meciul activ ──────────
