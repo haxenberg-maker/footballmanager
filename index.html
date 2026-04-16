@@ -2356,6 +2356,14 @@ function getSmartRating(p) {
         base += ((p.bordaScore - 5) / 5) * 4 * W.borda;
     }
 
+    // ── C. MVP BONUS ─────────────────────────────────────────────
+    if(W.mvpWin > 0 || W.mvpLoss > 0){
+        const games = Math.max(p.games, 1);
+        // mvpWinCount/mvpLossCount loaded from mvp_votes at startup
+        if((p.mvpWinCount||0) > 0)  base += Math.min(((p.mvpWinCount||0)/games)*10, 10) * W.mvpWin * 0.5;
+        if((p.mvpLossCount||0) > 0) base += Math.min(((p.mvpLossCount||0)/games)*10, 10) * W.mvpLoss * 0.3;
+    }
+
     // ── D. PENALIZĂRI ─────────────────────────────────────────────
     base -= Math.min((p.lastImbalanceLoss||0), 3) * 0.15;
 

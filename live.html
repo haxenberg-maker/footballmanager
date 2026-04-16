@@ -468,6 +468,19 @@ async function finalizeMatch(winner,oScore,gScore){
         }).select().single();
         if(mhErr) throw mhErr;
 
+        // Save MVP votes (top scorer per team)
+        if(mh?.id){
+            const mvpRows=[];
+            // MVP per team = top scorer in that team
+            ['orange','green'].forEach(team=>{
+                const teamGoals=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);
+                if(teamGoals.length&&teamGoals[0][1].count>0){
+                    mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:teamGoals[0][0],mvp_type:'goals'});
+                }
+            });
+            if(mvpRows.length) await sb.from('mvp_votes').insert(mvpRows).catch(()=>{});
+        }
+
         // Insert match_goals
         if(mh?.id&&Object.keys(goalMap).length){
             // Insert one row per goal event (with minute) for accurate timeline
