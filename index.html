@@ -5525,15 +5525,7 @@ function doBalance(mode) {
     active.forEach(p=>{ if(p.status==='active') p.status='bench'; });
 
     const half = Math.floor(active.length / 2);
-
-    // ── Helper: assign respecting equal team sizes ────────────────
-    const assignBalanced = (oArr, gArr, oSum, gSum, p, rating) => {
-        // Prefer size balance first; then rating
-        if (oArr.length < half)      { p.status='orange'; oArr.push(p); return oSum + rating; }
-        if (gArr.length < half)      { p.status='green';  gArr.push(p); return gSum; }
-        if (oSum <= gSum)            { p.status='orange'; oArr.push(p); return oSum + rating; }
-                                       p.status='green';  gArr.push(p); return gSum;
-    };
+    const maxSize = Math.ceil(active.length / 2); // max players per team
 
     if (mode === 'surprise') {
         const shuffled = [...active].sort(() => Math.random() - 0.5);
@@ -5542,7 +5534,9 @@ function doBalance(mode) {
         let oSum = 0, gSum = 0;
         shuffled.forEach(p => {
             const r = getSmartRating(p);
-            if (oT.length < half || (oT.length === gT.length && negCount(oT) <= negCount(gT))) {
+            const oFull = oT.length >= maxSize;
+            const gFull = gT.length >= maxSize;
+            if (!oFull && (gFull || negCount(oT) <= negCount(gT) && oSum <= gSum)) {
                 p.status='orange'; oT.push(p); oSum+=r;
             } else {
                 p.status='green'; gT.push(p); gSum+=r;
@@ -5555,12 +5549,10 @@ function doBalance(mode) {
     }
 
     if (mode === 'roles') {
-        // ── Role Balance: garantează distribuție de roluri + echipe egale ──
-        const roleOrder = ['portar','fundas','mijlocas','atacant']; // priority for placement
+        const roleOrder = ['portar','fundas','mijlocas','atacant'];
         const oArr = [], gArr = [];
         let oSum = 0, gSum = 0;
 
-        // Group by role
         const byRole = {};
         roleOrder.forEach(r => byRole[r] = []);
         const noRole = [];
@@ -5571,21 +5563,23 @@ function doBalance(mode) {
 
         const assignR = (p) => {
             const r = getSmartRating(p);
-            if (oArr.length < half || (oArr.length === gArr.length && oSum <= gSum)) {
+            const oFull = oArr.length >= maxSize;
+            const gFull = gArr.length >= maxSize;
+            if (!oFull && (gFull || oSum <= gSum)) {
                 p.status='orange'; oArr.push(p); oSum+=r;
             } else {
                 p.status='green'; gArr.push(p); gSum+=r;
             }
         };
 
-        // For each role: alternate O/G starting with the higher-rated player
         roleOrder.forEach(role => {
             const players = byRole[role].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            players.forEach((p, i) => {
-                // First player goes to team with lower role count, else snake by rating
+            players.forEach(p => {
                 const oHas = oArr.filter(x=>x.role===role).length;
                 const gHas = gArr.filter(x=>x.role===role).length;
-                if (oHas <= gHas && oArr.length < active.length - gArr.length) {
+                const oFull = oArr.length >= maxSize;
+                const gFull = gArr.length >= maxSize;
+                if (!oFull && (gFull || oHas <= gHas)) {
                     p.status='orange'; oArr.push(p); oSum+=getSmartRating(p);
                 } else {
                     p.status='green'; gArr.push(p); gSum+=getSmartRating(p);
@@ -5593,19 +5587,6 @@ function doBalance(mode) {
             });
         });
         noRole.forEach(assignR);
-
-        // Size correction: move players from larger to smaller team
-        while (Math.abs(oArr.length - gArr.length) > 1) {
-            const [bigger, smaller, bigStatus, smallStatus] =
-                oArr.length > gArr.length
-                ? [oArr, gArr, 'orange', 'green']
-                : [gArr, oArr, 'green', 'orange'];
-            // Move the lowest-rated non-unique-role player
-            const idx = bigger.map((p,i)=>({p,i,r:getSmartRating(p)})).sort((a,b)=>a.r-b.r)[0].i;
-            const moved = bigger.splice(idx, 1)[0];
-            moved.status = smallStatus;
-            smaller.push(moved);
-        }
 
         const oRoles = [...new Set(oArr.map(p=>p.role).filter(Boolean))];
         const gRoles = [...new Set(gArr.map(p=>p.role).filter(Boolean))];
@@ -5630,7 +5611,9 @@ function doBalance(mode) {
     let oSum2 = handicap, gSum2 = 0;
     sorted.forEach(p => {
         const r = getRating(p);
-        if (oArr2.length < half || (oArr2.length === gArr2.length && oSum2 <= gSum2)) {
+        const oFull = oArr2.length >= maxSize;
+        const gFull = gArr2.length >= maxSize;
+        if (!oFull && (gFull || oSum2 <= gSum2)) {
             p.status='orange'; oArr2.push(p); oSum2+=r;
         } else {
             p.status='green'; gArr2.push(p); gSum2+=r;
