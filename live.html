@@ -195,7 +195,7 @@ const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-let players=[], goals=[], matchStartedAt=null;
+let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
 // ── Timer state ───────────────────────────────────────────────────
 let timerState='idle'; // idle | running | paused
@@ -444,6 +444,10 @@ function openFinalize(){
 function closeDialog(){document.getElementById('dialogOverlay').classList.remove('show');}
 
 async function finalizeMatch(winner,oScore,gScore){
+    if(isSaving) return; // prevent double-submit
+    isSaving=true;
+    // Disable confirm button immediately
+    document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
     const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
     const green=players.filter(p=>p.status==='green').map(p=>p.name);
@@ -545,7 +549,7 @@ async function finalizeMatch(winner,oScore,gScore){
         const topScorer=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
         showToast('🏆 '+winnerLabel+' câștigă! '+(topScorer?'🥇 MVP: '+topScorer[0]:''));
 
-    }catch(e){ showToast('⚠️ '+e.message); }
+    }catch(e){ isSaving=false; showToast('⚠️ '+e.message); }
 }
 
 // ── Share ─────────────────────────────────────────────────────────
