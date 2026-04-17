@@ -458,7 +458,14 @@ async function finalizeMatch(winner,oScore,gScore){
 
     try{
         // Insert match_history
-        const endedAt=new Date().toISOString();
+        // Compute ended_at: if match was started, use startedAt + elapsed seconds for accuracy
+        const nowIso = new Date().toISOString();
+        let endedAt = nowIso;
+        if(matchStartedAt){
+            const elapsedSec = timerSeconds(); // total elapsed seconds from timer
+            const startMs = new Date(matchStartedAt).getTime();
+            endedAt = new Date(startMs + elapsedSec * 1000).toISOString();
+        }
         const{data:mh,error:mhErr}=await sb.from('match_history').insert({
             date:new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.'),
             winner:winnerLabel,score:scoreStr,imbalanced,
@@ -478,7 +485,7 @@ async function finalizeMatch(winner,oScore,gScore){
                     mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:teamGoals[0][0],mvp_type:'goals'});
                 }
             });
-            if(mvpRows.length) await sb.from('mvp_votes').insert(mvpRows).catch(()=>{});
+            if(mvpRows.length){ try{ await sb.from('mvp_votes').insert(mvpRows); }catch(_){} }
         }
 
         // Insert match_goals
