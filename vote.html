@@ -3,86 +3,128 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Votează · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
 :root{--orange:#ff8c00;--green:#28a745;--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;}
-.vh{background:#080a12;border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
-.vlogo{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:3px;}
-.vsub{font-size:.68rem;color:#555;margin-top:1px;}
-.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:8px;}
+
+.vh{background:#080a12;border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.vlogo{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;}
+.vsub{font-size:.65rem;color:#555;margin-top:1px;}
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:7px 16px;display:none;align-items:center;gap:8px;}
 .id-name{font-weight:700;color:var(--star);font-size:.85rem;}
-.id-change{font-size:.62rem;color:#333;cursor:pointer;text-decoration:underline;}
-.id-change:hover{color:#82b1ff;}
+.id-change{font-size:.6rem;color:#333;cursor:pointer;text-decoration:underline;}
+
 .screen{display:none;}
 .screen.active{display:block;}
+
+/* Identity */
 .id-screen{max-width:380px;margin:50px auto;padding:0 16px;}
 .id-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:3px;margin-bottom:4px;}
 .id-sub{font-size:.78rem;color:#555;margin-bottom:14px;line-height:1.5;}
 .id-sel{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
 .id-sel:focus{border-color:var(--accent);}
 .id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;cursor:pointer;}
+
+/* Match list */
 .main{max-width:560px;margin:0 auto;padding:12px 14px 80px;}
 .stitle{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#555;margin:12px 0 6px;}
 .match-card{background:#0d0f18;border:1px solid var(--border);border-radius:11px;padding:11px 14px;margin-bottom:7px;cursor:pointer;transition:border-color .15s;display:flex;justify-content:space-between;align-items:center;gap:8px;}
 .match-card:hover{border-color:var(--accent);}
 .match-card.voted{opacity:.55;cursor:default;}
-.mc-left{flex:1;min-width:0;}
 .mc-date{font-size:.68rem;color:#555;}
 .mc-winner{font-weight:700;font-size:.88rem;margin:1px 0;}
 .mc-teams{font-size:.68rem;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.mc-badge{font-size:.58rem;padding:2px 6px;border-radius:4px;white-space:nowrap;flex-shrink:0;}
+.mc-badge{font-size:.58rem;padding:2px 6px;border-radius:4px;white-space:nowrap;}
 .mc-badge.done{background:rgba(40,167,69,.15);border:1px solid #28a745;color:#69f0ae;}
 .mc-badge.open{background:rgba(61,90,254,.12);border:1px solid var(--accent);color:#82b1ff;}
-.vote-screen{max-width:560px;margin:0 auto;padding:10px 12px 90px;}
+
+/* Vote screen */
+.vote-wrap{max-width:560px;margin:0 auto;padding:10px 12px 100px;}
 .match-banner{background:#0d0f18;border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;}
 .mb-winner{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
 .mb-meta{font-size:.68rem;color:#555;}
 .mb-back{background:none;border:1px solid var(--border);color:#555;padding:4px 10px;border-radius:6px;font-size:.72rem;cursor:pointer;}
-.mb-back:hover{color:#fff;border-color:#555;}
-.teams-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
-@media(max-width:420px){.teams-grid{grid-template-columns:1fr;}}
+
+.progress-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.progress-text{font-size:.75rem;color:#555;flex:1;}
+.progress-text span{color:#fff;font-weight:700;}
+.reset-btn{background:none;border:1px solid var(--border);color:#555;padding:4px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;}
+.reset-btn:hover{border-color:#ef9a9a;color:#ef9a9a;}
+
+.instruction{font-size:.7rem;color:#444;text-align:center;padding:2px 0 10px;line-height:1.5;}
+.instruction strong{color:#888;}
+
+/* Teams grid */
+.teams-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+@media(max-width:400px){.teams-grid{grid-template-columns:1fr;}}
+
 .team-col{background:#0d0f18;border-radius:12px;border:1px solid var(--border);overflow:hidden;}
-.team-col-hd{padding:9px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;}
-.team-col-lbl{font-family:'Bebas Neue',sans-serif;font-size:.8rem;letter-spacing:1.5px;}
-.team-col-sub{font-size:.58rem;color:#555;margin-top:1px;}
-.team-mine-badge{font-size:.55rem;padding:1px 5px;border-radius:4px;background:rgba(61,90,254,.15);border:1px solid var(--accent);color:#82b1ff;margin-left:auto;white-space:nowrap;}
-.drag-list{padding:6px;display:flex;flex-direction:column;gap:4px;min-height:50px;}
-.drag-item{display:flex;align-items:center;gap:7px;padding:8px 9px;background:#141720;border-radius:8px;border:1px solid #1e2130;cursor:grab;user-select:none;transition:border-color .1s,opacity .15s;touch-action:none;}
-.drag-item:active{cursor:grabbing;}
-.drag-item.dragging{opacity:.25;border-style:dashed;border-color:#555;}
-.drag-placeholder{height:44px;border-radius:8px;border:2px dashed var(--accent);background:rgba(61,90,254,.06);margin-bottom:4px;transition:height .1s;}
-.drag-pos{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:18px;text-align:center;color:#333;}
-.drag-pos.p1{color:var(--star);}
-.drag-pos.p2{color:#aaa;}
-.drag-pos.p3{color:#cd7f32;}
-.drag-handle{font-size:.85rem;color:#2a2d40;flex-shrink:0;}
-.drag-name{flex:1;font-weight:700;font-size:.82rem;}
-.drag-instruction{text-align:center;font-size:.68rem;color:#333;padding:4px 0 8px;}
+.team-col-hd{padding:8px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px;}
+.team-col-lbl{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1.5px;}
+.team-mine-badge{font-size:.52rem;padding:1px 5px;border-radius:4px;background:rgba(61,90,254,.15);border:1px solid var(--accent);color:#82b1ff;margin-left:auto;}
+.team-body{padding:6px;}
+
+/* Player cards */
+.pc{display:flex;align-items:center;gap:7px;padding:8px 9px;background:#141720;border-radius:8px;border:2px solid var(--border);cursor:pointer;margin-bottom:4px;transition:all .1s;-webkit-tap-highlight-color:transparent;}
+.pc:last-child{margin-bottom:0;}
+.pc:active{transform:scale(.97);}
+.pc.ranked{border-color:var(--accent);background:rgba(61,90,254,.06);}
+.pc.r1{border-color:var(--star);background:rgba(255,204,0,.05);}
+.pc.r2{border-color:#aaa;background:rgba(200,200,200,.03);}
+.pc.r3{border-color:#cd7f32;background:rgba(205,127,50,.04);}
+.pc-num{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:20px;text-align:center;color:#252836;flex-shrink:0;}
+.pc-num.s1{color:var(--star);}
+.pc-num.s2{color:#aaa;}
+.pc-num.s3{color:#cd7f32;}
+.pc-num.sx{color:var(--accent);}
+.pc-name{flex:1;font-weight:700;font-size:.82rem;}
+.pc-x{width:24px;height:24px;border-radius:5px;background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.2);color:#ef9a9a;font-size:.68rem;display:none;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;}
+.pc.ranked .pc-x,.pc.r1 .pc-x,.pc.r2 .pc-x,.pc.r3 .pc-x{display:flex;}
+
+/* Results */
 .results-section{display:none;margin-top:8px;}
 .results-section.show{display:block;}
 .results-card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
-.results-row{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid #0a0c14;}
-.results-row:last-child{border-bottom:none;}
-.r-rank{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:22px;text-align:center;color:#555;}
-.r-rank.gold{color:var(--star);}
-.r-rank.silver{color:#aaa;}
-.r-rank.bronze{color:#cd7f32;}
-.r-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.r-name{flex:1;font-weight:700;font-size:.83rem;}
-.r-bar-wrap{width:70px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;}
-.r-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#a78bfa);}
-.r-bar.top{background:linear-gradient(90deg,var(--star),var(--orange));}
-.r-pct{font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;min-width:30px;text-align:right;}
-.mvp-badge{font-size:.53rem;padding:1px 4px;border-radius:4px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:var(--star);margin-left:3px;}
-.submit-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;z-index:50;}
+.rr{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid #0a0c14;}
+.rr:last-child{border-bottom:none;}
+.rr-rank{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:22px;text-align:center;color:#555;}
+.rr-rank.gold{color:var(--star);}
+.rr-rank.silver{color:#aaa;}
+.rr-rank.bronze{color:#cd7f32;}
+.rr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.rr-name{flex:1;font-weight:700;font-size:.83rem;}
+.rr-bar-wrap{width:60px;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;}
+.rr-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#a78bfa);}
+.rr-bar.top{background:linear-gradient(90deg,var(--star),var(--orange));}
+.rr-pct{font-family:'Bebas Neue',sans-serif;font-size:.72rem;color:#555;min-width:28px;text-align:right;}
+.mvp-badge{font-size:.52rem;padding:1px 4px;border-radius:4px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:var(--star);margin-left:3px;}
+
+/* Confirm overlay */
+.conf-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+.conf-overlay.show{display:flex;}
+.conf-box{background:#141720;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;max-height:85vh;overflow-y:auto;}
+.conf-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;margin-bottom:12px;}
+.conf-section{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin:10px 0 5px;}
+.conf-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0a0c14;}
+.conf-item:last-of-type{border-bottom:none;}
+.ci-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:24px;text-align:center;}
+.ci-name{flex:1;font-size:.88rem;font-weight:700;}
+.conf-actions{display:flex;gap:8px;margin-top:14px;}
+.btn-back{padding:11px 14px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;cursor:pointer;flex-shrink:0;}
+.btn-conf{flex:1;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;}
+
+/* Submit bar */
+.submit-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:8px;z-index:40;}
 .submit-hint{font-size:.7rem;color:#555;flex:1;}
 .submit-btn{padding:10px 16px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;white-space:nowrap;}
 .submit-btn:disabled{opacity:.35;cursor:not-allowed;}
+
 .empty{text-align:center;padding:40px 16px;color:#333;}
 .toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;}
@@ -97,6 +139,8 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <span class="id-name" id="idBarName"></span>
   <span class="id-change" onclick="logout()">· schimbă</span>
 </div>
+
+<!-- Identity -->
 <div class="screen active" id="screenIdentity">
   <div class="id-screen">
     <div class="id-title">👤 Cine ești?</div>
@@ -105,43 +149,76 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <button class="id-btn" onclick="confirmIdentity()">⚡ Intră și Votează</button>
   </div>
 </div>
+
+<!-- Match list -->
 <div class="screen" id="screenMatches">
   <div class="main">
     <div class="stitle">🗓️ Meciuri disponibile</div>
     <div id="matchList"></div>
   </div>
 </div>
+
+<!-- Vote screen -->
 <div class="screen" id="screenVote">
-  <div class="vote-screen">
+  <div class="vote-wrap">
     <div class="match-banner">
       <div style="flex:1;"><div class="mb-winner" id="mbWinner"></div><div class="mb-meta" id="mbMeta"></div></div>
       <button class="mb-back" onclick="goToMatchList()">← Meciuri</button>
     </div>
-    <div class="drag-instruction">☰ Trage de pe un card pentru a reordona · Sus = cel mai bun</div>
+
+    <div class="progress-row">
+      <div class="progress-text" id="progressText">Apasă în ordinea preferinței</div>
+      <button class="reset-btn" onclick="resetOrder()">↺ Resetează</button>
+    </div>
+
+    <div class="instruction">
+      <strong>Apasă cel mai bun jucător primul.</strong><br>
+      Apasă ✕ pe un card selectat pentru a-l deselecta.
+    </div>
+
     <div class="teams-grid" id="teamsGrid"></div>
+
     <div class="results-section" id="resultsSection">
-      <div class="stitle">📊 Rezultate</div>
+      <div class="stitle">📊 Rezultate Live</div>
       <div class="results-card" id="liveResults"></div>
     </div>
   </div>
+
   <div class="submit-bar">
-    <span class="submit-hint" id="submitHint">Reordonează, apoi trimite</span>
-    <button class="submit-btn" id="submitBtn" onclick="submitVote()" disabled>✅ Trimite Votul</button>
+    <span class="submit-hint" id="submitHint">Selectează jucătorii în ordine</span>
+    <button class="submit-btn" id="submitBtn" onclick="openConfirm()" disabled>✅ Confirmă</button>
   </div>
 </div>
+
+<!-- Confirm overlay -->
+<div class="conf-overlay" id="confOverlay">
+  <div class="conf-box">
+    <div class="conf-title">✅ Confirmă Votul</div>
+    <div id="confList"></div>
+    <div class="conf-actions">
+      <button class="btn-back" onclick="closeConfirm()">← Înapoi</button>
+      <button class="btn-conf" onclick="submitVote()">💾 Trimite Votul</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
 <script>
 const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 const LS_KEY='vote_identity';
-let myName=null,allPlayers=[],allMatches=[],votedIds=new Set(),selMatch=null;
-let orderMine=[],orderOpp=[],liveChannel=null;
 
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+let myName=null, allPlayers=[], allMatches=[], votedIds=new Set(), selMatch=null;
+let selected=[]; // ordered array of player names
+let liveChannel=null;
+
+// ── Utils ─────────────────────────────────────────────────────────
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
-function getMatchParam(){return new URLSearchParams(location.search).get('match');}
 
+// ── Load data ─────────────────────────────────────────────────────
 async function loadPlayers(){
     const{data}=await sb.from('players').select('id,name').order('name');
     allPlayers=data||[];
@@ -149,254 +226,249 @@ async function loadPlayers(){
     allPlayers.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
 }
 
-function confirmIdentity(){
-    const name=document.getElementById('playerSel').value.trim();
-    if(!name){showToast('⚠️ Selectează un jucător!');return;}
-    myName=name;localStorage.setItem(LS_KEY,name);enterApp();
+async function loadMatches(){
+    const{data}=await sb.from('match_history').select('id,date,winner,score,orange_players,green_players').order('created_at',{ascending:false}).limit(10);
+    allMatches=data||[];
+    // Check voted
+    if(myName){
+        const{data:v}=await sb.from('borda_votes').select('match_id').eq('voter_name',myName);
+        votedIds=new Set((v||[]).map(r=>r.match_id));
+    }
+    renderMatchList();
 }
-function logout(){myName=null;localStorage.removeItem(LS_KEY);document.getElementById('idBar').style.display='none';if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}showScreen('screenIdentity');}
 
-async function enterApp(){
+// ── Identity ──────────────────────────────────────────────────────
+function confirmIdentity(){
+    const v=document.getElementById('playerSel').value;
+    if(!v){showToast('⚠️ Selectează numele tău!');return;}
+    myName=v;
+    localStorage.setItem(LS_KEY,v);
+    enterApp();
+}
+
+function enterApp(){
     document.getElementById('idBarName').textContent=myName;
     document.getElementById('idBar').style.display='flex';
-    await loadMatchesAndVotes();
-    const matchId=getMatchParam();
-    if(matchId){const m=allMatches.find(x=>x.id===matchId);if(m){openVote(m);return;}}
-    showScreen('screenMatches');renderMatchList();
+    // Check for match param in URL
+    const params=new URLSearchParams(location.search);
+    const matchId=params.get('match');
+    if(matchId){
+        loadAndOpenMatch(matchId);
+    } else {
+        loadMatches().then(()=>showScreen('screenMatches'));
+    }
 }
 
-async function loadMatchesAndVotes(){
-    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(30);
-    allMatches=mh||[];
-    const{data:myV}=await sb.from('borda_votes').select('match_id').eq('voter_name',myName);
-    votedIds=new Set((myV||[]).map(v=>v.match_id));
+async function loadAndOpenMatch(matchId){
+    const{data}=await sb.from('match_history').select('*').eq('id',matchId).single();
+    if(data){ allMatches=[data]; openMatch(data); }
+    else { await loadMatches(); showScreen('screenMatches'); }
 }
 
+function logout(){
+    myName=null; localStorage.removeItem(LS_KEY);
+    document.getElementById('idBar').style.display='none';
+    document.getElementById('playerSel').value='';
+    if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
+    showScreen('screenIdentity');
+}
+
+// ── Match list ────────────────────────────────────────────────────
 function renderMatchList(){
     const el=document.getElementById('matchList');
-    if(!allMatches.length){el.innerHTML='<div class="empty"><div style="font-size:2rem;">🗓️</div><div>Niciun meci.</div></div>';return;}
-    el.innerHTML=allMatches.map((m,i)=>{
+    if(!allMatches.length){el.innerHTML='<div class="empty">Niciun meci disponibil.</div>';return;}
+    el.innerHTML=allMatches.map(m=>{
         const voted=votedIds.has(m.id);
-        const wCol=m.winner==='Portocaliu'?'var(--orange)':'#4caf50';
-        return '<div class="match-card'+(voted?' voted':'')+'" onclick="'+(voted?'':'openVoteById(\''+m.id+'\')')+'">'+
-            '<div class="mc-left">'+
-                '<div class="mc-date">'+(m.date||'—')+'</div>'+
-                '<div class="mc-winner" style="color:'+wCol+';">🏆 '+(m.winner||'—')+(m.score&&m.score!=='—'?' ('+m.score+')':'')+'</div>'+
-                '<div class="mc-teams">🟠 '+((m.orange_players||[]).join(', ')||'—')+'</div>'+
-            '</div>'+
-            '<span class="mc-badge '+(voted?'done':'open')+'">'+(voted?'✅ Votat':'🗳️ Votează')+'</span>'+
-        '</div>';
+        const oP=(m.orange_players||[]).join(', ')||'—';
+        const gP=(m.green_players||[]).join(', ')||'—';
+        const winColor=m.winner==='Portocaliu'?'var(--orange)':'#4caf50';
+        return `<div class="match-card${voted?' voted':''}" onclick="${voted?'':'openMatch_id(\''+m.id+'\')'}">
+            <div style="flex:1;min-width:0;">
+                <div class="mc-date">📅 ${m.date}</div>
+                <div class="mc-winner" style="color:${winColor};">🏆 ${m.winner} ${m.score?'· '+m.score:''}</div>
+                <div class="mc-teams">🟠 ${oP.slice(0,40)}${oP.length>40?'…':''}</div>
+                <div class="mc-teams">🟢 ${gP.slice(0,40)}${gP.length>40?'…':''}</div>
+            </div>
+            <span class="mc-badge ${voted?'done':'open'}">${voted?'✅ Votat':'🗳️ Votează'}</span>
+        </div>`;
     }).join('');
 }
 
-function openVoteById(id){const m=allMatches.find(x=>x.id===id);if(m)openVote(m);}
+function openMatch_id(id){const m=allMatches.find(x=>x.id===id);if(m)openMatch(m);}
+
+function openMatch(m){
+    selMatch=m;
+    selected=[];
+    const isO=(m.orange_players||[]).includes(myName);
+    const isG=(m.green_players||[]).includes(myName);
+    const mine=isO?m.orange_players:isG?m.green_players:m.orange_players;
+    const opp=isO?m.green_players:isG?m.orange_players:m.green_players;
+    const winColor=m.winner==='Portocaliu'?'var(--orange)':'#4caf50';
+    document.getElementById('mbWinner').style.color=winColor;
+    document.getElementById('mbWinner').textContent='🏆 '+m.winner+(m.score?' · '+m.score:'');
+    document.getElementById('mbMeta').textContent='📅 '+m.date+(isO?' · Tu: 🟠':isG?' · Tu: 🟢':'');
+    document.getElementById('resultsSection').classList.remove('show');
+    renderTeams(mine,opp,isO,isG);
+    updateProgress();
+    showScreen('screenVote');
+    if(votedIds.has(m.id)){
+        document.getElementById('submitBtn').disabled=true;
+        document.getElementById('submitBtn').textContent='✅ Votat';
+        document.getElementById('submitHint').textContent='Ai votat deja';
+        showResultsAfterVote();
+    }
+    subscribeRealtime(m.id);
+}
 
 function goToMatchList(){
     if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
-    document.getElementById('resultsSection').classList.remove('show');
-    loadMatchesAndVotes().then(renderMatchList);
-    showScreen('screenMatches');
-}
-
-function openVote(m){
-    selMatch=m;
-    const wCol=m.winner==='Portocaliu'?'var(--orange)':'#4caf50';
-    document.getElementById('mbWinner').innerHTML='<span style="color:'+wCol+';">🏆 '+(m.winner||'—')+'</span>'+(m.score&&m.score!=='—'?' ('+m.score+')':'');
-    document.getElementById('mbMeta').textContent=m.date||'—';
-    const orange=(m.orange_players||[]).map(n=>({name:n,team:'orange'}));
-    const green=(m.green_players||[]).map(n=>({name:n,team:'green'}));
-    const myTeam=orange.find(p=>p.name===myName)?'orange':green.find(p=>p.name===myName)?'green':null;
-    orderMine=[...(myTeam==='green'?green:orange)];
-    orderOpp=[...(myTeam==='green'?orange:green)];
-    const mineColor=myTeam==='green'?'#4caf50':'var(--orange)';
-    const oppColor=myTeam==='green'?'var(--orange)':'#4caf50';
-    const mineLabel=myTeam==='green'?'🟢 Echipa Ta':'🟠 Echipa Ta';
-    const oppLabel=myTeam==='green'?'🟠 Adversari':'🟢 Adversari';
-    document.getElementById('teamsGrid').innerHTML=
-        '<div class="team-col"><div class="team-col-hd"><div style="width:8px;height:8px;border-radius:50%;background:'+mineColor+';flex-shrink:0;"></div><div><div class="team-col-lbl" style="color:'+mineColor+';">'+mineLabel+'</div><div class="team-col-sub">Sus = cel mai bun</div></div><span class="team-mine-badge">👤 Tu</span></div><div class="drag-list" id="listMine" data-list="mine"></div></div>'+
-        '<div class="team-col"><div class="team-col-hd"><div style="width:8px;height:8px;border-radius:50%;background:'+oppColor+';flex-shrink:0;"></div><div><div class="team-col-lbl" style="color:'+oppColor+';">'+oppLabel+'</div><div class="team-col-sub">Sus = cel mai bun</div></div></div><div class="drag-list" id="listOpp" data-list="opp"></div></div>';
-    renderList('mine');renderList('opp');initDrag();
-    updateSubmitBar();
-    document.getElementById('resultsSection').classList.remove('show');
-    showScreen('screenVote');
-    if(votedIds.has(m.id)){showResultsAfterVote();}else{subscribeRealtime(m.id);}
-}
-
-function renderList(which){
-    const arr=which==='mine'?orderMine:orderOpp;
-    const el=document.getElementById(which==='mine'?'listMine':'listOpp');
-    if(!el) return;
-    const medals=['🥇','🥈','🥉'];
-    el.innerHTML=arr.map((p,i)=>
-        '<div class="drag-item" draggable="true" data-name="'+p.name+'" data-list="'+which+'">'+
-            '<span class="drag-handle">⠿</span>'+
-            '<span class="drag-pos '+(i===0?'p1':i===1?'p2':i===2?'p3':'')+'">'+(medals[i]||(i+1))+'</span>'+
-            '<div><div class="drag-name">'+p.name+(p.name===myName?' <span style="font-size:.55rem;color:var(--accent);">tu</span>':'')+'</div></div>'+
-        '</div>'
-    ).join('');
-}
-
-function updateSubmitBar(){
-    const voted=selMatch&&votedIds.has(selMatch.id);
-    const btn=document.getElementById('submitBtn');
-    const hint=document.getElementById('submitHint');
-    if(voted){btn.disabled=true;btn.textContent='✅ Ai votat';hint.textContent='Votul tău a fost înregistrat';}
-    else{btn.disabled=false;btn.textContent='✅ Trimite Votul';hint.textContent='Trage pentru reordonare, apoi trimite';}
-}
-
-// ── Drag & Drop ───────────────────────────────────────────────────
-// ── Sortable drag & drop (desktop + touch) ───────────────────────
-// Uses placeholder element for clear visual feedback.
-// Insert position determined by cursor vs target midpoint.
-
-let _dragSrc = null;     // the item being dragged
-let _placeholder = null; // visual placeholder div
-let _touchClone = null;  // floating clone for touch
-
-function makePlaceholder(){
-    const p = document.createElement('div');
-    p.className = 'drag-placeholder';
-    p.id = '_dragPlaceholder';
-    return p;
-}
-
-function removePlaceholder(){
-    const p = document.getElementById('_dragPlaceholder');
-    if(p) p.remove();
-}
-
-function getInsertIndex(list, clientY, excludeEl){
-    const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==excludeEl);
-    for(let i=0;i<items.length;i++){
-        const r=items[i].getBoundingClientRect();
-        if(clientY < r.top + r.height/2) return i;
+    const params=new URLSearchParams(location.search);
+    if(params.get('match')){
+        loadMatches().then(()=>showScreen('screenMatches'));
+    } else {
+        showScreen('screenMatches');
     }
-    return items.length;
 }
 
-function applyReorder(which, srcName, insertIdx){
-    const arr = which==='mine' ? orderMine : orderOpp;
-    const fi = arr.findIndex(p=>p.name===srcName);
-    if(fi===-1) return;
-    const [mv] = arr.splice(fi,1);
-    // insertIdx was computed excluding the dragged item, so it's correct
-    const clampedIdx = Math.min(insertIdx, arr.length);
-    arr.splice(clampedIdx, 0, mv);
-    renderList(which); initDrag();
-    if(navigator.vibrate) navigator.vibrate(20);
+// ── Vote grid ─────────────────────────────────────────────────────
+let _mine=[], _opp=[];
+
+function renderTeams(mine,opp,isO,isG){
+    _mine=mine||[]; _opp=opp||[];
+    const grid=document.getElementById('teamsGrid');
+    const mineLabel=isO?'🟠 Echipa Ta':isG?'🟢 Echipa Ta':'🟠 Portocaliu';
+    const oppLabel=isO?'🟢 Adversari':isG?'🟠 Adversari':'🟢 Verde';
+    const mineColor=isO?'var(--orange)':isG?'#4caf50':'var(--orange)';
+    const oppColor=isO?'#4caf50':isG?'var(--orange)':'#4caf50';
+    grid.innerHTML=`
+        <div class="team-col">
+            <div class="team-col-hd">
+                <div class="r-dot" style="background:${mineColor};"></div>
+                <div class="team-col-lbl" style="color:${mineColor};">${mineLabel}</div>
+                ${(isO||isG)?'<span class="team-mine-badge">tu ești aici</span>':''}
+            </div>
+            <div class="team-body" id="listMine">${renderCards(_mine)}</div>
+        </div>
+        <div class="team-col">
+            <div class="team-col-hd">
+                <div class="r-dot" style="background:${oppColor};"></div>
+                <div class="team-col-lbl" style="color:${oppColor};">${oppLabel}</div>
+            </div>
+            <div class="team-body" id="listOpp">${renderCards(_opp)}</div>
+        </div>`;
+    attachCardEvents();
 }
 
-function initDrag(){
-    document.querySelectorAll('.drag-list').forEach(list=>{
-        // Desktop dragover — move placeholder
-        list.addEventListener('dragover', e=>{
-            e.preventDefault();
-            e.dataTransfer.dropEffect='move';
-            if(!_dragSrc) return;
-            const idx = getInsertIndex(list, e.clientY, _dragSrc);
-            const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==_dragSrc);
-            // Insert placeholder at correct position
-            if(idx >= items.length){
-                list.appendChild(_placeholder);
-            } else {
-                list.insertBefore(_placeholder, items[idx]);
-            }
-        });
-        // Desktop drop
-        list.addEventListener('drop', e=>{
-            e.preventDefault();
-            if(!_dragSrc) return;
-            const idx = getInsertIndex(list, e.clientY, _dragSrc);
-            const which = list.dataset.list;
-            removePlaceholder();
-            applyReorder(which, _dragSrc.dataset.name, idx);
+function renderCards(names){
+    const medals=['🥇','🥈','🥉'];
+    return names.map(name=>{
+        const pos=selected.indexOf(name);
+        const isRanked=pos>=0;
+        const cls=pos===0?'r1':pos===1?'r2':pos===2?'r3':isRanked?'ranked':'';
+        const numCls=pos===0?'s1':pos===1?'s2':pos===2?'s3':isRanked?'sx':'';
+        const lbl=isRanked?(medals[pos]||(pos+1)+'°'):'—';
+        return `<div class="pc ${cls}" data-name="${name.replace(/"/g,'&quot;')}">
+            <div class="pc-num ${numCls}">${lbl}</div>
+            <div class="pc-name">${name}${name===myName?' <span style="font-size:.5rem;color:var(--accent);">tu</span>':''}</div>
+            <div class="pc-x" onclick="deselect(event,'${name.replace(/'/g,"\\'")}')">✕</div>
+        </div>`;
+    }).join('');
+}
+
+function attachCardEvents(){
+    document.querySelectorAll('.pc').forEach(card=>{
+        card.addEventListener('click', function(){
+            const name=this.dataset.name;
+            if(selected.includes(name)) return;
+            selected.push(name);
+            if(navigator.vibrate) navigator.vibrate(15);
+            rerenderCards();
         });
     });
-    document.querySelectorAll('.drag-item').forEach(item=>{
-        item.addEventListener('dragstart', e=>{
-            _dragSrc = item;
-            _placeholder = makePlaceholder();
-            _placeholder.style.height = item.offsetHeight+'px';
-            setTimeout(()=>item.classList.add('dragging'), 0);
-            e.dataTransfer.effectAllowed = 'move';
-        });
-        item.addEventListener('dragend', ()=>{
-            item.classList.remove('dragging');
-            removePlaceholder();
-            _dragSrc = null;
-        });
-        // Touch
-        initTouch(item);
-    });
 }
 
-function initTouch(item){
-    let startY, origRect, lastIdx=-1, lastList=null;
-    item.addEventListener('touchstart', e=>{
-        const t = e.touches[0];
-        startY = t.clientY;
-        origRect = item.getBoundingClientRect();
-        _placeholder = makePlaceholder();
-        _placeholder.style.height = item.offsetHeight+'px';
-        _touchClone = item.cloneNode(true);
-        _touchClone.style.cssText = 'position:fixed;top:'+origRect.top+'px;left:'+origRect.left+'px;width:'+origRect.width+'px;z-index:1000;opacity:.85;pointer-events:none;border:1px solid var(--accent);border-radius:8px;background:#1a2060;';
-        document.body.appendChild(_touchClone);
-        item.style.visibility = 'hidden';
-        // Insert placeholder where item was
-        item.parentNode.insertBefore(_placeholder, item);
-    },{passive:true});
-
-    item.addEventListener('touchmove', e=>{
-        e.preventDefault();
-        const t = e.touches[0];
-        const dy = t.clientY - startY;
-        _touchClone.style.top = (origRect.top + dy)+'px';
-        // Find list under finger
-        _touchClone.style.display='none';
-        const under = document.elementFromPoint(t.clientX, t.clientY);
-        _touchClone.style.display='';
-        const list = under && under.closest('.drag-list');
-        if(list){
-            lastList = list;
-            const idx = getInsertIndex(list, t.clientY, item);
-            lastIdx = idx;
-            const items = [...list.querySelectorAll('.drag-item')].filter(i=>i!==item);
-            if(idx >= items.length){
-                list.appendChild(_placeholder);
-            } else {
-                list.insertBefore(_placeholder, items[idx]);
-            }
-        }
-    },{passive:false});
-
-    item.addEventListener('touchend', e=>{
-        if(_touchClone){_touchClone.remove();_touchClone=null;}
-        item.style.visibility='';
-        removePlaceholder();
-        if(lastList && lastIdx !== -1){
-            const which = lastList.dataset.list;
-            applyReorder(which, item.dataset.name, lastIdx);
-        }
-        lastIdx=-1; lastList=null;
-    });
+function deselect(e,name){
+    e.stopPropagation();
+    selected=selected.filter(n=>n!==name);
+    rerenderCards();
 }
+
+function resetOrder(){
+    selected=[];
+    rerenderCards();
+}
+
+function rerenderCards(){
+    document.getElementById('listMine').innerHTML=renderCards(_mine);
+    document.getElementById('listOpp').innerHTML=renderCards(_opp);
+    attachCardEvents();
+    updateProgress();
+}
+
+function updateProgress(){
+    const total=_mine.length+_opp.length;
+    const done=selected.length;
+    const txt=document.getElementById('progressText');
+    const hint=document.getElementById('submitHint');
+    const btn=document.getElementById('submitBtn');
+    txt.innerHTML=`<span>${done}</span> / ${total} jucători selectați`;
+    hint.textContent=done<total?`Mai selectează ${total-done}`:'Toți selectați — confirmă!';
+    if(!votedIds.has(selMatch?.id)) btn.disabled=done<total;
+}
+
+// ── Confirm ───────────────────────────────────────────────────────
+function openConfirm(){
+    const medals=['🥇','🥈','🥉'];
+    const isO=(selMatch?.orange_players||[]).includes(myName);
+    const isG=(selMatch?.green_players||[]).includes(myName);
+    const mineNames=isO?selMatch.orange_players:isG?selMatch.green_players:selMatch?.orange_players||[];
+    const oppNames=isO?selMatch?.green_players:isG?selMatch?.orange_players:selMatch?.green_players||[];
+
+    const mineSelected=selected.filter(n=>mineNames.includes(n));
+    const oppSelected=selected.filter(n=>oppNames.includes(n));
+
+    let html='';
+    if(mineSelected.length){
+        html+=`<div class="conf-section">${isO?'🟠 Echipa Ta':isG?'🟢 Echipa Ta':'🟠 Portocaliu'}</div>`;
+        html+=mineSelected.map(n=>{
+            const pos=selected.indexOf(n);
+            const c=pos===0?'var(--star)':pos===1?'#aaa':pos===2?'#cd7f32':'#555';
+            return `<div class="conf-item"><div class="ci-rank" style="color:${c}">${medals[pos]||(pos+1)}</div><div class="ci-name">${n}</div></div>`;
+        }).join('');
+    }
+    if(oppSelected.length){
+        html+=`<div class="conf-section">${isO?'🟢 Adversari':isG?'🟠 Adversari':'🟢 Verde'}</div>`;
+        html+=oppSelected.map(n=>{
+            const pos=selected.indexOf(n);
+            const c=pos===0?'var(--star)':pos===1?'#aaa':pos===2?'#cd7f32':'#555';
+            return `<div class="conf-item"><div class="ci-rank" style="color:${c}">${medals[pos]||(pos+1)}</div><div class="ci-name">${n}</div></div>`;
+        }).join('');
+    }
+    document.getElementById('confList').innerHTML=html;
+    document.getElementById('confOverlay').classList.add('show');
+}
+function closeConfirm(){document.getElementById('confOverlay').classList.remove('show');}
 
 // ── Submit ────────────────────────────────────────────────────────
 async function submitVote(){
+    closeConfirm();
     if(votedIds.has(selMatch?.id)){showToast('⚠️ Ai votat deja!');return;}
+    document.getElementById('submitBtn').disabled=true;
     const rows=[];
-    const addBorda=arr=>{const N=arr.length;arr.forEach((p,i)=>rows.push({match_id:selMatch.id,voter_name:myName,player_name:p.name,borda_pts:N-i,ranked_pos:i+1}));};
-    addBorda(orderMine);addBorda(orderOpp);
+    const N=selected.length;
+    selected.forEach((name,i)=>rows.push({match_id:selMatch.id,voter_name:myName,player_name:name,borda_pts:N-i,ranked_pos:i+1}));
     try{
         const{error}=await sb.from('borda_votes').insert(rows);
         if(error) throw error;
         votedIds.add(selMatch.id);
-        document.getElementById('submitBtn').disabled=true;
         document.getElementById('submitBtn').textContent='✅ Votat';
-        document.getElementById('submitHint').textContent='Mulțumim!';
+        document.getElementById('submitHint').textContent='Mulțumim pentru vot!';
         showToast('✅ Vot trimis!');
         showResultsAfterVote();
-    }catch(e){showToast(e.code==='23505'?'⚠️ Ai votat deja!':'⚠️ '+e.message);}
+    }catch(e){
+        document.getElementById('submitBtn').disabled=false;
+        showToast(e.code==='23505'?'⚠️ Ai votat deja!':'⚠️ '+e.message);
+    }
 }
 
 async function showResultsAfterVote(){
@@ -413,19 +485,19 @@ async function loadLiveResults(){
     const maxPts=sorted[0]?.[1]||1;
     const el=document.getElementById('liveResults');
     if(!sorted.length){el.innerHTML='<div style="padding:14px;text-align:center;color:#333;font-size:.8rem;">Fără voturi încă.</div>';return;}
-    el.innerHTML=sorted.map(([name,pts],idx)=>{
+    el.innerHTML=sorted.map(([name,pts],i)=>{
         const pct=Math.round((pts/maxPts)*100);
-        const rc=idx===0?'gold':idx===1?'silver':idx===2?'bronze':'';
-        const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':idx+1+'';
+        const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
         const isO=(selMatch.orange_players||[]).includes(name);
-        return '<div class="results-row">'+
-            '<div class="r-rank '+rc+'">'+medal+'</div>'+
-            '<div class="r-dot" style="background:'+(isO?'var(--orange)':'#4caf50')+';"></div>'+
-            '<div class="r-name">'+name+(idx===0?'<span class="mvp-badge">MVP</span>':'')+'</div>'+
-            '<div class="r-bar-wrap"><div class="r-bar'+(idx===0?' top':'')+'" style="width:'+pct+'%;"></div></div>'+
-            '<div class="r-pct">'+pct+'%</div>'+
-        '</div>';
-    }).join('')+'<div style="padding:6px 12px;font-size:.6rem;color:#333;">'+voters.size+' vot'+(voters.size!==1?'uri':'')+'</div>';
+        return `<div class="rr">
+            <div class="rr-rank ${rc}">${medal}</div>
+            <div class="rr-dot" style="background:${isO?'var(--orange)':'#4caf50'};"></div>
+            <div class="rr-name">${name}${i===0?'<span class="mvp-badge">MVP</span>':''}</div>
+            <div class="rr-bar-wrap"><div class="rr-bar${i===0?' top':''}" style="width:${pct}%;"></div></div>
+            <div class="rr-pct">${pct}%</div>
+        </div>`;
+    }).join('')+`<div style="padding:5px 12px;font-size:.6rem;color:#333;">${voters.size} vot${voters.size!==1?'uri':''}</div>`;
 }
 
 function subscribeRealtime(matchId){
@@ -436,11 +508,17 @@ function subscribeRealtime(matchId){
         .subscribe();
 }
 
+document.getElementById('confOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeConfirm();});
+
 async function init(){
     await loadPlayers();
     const saved=localStorage.getItem(LS_KEY);
-    if(saved&&allPlayers.find(p=>p.name===saved)){document.getElementById('playerSel').value=saved;myName=saved;enterApp();}
-    else{showScreen('screenIdentity');}
+    if(saved&&allPlayers.find(p=>p.name===saved)){
+        document.getElementById('playerSel').value=saved;
+        myName=saved; enterApp();
+    } else {
+        showScreen('screenIdentity');
+    }
 }
 init();
 </script>
