@@ -2265,49 +2265,66 @@ const TAG_BUCKETS = {
     defensiv: {axes:['aparare','pozitionare'],      weight:0.25},
 };
 
+/**
+ * computeTagBonus 4.0 — Model pur aditiv
+ *
+ * Fiecare tag activ contribuie INDEPENDENT:
+ *   pos tag: +0.25 .. +0.50 (în funcție de puterea profilului)
+ *   neg tag: −0.25 .. −0.50
+ *   neu tag: ±0.10 (mic)
+ *
+ * tw_weight (coeficient admin, −50%..+50%) ajustează fin contribuția:
+ *   tw pozitiv = întărește contribuția (pos devine mai bun, neg mai puțin sever)
+ *   tw negativ = slăbește contribuția
+ *
+ * Total clamped la ±TAG_BONUS_CAP (default ±2.0)
+ *
+ * Exemplu cu TAG_BONUS_CAP=2.0:
+ *   4 tag-uri pos puternice = ~+1.6 → clar pozitiv
+ *   4 pos + 2 neg = ~+0.8  → net pozitiv
+ *   5 neg = ~−2.0 → cap negativ
+ */
 function computeTagBonus(activeTags){
     if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
 
-    const signals = activeTags.map(obj=>{
-        const tag = obj.tag;
-        const net = getTagProfileNet(tag);
-        const strength = getTagProfileStrength(tag);
-        const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
-        const tw = TW[String(obj.id)] || 0;
-        const twAdj = tw * 0.6;
-        const raw = (net !== 0 ? Math.sign(net) : dir) * Math.min(strength, 3.0) + twAdj;
-        return {id: obj.id, tag, raw, dir, strength, net};
-    });
-
-    // Compute per-bucket bonus
-    const bucketBonuses = {};
     let totalBonus = 0;
+    const signals = [];
 
-    Object.entries(TAG_BUCKETS).forEach(([bucket, def])=>{
-        let bucketSum = 0;
-        let maxSum = 0;
-        activeTags.forEach(obj=>{
-            const ip = obj.tag?.impact_profile || {};
-            def.axes.forEach(ax=>{
-                const v = parseFloat(ip[ax])||0;
-                bucketSum += v;
-                maxSum += 3; // max per axis per tag
-            });
-        });
-        const maxPossible = maxSum || (activeTags.length * def.axes.length * 3);
-        const normalized = maxPossible > 0 ? bucketSum / maxPossible : 0;
-        const bucketCap = TAG_BONUS_CAP * def.weight;
-        const bucketBonus = Math.max(-bucketCap, Math.min(bucketCap, normalized * bucketCap * 4));
-        bucketBonuses[bucket] = parseFloat(bucketBonus.toFixed(3));
-        totalBonus += bucketBonus;
+    activeTags.forEach(obj=>{
+        const tag = obj.tag;
+        const tw = TW[String(obj.id)] || 0;
+
+        // Puterea profilului: suma abs a tuturor axelor (0 → ~27 max)
+        const strength = getTagProfileStrength(tag); // există deja
+        // Normalizat 0→1 (9 = "tag puternic pe 3 axe la max 3")
+        const scaledStrength = Math.min(strength / 9, 1.0);
+
+        // Direcția din tip
+        const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
+
+        if(dir === 0){
+            // Neutru: contribuție mică dată de profilul net
+            const net = getTagProfileNet(tag);
+            const contrib = (net / 27) * 0.2 + tw * 0.1;
+            signals.push({id:obj.id, tag, raw:contrib, dir:0});
+            totalBonus += contrib;
+            return;
+        }
+
+        // Baza: 0.25 (tag slab, fără profil) → 0.50 (tag puternic)
+        const base = dir * (0.25 + scaledStrength * 0.25);
+
+        // tw fine-tune: ±0.5 admin coef → contribuție ±0.15 extra
+        // tw pozitiv = boost indiferent de direcție
+        const twContrib = tw * 0.30;
+
+        const contrib = base + twContrib;
+        signals.push({id:obj.id, tag, raw:contrib, dir, strength, scaledStrength});
+        totalBonus += contrib;
     });
-
-    // TW global fine-tune (±10% of cap)
-    const twAdjTotal = signals.reduce((s,sg)=> s + (TW[String(sg.id)]||0) * 0.1, 0);
-    totalBonus += Math.max(-TAG_BONUS_CAP*0.1, Math.min(TAG_BONUS_CAP*0.1, twAdjTotal));
 
     const bonus = Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
-    return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets: bucketBonuses};
+    return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets:{}};
 }
 
 /**
@@ -4002,9 +4019,8 @@ function buildModalStats(p){
     if(_activeTags.length>0){
         const {bonus:_tb, signals:_sigs} = computeTagBonus(_activeTags);
         const bonusStr=_tb>0?`<span style="color:#4caf50">+${_tb.toFixed(2)}</span>`:`<span style="color:#e57373">${_tb.toFixed(2)}</span>`;
-        formulaHtml += ` | Tags(${_activeTags.length}): ${bonusStr}`;
-        const posCount=_sigs.filter(s=>s.dir>0).length, negCount=_sigs.filter(s=>s.dir<0).length;
-        if(posCount||negCount) formulaHtml+=` <span style="font-size:.6em;color:#444;">(+${posCount}/−${negCount})</span>`;
+        const posC=_sigs.filter(s=>s.dir>0).length, negC=_sigs.filter(s=>s.dir<0).length;
+        formulaHtml += ` | Tags: ${bonusStr} <span style="font-size:.6em;color:#444;">(${posC>0?'+'+posC+' pos':''}${negC>0?' −'+negC+' neg':''})</span>`;
     }
     document.getElementById('algoInfo').innerHTML = formulaHtml;
 
@@ -4120,13 +4136,12 @@ function buildModalStats(p){
         const {bonus:tagBns, signals} = computeTagBonus(activeTags2);
         const posCount = signals.filter(s=>s.dir>0).length;
         const negCount = signals.filter(s=>s.dir<0).length;
-        const posSum = signals.filter(s=>s.dir>0).reduce((a,s)=>a+s.raw,0);
-        const negSum = signals.filter(s=>s.dir<0).reduce((a,s)=>a+s.raw,0);
-        const note = posCount&&negCount
-            ? `${posCount} pozitive (${posSum>0?'+':''}${posSum.toFixed(1)}) anulez ${negCount} negative (${negSum.toFixed(1)}) → net ${tagBns>=0?'+':''}${tagBns.toFixed(2)}`
-            : posCount ? `${posCount} pozitive → +${tagBns.toFixed(2)}`
-            : `${negCount} negative → ${tagBns.toFixed(2)}`;
-        steps.push({icon:'🏷️', label:`Tag-uri active (${activeTags2.length})`, val:null, note, color:col(tagBns), delta:tagBns});
+        const tagDetails = signals
+            .filter(s=>s.dir!==0)
+            .map(s=>`${s.tag.emoji}${s.raw>=0?'+':''}${s.raw.toFixed(2)}`)
+            .join(' ');
+        const note = tagDetails + (tagDetails?' → ':'') + `net ${tagBns>=0?'+':''}${tagBns.toFixed(2)}`;
+        steps.push({icon:'🏷️', label:`Tag-uri (${posCount>0?'+'+posCount+' pos':''}${negCount>0?' −'+negCount+' neg':''}${activeTags2.length-posCount-negCount>0?' ~neu':''})`, val:null, note, color:col(tagBns), delta:tagBns});
     }
 
     let running = 5.0;
