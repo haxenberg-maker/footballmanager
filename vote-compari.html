@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Compară Jucători · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
+:root{--orange:#ff8c00;--green:#28a745;--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;}
+
+.hd{background:#080a12;border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.hd-logo{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;}
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:7px 16px;display:none;align-items:center;gap:8px;}
+.id-name{font-weight:700;color:var(--star);}
+.id-change{font-size:.6rem;color:#333;cursor:pointer;text-decoration:underline;}
+
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* Identity */
+.id-screen{max-width:360px;margin:50px auto;padding:0 16px;}
+.id-title{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:3px;margin-bottom:4px;}
+.id-sub{font-size:.78rem;color:#555;margin-bottom:14px;line-height:1.5;}
+.id-sel{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+.id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;cursor:pointer;}
+
+/* Status */
+.status-screen{max-width:340px;margin:70px auto;padding:0 16px;text-align:center;}
+.status-icon{font-size:3rem;margin-bottom:12px;}
+.status-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
+.status-sub{font-size:.8rem;color:#555;margin-top:6px;line-height:1.6;}
+
+/* Compare screen */
+.compare-wrap{max-width:480px;margin:0 auto;padding:14px 14px 20px;}
+.session-banner{background:#0d0f18;border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;}
+.sb-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
+.sb-meta{font-size:.68rem;color:#555;margin-top:2px;}
+
+/* Progress */
+.progress-bar-wrap{height:6px;background:#1e2130;border-radius:3px;overflow:hidden;margin-bottom:12px;}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#a78bfa);border-radius:3px;transition:width .4s ease;}
+.progress-txt{font-size:.7rem;color:#555;text-align:center;margin-bottom:14px;}
+
+/* Question */
+.question-lbl{font-size:.7rem;color:#444;text-transform:uppercase;letter-spacing:2px;text-align:center;margin-bottom:14px;}
+
+/* Player cards */
+.vs-grid{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:14px;}
+.vs-divider{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#252836;text-align:center;}
+.player-btn{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:20px 12px;border-radius:14px;
+    border:2px solid var(--border);background:#0d0f18;
+    cursor:pointer;transition:all .15s;min-height:120px;
+    -webkit-tap-highlight-color:transparent;
+    text-align:center;
+}
+.player-btn:active{transform:scale(.96);}
+.player-btn:hover{border-color:var(--accent);}
+.player-btn.selected-a{border-color:var(--orange);background:rgba(255,140,0,.08);animation:pickPulse .25s ease;}
+.player-btn.selected-b{border-color:#4caf50;background:rgba(40,167,69,.08);animation:pickPulse .25s ease;}
+@keyframes pickPulse{0%{transform:scale(1.06)}100%{transform:scale(1)}}
+.pb-rank{font-family:'Bebas Neue',sans-serif;font-size:.7rem;color:#333;margin-bottom:4px;letter-spacing:1px;}
+.pb-initials{width:52px;height:52px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#555;margin-bottom:8px;transition:background .15s;}
+.player-btn:hover .pb-initials{background:#252836;}
+.pb-name{font-weight:700;font-size:.95rem;line-height:1.2;}
+.pb-smart{font-size:.68rem;color:var(--star);margin-top:3px;}
+.pb-wins{font-size:.6rem;color:#444;margin-top:2px;}
+
+/* Draw button */
+.draw-btn{width:100%;padding:9px;border-radius:9px;background:#0d0f18;border:1px solid var(--border);color:#444;font-size:.8rem;font-weight:700;cursor:pointer;margin-bottom:14px;transition:all .12s;}
+.draw-btn:hover{border-color:#555;color:#888;}
+
+/* Skip button */
+.skip-btn{width:100%;padding:7px;border-radius:9px;background:transparent;border:1px dashed #1e2130;color:#333;font-size:.72rem;cursor:pointer;}
+.skip-btn:hover{border-color:#555;color:#555;}
+
+/* Results screen */
+.results-wrap{max-width:480px;margin:0 auto;padding:14px;}
+.results-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:14px;}
+.res-card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px;}
+.res-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #0a0c14;}
+.res-row:last-child{border-bottom:none;}
+.rr-pos{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:28px;text-align:center;}
+.rr-name{flex:1;font-weight:700;font-size:.88rem;}
+.rr-bar-wrap{width:70px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;}
+.rr-bar{height:100%;border-radius:2px;}
+.rr-wins{font-family:'Bebas Neue',sans-serif;font-size:.8rem;color:#555;min-width:30px;text-align:right;}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="hd">
+  <div><div class="hd-logo">⚽ Arena Friends FC</div></div>
+  <div style="font-size:.65rem;color:#555;">Compară 1v1</div>
+</div>
+<div class="id-bar" id="idBar" style="display:none;">
+  <span style="font-size:.62rem;color:#555;">Tu:</span>
+  <span class="id-name" id="idBarName"></span>
+  <span class="id-change" onclick="logout()">· schimbă</span>
+</div>
+
+<!-- Identity -->
+<div class="screen active" id="screenIdentity">
+  <div class="id-screen">
+    <div class="id-title">👤 Cine ești?</div>
+    <div class="id-sub">Vei compara jucătorii unul câte unul.</div>
+    <select class="id-sel" id="playerSel"><option value="">— Selectează —</option></select>
+    <button class="id-btn" onclick="confirmIdentity()">⚡ Intră</button>
+  </div>
+</div>
+
+<!-- No session -->
+<div class="screen" id="screenNoSession">
+  <div class="status-screen">
+    <div class="status-icon">🔒</div>
+    <div class="status-title">Nicio Sesiune Activă</div>
+    <div class="status-sub">Administratorul nu a pornit o sesiune de comparații.<br>Revino mai târziu.</div>
+  </div>
+</div>
+
+<!-- Done -->
+<div class="screen" id="screenDone">
+  <div class="results-wrap">
+    <div class="results-title">✅ Ai terminat!</div>
+    <div style="font-size:.8rem;color:#555;margin-bottom:14px;">Ai comparat toate perechile. Clasament bazat pe victoriile tale:</div>
+    <div class="res-card" id="myResultsList"></div>
+  </div>
+</div>
+
+<!-- Compare -->
+<div class="screen" id="screenCompare">
+  <div class="compare-wrap">
+    <div class="session-banner">
+      <div class="sb-label" id="sessionLabel">Comparații</div>
+      <div class="sb-meta" id="sessionMeta"></div>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%;"></div>
+    </div>
+    <div class="progress-txt" id="progressTxt">0 / 0 perechi</div>
+
+    <div class="question-lbl">Cine e mai bun?</div>
+
+    <div class="vs-grid">
+      <div class="player-btn" id="btnA" onclick="pick('a')">
+        <div class="pb-rank" id="rankA">—</div>
+        <div class="pb-initials" id="initialsA">—</div>
+        <div class="pb-name" id="nameA">—</div>
+        <div class="pb-smart" id="smartA"></div>
+        <div class="pb-wins" id="winsA"></div>
+      </div>
+      <div class="vs-divider">VS</div>
+      <div class="player-btn" id="btnB" onclick="pick('b')">
+        <div class="pb-rank" id="rankB">—</div>
+        <div class="pb-initials" id="initialsB">—</div>
+        <div class="pb-name" id="nameB">—</div>
+        <div class="pb-smart" id="smartB"></div>
+        <div class="pb-wins" id="winsB"></div>
+      </div>
+    </div>
+
+    <button class="draw-btn" onclick="pick('draw')">🤝 Egal / Nu știu</button>
+    <button class="skip-btn" onclick="skip()">→ Sari peste această pereche</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const LS_KEY='compari_identity';
+
+let myName=null, allPlayers=[], activeConfig=null;
+let pairs=[], pairIdx=0, sessionWins={};
+
+// ── Utils ─────────────────────────────────────────────────────────
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function initials(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+// ── Generate all pairs (round-robin) in shuffled order ────────────
+function generatePairs(players){
+    const ps=[];
+    for(let i=0;i<players.length;i++)
+        for(let j=i+1;j<players.length;j++)
+            ps.push([players[i],players[j]]);
+    // Fisher-Yates shuffle
+    for(let i=ps.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [ps[i],ps[j]]=[ps[j],ps[i]];
+    }
+    return ps;
+}
+
+// ── Identity ──────────────────────────────────────────────────────
+async function loadPlayers(){
+    const{data}=await sb.from('players').select('id,name,wins,games').order('name');
+    allPlayers=data||[];
+    const sel=document.getElementById('playerSel');
+    allPlayers.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
+}
+function confirmIdentity(){
+    const v=document.getElementById('playerSel').value;
+    if(!v){showToast('⚠️ Selectează-ți numele!');return;}
+    myName=v;
+    localStorage.setItem(LS_KEY,v);
+    enterApp();
+}
+function logout(){
+    myName=null;localStorage.removeItem(LS_KEY);
+    document.getElementById('idBar').style.display='none';
+    document.getElementById('playerSel').value='';
+    showScreen('screenIdentity');
+}
+async function enterApp(){
+    document.getElementById('idBarName').textContent=myName;
+    document.getElementById('idBar').style.display='flex';
+    showScreen('screenNoSession');
+    await loadActiveConfig();
+}
+
+// ── Load active session ───────────────────────────────────────────
+async function loadActiveConfig(){
+    const{data}=await sb.from('compare_configs').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
+    if(!data){showScreen('screenNoSession');return;}
+    activeConfig=data;
+    document.getElementById('sessionLabel').textContent=data.label||'Comparații';
+
+    const players=data.players||[];
+    sessionWins={};
+    players.forEach(p=>sessionWins[p]=0);
+
+    // Load my existing votes
+    const{data:myVotes}=await sb.from('compare_votes').select('player_a,player_b,winner').eq('config_id',data.id).eq('voter_name',myName);
+    const donePairs=new Set((myVotes||[]).map(v=>pairKey(v.player_a,v.player_b)));
+    (myVotes||[]).forEach(v=>{if(v.winner&&v.winner!=='draw'&&sessionWins[v.winner]!==undefined)sessionWins[v.winner]++;});
+
+    // Generate pairs, skip already done
+    const allPairs=generatePairs(players);
+    pairs=allPairs.filter(([a,b])=>!donePairs.has(pairKey(a,b)));
+    pairIdx=0;
+
+    const total=allPairs.length;
+    const done=total-pairs.length;
+
+    document.getElementById('sessionMeta').textContent=`${players.length} jucători · ${total} perechi total`;
+
+    if(pairs.length===0){
+        showDoneScreen(players);
+        return;
+    }
+
+    updateProgress(done,total);
+    showScreen('screenCompare');
+    renderPair();
+}
+
+function pairKey(a,b){return [a,b].sort().join('|||');}
+
+// ── Render pair ───────────────────────────────────────────────────
+function renderPair(){
+    if(pairIdx>=pairs.length){
+        showDoneScreen(activeConfig?.players||[]);
+        return;
+    }
+    const [a,b]=pairs[pairIdx];
+    const pA=allPlayers.find(x=>x.name===a)||{name:a,wins:0,games:0};
+    const pB=allPlayers.find(x=>x.name===b)||{name:b,wins:0,games:0};
+
+    // Current session rankings
+    const ranked=Object.entries(sessionWins).sort((x,y)=>y[1]-x[1]);
+    const posA=ranked.findIndex(([n])=>n===a);
+    const posB=ranked.findIndex(([n])=>n===b);
+    const medals=['🥇','🥈','🥉'];
+
+    ['A','B'].forEach((side,si)=>{
+        const p=si===0?pA:pB;
+        const pos=si===0?posA:posB;
+        const w=sessionWins[p.name]||0;
+        document.getElementById('initials'+side).textContent=initials(p.name);
+        document.getElementById('name'+side).textContent=p.name;
+        document.getElementById('rank'+side).textContent=pos>=0?(medals[pos]||(pos+1)+'°'):'—';
+        document.getElementById('smart'+side).textContent=p.games>0?`⚽ ${p.wins}V / ${p.games}M`:'';
+        document.getElementById('wins'+side).textContent=w>0?`${w} victorii sesiune`:'';
+        document.getElementById('btn'+side).className='player-btn';
+        document.getElementById('initials'+side).style.background='#1c1f2b';
+        document.getElementById('initials'+side).style.color='#555';
+    });
+}
+
+// ── Pick ──────────────────────────────────────────────────────────
+async function pick(side){
+    const [a,b]=pairs[pairIdx];
+    const winner=side==='a'?a:side==='b'?b:'draw';
+
+    // Animate
+    if(side!=='draw'){
+        const btn=document.getElementById('btn'+side.toUpperCase());
+        btn.className='player-btn selected-'+(side==='a'?'a':'b');
+        document.getElementById('initials'+side.toUpperCase()).style.background=side==='a'?'rgba(255,140,0,.2)':'rgba(40,167,69,.2)';
+        document.getElementById('initials'+side.toUpperCase()).style.color=side==='a'?'var(--orange)':'#4caf50';
+    }
+    if(navigator.vibrate) navigator.vibrate(20);
+
+    // Update session wins
+    if(winner!=='draw') sessionWins[winner]=(sessionWins[winner]||0)+1;
+
+    // Save to DB
+    try{
+        await sb.from('compare_votes').insert({config_id:activeConfig.id,voter_name:myName,player_a:a,player_b:b,winner});
+    }catch(e){ console.warn('save vote:', e.message); }
+
+    // Next pair after brief delay
+    pairIdx++;
+    const total=activeConfig?.players?.length||0;
+    const totalPairs=total*(total-1)/2;
+    const done=totalPairs-pairs.length+pairIdx;
+    updateProgress(done,totalPairs);
+
+    setTimeout(()=>{
+        if(pairIdx>=pairs.length) showDoneScreen(activeConfig?.players||[]);
+        else renderPair();
+    }, side==='draw'?100:220);
+}
+
+function skip(){
+    // Move current pair to end so it comes back
+    const current=pairs.splice(pairIdx,1)[0];
+    pairs.push(current);
+    if(pairs.length>0) renderPair();
+}
+
+function updateProgress(done,total){
+    const pct=total>0?Math.round((done/total)*100):0;
+    document.getElementById('progressFill').style.width=pct+'%';
+    document.getElementById('progressTxt').textContent=`${done} / ${total} perechi (${pct}%)`;
+}
+
+// ── Done ──────────────────────────────────────────────────────────
+function showDoneScreen(players){
+    const sorted=Object.entries(sessionWins).sort((a,b)=>b[1]-a[1]);
+    const maxW=sorted[0]?.[1]||1;
+    const medals=['🥇','🥈','🥉'];
+    const colors=['var(--star)','#aaa','#cd7f32'];
+    document.getElementById('myResultsList').innerHTML=sorted.map(([name,w],i)=>{
+        const pct=Math.round((w/maxW)*100);
+        return `<div class="res-row">
+            <div class="rr-pos" style="color:${colors[i]||'#333'}">${medals[i]||(i+1)}</div>
+            <div class="rr-name">${name}</div>
+            <div class="rr-bar-wrap"><div class="rr-bar" style="width:${pct}%;background:${i===0?'linear-gradient(90deg,var(--star),var(--orange))':'var(--accent)'}"></div></div>
+            <div class="rr-wins">${w}W</div>
+        </div>`;
+    }).join('');
+    showScreen('screenDone');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+async function init(){
+    await loadPlayers();
+    const saved=localStorage.getItem(LS_KEY);
+    if(saved&&allPlayers.find(p=>p.name===saved)){
+        document.getElementById('playerSel').value=saved;
+        myName=saved; enterApp();
+    } else {
+        showScreen('screenIdentity');
+    }
+}
+init();
+</script>
+</body>
+</html>

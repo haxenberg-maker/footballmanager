@@ -2323,7 +2323,7 @@ function computeTagBonus(activeTags){
         totalBonus += contrib;
     });
 
-    const bonus = Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
+    const bonus = TAG_BONUS_CAP <= 0 ? totalBonus : Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
     return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets:{}};
 }
 

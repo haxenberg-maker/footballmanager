@@ -285,6 +285,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 <span style="font-size:.62rem;color:#444;">pt</span>
             </div>
         </div>
+        <!-- Formula vizuală -->
+        <div class="card" id="formulaCard">
+            <div class="card-title" style="margin-bottom:8px;">📐 Formula Smart Rating</div>
+            <div id="formulaPreview" style="font-size:.75rem;line-height:2;color:#888;"></div>
+            <div style="font-size:.6rem;color:#333;margin-top:6px;">Modifică ponderile de mai sus pentru a schimba formula · max contribuție per factor</div>
+        </div>
         <!-- Tag weights -->
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -358,6 +364,43 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
 </div>
 
+
+<!-- ── COMPARĂ JUCĂTORI ──────────────────────────────────────── -->
+<div class="section" id="sec-compare">
+    <div class="panel-header">
+        <div class="panel-title">🆚 Compară Jucători</div>
+        <div class="panel-sub">Configurează sesiunea de comparații 1v1</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:8px;">Jucători în sesiunea activă</div>
+            <div style="font-size:.7rem;color:#555;margin-bottom:10px;">Selectează jucătorii care vor fi comparați. Fiecare pereche va apărea o singură dată.</div>
+            <div id="comparePlayersList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+            <div style="font-size:.65rem;color:#444;margin-bottom:8px;" id="compareInfo">0 jucători → 0 perechi</div>
+            <div style="display:flex;gap:6px;">
+                <input id="compareLabel" type="text" placeholder="Ex: Clasament Sezon 2026" style="flex:1;background:#0d0f18;border:1px solid var(--border);color:#fff;padding:8px 10px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.85rem;outline:none;">
+                <button onclick="startCompareSession()" style="background:var(--accent);color:#fff;padding:8px 14px;border-radius:8px;font-weight:700;font-size:.82rem;border:none;cursor:pointer;white-space:nowrap;">▶ Pornește</button>
+            </div>
+        </div>
+
+        <div class="card" id="compareActiveCard" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                <div class="card-title" style="margin-bottom:0;">🟢 Sesiune Activă</div>
+                <button onclick="stopCompareSession()" style="background:rgba(198,40,40,.1);border:1px solid #c62828;color:#ef9a9a;padding:4px 10px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;">■ Oprește</button>
+            </div>
+            <div id="compareActiveLabel" style="font-size:.75rem;color:var(--star);margin-bottom:8px;"></div>
+            <div style="font-size:.65rem;color:#555;" id="compareProgress">0 perechi rezolvate</div>
+            <div style="margin-top:8px;">
+                <a id="compareLinkBtn" href="/vote-compari" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(61,90,254,.12);border:1px solid var(--accent);color:#82b1ff;padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;">🔗 Deschide /vote-compari</a>
+            </div>
+            <!-- Live results -->
+            <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Clasament Live (Wins)</div>
+                <div id="compareResults"></div>
+            </div>
+        </div>
+    </div>
+</div>
 <!-- ── DATE ──────────────────────────────────────────────────── -->
 <div class="section" id="sec-data">
     <div class="panel-header">
@@ -701,7 +744,8 @@ function buildAlgorithmPanel(){
         </div>`:''}`;
     }
     updateWeightsSum();
-    const tcEl=document.getElementById('tagCapVal');if(tcEl)tcEl.textContent=TAG_BONUS_CAP.toFixed(1);
+    const tcEl=document.getElementById('tagCapVal');if(tcEl)tcEl.textContent=TAG_BONUS_CAP===0?'∞':TAG_BONUS_CAP.toFixed(1);
+    setTimeout(renderFormulaPreview,50);
     // Tag weights
     const twEl=document.getElementById('tagWeightsList');if(!twEl)return;
     if(!tagsConfig.length){twEl.innerHTML='<div style="color:#444;font-size:.78rem;">Configurează mai întâi tag-urile.</div>';return;}
@@ -719,15 +763,17 @@ function buildAlgorithmPanel(){
 
 function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
 function syncWeightNum(key){let v=parseInt(document.getElementById('wnum-'+key).value)||0;v=Math.max(0,Math.min(100,v));W[key]=v/100;updateWeightsSum();}
-function stepTagCap(delta){TAG_BONUS_CAP=Math.max(0.5,Math.min(5,parseFloat((TAG_BONUS_CAP+delta).toFixed(1))));const el=document.getElementById('tagCapVal');if(el)el.textContent=TAG_BONUS_CAP.toFixed(1);updateWeightsSum();}
+function stepTagCap(delta){if(delta>0&&TAG_BONUS_CAP>=5)TAG_BONUS_CAP=0;else if(delta<0&&TAG_BONUS_CAP<=0)TAG_BONUS_CAP=5;else TAG_BONUS_CAP=parseFloat(Math.max(0,Math.min(5,TAG_BONUS_CAP+delta)).toFixed(1));const el=document.getElementById('tagCapVal');if(el)el.textContent=TAG_BONUS_CAP===0?'∞':TAG_BONUS_CAP.toFixed(1);updateWeightsSum();}
 function toggleMvpAlgo(){const en=W.mvpWin>0||W.mvpLoss>0;if(en){W.mvpWin=0;W.mvpLoss=0;}else{W.mvpWin=0.05;W.mvpLoss=0.03;}buildAlgorithmPanel();}
 function stepTagWeight(tid,delta){let cur=Math.round((TW[tid]||0)*100)+delta;cur=Math.max(-50,Math.min(50,cur));TW[tid]=cur/100;const t=tagsConfig.find(x=>String(x.id)===tid);if(t)t.tw_weight=TW[tid];const el=document.getElementById('twval-'+tid);if(el){el.textContent=cur>0?'+'+cur:cur;el.style.color=cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';}}
 function updateWeightsSum(){
-    const mainKeys=['winrate','borda','general'];
-    const sum=mainKeys.reduce((s,k)=>s+(W[k]||0),0);
+    const allKeys=['winrate','borda','general','mvpWin','mvpLoss'];
+    const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
     const pct=Math.round(sum*100);
     const ring=document.getElementById('algoRing');const pw=document.getElementById('algoPower');
     if(ring&&pw){pw.textContent=pct;const col=Math.abs(pct-100)<2?'#69f0ae':pct>100?'#ef9a9a':'#ffcc00';ring.style.borderColor=col;pw.style.color=col;}
+    // Update formula preview
+    renderFormulaPreview();
 }
 function applyPreset(name){
     const p=PRESETS[name];if(!p)return;
@@ -735,9 +781,9 @@ function applyPreset(name){
     buildAlgorithmPanel();showToast('✅ Presetare aplicată!');
 }
 async function saveAlgorithm(){
-    const mainKeys=['winrate','borda','general'];
-    const sum=mainKeys.reduce((s,k)=>s+(W[k]||0),0);
-    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
+    const allKeys=['winrate','borda','general','mvpWin','mvpLoss'];
+    const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
+    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma = ${Math.round(sum*100)}% — trebuie 100%! (incl. MVP dacă e activ)`);return;}
     try{
         await sb.from('algo_settings').upsert([{key:'weights',value:W},{key:'tag_bonus_cap',value:TAG_BONUS_CAP}],{onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:TW[String(t.id)]||0}).eq('id',t.id)));
@@ -752,6 +798,33 @@ async function resetAlgorithm(){
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
     }catch(e){console.warn(e);}
     buildAlgorithmPanel();showToast('↺ Algoritm resetat!');
+}
+
+
+function renderFormulaPreview(){
+    const el=document.getElementById('formulaPreview');
+    if(!el) return;
+    const mvpActive=W.mvpWin>0||W.mvpLoss>0;
+    const capStr=TAG_BONUS_CAP===0?'∞':('±'+TAG_BONUS_CAP.toFixed(1));
+    const rows=[
+        {color:'#888',icon:'🎯',label:'Punct de start',formula:'5.0',detail:''},
+        {color:W.winrate>0?'#ffcc00':'#333',icon:'📈',label:'Win Rate',formula:`${W.winrate>0?'+'+'':''}`+`(WR−50%)×${(W.winrate*4).toFixed(2)}`,detail:`max ±${(W.winrate*2).toFixed(2)} pt (pondere ${Math.round(W.winrate*100)}%)`},
+        {color:W.borda>0?'#a78bfa':'#333',icon:'🏆',label:'Borda Votes',formula:`${W.borda>0?'+':''}`+`(Borda−5)/5×${(W.borda*4).toFixed(2)}`,detail:`max ±${(W.borda*2).toFixed(2)} pt (${Math.round(W.borda*100)}%)`},
+        {color:W.general>0?'var(--star)':'#333',icon:'⭐',label:'Voturi colegi',formula:`${W.general>0?'+':''}`+`(Nota−5)/5×${(W.general*4).toFixed(2)}`,detail:`max ±${(W.general*2).toFixed(2)} pt (${Math.round(W.general*100)}%)`},
+        ...(mvpActive?[
+            {color:'#69f0ae',icon:'🥇',label:'MVP câștig',formula:`+mvpRate×${W.mvpWin.toFixed(2)}×0.5`,detail:`(${Math.round(W.mvpWin*100)}%)`},
+            {color:'#ef9a9a',icon:'⚔️',label:'MVP pierdere',formula:`+mvpRate×${W.mvpLoss.toFixed(2)}×0.3`,detail:`(${Math.round(W.mvpLoss*100)}%)`},
+        ]:[]),
+        {color:'#69f0ae',icon:'⚽',label:'Goluri/meci',formula:'+min(gpg×0.33, 1.0)',detail:'max +1.0 pt'},
+        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.15',detail:'max −0.45 pt'},
+        {color:'#82b1ff',icon:'🏷️',label:'Tag-uri active',formula:`+Σ tags`,detail:`clamped ${capStr} pt`},
+    ];
+    el.innerHTML=rows.map(r=>`<div style="display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px solid #0a0c14;">
+        <span style="font-size:.72rem;min-width:16px;">${r.icon}</span>
+        <span style="min-width:90px;color:#555;font-size:.68rem;">${r.label}</span>
+        <code style="flex:1;color:${r.color};font-family:monospace;font-size:.72rem;background:#080a12;padding:1px 5px;border-radius:4px;">${r.formula}</code>
+        <span style="font-size:.6rem;color:#333;white-space:nowrap;">${r.detail}</span>
+    </div>`).join('');
 }
 
 // ── TAGS SECTION ──────────────────────────────────────────────────
@@ -1291,6 +1364,107 @@ async function saveVoteEdit(){
         closeVoteEdit();
         await refreshPollResults();
     }catch(e){showToast('⚠️ '+e.message);}
+}
+
+
+// ── COMPARE SESSION ───────────────────────────────────────────────
+let compareSelected = new Set();
+let compareConfigId = null;
+
+async function buildComparePanel(){
+    const el = document.getElementById('comparePlayersList');
+    if(!el) return;
+    // Check active session
+    try{
+        const{data}=await sb.from('compare_configs').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
+        if(data){
+            compareConfigId=data.id;
+            document.getElementById('compareActiveCard').style.display='block';
+            document.getElementById('compareActiveLabel').textContent=data.label||'Sesiune activă';
+            loadCompareResults(data.id, data.players||[]);
+        } else {
+            compareConfigId=null;
+            document.getElementById('compareActiveCard').style.display='none';
+        }
+    }catch(e){console.warn('compare load:',e);}
+
+    // Player checkboxes
+    el.innerHTML=db.players.map(p=>{
+        const sel=compareSelected.has(p.name);
+        return `<div onclick="toggleComparePlayer('${p.name.replace(/'/g,"\'")}',this)" 
+            style="padding:4px 10px;border-radius:7px;border:1px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'rgba(61,90,254,.12)':'#0d0f18'};cursor:pointer;font-size:.78rem;font-weight:700;color:${sel?'#fff':'#555'};transition:all .1s;">
+            ${p.name}
+        </div>`;
+    }).join('');
+    updateCompareInfo();
+}
+
+function toggleComparePlayer(name, el){
+    if(compareSelected.has(name)){
+        compareSelected.delete(name);
+        el.style.borderColor='var(--border)';el.style.background='#0d0f18';el.style.color='#555';
+    } else {
+        compareSelected.add(name);
+        el.style.borderColor='var(--accent)';el.style.background='rgba(61,90,254,.12)';el.style.color='#fff';
+    }
+    updateCompareInfo();
+}
+
+function updateCompareInfo(){
+    const n=compareSelected.size;
+    const pairs=n*(n-1)/2;
+    const el=document.getElementById('compareInfo');
+    if(el) el.textContent=`${n} jucători → ${pairs} perechi`;
+}
+
+async function startCompareSession(){
+    const players=[...compareSelected];
+    if(players.length<2){showToast('⚠️ Selectează minim 2 jucători!');return;}
+    const label=document.getElementById('compareLabel').value.trim()||'Comparații';
+    try{
+        // Close any open sessions
+        await sb.from('compare_configs').update({status:'closed'}).eq('status','open');
+        const{data,error}=await sb.from('compare_configs').insert({label,players,status:'open'}).select().single();
+        if(error)throw error;
+        compareConfigId=data.id;
+        document.getElementById('compareActiveCard').style.display='block';
+        document.getElementById('compareActiveLabel').textContent=label;
+        document.getElementById('compareProgress').textContent='0 perechi rezolvate';
+        document.getElementById('compareResults').innerHTML='';
+        showToast('✅ Sesiune pornită! Trimite link-ul la jucători.');
+        loadCompareResults(data.id, players);
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function stopCompareSession(){
+    if(!compareConfigId) return;
+    try{
+        await sb.from('compare_configs').update({status:'closed'}).eq('id',compareConfigId);
+        compareConfigId=null;
+        document.getElementById('compareActiveCard').style.display='none';
+        showToast('■ Sesiune oprită.');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function loadCompareResults(configId, players){
+    const{data:votes}=await sb.from('compare_votes').select('winner').eq('config_id',configId);
+    const wins={};
+    players.forEach(p=>wins[p]=0);
+    (votes||[]).forEach(v=>{ if(v.winner&&wins[v.winner]!==undefined) wins[v.winner]++; });
+    const total=(votes||[]).length;
+    document.getElementById('compareProgress').textContent=total+' perechi rezolvate';
+    const sorted=Object.entries(wins).sort((a,b)=>b[1]-a[1]);
+    const maxW=sorted[0]?.[1]||1;
+    const medals=['🥇','🥈','🥉'];
+    document.getElementById('compareResults').innerHTML=sorted.map(([name,w],i)=>`
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;min-width:22px;text-align:center;color:${i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#333'}">${medals[i]||(i+1)}</span>
+            <span style="flex:1;font-weight:700;font-size:.82rem;">${name}</span>
+            <div style="width:70px;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;">
+                <div style="width:${Math.round((w/Math.max(maxW,1))*100)}%;height:100%;background:${i===0?'linear-gradient(90deg,var(--star),#ff8c00)':'var(--accent)'};border-radius:2px;"></div>
+            </div>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;min-width:22px;text-align:right;">${w}W</span>
+        </div>`).join('');
 }
 
 // ── Init ──────────────────────────────────────────────────────────
