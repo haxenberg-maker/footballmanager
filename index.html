@@ -1045,17 +1045,15 @@
         <h3 style="margin:0 0 10px;">🏅 Clasament</h3>
         <!-- Leaderboard tabs -->
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"   >★ Smart</button>
-            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')" >⭐ General</button>
-            <button class="lb-tab"        id="lbt-goals"   onclick="setLeaderboardMode('goals')"   >⚽ Goluri</button>
-            <button class="lb-tab"        id="lbt-wins"    onclick="setLeaderboardMode('wins')"    >🏆 Victorii</button>
-            <button class="lb-tab"        id="lbt-games"   onclick="setLeaderboardMode('games')"   >📅 Meciuri</button>
-            <button class="lb-tab"        id="lbt-wr"      onclick="setLeaderboardMode('wr')"      >📈 Win %</button>
+            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
+            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')">⭐ General</button>
+            <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
+            <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
+            <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
+            <button class="lb-tab"        id="lbt-wr"      onclick="setLbTab('wr')"     >📈 Win%</button>
+            <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
         </div>
-        <div class="leaderboard" id="leaderboard"></div>
-        <!-- legacy IDs needed for renderGoalsAndWinsLB -->
-        <div id="lb-goals" style="display:none;"></div>
-        <div id="lb-wins"  style="display:none;"></div>
+        <div id="lbContent"></div>
     </div>
 </div>
 
@@ -2673,7 +2671,7 @@ function renderLeaderboard(){
     const medals=['🥇','🥈','🥉'];
     const withGames=db.players.filter(p=>p.games>0);
     const all=db.players;
-    const content=document.getElementById('leaderboard');
+    const content=document.getElementById('lbContent');
     if(!content) return;
 
     let sorted=[], getValue, subLabel, bigColor='var(--star)', bigLabel;
