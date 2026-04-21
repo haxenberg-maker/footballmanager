@@ -145,6 +145,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;margin-left:4px;}
 .rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#fff;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
+.time-bar{background:#0d0f18;border:1px solid var(--border);border-radius:8px;padding:7px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
+.time-bar-fill{height:4px;border-radius:2px;flex:1;background:#1e2130;overflow:hidden;}
+.time-bar-fill-inner{height:100%;border-radius:2px;background:linear-gradient(90deg,#7c4dff,#ce93d8);transition:width .5s linear;}
+.time-remaining{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#ce93d8;min-width:36px;text-align:right;}
+.time-alert{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #ef5350;color:#fff;padding:12px 20px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;z-index:600;display:none;text-align:center;}
+.time-alert.show{display:block;animation:rotPop .3s ease;}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 </style>
 </head>
@@ -189,6 +195,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 
 <!-- Rotation toast -->
 <div class="rotation-toast" id="rotationToast"></div>
+<div class="time-alert" id="timeAlert"></div>
 
 <!-- 3-team waiting bar -->
 <div class="three-mode-bar" id="threeBar">
@@ -202,12 +209,39 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
     <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:5px;font-size:.75rem;"></div>
   </div>
-  <div class="threshold-row">
+  <!-- Round mode toggle -->
+  <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button id="modeGoalsBtn" onclick="setRotationMode('goals')" style="flex:1;padding:5px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;background:rgba(124,77,255,.3);border:1px solid #7c4dff;color:#fff;">🎯 La goluri</button>
+      <button id="modeTimeBtn"  onclick="setRotationMode('time')"  style="flex:1;padding:5px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;background:#1c1f2b;border:1px solid #252836;color:#555;">⏱ La timp</button>
+  </div>
+  <div class="threshold-row" id="goalsRow">
     <span class="thr-lbl">🎯 Schimb la goluri primite:</span>
     <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
     <span class="thr-val" id="thrVal">2</span>
     <button class="thr-btn" onclick="changeThreshold(1)">+</button>
     <span style="font-size:.62rem;color:#444;">goluri</span>
+  </div>
+  <div class="threshold-row" id="timeRow" style="display:none;">
+    <span class="thr-lbl">⏱ Minute per rând:</span>
+    <button class="thr-btn" onclick="changeRotMin(-1)">−</button>
+    <span class="thr-val" id="rotMinVal">10</span>
+    <button class="thr-btn" onclick="changeRotMin(1)">+</button>
+    <span style="font-size:.62rem;color:#444;">min</span>
+  </div>
+  <div class="time-bar" id="roundTimeBar" style="display:none;">
+      <span style="font-size:.62rem;color:#555;">Rând curent:</span>
+      <div class="time-bar-fill"><div class="time-bar-fill-inner" id="roundTimeFill" style="width:0%;"></div></div>
+      <span class="time-remaining" id="roundTimeLeft">0:00</span>
+  </div>
+  <div class="threshold-row" style="border-top:1px solid #1e2130;padding-top:6px;margin-top:2px;">
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;">
+      <input type="checkbox" id="timeLimitChk" onchange="toggleTimeLimit()" style="accent-color:#7c4dff;width:14px;height:14px;">
+      <span class="thr-lbl" style="margin:0;">⏱️ Schimb automat la minute:</span>
+    </label>
+    <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
+    <span class="thr-val" id="timeLimitVal">10</span>
+    <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
+    <span style="font-size:.62rem;color:#444;">min</span>
   </div>
 </div>
 
@@ -243,8 +277,14 @@ let players=[], goals=[], matchStartedAt=null, isSaving=false;
 // ── 3-team mode ───────────────────────────────────────────────────
 let threeTeamMode = localStorage.getItem('live_3team')==='1';
 let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
-// roundGoals: reset after each swap — tracks current round score
-let roundGoals = {orange:0, green:0}; // goals conceded per team in current round
+let roundGoals = {orange:0, green:0}; // goals conceded in current round
+// Time-limit mode
+let timeLimitMode = localStorage.getItem('live_timelimit')==='1';
+let timeLimitMin = parseInt(localStorage.getItem('live_timelimit_min')||'10');
+let timeLimitTimer = null; // interval for countdown alert
+// 3-team match tracking: store each pairing that occurred
+let matchPairings = []; // [{orange:[], green:[], goals:[], startedAt, endedAt}]
+let currentPairing = null; // currently playing pairing
 
 
 // ── 3-team mode functions ─────────────────────────────────────────
@@ -262,6 +302,9 @@ function renderThreeBar(){
     bar.classList.toggle('show', threeTeamMode);
     if(!threeTeamMode)return;
     document.getElementById('thrVal').textContent=goalThreshold;
+    document.getElementById('timeLimitVal').textContent=timeLimitMin;
+    const chk=document.getElementById('timeLimitChk');
+    if(chk) chk.checked=timeLimitMode;
     const bench=players.filter(p=>p.status==='bench');
     const wp=document.getElementById('waitingPlayers');
     if(wp){
@@ -269,6 +312,43 @@ function renderThreeBar(){
             ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
             : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
     }
+}
+
+
+function toggleTimeLimit(){
+    timeLimitMode=document.getElementById('timeLimitChk')?.checked||false;
+    localStorage.setItem('live_timelimit', timeLimitMode?'1':'0');
+    resetTimeLimitTimer();
+}
+function changeTimeLimitMin(d){
+    timeLimitMin=Math.max(1,Math.min(60,timeLimitMin+d));
+    localStorage.setItem('live_timelimit_min', timeLimitMin);
+    document.getElementById('timeLimitVal').textContent=timeLimitMin;
+}
+function resetTimeLimitTimer(){
+    if(timeLimitTimer){ clearInterval(timeLimitTimer); timeLimitTimer=null; }
+    if(!timeLimitMode||!threeTeamMode) return;
+    const limitSec=timeLimitMin*60;
+    timeLimitTimer=setInterval(()=>{
+        if(timerState!=='running') return;
+        const elapsed=timerSeconds();
+        const roundStart=currentPairing?.roundStart||0;
+        const roundElapsed=elapsed-roundStart;
+        if(roundElapsed>=limitSec){
+            clearInterval(timeLimitTimer); timeLimitTimer=null;
+            showTimeAlert();
+        }
+    }, 5000);
+}
+function showTimeAlert(){
+    const el=document.getElementById('timeAlert');
+    if(!el) return;
+    const bench=players.filter(p=>p.status==='bench');
+    if(!bench.length) return;
+    el.textContent=`⏱️ ${timeLimitMin} MINUTE — SCHIMB!`;
+    el.classList.add('show');
+    if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
+    setTimeout(()=>el.classList.remove('show'), 5000);
 }
 
 function changeThreshold(d){
@@ -293,8 +373,22 @@ async function swapTeam(losingTeam){
     losingPlayers.forEach(p=>p.status='bench');
     bench.forEach(p=>p.status=losingTeam);
 
-    // Reset round goals
+    // Save ended pairing
+    if(currentPairing){
+        currentPairing.endedAt=new Date().toISOString();
+        matchPairings.push({...currentPairing});
+    }
+    // Start new pairing
+    currentPairing={
+        orange:players.filter(p=>p.status==='orange').map(p=>p.name),
+        green:players.filter(p=>p.status==='green').map(p=>p.name),
+        goals:[...goals.filter(g=>!String(g.id).startsWith('tmp_'))],
+        startedAt:new Date().toISOString(),
+        endedAt:null,
+        roundStart:timerSeconds()
+    };
     roundGoals={orange:0,green:0};
+    resetTimeLimitTimer();
 
     // Save to DB
     try{
@@ -304,7 +398,15 @@ async function swapTeam(losingTeam){
     }catch(e){console.warn('swap save:',e.message);}
 
     render();
-    initThreeMode();renderThreeBar();
+    initThreeMode();
+    // Initialize first pairing if 3-team mode
+    if(threeTeamMode && !currentPairing){
+        currentPairing={
+            orange:players.filter(p=>p.status==='orange').map(p=>p.name),
+            green:players.filter(p=>p.status==='green').map(p=>p.name),
+            goals:[],startedAt:null,endedAt:null,roundStart:0
+        };
+    }renderThreeBar();
     showToast(`🔄 ${lbl} a ieșit · Echipa nouă a intrat!`);
 }
 
@@ -328,6 +430,72 @@ function checkAutoRotation(team){
     }
 }
 
+
+// ── Rotation mode ─────────────────────────────────────────────────
+function setRotationMode(mode){
+    rotationMode=mode;
+    localStorage.setItem('live_rotmode',mode);
+    document.getElementById('modeGoalsBtn').style.background=mode==='goals'?'rgba(124,77,255,.3)':'#1c1f2b';
+    document.getElementById('modeGoalsBtn').style.color=mode==='goals'?'#fff':'#555';
+    document.getElementById('modeGoalsBtn').style.borderColor=mode==='goals'?'#7c4dff':'#252836';
+    document.getElementById('modeTimeBtn').style.background=mode==='time'?'rgba(124,77,255,.3)':'#1c1f2b';
+    document.getElementById('modeTimeBtn').style.color=mode==='time'?'#fff':'#555';
+    document.getElementById('modeTimeBtn').style.borderColor=mode==='time'?'#7c4dff':'#252836';
+    document.getElementById('goalsRow').style.display=mode==='goals'?'flex':'none';
+    document.getElementById('timeRow').style.display=mode==='time'?'flex':'none';
+    document.getElementById('roundTimeBar').style.display=mode==='time'?'flex':'none';
+    if(mode==='time') startRoundTimer();
+    else stopRoundTimer();
+}
+
+function changeRotMin(d){
+    rotationMinutes=Math.max(1,Math.min(60,rotationMinutes+d));
+    localStorage.setItem('live_rotmin',rotationMinutes);
+    document.getElementById('rotMinVal').textContent=rotationMinutes;
+}
+
+// ── Round timer ───────────────────────────────────────────────────
+function startRoundTimer(){
+    stopRoundTimer();
+    roundStartTime=Date.now();
+    roundTimerInterval=setInterval(updateRoundTimer,1000);
+    updateRoundTimer();
+}
+
+function stopRoundTimer(){
+    if(roundTimerInterval){clearInterval(roundTimerInterval);roundTimerInterval=null;}
+}
+
+function updateRoundTimer(){
+    if(rotationMode!=='time')return;
+    const elapsed=Math.floor((Date.now()-(roundStartTime||Date.now()))/1000);
+    const totalSec=rotationMinutes*60;
+    const remaining=Math.max(0,totalSec-elapsed);
+    const pct=Math.min(100,Math.round((elapsed/totalSec)*100));
+    const fillEl=document.getElementById('roundTimeFill');
+    const leftEl=document.getElementById('roundTimeLeft');
+    if(fillEl){fillEl.style.width=pct+'%';fillEl.style.background=pct>80?'linear-gradient(90deg,#e53935,#ef9a9a)':pct>60?'linear-gradient(90deg,#ff8c00,#ffcc00)':'linear-gradient(90deg,#7c4dff,#ce93d8)';}
+    if(leftEl){const m=Math.floor(remaining/60);const s=remaining%60;leftEl.textContent=m+':'+(s<10?'0':'')+s;}
+    // Alert at 0
+    if(remaining===0){
+        showRotationToast('⏱ TIMP EXPIRAT — SCHIMB ECHIPĂ!');
+        if(navigator.vibrate) navigator.vibrate([200,100,200,100,300]);
+        // Auto-swap the team that has been playing longest
+        const bench=players.filter(p=>p.status==='bench');
+        if(bench.length>0) swapTeam(currentMatchPair.a);
+    } else if(remaining===30){
+        showRotationToast('⚠️ 30 secunde până la schimb!');
+        if(navigator.vibrate) navigator.vibrate([100,50,100]);
+    }
+}
+
+// ── Match log for 3-team ──────────────────────────────────────────
+function logRoundGoals(){
+    // Returns goals for current round (since last swap)
+    return goals.filter(g=>!String(g.id).startsWith('tmp_')&&
+        (!g.round_ts||g.round_ts>=( roundStartTime||0)));
+}
+
 // ── Timer state ───────────────────────────────────────────────────
 let timerState='idle'; // idle | running | paused
 let timerStart=0, timerElapsed=0, timerInterval=null;
@@ -346,6 +514,12 @@ function timerToggle(){
         timerStart=Date.now();
         timerState='running';
         if(!matchStartedAt) matchStartedAt=new Date().toISOString();
+        // Init first pairing for 3-team
+        if(threeTeamMode && currentPairing && !currentPairing.startedAt){
+            currentPairing.startedAt=matchStartedAt;
+            currentPairing.roundStart=0;
+        }
+        resetTimeLimitTimer();
         btn.textContent='⏸ Pauză';btn.className='timer-btn pause';
         disp.className='timer-display running';
         timerInterval=setInterval(()=>{
@@ -580,11 +754,76 @@ function openFinalize(){
 function closeDialog(){document.getElementById('dialogOverlay').classList.remove('show');}
 
 async function finalizeMatch(winner,oScore,gScore){
-    if(isSaving) return; // prevent double-submit
+    if(isSaving) return;
     isSaving=true;
-    // Disable confirm button immediately
     document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
+
+    // ── 3-team: finalize current pairing + save all pairings ──────
+    if(threeTeamMode && matchPairings.length>0){
+        // Close current pairing
+        if(currentPairing){
+            currentPairing.endedAt=new Date().toISOString();
+            matchPairings.push({...currentPairing});
+        }
+        try{
+            const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
+            const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+            const endedAt=new Date().toISOString();
+            // Save each pairing as a separate match
+            for(const pair of matchPairings){
+                const pGoals=realGoals.filter(g=>pair.orange.includes(g.player_name)||pair.green.includes(g.player_name));
+                const oG=pGoals.filter(g=>g.team==='orange').length;
+                const gG=pGoals.filter(g=>g.team==='green').length;
+                const pWinner=oG>gG?'Portocaliu':gG>oG?'Verde':'Egal';
+                const{data:mh}=await sb.from('match_history').insert({
+                    date:today,winner:pWinner,score:oG+':'+gG,imbalanced:Math.abs(oG-gG)>=3,
+                    orange_players:pair.orange,green_players:pair.green,
+                    started_at:pair.startedAt||null,ended_at:pair.endedAt||endedAt
+                }).select().single();
+                if(mh?.id && pGoals.length){
+                    const gRows=pGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}));
+                    await sb.from('match_goals').insert(gRows);
+                }
+                // MVP per pairing
+                const scorerCount={};
+                pGoals.forEach(g=>{scorerCount[g.player_name]=(scorerCount[g.player_name]||0)+1;});
+                const mvpPair=Object.entries(scorerCount).sort((a,b)=>b[1]-a[1])[0];
+                if(mh?.id && mvpPair){
+                    await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpPair[0],mvp_type:'goals'}).catch(()=>{});
+                }
+            }
+            // Update player stats for all participants
+            const allNames=[...new Set(matchPairings.flatMap(p=>[...p.orange,...p.green]))];
+            // Simple recalc: increment games + wins based on their pairings
+            for(const name of allNames){
+                const p=players.find(x=>x.name===name);if(!p) continue;
+                let wins=0,games=0,goals3=0;
+                for(const pair of matchPairings){
+                    const inO=pair.orange.includes(name),inG=pair.green.includes(name);
+                    if(!inO&&!inG) continue;
+                    const oG=goals.filter(g=>!String(g.id).startsWith('tmp_')&&pair.orange.includes(g.player_name)&&g.team==='orange').length;
+                    const gG=goals.filter(g=>!String(g.id).startsWith('tmp_')&&pair.green.includes(g.player_name)&&g.team==='green').length;
+                    const won=(inO&&oG>gG)||(inG&&gG>oG);
+                    games++;if(won) wins++;
+                    goals3+=goals.filter(g=>!String(g.id).startsWith('tmp_')&&g.player_name===name).length;
+                }
+                await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single().then(({data:cur})=>{
+                    if(!cur) return;
+                    const newHist=[...(cur.match_history||[]),...Array(wins).fill('W'),...Array(games-wins).fill('L')];
+                    return sb.from('players').update({wins:(cur.wins||0)+wins,games:(cur.games||0)+games,match_history:newHist.slice(-20),total_goals:(cur.total_goals||0)+goals3}).eq('id',p.id);
+                }).catch(()=>{});
+            }
+            await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+            goals=[];matchPairings=[];currentPairing=null;matchStartedAt=null;
+            if(timeLimitTimer){clearInterval(timeLimitTimer);timeLimitTimer=null;}
+            timerReset();render();
+            showToast(`✅ ${matchPairings.length||'Toate'} meciurile salvate! (3 echipe)`);
+            isSaving=false;
+        }catch(e){isSaving=false;showToast('⚠️ '+e.message);}
+        return;
+    }
+
     const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
     const green=players.filter(p=>p.status==='green').map(p=>p.name);
     const winnerLabel=winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
@@ -677,8 +916,15 @@ async function finalizeMatch(winner,oScore,gScore){
             await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);
         }catch(e){ console.warn('post-match reset:',e.message); }
 
-        // Stop timer
+        // If 3-team mode, also save the waiting team's implied match
+        if(threeTeamMode){
+            await saveThreeTeamMatches(winnerLabel,scoreStr,orange,green,mh?.id);
+        }
+
+        // Stop timer + round timer
         timerReset();
+        stopRoundTimer();
+        roundGoals={orange:0,green:0};
         render();
 
         // MVP highlight in toast
@@ -686,6 +932,28 @@ async function finalizeMatch(winner,oScore,gScore){
         showToast('🏆 '+winnerLabel+' câștigă! '+(topScorer?'🥇 MVP: '+topScorer[0]:''));
 
     }catch(e){ isSaving=false; showToast('⚠️ '+e.message); }
+}
+
+
+// ── Save implicit 3-team matches at finalize ─────────────────────
+async function saveThreeTeamMatches(mainWinner, mainScore, orange, green, mainMatchId){
+    const bench=players.filter(p=>p.status==='bench').map(p=>p.name);
+    if(!bench.length) return;
+    const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+    // Count goals per team from goal log
+    const benGoals=goals.filter(g=>bench.includes(g.player_name)&&!String(g.id).startsWith('tmp_')).length;
+    const oGoals=goals.filter(g=>orange.includes(g.player_name)&&!String(g.id).startsWith('tmp_')).length;
+    const gGoals=goals.filter(g=>green.includes(g.player_name)&&!String(g.id).startsWith('tmp_')).length;
+    // Note: in 3-team rotating mode we don't know exact sub-scores,
+    // so we just record that the bench team played and tag these as 3-team session
+    try{
+        await sb.from('match_history').insert({
+            date:today, winner:'N/A (3 Echipe)', score:'—',
+            imbalanced:false,
+            orange_players:bench, green_players:[...orange,...green],
+            started_at:matchStartedAt||null, ended_at:new Date().toISOString(),
+        });
+    }catch(e){ console.warn('3-team log:',e.message); }
 }
 
 // ── Share ─────────────────────────────────────────────────────────
@@ -730,6 +998,11 @@ function subscribe(){
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDialog();});
 async function initThreeMode(){
+    rotationMode = localStorage.getItem('live_rotmode')||'goals';
+    rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
+    setRotationMode(rotationMode);
+    document.getElementById('rotMinVal').textContent=rotationMinutes;
+
     const btn=document.getElementById('threeBtn');
     if(btn&&threeTeamMode){btn.style.background='rgba(124,77,255,.4)';btn.style.color='#fff';}
     document.getElementById('thrVal').textContent=goalThreshold;

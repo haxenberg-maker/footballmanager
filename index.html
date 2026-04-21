@@ -118,6 +118,7 @@
         .dash-stats-hidden .probOrange, .dash-stats-hidden #probOrange,
         .dash-stats-hidden #probGreen { visibility:hidden; }
         .dash-tags-hidden .ptag-row { display:none !important; }
+        .dash-roles-hidden .role-badge-inline { display:none !important; }
         /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
@@ -405,6 +406,9 @@
         .stats-section{grid-column:1/-1;margin-top:4px;background:#0f1118;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
         .stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:#888;}
         .leaderboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+        .lb-tab{padding:5px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#1c1f2b;border:1px solid #252836;color:#555;transition:all .12s;white-space:nowrap;}
+        .lb-tab:hover{color:#fff;}
+        .lb-tab.active{background:rgba(167,139,250,.2);border-color:#7c4dff;color:#a78bfa;}
         .lb-card{background:var(--card);border-radius:10px;padding:11px 13px;border:1px solid var(--border);}
         .lb-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#555;}
         .lb-name{font-weight:700;color:#fff;font-size:0.93rem;margin:2px 0;}
@@ -900,6 +904,7 @@
     <div class="controls-separator"></div>
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
+    <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
     <button onclick="window.open('live.html','_blank')" title="Pagina live meci" style="background:linear-gradient(135deg,#1a0a30,#3a0070);border:1px solid #7c4dff;color:#ce93d8;">📺 Live</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
 </div>
@@ -1037,28 +1042,20 @@
     <!-- col-active is already in dashGrid above, rendered there on desktop -->
     <!-- On mobile this area contains just the leaderboard below the active col -->
     <div class="stats-section" id="sec-stats">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <h3 style="margin:0;">🏅 Clasament</h3>
-            <div style="display:flex;gap:4px;">
-                <button id="lb-btn-smart" onclick="setLeaderboardMode('smart')" style="background:rgba(167,139,250,.2);border:1px solid #7c4dff;color:#a78bfa;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;">★ Smart</button>
-                <button id="lb-btn-general" onclick="setLeaderboardMode('general')" style="background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;">⭐ General</button>
-            </div>
+        <h3 style="margin:0 0 10px;">🏅 Clasament</h3>
+        <!-- Leaderboard tabs -->
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;" id="lbTabs">
+            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"   >★ Smart</button>
+            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')" >⭐ General</button>
+            <button class="lb-tab"        id="lbt-goals"   onclick="setLeaderboardMode('goals')"   >⚽ Goluri</button>
+            <button class="lb-tab"        id="lbt-wins"    onclick="setLeaderboardMode('wins')"    >🏆 Victorii</button>
+            <button class="lb-tab"        id="lbt-games"   onclick="setLeaderboardMode('games')"   >📅 Meciuri</button>
+            <button class="lb-tab"        id="lbt-wr"      onclick="setLeaderboardMode('wr')"      >📈 Win %</button>
         </div>
         <div class="leaderboard" id="leaderboard"></div>
-
-        <!-- Goals + Wins leaderboards -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
-            <!-- Top Goluri -->
-            <div style="background:#0f1118;border-radius:12px;border:1px solid var(--border);padding:13px 14px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;margin-bottom:10px;color:#fff;">⚽ Top Goluri</div>
-                <div id="lb-goals"></div>
-            </div>
-            <!-- Top Victorii -->
-            <div style="background:#0f1118;border-radius:12px;border:1px solid var(--border);padding:13px 14px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;margin-bottom:10px;color:#fff;">🏆 Top Victorii</div>
-                <div id="lb-wins"></div>
-            </div>
-        </div>
+        <!-- legacy IDs needed for renderGoalsAndWinsLB -->
+        <div id="lb-goals" style="display:none;"></div>
+        <div id="lb-wins"  style="display:none;"></div>
     </div>
 </div>
 
@@ -1920,6 +1917,7 @@ let chartOpen=false, statsOpen=false, detailsOpen=false, ratingsListOpen=false;
 let qvVotes = {}, confirmCallback = null;
 let statsVisible = localStorage.getItem('dash_stats_visible') !== 'false';
 let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
+let rolesVisible = localStorage.getItem('dash_roles_visible') !== 'false';
 let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
 
@@ -2536,7 +2534,7 @@ function render(){
                         </div>
                     </div>
                     <div class="fifa-info-col">
-                        <div class="player-name">${p.name}${p.role&&ROLES[p.role]?` <span style="font-size:.5rem;padding:1px 4px;border-radius:3px;background:${ROLES[p.role].color}22;border:1px solid ${ROLES[p.role].color}44;color:${ROLES[p.role].color};">${ROLES[p.role].emoji}</span>`:''}</div>
+                        <div class="player-name">${p.name}${p.role&&ROLES[p.role]?` <span class="role-badge-inline" style="font-size:.5rem;padding:1px 4px;border-radius:3px;background:${ROLES[p.role].color}22;border:1px solid ${ROLES[p.role].color}44;color:${ROLES[p.role].color};">${ROLES[p.role].emoji}</span>`:''}</div>
                         <div class="fifa-stats-row" style="margin:4px 0;">
                             <div class="fifa-stat">WR:<span>${wr}</span></div>
                             <div class="fifa-stat">M:<span>${p.games}</span></div>
@@ -2555,6 +2553,7 @@ function render(){
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
     applyDashStatsVisibility();
     applyDashTagsVisibility();
+    applyDashRolesVisibility();
 }
 
 function analyzeTeamBalance(teamPlayers){
@@ -2661,83 +2660,97 @@ function updateTeamStats(){
         if (banner) banner.style.display = 'none';
     }
 }
+let currentLbTab = 'smart';
+function setLeaderboardMode(m){ setLbTab(m); }
+function setLbTab(tab){
+    currentLbTab=tab;
+    document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));
+    const btn=document.getElementById('lbt-'+tab);
+    if(btn) btn.classList.add('active');
+    renderLeaderboard();
+}
 function renderLeaderboard(){
-    const getRating = p => leaderboardMode === 'general' ? getGeneralAvg(p) : getSmartRating(p);
-    const ratingLabel = leaderboardMode === 'general' ? '⭐' : '★';
-    const sorted=[...db.players].sort((a,b)=>getRating(b)-getRating(a));
     const medals=['🥇','🥈','🥉'];
-    document.getElementById('leaderboard').innerHTML=sorted.slice(0,9).map((p,i)=>{
-        const s=getStreak(p),st=s.count?(s.type==='W'?`🔥${s.count}V`:`❄️${s.count}P`):'—';
-        const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-        const form=getFormIndex(p);
-        const formDots=form.last5.map(r=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${r==='W'?'#4caf50':'#e53935'};margin-right:2px;"></span>`).join('');
-        return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">${ratingLabel} ${getRating(p).toFixed(1)} | ${wr} victorii | ${formDots}<span style="font-size:.6rem;color:${form.color};margin-left:2px;">${form.label}</span></div></div>`;
-    }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
-    renderGoalsAndWinsLB();
-}
+    const withGames=db.players.filter(p=>p.games>0);
+    const all=db.players;
+    const content=document.getElementById('leaderboard');
+    if(!content) return;
 
-function renderGoalsAndWinsLB(){
-    const withGames = db.players.filter(p=>p.games>0);
-    const medals = ['🥇','🥈','🥉'];
-    const row = (p, val, sub, color) => {
-        const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
-        return `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #0a0c14;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[0]||''}</div>
-            <div style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:${color};">${val}</div>
-            <div style="font-size:.6rem;color:#333;">${sub}</div>
-        </div>`;
-    };
-
-    // Goals LB
-    const goalsEl = document.getElementById('lb-goals');
-    const byGoals = [...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>(b.totalGoals||0)-(a.totalGoals||0)).slice(0,6);
-    if(goalsEl){
-        if(!byGoals.length){ goalsEl.innerHTML='<div style="font-size:.75rem;color:#333;text-align:center;padding:8px;">Niciun gol înregistrat</div>'; }
-        else {
-            const maxG=byGoals[0].totalGoals||1;
-            goalsEl.innerHTML=byGoals.map((p,i)=>{
-                const color=i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#555';
-                const gpg=p.games>0?((p.totalGoals||0)/p.games).toFixed(1):'—';
-                const pct=Math.round(((p.totalGoals||0)/maxG)*100);
-                return `<div style="padding:5px 0;border-bottom:1px solid #0a0c14;">
-                    <div style="display:flex;align-items:center;gap:7px;">
-                        <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[i]||(i+1)}</span>
-                        <span style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
-                        <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#69f0ae;">⚽${p.totalGoals||0}</span>
-                    </div>
-                    <div style="margin-left:29px;display:flex;align-items:center;gap:5px;margin-top:2px;">
-                        <div style="flex:1;height:2px;background:#1e2130;border-radius:1px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${i===0?'linear-gradient(90deg,var(--star),var(--orange))':'#2a2d40'};border-radius:1px;"></div></div>
-                        <span style="font-size:.58rem;color:#333;">${gpg}/m</span>
-                    </div>
-                </div>`;
-            }).join('');
-        }
+    let sorted=[], getValue, subLabel, bigColor='var(--star)', bigLabel;
+    switch(currentLbTab){
+        case 'smart':
+            sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+            getValue=p=>getSmartRating(p).toFixed(1);
+            subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR · '+p.games+'M';};
+            bigColor='#a78bfa'; bigLabel='★ Smart';
+            break;
+        case 'general':
+            sorted=[...all].sort((a,b)=>getGeneralAvg(b)-getGeneralAvg(a));
+            getValue=p=>getGeneralAvg(p).toFixed(1);
+            subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR';};
+            bigColor='var(--star)'; bigLabel='⭐ General';
+            break;
+        case 'goals':
+            sorted=[...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>(b.totalGoals||0)-(a.totalGoals||0));
+            getValue=p=>'⚽'+( p.totalGoals||0);
+            subLabel=p=>{const gpg=p.games>0?((p.totalGoals||0)/p.games).toFixed(1):'—';return gpg+'/meci';};
+            bigColor='#69f0ae'; bigLabel='⚽ Goluri';
+            break;
+        case 'wins':
+            sorted=[...withGames].sort((a,b)=>b.wins-a.wins);
+            getValue=p=>'🏆'+p.wins;
+            subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR';};
+            bigColor='#a78bfa'; bigLabel='🏆 Victorii';
+            break;
+        case 'games':
+            sorted=[...db.players].sort((a,b)=>b.games-a.games);
+            getValue=p=>'📅'+p.games;
+            subLabel=p=>p.wins+'V / '+(p.games-p.wins)+'P';
+            bigColor='#82b1ff'; bigLabel='📅 Meciuri';
+            break;
+        case 'wr':
+            sorted=[...withGames].filter(p=>p.games>=3).sort((a,b)=>(b.wins/b.games)-(a.wins/a.games));
+            getValue=p=>((p.wins/p.games)*100).toFixed(0)+'%';
+            subLabel=p=>p.wins+'V / '+p.games+'M';
+            bigColor='#4caf50'; bigLabel='📈 Win Rate';
+            break;
+        case 'gpg':
+            sorted=[...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>((b.totalGoals||0)/b.games)-((a.totalGoals||0)/a.games));
+            getValue=p=>((p.totalGoals||0)/p.games).toFixed(2);
+            subLabel=p=>( p.totalGoals||0)+' goluri total';
+            bigColor='#ffcc00'; bigLabel='⚡ G/Meci';
+            break;
+        default:
+            sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+            getValue=p=>getSmartRating(p).toFixed(1); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
     }
-
-    // Wins LB
-    const winsEl = document.getElementById('lb-wins');
-    const byWins = [...withGames].sort((a,b)=>b.wins-a.wins||b.games-a.games).slice(0,6);
-    if(winsEl){
-        const maxW=byWins[0]?.wins||1;
-        winsEl.innerHTML=byWins.map((p,i)=>{
-            const color=i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#555';
-            const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
-            const pct=Math.round((p.wins/maxW)*100);
-            return `<div style="padding:5px 0;border-bottom:1px solid #0a0c14;">
-                <div style="display:flex;align-items:center;gap:7px;">
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[i]||(i+1)}</span>
-                    <span style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#a78bfa;">🏆${p.wins}</span>
+    if(!sorted.length){content.innerHTML='<p style="color:#444;font-size:.85rem;text-align:center;padding:14px;">Fără date disponibile.</p>';return;}
+    const maxVal=parseFloat(getValue(sorted[0]).replace(/[^0-9.]/g,''))||1;
+    content.innerHTML='<div style="display:flex;flex-direction:column;gap:4px;">'+
+        sorted.slice(0,10).map((p,i)=>{
+            const val=getValue(p);
+            const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
+            const pct=Math.round((numVal/maxVal)*100);
+            const medalColors=['#ffd700','#c0c0c0','#cd7f32'];
+            const bg=i===0?`rgba(167,139,250,.06)`:i===1?`rgba(192,192,192,.03)`:i===2?`rgba(205,127,50,.03)`:'transparent';
+            const nameColor=i<3?'#fff':'#888';
+            const form=getFormIndex(p);
+            const dots=form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#e53935'};"></span>`).join('');
+            return `<div style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #0a0c14;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#333'};">${medals[i]||(i+1)}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
+                    <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
+                        <div style="flex:1;height:${i===0?'3px':'2px'};background:#1e2130;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#2a2d40'};border-radius:1px;"></div></div>
+                        <span style="font-size:.58rem;color:#444;">${subLabel(p)}</span>
+                        <span style="font-size:.58rem;">${dots}</span>
+                    </div>
                 </div>
-                <div style="margin-left:29px;display:flex;align-items:center;gap:5px;margin-top:2px;">
-                    <div style="flex:1;height:2px;background:#1e2130;border-radius:1px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${i===0?'linear-gradient(90deg,#a78bfa,var(--accent))':'#2a2d40'};border-radius:1px;"></div></div>
-                    <span style="font-size:.58rem;color:#333;">${wr}</span>
-                </div>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i===0?'1.1rem':'.9rem'};color:${i===0?bigColor:i<3?'#aaa':'#444'};white-space:nowrap;">${val}</span>
             </div>`;
-        }).join('');
-    }
+        }).join('')+'</div>';
 }
+function renderGoalsAndWinsLB(){}
 function renderHistory(){
     const admin = isAdmin();
     document.getElementById('th-actions').style.display = admin ? '' : 'none';
@@ -2794,7 +2807,8 @@ function renderLobby(){
     }
 
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
-    db.players.forEach(p=>{
+    const sortedPlayers=[...db.players].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+    sortedPlayers.forEach(p=>{
         const confirmed = nm.confirmedIds.includes(p.id);
         const absent    = nm.absentIds?.includes(p.id);
         const chip=document.createElement('div');
@@ -3711,10 +3725,16 @@ function buildAlgorithmPanel(){
 }
 
 function stepTagCap(delta){
-    TAG_BONUS_CAP = Math.max(0.5, Math.min(5.0, parseFloat((TAG_BONUS_CAP + delta).toFixed(1))));
+    TAG_BONUS_CAP = Math.max(0.5, Math.min(20.0, parseFloat((TAG_BONUS_CAP + delta).toFixed(1))));
     const el = document.getElementById('tagCapVal');
-    if(el) el.textContent = TAG_BONUS_CAP.toFixed(1);
-    updateWeightsSum(); // re-triggers ring color
+    if(el) el.value = TAG_BONUS_CAP.toFixed(1);
+    updateWeightsSum();
+}
+function setTagCapDirect(val){
+    const v = parseFloat(val);
+    if(isNaN(v)||v<0.5) return;
+    TAG_BONUS_CAP = Math.min(20.0, Math.round(v*10)/10);
+    updateWeightsSum();
 }
 
 function toggleMvpAlgo(){
@@ -3853,10 +3873,29 @@ function applyDashStatsVisibility(){
     }
 }
 
+function toggleDashRoles(){
+    rolesVisible = !rolesVisible;
+    localStorage.setItem('dash_roles_visible', rolesVisible);
+    applyDashRolesVisibility();
+}
+function applyDashRolesVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleRoles');
+    if(rolesVisible){
+        dashboard.classList.remove('dash-roles-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.color=''; }
+    } else {
+        dashboard.classList.add('dash-roles-hidden');
+        if(btn){ btn.style.opacity='0.6'; btn.style.color='#555'; }
+    }
+}
+
 function toggleDashTags(){
     tagsVisible = !tagsVisible;
     localStorage.setItem('dash_tags_visible', tagsVisible);
     applyDashTagsVisibility();
+    applyDashRolesVisibility();
 }
 function applyDashTagsVisibility(){
     const dashboard = document.getElementById('mainPage');
@@ -5276,12 +5315,9 @@ async function moveAllActiveToBench() {
 let leaderboardMode = 'smart';
 function setLeaderboardMode(mode) {
     leaderboardMode = mode;
-    document.getElementById('lb-btn-smart').style.cssText  = mode==='smart'
-        ? 'background:rgba(167,139,250,.2);border:1px solid #7c4dff;color:#a78bfa;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;'
-        : 'background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;';
-    document.getElementById('lb-btn-general').style.cssText = mode==='general'
-        ? 'background:rgba(255,204,0,.15);border:1px solid #ffcc00;color:#ffcc00;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;'
-        : 'background:#1c1f2b;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;';
+    document.querySelectorAll('.lb-tab').forEach(t => t.classList.remove('active'));
+    const activeTab = document.getElementById('lbt-'+mode);
+    if(activeTab) activeTab.classList.add('active');
     renderLeaderboard();
 }
 
