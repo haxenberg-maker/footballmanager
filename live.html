@@ -128,6 +128,24 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .toast.show{opacity:1;}
 
 .empty-teams{text-align:center;padding:40px 16px;color:#333;grid-column:span 2;font-size:.85rem;}
+
+/* 3-team mode */
+.three-mode-bar{background:#0d0f18;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
+.three-mode-bar.show{display:block;}
+.waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
+.waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#ce93d8;}
+.swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;white-space:nowrap;}
+.swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
+.swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
+.threshold-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
+.thr-lbl{font-size:.7rem;color:#555;flex:1;}
+.thr-btn{width:24px;height:24px;border-radius:5px;background:#1c1f2b;border:1px solid #252836;color:#888;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--star);min-width:20px;text-align:center;}
+.round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;margin-left:4px;}
+.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#fff;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+.rotation-toast.show{display:block;animation:rotPop .3s ease;}
+@keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -137,6 +155,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <div class="hd-logo">⚽ Arena FC</div>
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
+    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" title="Mod 3 Echipe" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
 </div>
@@ -168,6 +187,30 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <div class="empty-teams">Se încarcă...</div>
 </div>
 
+<!-- Rotation toast -->
+<div class="rotation-toast" id="rotationToast"></div>
+
+<!-- 3-team waiting bar -->
+<div class="three-mode-bar" id="threeBar">
+  <div class="waiting-team">
+    <div class="waiting-hd">
+      <span class="waiting-lbl">⏳ Echipa în Așteptare</span>
+      <div style="display:flex;gap:5px;">
+        <button class="swap-btn swap-o" onclick="swapTeam('orange')">↔ vs 🟠</button>
+        <button class="swap-btn swap-g" onclick="swapTeam('green')">↔ vs 🟢</button>
+      </div>
+    </div>
+    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:5px;font-size:.75rem;"></div>
+  </div>
+  <div class="threshold-row">
+    <span class="thr-lbl">🎯 Schimb la goluri primite:</span>
+    <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
+    <span class="thr-val" id="thrVal">2</span>
+    <button class="thr-btn" onclick="changeThreshold(1)">+</button>
+    <span style="font-size:.62rem;color:#444;">goluri</span>
+  </div>
+</div>
+
 <!-- Log toggle -->
 <div class="log-toggle" onclick="toggleLog()">
   <span class="log-toggle-lbl">📋 Log goluri <span class="log-toggle-cnt" id="logCnt">0</span></span>
@@ -196,6 +239,94 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 let players=[], goals=[], matchStartedAt=null, isSaving=false;
+
+// ── 3-team mode ───────────────────────────────────────────────────
+let threeTeamMode = localStorage.getItem('live_3team')==='1';
+let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
+// roundGoals: reset after each swap — tracks current round score
+let roundGoals = {orange:0, green:0}; // goals conceded per team in current round
+
+
+// ── 3-team mode functions ─────────────────────────────────────────
+function toggleThreeTeam(){
+    threeTeamMode=!threeTeamMode;
+    localStorage.setItem('live_3team', threeTeamMode?'1':'0');
+    const btn=document.getElementById('threeBtn');
+    if(btn){btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';btn.style.color=threeTeamMode?'#fff':'#ce93d8';}
+    renderThreeBar();
+}
+
+function renderThreeBar(){
+    const bar=document.getElementById('threeBar');
+    if(!bar)return;
+    bar.classList.toggle('show', threeTeamMode);
+    if(!threeTeamMode)return;
+    document.getElementById('thrVal').textContent=goalThreshold;
+    const bench=players.filter(p=>p.status==='bench');
+    const wp=document.getElementById('waitingPlayers');
+    if(wp){
+        wp.innerHTML=bench.length
+            ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+            : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
+    }
+}
+
+function changeThreshold(d){
+    goalThreshold=Math.max(1,Math.min(10,goalThreshold+d));
+    localStorage.setItem('live_threshold',goalThreshold);
+    document.getElementById('thrVal').textContent=goalThreshold;
+}
+
+async function swapTeam(losingTeam){
+    const bench=players.filter(p=>p.status==='bench');
+    const losingPlayers=players.filter(p=>p.status===losingTeam);
+    if(!bench.length){showToast('⚠️ Niciun jucător pe bancă!');return;}
+    if(!losingPlayers.length){showToast('⚠️ Echipa nu are jucători!');return;}
+
+    const lbl=losingTeam==='orange'?'🟠 Portocaliu':'🟢 Verde';
+    const loserNames=losingPlayers.map(p=>p.name).join(', ');
+    const benchNames=bench.map(p=>p.name).join(', ');
+
+    showRotationToast(`${lbl} IESE · Echipa nouă INTRĂ`);
+
+    // Swap: losing → bench, bench → losingTeam
+    losingPlayers.forEach(p=>p.status='bench');
+    bench.forEach(p=>p.status=losingTeam);
+
+    // Reset round goals
+    roundGoals={orange:0,green:0};
+
+    // Save to DB
+    try{
+        await Promise.all([...losingPlayers,...bench].map(p=>
+            sb.from('players').update({status:p.status}).eq('id',p.id)
+        ));
+    }catch(e){console.warn('swap save:',e.message);}
+
+    render();
+    initThreeMode();renderThreeBar();
+    showToast(`🔄 ${lbl} a ieșit · Echipa nouă a intrat!`);
+}
+
+function showRotationToast(msg){
+    const el=document.getElementById('rotationToast');
+    if(!el)return;
+    el.textContent=msg;
+    el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),2500);
+}
+
+function checkAutoRotation(team){
+    if(!threeTeamMode)return;
+    const bench=players.filter(p=>p.status==='bench');
+    if(!bench.length)return;
+    const conceded=roundGoals[team]||0;
+    if(conceded>=goalThreshold){
+        const lbl=team==='orange'?'🟠 Portocaliu':'🟢 Verde';
+        showRotationToast(`${lbl} ${conceded} GOLURI PRIMITE — SCHIMB!`);
+        setTimeout(()=>swapTeam(team), 600);
+    }
+}
 
 // ── Timer state ───────────────────────────────────────────────────
 let timerState='idle'; // idle | running | paused
@@ -301,17 +432,18 @@ function render(){
         }).join('');
         wrap.innerHTML=
             '<div class="team-col o-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span><span class="team-hd-cnt">'+oScore+'G</span></div>'+
+                '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span>'+(threeTeamMode?'<span class="round-badge">'+( roundGoals.green||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+oScore+'G</span></div>'+
                 makeRows(orange,'orange')+
             '</div>'+
             '<div class="team-col g-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span><span class="team-hd-cnt">'+gScore+'G</span></div>'+
+                '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span>'+(threeTeamMode?'<span class="round-badge">'+( roundGoals.orange||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+gScore+'G</span></div>'+
                 makeRows(green,'green')+
             '</div>';
     }
 
     // Log
     renderLog(realGoals);
+    renderThreeBar();
 }
 
 function renderLog(realGoals){
@@ -356,7 +488,11 @@ async function addGoal(name,team){
     const minute=timerState!=='idle'?timerMinute():null;
     const tmpId='tmp_'+Date.now();
     goals.push({id:tmpId,player_name:name,team,minute,created_at:new Date().toISOString()});
+    // Track conceded goals per team for 3-team rotation
+    const oppo=team==='orange'?'green':'orange';
+    roundGoals[oppo]=(roundGoals[oppo]||0)+1;
     render(); bump(team);
+    checkAutoRotation(oppo);
     try{
         const{data,error}=await sb.from('live_goals').insert({player_name:name,team,minute}).select().single();
         if(error) throw error;
@@ -593,6 +729,12 @@ function subscribe(){
 
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDialog();});
+async function initThreeMode(){
+    const btn=document.getElementById('threeBtn');
+    if(btn&&threeTeamMode){btn.style.background='rgba(124,77,255,.4)';btn.style.color='#fff';}
+    document.getElementById('thrVal').textContent=goalThreshold;
+}
+
 async function init(){await loadAll();subscribe();}
 init();
 </script>

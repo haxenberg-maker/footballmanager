@@ -966,6 +966,14 @@
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
                 <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
             </div>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:2px 8px;">3️⃣ Mod 3 Echipe</div>
+            <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);">
+                <span class="balance-opt-icon">↔</span><span>🟠 Portocaliu ↔ Bancă</span>
+            </div>
+            <div class="balance-opt" onclick="quickSwap('green')" style="color:#4caf50;">
+                <span class="balance-opt-icon">↔</span><span>🟢 Verde ↔ Bancă</span>
+            </div>
             <div class="balance-opt" onclick="exportTeamsText()" style="color:#69f0ae;">
                 <span class="balance-opt-icon">📋</span><span>Exportă Echipe</span>
             </div>
@@ -5736,6 +5744,29 @@ function computeTeamStreak(team) {
         else break;
     }
     return streak;
+}
+
+
+// ── 3-team quick swap (index) ─────────────────────────────────────
+function quickSwap(team){
+    document.getElementById('balancePopup').classList.remove('show');
+    const bench = db.players.filter(p=>p.status==='bench');
+    const teamPlayers = db.players.filter(p=>p.status===team);
+    if(!bench.length){ showToast('⚠️ Niciun jucător pe bancă!'); return; }
+    const lbl = team==='orange'?'🟠 Portocaliu':'🟢 Verde';
+    showConfirm('🔄','Schimbă Echipa?',
+        `${lbl} (${teamPlayers.length} jucători) iese pe Bancă.
+${bench.length} jucători de pe Bancă intră.`,
+        '↔ Schimbă','#7c4dff',
+        async()=>{
+            teamPlayers.forEach(p=>p.status='bench');
+            bench.forEach(p=>p.status=team);
+            render();
+            try{ await Promise.all([...teamPlayers,...bench].map(p=>dbUpdatePlayer(p))); }
+            catch(e){ showToast('⚠️ '+e.message); }
+            showToast(`✅ ${lbl} schimbată cu Banca!`);
+        }
+    );
 }
 
 // ── Rotation: winner stays, loser swaps with bench ────────────────
