@@ -1029,6 +1029,20 @@
             </div>
         </div>
         <div class="leaderboard" id="leaderboard"></div>
+
+        <!-- Goals + Wins leaderboards -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+            <!-- Top Goluri -->
+            <div style="background:#0f1118;border-radius:12px;border:1px solid var(--border);padding:13px 14px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;margin-bottom:10px;color:#fff;">⚽ Top Goluri</div>
+                <div id="lb-goals"></div>
+            </div>
+            <!-- Top Victorii -->
+            <div style="background:#0f1118;border-radius:12px;border:1px solid var(--border);padding:13px 14px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;margin-bottom:10px;color:#fff;">🏆 Top Victorii</div>
+                <div id="lb-wins"></div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -2627,6 +2641,70 @@ function renderLeaderboard(){
         const formDots=form.last5.map(r=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${r==='W'?'#4caf50':'#e53935'};margin-right:2px;"></span>`).join('');
         return `<div class="lb-card"><div class="lb-rank">${medals[i]||(i+1)+'.'}</div><div class="lb-name">${p.name}</div><div class="lb-stat">${ratingLabel} ${getRating(p).toFixed(1)} | ${wr} victorii | ${formDots}<span style="font-size:.6rem;color:${form.color};margin-left:2px;">${form.label}</span></div></div>`;
     }).join('')||'<p style="color:#444;font-size:0.9rem;">Niciun jucător.</p>';
+    renderGoalsAndWinsLB();
+}
+
+function renderGoalsAndWinsLB(){
+    const withGames = db.players.filter(p=>p.games>0);
+    const medals = ['🥇','🥈','🥉'];
+    const row = (p, val, sub, color) => {
+        const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
+        return `<div style="display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #0a0c14;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[0]||''}</div>
+            <div style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:${color};">${val}</div>
+            <div style="font-size:.6rem;color:#333;">${sub}</div>
+        </div>`;
+    };
+
+    // Goals LB
+    const goalsEl = document.getElementById('lb-goals');
+    const byGoals = [...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>(b.totalGoals||0)-(a.totalGoals||0)).slice(0,6);
+    if(goalsEl){
+        if(!byGoals.length){ goalsEl.innerHTML='<div style="font-size:.75rem;color:#333;text-align:center;padding:8px;">Niciun gol înregistrat</div>'; }
+        else {
+            const maxG=byGoals[0].totalGoals||1;
+            goalsEl.innerHTML=byGoals.map((p,i)=>{
+                const color=i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#555';
+                const gpg=p.games>0?((p.totalGoals||0)/p.games).toFixed(1):'—';
+                const pct=Math.round(((p.totalGoals||0)/maxG)*100);
+                return `<div style="padding:5px 0;border-bottom:1px solid #0a0c14;">
+                    <div style="display:flex;align-items:center;gap:7px;">
+                        <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[i]||(i+1)}</span>
+                        <span style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
+                        <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#69f0ae;">⚽${p.totalGoals||0}</span>
+                    </div>
+                    <div style="margin-left:29px;display:flex;align-items:center;gap:5px;margin-top:2px;">
+                        <div style="flex:1;height:2px;background:#1e2130;border-radius:1px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${i===0?'linear-gradient(90deg,var(--star),var(--orange))':'#2a2d40'};border-radius:1px;"></div></div>
+                        <span style="font-size:.58rem;color:#333;">${gpg}/m</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    // Wins LB
+    const winsEl = document.getElementById('lb-wins');
+    const byWins = [...withGames].sort((a,b)=>b.wins-a.wins||b.games-a.games).slice(0,6);
+    if(winsEl){
+        const maxW=byWins[0]?.wins||1;
+        winsEl.innerHTML=byWins.map((p,i)=>{
+            const color=i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#555';
+            const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
+            const pct=Math.round((p.wins/maxW)*100);
+            return `<div style="padding:5px 0;border-bottom:1px solid #0a0c14;">
+                <div style="display:flex;align-items:center;gap:7px;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;min-width:22px;text-align:center;color:${color};">${medals[i]||(i+1)}</span>
+                    <span style="flex:1;font-weight:700;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}</span>
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#a78bfa;">🏆${p.wins}</span>
+                </div>
+                <div style="margin-left:29px;display:flex;align-items:center;gap:5px;margin-top:2px;">
+                    <div style="flex:1;height:2px;background:#1e2130;border-radius:1px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${i===0?'linear-gradient(90deg,#a78bfa,var(--accent))':'#2a2d40'};border-radius:1px;"></div></div>
+                    <span style="font-size:.58rem;color:#333;">${wr}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
 }
 function renderHistory(){
     const admin = isAdmin();

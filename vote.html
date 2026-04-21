@@ -29,6 +29,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .id-sub{font-size:.78rem;color:#555;margin-bottom:14px;line-height:1.5;}
 .id-sel{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:10px 12px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
 .id-sel:focus{border-color:var(--accent);}
+.id-code-input{
+    width:100%;background:#141720;border:2px solid var(--border);color:#fff;
+    padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;
+    font-size:2.2rem;letter-spacing:10px;text-align:center;outline:none;
+    margin-bottom:10px;transition:border-color .15s;}
+.id-code-input:focus{border-color:var(--accent);}
 .id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;cursor:pointer;}
 
 /* Match list */
@@ -143,10 +149,14 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <!-- Identity -->
 <div class="screen active" id="screenIdentity">
   <div class="id-screen">
-    <div class="id-title">👤 Cine ești?</div>
-    <div class="id-sub">Selectează-ți numele pentru a vota.</div>
-    <select class="id-sel" id="playerSel"><option value="">— Selectează —</option></select>
+    <div class="id-title">🔑 Cod Secret</div>
+    <div class="id-sub">Introdu codul secret primit de la administrator.</div>
+    <input class="id-code-input" id="codeInput" type="text" maxlength="5"
+        placeholder="·····" autocomplete="off" autocapitalize="characters"
+        spellcheck="false" oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')confirmIdentity()">
     <button class="id-btn" onclick="confirmIdentity()">⚡ Intră și Votează</button>
+    <div id="codeError" style="color:#ef9a9a;font-size:.75rem;text-align:center;margin-top:8px;display:none;"></div>
   </div>
 </div>
 
@@ -220,10 +230,8 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classL
 
 // ── Load data ─────────────────────────────────────────────────────
 async function loadPlayers(){
-    const{data}=await sb.from('players').select('id,name').order('name');
+    const{data}=await sb.from('players').select('id,name,secret_code').order('name');
     allPlayers=data||[];
-    const sel=document.getElementById('playerSel');
-    allPlayers.forEach(p=>{const o=document.createElement('option');o.value=p.name;o.textContent=p.name;sel.appendChild(o);});
 }
 
 async function loadMatches(){
@@ -239,10 +247,16 @@ async function loadMatches(){
 
 // ── Identity ──────────────────────────────────────────────────────
 function confirmIdentity(){
-    const v=document.getElementById('playerSel').value;
-    if(!v){showToast('⚠️ Selectează numele tău!');return;}
-    myName=v;
-    localStorage.setItem(LS_KEY,v);
+    const code=document.getElementById('codeInput').value.trim().toUpperCase();
+    const errEl=document.getElementById('codeError');
+    if(code.length<4){errEl.textContent='⚠️ Introdu codul complet.';errEl.style.display='block';return;}
+    const player=allPlayers.find(p=>p.secret_code&&p.secret_code.toUpperCase()===code);
+    if(!player){errEl.textContent='❌ Cod incorect.';errEl.style.display='block';
+        document.getElementById('codeInput').style.borderColor='#c62828';
+        setTimeout(()=>{document.getElementById('codeInput').style.borderColor='';},1500);return;}
+    errEl.style.display='none';
+    myName=player.name;
+    localStorage.setItem(LS_KEY,JSON.stringify({name:player.name,code}));
     enterApp();
 }
 
@@ -268,7 +282,7 @@ async function loadAndOpenMatch(matchId){
 function logout(){
     myName=null; localStorage.removeItem(LS_KEY);
     document.getElementById('idBar').style.display='none';
-    document.getElementById('playerSel').value='';
+    document.getElementById('codeInput').value='';
     if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
     showScreen('screenIdentity');
 }
@@ -486,7 +500,6 @@ async function loadLiveResults(){
     const el=document.getElementById('liveResults');
     if(!sorted.length){el.innerHTML='<div style="padding:14px;text-align:center;color:#333;font-size:.8rem;">Fără voturi încă.</div>';return;}
     el.innerHTML=sorted.map(([name,pts],i)=>{
-        const pct=Math.round((pts/maxPts)*100);
         const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
         const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
         const isO=(selMatch.orange_players||[]).includes(name);
@@ -494,8 +507,6 @@ async function loadLiveResults(){
             <div class="rr-rank ${rc}">${medal}</div>
             <div class="rr-dot" style="background:${isO?'var(--orange)':'#4caf50'};"></div>
             <div class="rr-name">${name}${i===0?'<span class="mvp-badge">MVP</span>':''}</div>
-            <div class="rr-bar-wrap"><div class="rr-bar${i===0?' top':''}" style="width:${pct}%;"></div></div>
-            <div class="rr-pct">${pct}%</div>
         </div>`;
     }).join('')+`<div style="padding:5px 12px;font-size:.6rem;color:#333;">${voters.size} vot${voters.size!==1?'uri':''}</div>`;
 }
@@ -513,12 +524,8 @@ document.getElementById('confOverlay').addEventListener('click',e=>{if(e.target=
 async function init(){
     await loadPlayers();
     const saved=localStorage.getItem(LS_KEY);
-    if(saved&&allPlayers.find(p=>p.name===saved)){
-        document.getElementById('playerSel').value=saved;
-        myName=saved; enterApp();
-    } else {
-        showScreen('screenIdentity');
-    }
+    if(saved){try{const{name,code}=JSON.parse(saved);const player=allPlayers.find(p=>p.name===name&&p.secret_code&&p.secret_code.toUpperCase()===code.toUpperCase());if(player){myName=name;enterApp();return;}}catch(_){localStorage.removeItem(LS_KEY);}}
+    showScreen('screenIdentity');
 }
 init();
 </script>
