@@ -93,6 +93,11 @@
         .header-orange .col-header{background:linear-gradient(135deg,#ff6a00,#ee8a00);}
         .header-green .col-header{background:linear-gradient(135deg,#1a7a30,#28a745);}
         .header-bench .col-header{background:linear-gradient(135deg,#0d2040,#1a3060);}
+        .header-bench.team3-active .col-header{background:linear-gradient(135deg,#1a0050,#4a0080);}
+        .team3-active .col-header-title{color:#ce93d8!important;}
+        .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+        .btn-3team:hover{background:rgba(124,77,255,.4);}
+        .btn-3team.active{background:rgba(124,77,255,.5);color:#fff;box-shadow:0 0 12px rgba(124,77,255,.5);}
         .header-bench .col-header-title{color:#82b1ff;}
         .header-active .col-header{background:#1c1f2b;}
         .header-active .col-header-title{color:#888;}
@@ -951,6 +956,7 @@
     </div>
     <div class="balance-col admin-only" style="position:relative;">
         <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
+        <button class="btn-3team" id="btn3team" onclick="toggleThreeTeamIndex()" title="Mod 3 Echipe (bancă = Echipa 3)">3️⃣</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#69f0ae;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">⚖️ Fă Echipele</div>
@@ -1006,8 +1012,10 @@
     </div>
     <div class="column column-bench header-bench" id="col-bench" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title">Pe Bancă</div>
-            <div class="team-rating-info"><span class="team-count-badge" id="count-bench">0 jucători</span></div>
+            <div class="col-header-title" id="titleBench">Pe Bancă</div>
+            <div class="team-balance-indicator" id="balance-bench"></div>
+            <div class="team-rating-info"><span class="team-avg-badge" id="avg-bench" style="display:none;">★ —</span><span class="team-count-badge" id="count-bench">0 jucători</span></div>
+            <div class="rating-bar-wrap" id="bar-bench-wrap" style="display:none;"><div class="rating-bar-fill" id="bar-bench" style="width:0%;background:rgba(206,147,216,0.6);"></div></div>
         </div>
         <div class="col-body" id="list-bench"></div>
     </div>
@@ -2029,6 +2037,7 @@ async function onAuthSuccess(user) {
     applyRoleUI();
     initMobile();
     initSwipe();
+    applyThreeTeamUI();
     setTimeout(async () => {
         const shownPresence = await checkPresenceModal();
         if (!shownPresence) checkPendingVotes();
@@ -2540,7 +2549,7 @@ function render(){
             if(container) container.appendChild(card);
         });
     });
-    updateTeamStats();renderLeaderboard();renderHistory();renderLobby();renderTeamTitles();
+    updateTeamStats();renderLeaderboard();renderHistory();renderLobby();renderTeamTitles();applyThreeTeamUI();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
     // Keep mobile tab active after re-render
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
@@ -2601,8 +2610,23 @@ function updateTeamStats(){
         document.getElementById(`count-${team}`).textContent=`${n} jucători`;
         document.getElementById(`bar-${team}`).style.width=(n?Math.min((tot/n)/10*100,100):0)+'%';
     });
-    document.getElementById('count-bench').textContent=`${db.players.filter(p=>p.status==='bench').length} jucători`;
+    const bPlayers = db.players.filter(p=>p.status==='bench');
+    document.getElementById('count-bench').textContent=`${bPlayers.length} jucători`;
     document.getElementById('count-active').textContent=`${db.players.filter(p=>p.status==='active').length} jucători`;
+    // Show bench rating when 3-team mode
+    if(threeTeamMode && bPlayers.length > 0){
+        const bTot = bPlayers.reduce((s,p)=>s+getSmartRating(p),0);
+        const bAvg = (bTot/bPlayers.length).toFixed(1);
+        const avgEl = document.getElementById('avg-bench');
+        const barEl = document.getElementById('bar-bench');
+        const balEl = document.getElementById('balance-bench');
+        if(avgEl) avgEl.textContent=`★ ${bAvg}`;
+        if(barEl) barEl.style.width=Math.min((bTot/bPlayers.length)/10*100,100)+'%';
+        if(balEl){const w=analyzeTeamBalance(bPlayers);balEl.className='team-balance-indicator';balEl.innerHTML=w.map(x=>`<div class="${x.cls}" style="margin-bottom:1px;">${x.msg}</div>`).join('');}
+    } else {
+        const balEl=document.getElementById('balance-bench');
+        if(balEl){balEl.className='team-balance-indicator';balEl.innerHTML='';}
+    }
 
     // Team balance indicators
     function renderBalance(elId, players){
@@ -5492,6 +5516,7 @@ function moveTeamsToBench() {
 
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
+let threeTeamMode = localStorage.getItem('idx_3team')==='1';
 let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde' };
 let scenarios = {1:null, 2:null, 3:null};
 
@@ -5633,6 +5658,36 @@ function doBalance(mode) {
     if (active.length < 2) { showToast('⚠️ Minim 2 jucători confirmați!'); return; }
     active.forEach(p=>{ if(p.status==='active') p.status='bench'; });
 
+    // ── 3-team mode: distribute into 3 equal teams ────────────────
+    if(threeTeamMode){
+        const getRatingT = (p) => mode==='surprise' ? getSmartRating(p) : (mode==='smart'||mode==='roles'?getSmartRating(p):getGeneralAvg(p));
+        const sorted3 = mode==='surprise'
+            ? [...active].sort(()=>Math.random()-.5)
+            : [...active].sort((a,b)=>getRatingT(b)-getRatingT(a));
+        const teams3 = ['orange','green','bench'];
+        const sizes3 = [0,0,0];
+        const maxS3 = Math.ceil(active.length/3);
+        sorted3.forEach(p=>{
+            // Find team with lowest sum that isn't full
+            let best=-1, bestSum=Infinity;
+            const sums=[
+                db.players.filter(x=>x.status==='orange').reduce((s,x)=>s+getRatingT(x),0),
+                db.players.filter(x=>x.status==='green').reduce((s,x)=>s+getRatingT(x),0),
+                db.players.filter(x=>x.status==='bench').reduce((s,x)=>s+getRatingT(x),0),
+            ];
+            teams3.forEach((t,i)=>{ if(sizes3[i]<maxS3 && sums[i]<bestSum){bestSum=sums[i];best=i;} });
+            if(best===-1) best=sizes3.indexOf(Math.min(...sizes3));
+            p.status=teams3[best]; sizes3[best]++;
+        });
+        render();
+        Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
+        const a3=db.players.filter(p=>p.status==='orange').length;
+        const b3=db.players.filter(p=>p.status==='green').length;
+        const c3=db.players.filter(p=>p.status==='bench').length;
+        showToast(`⚖️ 3 Echipe: 🟠${a3} · 🟢${b3} · 🟣${c3} jucători!`);
+        return;
+    }
+
     const half = Math.floor(active.length / 2);
     const maxSize = Math.ceil(active.length / 2); // max players per team
 
@@ -5746,6 +5801,31 @@ function computeTeamStreak(team) {
     return streak;
 }
 
+
+
+// ── 3-team toggle (index) ─────────────────────────────────────────
+function toggleThreeTeamIndex(){
+    threeTeamMode = !threeTeamMode;
+    localStorage.setItem('idx_3team', threeTeamMode?'1':'0');
+    applyThreeTeamUI();
+    render();
+}
+
+function applyThreeTeamUI(){
+    const btn = document.getElementById('btn3team');
+    const colBench = document.getElementById('col-bench');
+    const titleBench = document.getElementById('titleBench');
+    const avgBench = document.getElementById('avg-bench');
+    const barWrap = document.getElementById('bar-bench-wrap');
+    if(btn){
+        btn.classList.toggle('active', threeTeamMode);
+        btn.title = threeTeamMode ? '3 Echipe ACTIV — click pentru dezactivare' : 'Activează Mod 3 Echipe';
+    }
+    if(colBench) colBench.classList.toggle('team3-active', threeTeamMode);
+    if(titleBench) titleBench.textContent = threeTeamMode ? (teamNames.bench||'Echipa 3 🟣') : 'Pe Bancă';
+    if(avgBench) avgBench.style.display = threeTeamMode ? '' : 'none';
+    if(barWrap) barWrap.style.display = threeTeamMode ? '' : 'none';
+}
 
 // ── 3-team quick swap (index) ─────────────────────────────────────
 function quickSwap(team){
