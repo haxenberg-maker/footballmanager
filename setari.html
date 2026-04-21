@@ -205,6 +205,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('poll')" id="sb-poll">
             <span class="sb-icon">🗳️</span><span class="sb-label">Sondaj Jucători</span>
         </div>
+        <div class="sb-item" onclick="switchSection('compare')" id="sb-compare">
+            <span class="sb-icon">🆚</span><span class="sb-label">Compară</span>
+        </div>
     </div>
 </div>
 
@@ -216,6 +219,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
     <div class="mobile-tab" onclick="switchSection('poll')">🗳️ Sondaj</div>
+    <div class="mobile-tab" onclick="switchSection('compare')">🆚 Compară</div>
 </div>
 
 <!-- Main -->
@@ -587,7 +591,7 @@ function switchSection(name){
     document.querySelectorAll('.sb-item').forEach(s=>s.classList.remove('active'));
     const sb=document.getElementById('sb-'+name);if(sb)sb.classList.add('active');
     document.querySelectorAll('.mobile-tab').forEach((t,i)=>{
-        const names=['players','algorithm','tags','data','season'];
+        const names=['players','algorithm','tags','data','season','poll','compare'];
         t.classList.toggle('active',names[i]===name);
     });
     // Show/hide save bar
@@ -597,6 +601,7 @@ function switchSection(name){
     if(name==='algorithm') buildAlgorithmPanel();
     if(name==='tags') buildTagsPanel();
     if(name==='poll') initPollSection();
+    if(name==='compare') buildComparePanel();
 }
 
 // ── Load ──────────────────────────────────────────────────────────
