@@ -264,6 +264,21 @@ const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
+// ── 3-team state ─────────────────────────────────────────────────
+let threeTeamMode = localStorage.getItem('live_3team')==='1';
+let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
+let timeLimitMin  = parseInt(localStorage.getItem('live_tlmin')||'10');
+let rotationMode  = localStorage.getItem('live_rotmode')||'goals';
+let rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
+let roundGoals    = {orange:0, green:0};
+let roundStartSec = 0;
+let roundStartTime= 0;
+let roundTimer    = null;
+let roundTimerInterval = null;
+let pairingGoals  = [];
+let matchPairings = [];
+let currentPairing= null;
+
 // ── 3-team: unified goals+time mode ─────────────────────────────
 function changeThreshold(d){
     goalThreshold=Math.max(1,Math.min(20,goalThreshold+d));
@@ -1202,13 +1217,26 @@ function subscribe(){
         .subscribe();
 }
 
+function toggleThreeTeam(){
+    threeTeamMode=!threeTeamMode;
+    localStorage.setItem('live_3team',threeTeamMode?'1':'0');
+    const btn=document.getElementById('threeBtn');
+    if(btn){
+        btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';
+        btn.style.color=threeTeamMode?'#fff':'#ce93d8';
+    }
+    if(!threeTeamMode){stopRound();roundGoals={orange:0,green:0};}
+    renderThreeBar();
+    render();
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDialog();});
 async function initThreeMode(){
     rotationMode = localStorage.getItem('live_rotmode')||'goals';
     rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
     setRotationMode(rotationMode);
-    document.getElementById('rotMinVal').textContent=rotationMinutes;
+    const rotMinEl=document.getElementById('rotMinVal');if(rotMinEl)rotMinEl.textContent=rotationMinutes;
 
     const btn=document.getElementById('threeBtn');
     if(btn&&threeTeamMode){btn.style.background='rgba(124,77,255,.4)';btn.style.color='#fff';}
