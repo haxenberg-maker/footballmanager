@@ -307,9 +307,10 @@ let colorMap = {};   // color → teamId
 let teamMap  = {};   // teamId → { players, color }
 
 // Current round tracking
-let roundGoals   = { orange: 0, green: 0 };  // goals conceded by each color this round
-let roundGoalLog = [];   // goal objects in current round (for savePairing)
+let roundGoals   = { orange: 0, green: 0 };
+let roundGoalLog = [];
 let roundStartSec = 0;
+let roundStartedAt = null; // ISO timestamp when this round started
 let roundTimer = null, roundTimerInterval = null;
 
 // Completed rounds
@@ -335,7 +336,7 @@ function timerToggle() {
         timerState = 'running';
         if (!matchStartedAt) matchStartedAt = new Date().toISOString();
         if (threeTeamMode) {
-            if (roundStartSec === 0) roundStartSec = timerSeconds();
+            if (roundStartSec === 0) { roundStartSec = timerSeconds(); roundStartedAt = new Date().toISOString(); }
             restartRoundTimer();
             const rtBar = document.getElementById('roundTimeBar');
             if (rtBar) rtBar.style.display = 'flex';
@@ -545,6 +546,7 @@ function savePairing(reason) {
         goals: [...roundGoalLog],
         durationSec: Math.max(0, durationSec),
         endReason: reason,
+        startedAt: roundStartedAt || matchStartedAt || null,
         endedAt: new Date().toISOString(),
     });
 }
@@ -569,6 +571,7 @@ async function doRotation(loserColor, reason) {
     roundGoals = { orange: 0, green: 0 };
     roundGoalLog = [];
     roundStartSec = timerSeconds();
+    roundStartedAt = new Date().toISOString();
 
     // 5. Restart round timer
     restartRoundTimer();
@@ -880,11 +883,19 @@ async function undoLast() {
 // ── Finalize ──────────────────────────────────────────────────────
 function openFinalize() {
     const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
-    const oScore = realGoals.filter(g => g.team === 'orange').length;
-    const gScore = realGoals.filter(g => g.team === 'green').length;
-    const winner = oScore > gScore ? 'orange' : gScore > oScore ? 'green' : 'draw';
-    const winnerLabel = winner==='orange' ? '🟠 Portocaliu' : winner==='green' ? '🟢 Verde' : 'Egal';
-    const winColor = winner==='orange' ? 'var(--o)' : winner==='green' ? 'var(--g)' : '#aaa';
+
+    // In 3-team mode calculate score per current round only (not total)
+    let oScore, gScore, winner, winnerLabel, winColor;
+    if (threeTeamMode) {
+        oScore = roundGoalLog.filter(g => g.team==='orange').length;
+        gScore = roundGoalLog.filter(g => g.team==='green').length;
+    } else {
+        oScore = realGoals.filter(g => g.team === 'orange').length;
+        gScore = realGoals.filter(g => g.team === 'green').length;
+    }
+    winner = oScore > gScore ? 'orange' : gScore > oScore ? 'green' : 'draw';
+    winnerLabel = winner==='orange' ? '🟠 Portocaliu' : winner==='green' ? '🟢 Verde' : 'Egal';
+    winColor = winner==='orange' ? 'var(--o)' : winner==='green' ? 'var(--g)' : '#aaa';
 
     const scorerMap = {};
     realGoals.forEach(g => {
@@ -924,22 +935,33 @@ function openFinalize() {
                 const [tA, tB] = p.teamOnField;
                 const sA = p.scores[tA]||0, sB = p.scores[tB]||0;
                 const min = p.durationSec ? Math.ceil(p.durationSec/60)+"'" : '';
-                return `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #0f1118;font-size:.75rem;">
-                    <span style="color:#444;min-width:42px;">Tur ${p.num}</span>
-                    ${tidBadge(tA)}
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;">${sA}-${sB}</span>
-                    ${tidBadge(tB)}
-                    <span style="color:#444;font-size:.6rem;margin-left:auto;">${min}</span>
+                const namesA = (p.orangePlayers||[]).slice(0,3).join(', ')+(p.orangePlayers?.length>3?'…':'');
+                const namesB = (p.greenPlayers||[]).slice(0,3).join(', ')+(p.greenPlayers?.length>3?'…':'');
+                const wColor = sA>sB?'var(--o)':sB>sA?'var(--g)':'#666';
+                return `<div style="padding:6px 0;border-bottom:1px solid #0f1118;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                        <span style="font-size:.6rem;color:#444;min-width:36px;">Tur ${p.num}</span>
+                        <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${wColor};">${sA}:${sB}</span>
+                        <span style="font-size:.6rem;color:#444;margin-left:auto;">${min}</span>
+                    </div>
+                    <div style="display:flex;gap:6px;font-size:.68rem;">
+                        <span style="color:var(--o);">🟠 ${namesA}</span>
+                        <span style="color:#444;">vs</span>
+                        <span style="color:var(--g);">🟢 ${namesB}</span>
+                    </div>
                 </div>`;
             }).join('');
             tureHtml = `<div class="dialog-section">Ture disputate</div><div>${rows}</div>`;
         }
     }
 
+    const headerHtml = threeTeamMode
+        ? `<div class="dialog-score" style="color:#ce93d8;">3️⃣ Mod 3 Echipe · ${matchPairings.length + (oScore+gScore>0?1:0)} ture</div>`
+        : `<div class="dialog-score" style="color:${winColor};">${winnerLabel} <span style="color:#555;font-size:1rem;">${oScore}:${gScore}</span></div>`;
     document.getElementById('dialogBox').innerHTML = `
         <div class="dialog-title">🏁 Finalizează Meciul</div>
-        <div class="dialog-score" style="color:${winColor};">${winnerLabel} <span style="color:#555;font-size:1rem;">${oScore}:${gScore}</span></div>
-        ${mvpHtml}${tureHtml}
+        ${headerHtml}
+        ${threeTeamMode?'':mvpHtml}${tureHtml}
         <div class="dialog-section">Marcatori</div>
         <div>${scorersHtml}</div>
         <div class="dialog-actions">
@@ -972,12 +994,14 @@ async function finalizeMatch(winner, oScore, gScore) {
                 if (!pair.orangePlayers?.length || !pair.greenPlayers?.length) continue;
                 const [tA, tB] = pair.teamOnField;
                 const pOG = pair.scores[tA]||0, pGG = pair.scores[tB]||0;
+                // Determine winner: team with more goals wins; use 'Portocaliu'/'Verde' based on who scored more
+                // orangePlayers scored pOG goals, greenPlayers scored pGG
                 const pWinner = pOG > pGG ? 'Portocaliu' : pGG > pOG ? 'Verde' : 'Egal';
                 const { data: mh } = await sb.from('match_history').insert({
                     date: today, winner: pWinner, score: pOG+':'+pGG,
                     imbalanced: Math.abs(pOG-pGG) >= 3,
                     orange_players: pair.orangePlayers, green_players: pair.greenPlayers,
-                    started_at: matchStartedAt||null, ended_at: pair.endedAt||new Date().toISOString()
+                    started_at: pair.startedAt||matchStartedAt||null, ended_at: pair.endedAt||new Date().toISOString()
                 }).select().single().catch(() => ({ data: null }));
 
                 if (mh?.id && pair.goals?.length) {
