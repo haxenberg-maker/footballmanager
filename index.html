@@ -3157,9 +3157,10 @@ async function adminDrop(e){
 function renderTeamTitles(){
     const tO=document.getElementById('titleOrange');
     const tG=document.getElementById('titleGreen');
+    const tB=document.getElementById('titleBench');
     if(tO) tO.textContent=teamNames.orange;
     if(tG) tG.textContent=teamNames.green;
-    // Update all other references
+    if(tB&&threeTeamMode) tB.textContent=teamNames.bench+' 🟣';
     document.querySelectorAll('.me-team-header').forEach((el,i)=>{
         if(i===0) el.textContent='🟠 '+teamNames.orange;
         if(i===1) el.textContent='🟢 '+teamNames.green;
@@ -3210,19 +3211,23 @@ function exportTeamsText(){
         .map(p => '  '+p.name)
         .join('\n');
 
+    const bench3 = threeTeamMode ? db.players.filter(p=>p.status==='bench') : [];
+
     const textEmoji =
         '🟠 '+teamNames.orange+' ('+orange.length+')'+'\n'+
         fmtEmoji(orange)+
         '\n\nvs\n\n'+
         '🟢 '+teamNames.green+' ('+green.length+')'+'\n'+
-        fmtEmoji(green);
+        fmtEmoji(green)+
+        (bench3.length ? '\n\n⏳ '+(teamNames.bench||'Echipa 3')+' ('+bench3.length+')\n'+fmtEmoji(bench3) : '');
 
     const textRaw =
         teamNames.orange.toUpperCase()+' ('+orange.length+')'+'\n'+
         fmtRaw(orange)+
         '\n\nvs\n\n'+
         teamNames.green.toUpperCase()+' ('+green.length+')'+'\n'+
-        fmtRaw(green);
+        fmtRaw(green)+
+        (bench3.length ? '\n\nvs\n\n'+(teamNames.bench||'ECHIPA 3').toUpperCase()+' ('+bench3.length+')\n'+fmtRaw(bench3) : '');
 
     window._exportRaw = textRaw;
     const overlay=document.createElement('div');
@@ -5551,7 +5556,7 @@ function moveTeamsToBench() {
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
 let threeTeamMode = localStorage.getItem('idx_3team')==='1';
-let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde' };
+let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde', bench: localStorage.getItem('team_name_bench')||'Echipa 3' };
 let scenarios = {1:null, 2:null, 3:null};
 
 // ── Jucătorii eligibili = confirmați pentru meciul activ ──────────
@@ -5857,7 +5862,8 @@ function applyThreeTeamUI(){
         btn.title = threeTeamMode ? '3 Echipe ACTIV — click pentru dezactivare' : 'Activează Mod 3 Echipe';
     }
     if(colBench) colBench.classList.toggle('team3-active', threeTeamMode);
-    if(titleBench) titleBench.textContent = threeTeamMode ? (teamNames.bench||'Echipa 3 🟣') : 'Pe Bancă';
+    teamNames.bench = localStorage.getItem('team_name_bench')||'Echipa 3';
+    if(titleBench) titleBench.textContent = threeTeamMode ? (teamNames.bench+' 🟣') : 'Pe Bancă';
     if(avgBench) avgBench.style.display = threeTeamMode ? '' : 'none';
     if(barWrap) barWrap.style.display = threeTeamMode ? '' : 'none';
 }

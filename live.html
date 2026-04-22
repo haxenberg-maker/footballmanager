@@ -264,20 +264,19 @@ const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
-// ── 3-team state ─────────────────────────────────────────────────
-let threeTeamMode = localStorage.getItem('live_3team')==='1';
-let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
-let timeLimitMin  = parseInt(localStorage.getItem('live_tlmin')||'10');
-let rotationMode  = localStorage.getItem('live_rotmode')||'goals';
-let rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
-let roundGoals    = {orange:0, green:0};
-let roundStartSec = 0;
-let roundStartTime= 0;
-let roundTimer    = null;
-let roundTimerInterval = null;
-let pairingGoals  = [];
-let matchPairings = [];
-let currentPairing= null;
+// ── 3-team state ──────────────────────────────────────────────────
+let threeTeamMode     = localStorage.getItem('live_3team')==='1';
+let goalThreshold     = parseInt(localStorage.getItem('live_threshold')||'2');
+let timeLimitMin      = parseInt(localStorage.getItem('live_tlmin')||'10');
+let rotationMinutes   = timeLimitMin;
+let rotationMode      = 'both'; // goals + time simultaneously
+let roundTimer        = null;
+let roundTimerInterval= null;
+let roundStartTime    = null;
+let roundStartSec     = 0;
+let roundGoals        = {orange:0, green:0};
+let pairingGoals      = [];
+let matchPairings     = [];
 
 // ── 3-team: unified goals+time mode ─────────────────────────────
 function changeThreshold(d){
@@ -312,11 +311,12 @@ function renderThreeBar(){
 }
 
 function updateRoundTimerDisplay(){
-    if(!threeTeamMode) return;
+    if(typeof threeTeamMode==='undefined'||!threeTeamMode) return;
     const totalSec=timeLimitMin*60;
-    const elapsed=roundStartSec>0?timerSeconds()-roundStartSec:0;
-    const remaining=Math.max(0,totalSec-elapsed);
-    const pct=Math.min(100,Math.round((elapsed/totalSec)*100));
+    const elapsedMs=roundStartTime?Date.now()-roundStartTime:0;
+    const elapsedSec=Math.floor(elapsedMs/1000);
+    const remaining=Math.max(0,totalSec-elapsedSec);
+    const pct=Math.min(100,Math.round((elapsedSec/totalSec)*100));
     const fillEl=document.getElementById('roundTimeFill');
     const leftEl=document.getElementById('roundTimeLeft');
     if(fillEl){
@@ -324,11 +324,15 @@ function updateRoundTimerDisplay(){
         fillEl.style.background=pct>80?'linear-gradient(90deg,#e53935,#ef9a9a)':pct>60?'linear-gradient(90deg,#ff8c00,#ffcc00)':'linear-gradient(90deg,#7c4dff,#ce93d8)';
     }
     if(leftEl){const m=Math.floor(remaining/60);const s=remaining%60;leftEl.textContent=m+':'+(s<10?'0':'')+s;}
+    // Show/hide the timer bar
+    const rtBar=document.getElementById('roundTimeBar');
+    if(rtBar) rtBar.style.display=threeTeamMode?'flex':'none';
 }
 
 function startRound(){
     pairingGoals=[];
     roundGoals={orange:0,green:0};
+    roundStartTime=Date.now();
     roundStartSec=timerSeconds();
     restartRoundTimer();
     renderThreeBar();
@@ -341,8 +345,12 @@ function stopRound(){
 function restartRoundTimer(){
     stopRoundTimer();
     if(!threeTeamMode) return;
+    roundStartTime=Date.now();
+    roundStartSec=timerSeconds();
     const limitMs=timeLimitMin*60*1000;
     roundTimer=setTimeout(()=>onRoundTimeout(), limitMs);
+    // Start countdown interval for display
+    roundTimerInterval=setInterval(updateRoundTimerDisplay,1000);
 }
 
 function stopRoundTimer(){
@@ -793,8 +801,13 @@ async function loadAll(){
 function render(){
     const orange=players.filter(p=>p.status==='orange');
     const green=players.filter(p=>p.status==='green');
-    const oScore=teamScoreReal('orange');
-    const gScore=teamScoreReal('green');
+    // In 3-team mode, show only THIS ROUND's goals on scoreboard
+    const oScore = (typeof threeTeamMode!=='undefined'&&threeTeamMode)
+        ? pairingGoals.filter(g=>g.team==='orange').length
+        : teamScoreReal('orange');
+    const gScore = (typeof threeTeamMode!=='undefined'&&threeTeamMode)
+        ? pairingGoals.filter(g=>g.team==='green').length
+        : teamScoreReal('green');
     const gpm=goalsMap();
     const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
 
@@ -833,11 +846,11 @@ function render(){
         }).join('');
         wrap.innerHTML=
             '<div class="team-col o-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span>'+(threeTeamMode?'<span class="round-badge">'+( roundGoals.green||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+oScore+'G</span></div>'+
+                '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span>'+(typeof threeTeamMode!=='undefined'&&threeTeamMode?'<span class="round-badge">'+(roundGoals.green||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+oScore+'G</span></div>'+
                 makeRows(orange,'orange')+
             '</div>'+
             '<div class="team-col g-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span>'+(threeTeamMode?'<span class="round-badge">'+( roundGoals.orange||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+gScore+'G</span></div>'+
+                '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span>'+(typeof threeTeamMode!=='undefined'&&threeTeamMode?'<span class="round-badge">'+(roundGoals.orange||0)+'/'+goalThreshold+' prim.</span>':'')+' <span class="team-hd-cnt">'+gScore+'G</span></div>'+
                 makeRows(green,'green')+
             '</div>';
     }
@@ -1217,26 +1230,13 @@ function subscribe(){
         .subscribe();
 }
 
-function toggleThreeTeam(){
-    threeTeamMode=!threeTeamMode;
-    localStorage.setItem('live_3team',threeTeamMode?'1':'0');
-    const btn=document.getElementById('threeBtn');
-    if(btn){
-        btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';
-        btn.style.color=threeTeamMode?'#fff':'#ce93d8';
-    }
-    if(!threeTeamMode){stopRound();roundGoals={orange:0,green:0};}
-    renderThreeBar();
-    render();
-}
-
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDialog();});
 async function initThreeMode(){
     rotationMode = localStorage.getItem('live_rotmode')||'goals';
     rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
     setRotationMode(rotationMode);
-    const rotMinEl=document.getElementById('rotMinVal');if(rotMinEl)rotMinEl.textContent=rotationMinutes;
+    document.getElementById('rotMinVal').textContent=rotationMinutes;
 
     const btn=document.getElementById('threeBtn');
     if(btn&&threeTeamMode){btn.style.background='rgba(124,77,255,.4)';btn.style.color='#fff';}
