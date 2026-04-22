@@ -152,6 +152,32 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .time-alert{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #ef5350;color:#fff;padding:12px 20px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;z-index:600;display:none;text-align:center;}
 .time-alert.show{display:block;animation:rotPop .3s ease;}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+
+/* ── Score sub-line (per-tur total vs same team) ── */
+.score-sub{text-align:center;font-size:.62rem;color:#444;padding:2px 0 6px;letter-spacing:.5px;min-height:16px;}
+.score-sub span{color:#666;}
+
+/* ── Ture history ────────────────────────────────── */
+.ture-section{display:none;background:#080a12;border-top:1px solid #1e2130;}
+.ture-section.show{display:block;}
+.ture-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;border-bottom:1px solid #0f1118;}
+.ture-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
+.ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;font-size:.6rem;padding:1px 6px;border-radius:10px;}
+.ture-list{max-height:200px;overflow-y:auto;}
+.tur-row{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #0a0c14;font-size:.76rem;}
+.tur-row:last-child{border-bottom:none;}
+.tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#444;min-width:30px;}
+.tur-teams{flex:1;font-weight:700;}
+.tur-score{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#fff;min-width:32px;text-align:center;}
+.tur-meta{font-size:.6rem;color:#444;text-align:right;}
+.tur-reason{font-size:.58rem;padding:1px 5px;border-radius:4px;margin-left:4px;}
+.tur-reason.goals{background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#69f0ae;}
+.tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#ce93d8;}
+.tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#ffcc00;}
+.team-id-badge{font-size:.55rem;padding:1px 4px;border-radius:3px;font-weight:700;margin-right:3px;}
+.tid-a{background:rgba(255,140,0,.15);color:#ff8c00;border:1px solid rgba(255,140,0,.3);}
+.tid-b{background:rgba(40,167,69,.15);color:#28a745;border:1px solid rgba(40,167,69,.3);}
+.tid-c{background:rgba(124,77,255,.15);color:#ce93d8;border:1px solid #7c4dff;}
 </style>
 </head>
 <body>
@@ -192,6 +218,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="teams-wrap" id="teamsWrap">
   <div class="empty-teams">Se încarcă...</div>
 </div>
+
+<!-- Score sub (total vs same team) -->
+<div class="score-sub" id="scoreSub"></div>
 
 <!-- Rotation toast -->
 <div class="rotation-toast" id="rotationToast"></div>
@@ -235,6 +264,15 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   </div>
 </div>
 
+<!-- Ture history -->
+<div class="ture-section" id="tureSection">
+  <div class="ture-toggle" onclick="toggleTure()">
+    <span class="ture-toggle-lbl">📊 Istoric Ture <span class="ture-cnt" id="tureCnt">0</span></span>
+    <span style="font-size:.7rem;color:#333;" id="tureChevron">▲</span>
+  </div>
+  <div class="ture-list" id="tureList"></div>
+</div>
+
 <!-- Log toggle -->
 <div class="log-toggle" onclick="toggleLog()">
   <span class="log-toggle-lbl">📋 Log goluri <span class="log-toggle-cnt" id="logCnt">0</span></span>
@@ -266,15 +304,21 @@ const sb=window.supabase.createClient(SB_URL,SB_KEY);
 let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
 // 3-team state
-let threeTeamMode    = localStorage.getItem('live_3team')==='1';
-let goalThreshold    = parseInt(localStorage.getItem('live_threshold')||'2');
-let timeLimitMin     = parseInt(localStorage.getItem('live_tlmin')||'10');
-let roundGoals       = {orange:0, green:0};
-let roundStartSec    = 0;
-let roundTimer       = null;
+let threeTeamMode  = localStorage.getItem('live_3team')==='1';
+let goalThreshold  = parseInt(localStorage.getItem('live_threshold')||'2');
+let timeLimitMin   = parseInt(localStorage.getItem('live_tlmin')||'10');
+let roundGoals     = {orange:0, green:0};   // goluri primite per culoare în turul curent
+let roundStartSec  = 0;
+let roundTimer     = null;
 let roundTimerInterval = null;
-let pairingGoals     = [];
-let matchPairings    = [];
+let pairingGoals   = [];   // golurile din turul curent
+let matchPairings  = [];   // toate turele terminate
+
+// Team IDs — asignate la activarea modului 3 echipe, rămân fixe
+// { teamA: {id:'teamA', players:['Vlad',...], color:'orange'}, ... }
+let teamRegistry   = {};   // id -> {id, players, color}
+// curentul tur: care teamId e pe orange, green, bench
+let colorToTeam    = {};   // 'orange'->teamId, 'green'->teamId, 'bench'->teamId
 
 // Timer state
 let timerState='idle';
@@ -328,6 +372,66 @@ function timerReset(){
     document.getElementById('halfBadge').textContent='';
 }
 
+// ── Team ID registry ──────────────────────────────────────────────
+function initTeamRegistry(){
+    // Called once when 3-team mode is activated (or re-activated)
+    teamRegistry={};
+    colorToTeam={};
+    const orange=players.filter(p=>p.status==='orange');
+    const green=players.filter(p=>p.status==='green');
+    const bench=players.filter(p=>p.status==='bench');
+    if(!orange.length&&!green.length&&!bench.length) return;
+    teamRegistry['teamA']={id:'teamA', players:orange.map(p=>p.name), color:'orange'};
+    teamRegistry['teamB']={id:'teamB', players:green.map(p=>p.name),  color:'green'};
+    teamRegistry['teamC']={id:'teamC', players:bench.map(p=>p.name),  color:'bench'};
+    colorToTeam['orange']='teamA';
+    colorToTeam['green'] ='teamB';
+    colorToTeam['bench'] ='teamC';
+}
+
+function getTeamId(color){
+    return colorToTeam[color]||null;
+}
+
+function getTeamLabel(teamId){
+    const colors={'teamA':'🟠 A','teamB':'🟢 B','teamC':'🟣 C'};
+    return colors[teamId]||teamId;
+}
+
+function getTeamBadgeClass(teamId){
+    const cls={'teamA':'tid-a','teamB':'tid-b','teamC':'tid-c'};
+    return cls[teamId]||'';
+}
+
+// After a swap: update colorToTeam mapping
+function updateColorToTeam(){
+    // Re-derive from teamRegistry: for each teamId, find which players are on which color now
+    Object.keys(teamRegistry).forEach(tid=>{
+        const teamPlayers=teamRegistry[tid].players;
+        // Find what color these players are currently on
+        const p=players.find(x=>teamPlayers.includes(x.name));
+        if(p){
+            teamRegistry[tid].color=p.status;
+            colorToTeam[p.status]=tid;
+        }
+    });
+}
+
+// Cumulative score between two specific teamIds across all completed pairings
+function getCumulativeScore(teamIdA, teamIdB){
+    let scoreA=0, scoreB=0, count=0;
+    matchPairings.forEach(pair=>{
+        if((pair.teamOnField[0]===teamIdA&&pair.teamOnField[1]===teamIdB)||
+           (pair.teamOnField[0]===teamIdB&&pair.teamOnField[1]===teamIdA)){
+            // pair.scores is indexed by teamId
+            scoreA+=(pair.scores[teamIdA]||0);
+            scoreB+=(pair.scores[teamIdB]||0);
+            count++;
+        }
+    });
+    return {scoreA, scoreB, count};
+}
+
 // ── 3-team ────────────────────────────────────────────────────────
 function toggleThreeTeam(){
     threeTeamMode=!threeTeamMode;
@@ -337,9 +441,21 @@ function toggleThreeTeam(){
         btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';
         btn.style.color=threeTeamMode?'#fff':'#ce93d8';
     }
-    if(!threeTeamMode){ stopRoundTimer(); roundGoals={orange:0,green:0}; }
-    else { roundStartSec=timerSeconds(); if(timerState==='running') restartRoundTimer(); }
+    if(threeTeamMode){
+        initTeamRegistry();
+        roundStartSec=timerSeconds();
+        pairingGoals=[];
+        roundGoals={orange:0,green:0};
+        if(timerState==='running') restartRoundTimer();
+    } else {
+        stopRoundTimer();
+        roundGoals={orange:0,green:0};
+        teamRegistry={};
+        colorToTeam={};
+        matchPairings=[];
+    }
     renderThreeBar();
+    renderTureHistory();
     render();
 }
 
@@ -352,7 +468,7 @@ function changeTimeLimitMin(d){
     timeLimitMin=Math.max(1,Math.min(90,timeLimitMin+d));
     localStorage.setItem('live_tlmin',timeLimitMin);
     const el=document.getElementById('timeLimitVal'); if(el) el.textContent=timeLimitMin;
-    if(threeTeamMode && timerState==='running') restartRoundTimer();
+    if(threeTeamMode&&timerState==='running') restartRoundTimer();
 }
 
 function renderThreeBar(){
@@ -364,15 +480,17 @@ function renderThreeBar(){
     const tlEl=document.getElementById('timeLimitVal'); if(tlEl) tlEl.textContent=timeLimitMin;
     const bench=players.filter(p=>p.status==='bench');
     const wp=document.getElementById('waitingPlayers');
+    const benchTeamId=getTeamId('bench');
+    const benchLabel=benchTeamId?` <span class="team-id-badge ${getTeamBadgeClass(benchTeamId)}">${benchTeamId}</span>`:'';
     if(wp) wp.innerHTML=bench.length
-        ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+        ? benchLabel+bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
         : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
     const rtBar=document.getElementById('roundTimeBar');
     if(rtBar) rtBar.style.display=(timerState==='running')?'flex':'none';
 }
 
 function updateRoundTimerDisplay(){
-    if(!threeTeamMode || timerState==='idle') return;
+    if(!threeTeamMode||timerState==='idle') return;
     const totalSec=timeLimitMin*60;
     const elapsed=timerSeconds()-roundStartSec;
     const remaining=Math.max(0,totalSec-elapsed);
@@ -392,6 +510,8 @@ function startRound(){
     roundStartSec=timerSeconds();
     restartRoundTimer();
     renderThreeBar();
+    renderTureHistory();
+    render();
 }
 
 function stopRound(){ stopRoundTimer(); }
@@ -424,7 +544,7 @@ function onRoundTimeout(){
         showRotationToast(`⏱️ TIMP! ${lbl} Cel mai puțin goluri — IESE!`);
     }
     if(navigator.vibrate) navigator.vibrate([300,100,300]);
-    setTimeout(()=>doRotation(loser,'timeout'),700);
+    setTimeout(()=>doRotation(loser,'time'),700);
 }
 
 function checkGoalRotation(){
@@ -446,42 +566,107 @@ function checkGoalRotation(){
     }
 }
 
-function savePairing(winner, reason){
-    const oS=pairingGoals.filter(g=>g.team==='orange').length;
-    const gS=pairingGoals.filter(g=>g.team==='green').length;
+function savePairing(reason){
+    // Score per teamId in this round
+    const oTeamId=getTeamId('orange');
+    const gTeamId=getTeamId('green');
+    const oGoals=pairingGoals.filter(g=>g.team==='orange').length;
+    const gGoals=pairingGoals.filter(g=>g.team==='green').length;
+    const scores={};
+    if(oTeamId) scores[oTeamId]=oGoals;
+    if(gTeamId) scores[gTeamId]=gGoals;
+    const durationSec=timerSeconds()-roundStartSec;
     matchPairings.push({
-        orange:players.filter(p=>p.status==='orange').map(p=>p.name),
-        green:players.filter(p=>p.status==='green').map(p=>p.name),
-        goals:[...pairingGoals], oScore:oS, gScore:gS,
-        winner:winner||(oS>gS?'orange':gS>oS?'green':'draw'),
-        endReason:reason,
-        startedAt:matchStartedAt||null, endedAt:new Date().toISOString(),
-        roundDurationSec:timerSeconds()-roundStartSec
+        num: matchPairings.length+1,
+        teamOnField: [oTeamId, gTeamId].filter(Boolean),
+        scores,
+        orangePlayers: players.filter(p=>p.status==='orange').map(p=>p.name),
+        greenPlayers:  players.filter(p=>p.status==='green').map(p=>p.name),
+        goals: [...pairingGoals],
+        durationSec,
+        endReason: reason,
+        startedAt: matchStartedAt||null,
+        endedAt: new Date().toISOString()
     });
 }
 
-async function doRotation(loserTeam, reason){
+async function doRotation(loserColor, reason){
     const bench=players.filter(p=>p.status==='bench');
-    const losingPlayers=players.filter(p=>p.status===loserTeam);
+    const losingPlayers=players.filter(p=>p.status===loserColor);
     if(!bench.length||!losingPlayers.length) return;
-    savePairing(loserTeam==='orange'?'green':'orange', reason);
+    savePairing(reason);
+    // Swap colors
     losingPlayers.forEach(p=>p.status='bench');
-    bench.forEach(p=>p.status=loserTeam);
+    bench.forEach(p=>p.status=loserColor);
+    // Update teamId->color mapping
+    updateColorToTeam();
     try{ await Promise.all([...losingPlayers,...bench].map(p=>sb.from('players').update({status:p.status}).eq('id',p.id))); }
     catch(e){ console.warn('swap:',e.message); }
-    const lbl=loserTeam==='orange'?'🟠 PORTOCALIU':'🟢 VERDE';
+    const lbl=loserColor==='orange'?'🟠 PORTOCALIU':'🟢 VERDE';
     showRotationToast(`${lbl} IESE · Echipa nouă INTRĂ`);
     startRound();
-    render();
 }
 
-async function manualSwap(loserTeam){ stopRound(); await doRotation(loserTeam,'manual'); }
+async function manualSwap(loserColor){ stopRound(); await doRotation(loserColor,'manual'); }
 
 function showRotationToast(msg){
     const el=document.getElementById('rotationToast');
     if(!el) return;
     el.textContent=msg; el.classList.add('show');
     setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── Ture history UI ───────────────────────────────────────────────
+function renderTureHistory(){
+    const section=document.getElementById('tureSection');
+    const list=document.getElementById('tureList');
+    const cnt=document.getElementById('tureCnt');
+    if(!section||!list) return;
+    section.classList.toggle('show', threeTeamMode && matchPairings.length>0);
+    if(!threeTeamMode||!matchPairings.length){ if(cnt) cnt.textContent='0'; return; }
+    if(cnt) cnt.textContent=matchPairings.length;
+    list.innerHTML=[...matchPairings].reverse().map(p=>{
+        const [tidA,tidB]=p.teamOnField;
+        const sA=p.scores[tidA]||0;
+        const sB=p.scores[tidB]||0;
+        const min=p.durationSec?Math.ceil(p.durationSec/60)+"'":'';
+        const reasonLabel={'goals':'goluri','time':'timp','manual':'manual','final':'final'}[p.endReason]||p.endReason;
+        const badgeA=tidA?`<span class="team-id-badge ${getTeamBadgeClass(tidA)}">${tidA}</span>`:'';
+        const badgeB=tidB?`<span class="team-id-badge ${getTeamBadgeClass(tidB)}">${tidB}</span>`:'';
+        const winnerTid=sA>sB?tidA:sB>sA?tidB:null;
+        const scoreColorA=winnerTid===tidA?'#69f0ae':winnerTid===tidB?'#ef9a9a':'#fff';
+        const scoreColorB=winnerTid===tidB?'#69f0ae':winnerTid===tidA?'#ef9a9a':'#fff';
+        return `<div class="tur-row">
+            <span class="tur-num">Tur ${p.num}</span>
+            <span class="tur-teams">${badgeA}${badgeB}</span>
+            <span class="tur-score"><span style="color:${scoreColorA}">${sA}</span><span style="color:#333;font-size:.7rem;margin:0 2px">-</span><span style="color:${scoreColorB}">${sB}</span></span>
+            <span class="tur-meta">${min} <span class="tur-reason ${p.endReason}">${reasonLabel}</span></span>
+        </div>`;
+    }).join('');
+}
+
+function toggleTure(){
+    const list=document.getElementById('tureList');
+    const chevron=document.getElementById('tureChevron');
+    if(!list) return;
+    const open=list.style.display!=='none'&&list.style.display!=='';
+    list.style.display=open?'none':'block';
+    if(chevron) chevron.textContent=open?'▲':'▼';
+}
+
+// ── Score sub-line (cumulative same pair) ─────────────────────────
+function renderScoreSub(){
+    const el=document.getElementById('scoreSub');
+    if(!el) return;
+    if(!threeTeamMode||!matchPairings.length){el.textContent='';return;}
+    const oTeamId=getTeamId('orange');
+    const gTeamId=getTeamId('green');
+    if(!oTeamId||!gTeamId){el.textContent='';return;}
+    const {scoreA,scoreB,count}=getCumulativeScore(oTeamId,gTeamId);
+    if(count===0){el.textContent='';return;}
+    const lblA=`<span class="team-id-badge ${getTeamBadgeClass(oTeamId)}" style="display:inline;margin:0 2px;">${oTeamId}</span>`;
+    const lblB=`<span class="team-id-badge ${getTeamBadgeClass(gTeamId)}" style="display:inline;margin:0 2px;">${gTeamId}</span>`;
+    el.innerHTML=`Total ${lblA} vs ${lblB}: <span>${scoreA} - ${scoreB}</span> (${count} tur${count!==1?'e':''})`;
 }
 
 // ── Utilities ─────────────────────────────────────────────────────
@@ -496,20 +681,43 @@ async function loadAll(){
         sb.from('players').select('id,name,status').order('name'),
         sb.from('live_goals').select('*').order('created_at',{ascending:true})
     ]);
-    players=pl||[]; goals=gl||[]; render();
+    players=pl||[]; goals=gl||[];
+    // Restore team registry if 3-team mode was active
+    if(threeTeamMode && Object.keys(teamRegistry).length===0) initTeamRegistry();
+    render();
 }
 
 // ── Render ────────────────────────────────────────────────────────
 function render(){
     const orange=players.filter(p=>p.status==='orange');
     const green=players.filter(p=>p.status==='green');
-    const oScore=teamScoreReal('orange');
-    const gScore=teamScoreReal('green');
+    // In 3-team mode: show only current round goals per color
+    const currentGoals = threeTeamMode ? pairingGoals : goals.filter(g=>!String(g.id).startsWith('tmp_'));
+    const oScore = threeTeamMode
+        ? pairingGoals.filter(g=>g.team==='orange').length
+        : goals.filter(g=>g.team==='orange').length;
+    const gScore = threeTeamMode
+        ? pairingGoals.filter(g=>g.team==='green').length
+        : goals.filter(g=>g.team==='green').length;
     const gpm=goalsMap();
     const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
 
     document.getElementById('scoreO').textContent=oScore;
     document.getElementById('scoreG').textContent=gScore;
+
+    // Team ID badges on score labels
+    if(threeTeamMode){
+        const oTid=getTeamId('orange'), gTid=getTeamId('green');
+        const oLbl=document.querySelector('.sc-lbl.o');
+        const gLbl=document.querySelector('.sc-lbl.g');
+        if(oLbl) oLbl.innerHTML=`🟠 Portocaliu${oTid?` <span class="team-id-badge ${getTeamBadgeClass(oTid)}">${oTid}</span>`:''}`;
+        if(gLbl) gLbl.innerHTML=`Verde 🟢${gTid?` <span class="team-id-badge ${getTeamBadgeClass(gTid)}">${gTid}</span>`:''}`;
+    } else {
+        const oLbl=document.querySelector('.sc-lbl.o');
+        const gLbl=document.querySelector('.sc-lbl.g');
+        if(oLbl) oLbl.innerHTML='🟠 Portocaliu';
+        if(gLbl) gLbl.innerHTML='Verde 🟢';
+    }
 
     const lastG=realGoals[realGoals.length-1]||null;
     if(lastG){
@@ -521,7 +729,7 @@ function render(){
         document.getElementById('undoBtn').classList.remove('show');
     }
 
-    document.getElementById('btnFinalize').disabled=(oScore+gScore===0);
+    document.getElementById('btnFinalize').disabled=(realGoals.length===0&&matchPairings.length===0);
 
     const wrap=document.getElementById('teamsWrap');
     if(!orange.length&&!green.length){
@@ -539,13 +747,15 @@ function render(){
         }).join('');
         const oBadge=threeTeamMode?'<span class="round-badge">'+(roundGoals.orange||0)+'/'+goalThreshold+' prim.</span>':'';
         const gBadge=threeTeamMode?'<span class="round-badge">'+(roundGoals.green||0)+'/'+goalThreshold+' prim.</span>':'';
+        const oTid=threeTeamMode&&getTeamId('orange')?`<span class="team-id-badge ${getTeamBadgeClass(getTeamId('orange'))}">${getTeamId('orange')}</span> `:'';
+        const gTid=threeTeamMode&&getTeamId('green')?`<span class="team-id-badge ${getTeamBadgeClass(getTeamId('green'))}">${getTeamId('green')}</span> `:'';
         wrap.innerHTML=
             '<div class="team-col o-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl o">🟠 Portocaliu</span>'+oBadge+' <span class="team-hd-cnt">'+oScore+'G</span></div>'+
+                '<div class="team-hd">'+oTid+'<span class="team-hd-lbl o">🟠 Portocaliu</span>'+oBadge+' <span class="team-hd-cnt">'+oScore+'G</span></div>'+
                 makeRows(orange,'orange')+
             '</div>'+
             '<div class="team-col g-col">'+
-                '<div class="team-hd"><span class="team-hd-lbl g">🟢 Verde</span>'+gBadge+' <span class="team-hd-cnt">'+gScore+'G</span></div>'+
+                '<div class="team-hd">'+gTid+'<span class="team-hd-lbl g">🟢 Verde</span>'+gBadge+' <span class="team-hd-cnt">'+gScore+'G</span></div>'+
                 makeRows(green,'green')+
             '</div>';
     }
@@ -553,6 +763,8 @@ function render(){
     renderLog(realGoals);
     renderThreeBar();
     updateRoundTimerDisplay();
+    renderScoreSub();
+    renderTureHistory();
 }
 
 function renderLog(realGoals){
@@ -604,9 +816,14 @@ async function addGoal(name,team){
         const{data,error}=await sb.from('live_goals').insert({player_name:name,team,minute}).select().single();
         if(error) throw error;
         goals=goals.map(g=>g.id===tmpId?data:g);
+        if(threeTeamMode){
+            const idx=pairingGoals.findIndex(g=>g.id===tmpId);
+            if(idx!==-1) pairingGoals[idx]={...pairingGoals[idx],id:data.id};
+        }
         render();
     }catch(e){
         goals=goals.filter(g=>g.id!==tmpId);
+        if(threeTeamMode) pairingGoals=pairingGoals.filter(g=>g.id!==tmpId);
         render(); showToast('⚠️ '+e.message);
     }
 }
@@ -615,7 +832,17 @@ async function removeGoal(name,team){
     const arr=[...goals].map((g,i)=>({g,i})).filter(({g})=>g.player_name===name&&g.team===team&&!String(g.id).startsWith('tmp_'));
     if(!arr.length) return;
     const{g,i}=arr[arr.length-1];
-    goals.splice(i,1); render();
+    goals.splice(i,1);
+    if(threeTeamMode){
+        // Also remove from pairingGoals and adjust roundGoals
+        const pi=pairingGoals.findIndex(x=>x.id===g.id);
+        if(pi!==-1){
+            pairingGoals.splice(pi,1);
+            const opposing=team==='orange'?'green':'orange';
+            roundGoals[opposing]=Math.max(0,(roundGoals[opposing]||0)-1);
+        }
+    }
+    render();
     try{ await sb.from('live_goals').delete().eq('id',g.id); }
     catch(e){ goals.splice(i,0,g); render(); showToast('⚠️ '+e.message); }
 }
@@ -624,7 +851,16 @@ async function undoLast(){
     const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
     const lastG=realGoals[realGoals.length-1];
     if(!lastG) return;
-    goals=goals.filter(x=>x.id!==lastG.id); render();
+    goals=goals.filter(x=>x.id!==lastG.id);
+    if(threeTeamMode){
+        const pi=pairingGoals.findIndex(x=>x.id===lastG.id);
+        if(pi!==-1){
+            pairingGoals.splice(pi,1);
+            const opposing=lastG.team==='orange'?'green':'orange';
+            roundGoals[opposing]=Math.max(0,(roundGoals[opposing]||0)-1);
+        }
+    }
+    render();
     try{ await sb.from('live_goals').delete().eq('id',lastG.id); }
     catch(e){ showToast('⚠️ '+e.message); }
 }
@@ -651,10 +887,30 @@ function openFinalize(){
         const minsStr=d.mins.length?' · '+d.mins.join(', '):'';
         return `<div class="scorer-row"><div class="scorer-dot" style="background:${dot};"></div><span class="scorer-name">${name}</span><span class="scorer-goals">${d.count}⚽</span><span class="scorer-mins">${minsStr}</span></div>`;
     }).join(''):'<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
+
+    // 3-team summary in finalize dialog
+    let tureHtml='';
+    if(threeTeamMode&&matchPairings.length){
+        const rows=matchPairings.map(p=>{
+            const [tA,tB]=p.teamOnField;
+            const sA=p.scores[tA]||0, sB=p.scores[tB]||0;
+            const min=p.durationSec?Math.ceil(p.durationSec/60)+"'":'';
+            return `<div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #0f1118;font-size:.75rem;">
+                <span style="color:#444;min-width:40px;">Tur ${p.num}</span>
+                <span class="team-id-badge ${getTeamBadgeClass(tA)}">${tA}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;">${sA}-${sB}</span>
+                <span class="team-id-badge ${getTeamBadgeClass(tB)}">${tB}</span>
+                <span style="color:#444;font-size:.6rem;margin-left:auto;">${min}</span>
+            </div>`;
+        }).join('');
+        tureHtml=`<div class="dialog-section">Ture disputate</div><div>${rows}</div>`;
+    }
+
     document.getElementById('dialogBox').innerHTML=`
         <div class="dialog-title">🏁 Finalizează Meciul</div>
         <div class="dialog-score" style="color:${winColor};">${winnerLabel} <span style="color:#555;font-size:1rem;">${oScore}:${gScore}</span></div>
         ${mvpHtml}
+        ${tureHtml}
         <div class="dialog-section">Marcatori</div>
         <div>${scorersHtml}</div>
         <div class="dialog-actions">
@@ -672,34 +928,35 @@ async function finalizeMatch(winner,oScore,gScore){
     document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
 
-    if(threeTeamMode && matchPairings.length>0){
+    if(threeTeamMode&&matchPairings.length>0){
         stopRound();
-        savePairing(null,'final');
+        savePairing('final');
         try{
             const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
             let savedCount=0;
             for(const pair of matchPairings){
-                if(!pair.orange.length||!pair.green.length) continue;
-                const oG=pair.oScore||0, gG=pair.gScore||0;
+                if(!pair.orangePlayers.length||!pair.greenPlayers.length) continue;
+                const oG=pair.scores[pair.teamOnField[0]]||0;
+                const gG=pair.scores[pair.teamOnField[1]]||0;
                 const pWinner=oG>gG?'Portocaliu':gG>oG?'Verde':'Egal';
                 const{data:mh}=await sb.from('match_history').insert({
                     date:today, winner:pWinner, score:oG+':'+gG, imbalanced:Math.abs(oG-gG)>=3,
-                    orange_players:pair.orange, green_players:pair.green,
+                    orange_players:pair.orangePlayers, green_players:pair.greenPlayers,
                     started_at:pair.startedAt||null, ended_at:pair.endedAt||new Date().toISOString()
                 }).select().single().catch(()=>({data:null}));
-                if(mh?.id && pair.goals?.length){
+                if(mh?.id&&pair.goals?.length){
                     const rows=pair.goals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}));
                     await sb.from('match_goals').insert(rows).catch(()=>{});
                 }
-                if(mh?.id && pair.goals?.length){
+                if(mh?.id&&pair.goals?.length){
                     const sc={};pair.goals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
                     const mvpEntry=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
                     if(mvpEntry) await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpEntry[0],mvp_type:'goals'}).catch(()=>{});
                 }
-                const names=[...pair.orange,...pair.green];
+                const names=[...pair.orangePlayers,...pair.greenPlayers];
                 for(const name of names){
                     const p=players.find(x=>x.name===name); if(!p) continue;
-                    const inO=pair.orange.includes(name);
+                    const inO=pair.orangePlayers.includes(name);
                     const won=(inO&&oG>gG)||(!inO&&gG>oG);
                     const pGoals=pair.goals.filter(g=>g.player_name===name).length;
                     await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single().then(({data:cur})=>{
@@ -711,6 +968,7 @@ async function finalizeMatch(winner,oScore,gScore){
             }
             await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
             goals=[]; pairingGoals=[]; matchPairings=[]; matchStartedAt=null; roundStartSec=0;
+            teamRegistry={}; colorToTeam={};
             timerReset(); render();
             showToast(`✅ ${savedCount} meciuri salvate (3 echipe)!`);
             isSaving=false;
@@ -718,6 +976,7 @@ async function finalizeMatch(winner,oScore,gScore){
         return;
     }
 
+    // Standard 2-team finalize
     const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
     const green=players.filter(p=>p.status==='green').map(p=>p.name);
     const winnerLabel=winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
@@ -728,7 +987,7 @@ async function finalizeMatch(winner,oScore,gScore){
     try{
         const nowIso=new Date().toISOString();
         let endedAt=nowIso;
-        if(matchStartedAt){ const elapsedSec=timerSeconds(); endedAt=new Date(new Date(matchStartedAt).getTime()+elapsedSec*1000).toISOString(); }
+        if(matchStartedAt){ endedAt=new Date(new Date(matchStartedAt).getTime()+timerSeconds()*1000).toISOString(); }
         const{data:mh,error:mhErr}=await sb.from('match_history').insert({
             date:new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.'),
             winner:winnerLabel, score:oScore+':'+gScore, imbalanced,
@@ -748,8 +1007,7 @@ async function finalizeMatch(winner,oScore,gScore){
             const goalRows=realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}));
             await sb.from('match_goals').insert(goalRows);
         }
-        const allNames=[...orange,...green];
-        await Promise.all(allNames.map(name=>{
+        await Promise.all([...orange,...green].map(name=>{
             const p=players.find(x=>x.name===name); if(!p) return null;
             const inOrange=orange.includes(name);
             const won=(inOrange&&winner==='orange')||(!inOrange&&winner==='green');
@@ -798,8 +1056,11 @@ async function shareScore(){
 
 // ── Reset ─────────────────────────────────────────────────────────
 async function confirmReset(){
-    if(!confirm('Resetezi scorul live și cronometrul?')) return;
-    goals=[]; timerReset(); stopRoundTimer(); roundGoals={orange:0,green:0}; pairingGoals=[]; render();
+    if(!confirm('Resetezi scorul live, turele și cronometrul?')) return;
+    goals=[]; timerReset(); stopRoundTimer();
+    roundGoals={orange:0,green:0}; pairingGoals=[]; matchPairings=[];
+    teamRegistry={}; colorToTeam=[];
+    render();
     try{ await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'); }
     catch(e){ showToast('⚠️ '+e.message); }
 }
@@ -824,7 +1085,6 @@ function subscribe(){
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeDialog();});
 
-// Restore 3-team button state
 (function(){
     const btn=document.getElementById('threeBtn');
     if(btn&&threeTeamMode){btn.style.background='rgba(124,77,255,.4)';btn.style.color='#fff';}
