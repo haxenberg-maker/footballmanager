@@ -277,6 +277,10 @@ let players=[], goals=[], matchStartedAt=null, isSaving=false;
 let threeTeamMode = localStorage.getItem('live_3team')==='1';
 let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
 let timeLimitMin  = parseInt(localStorage.getItem('live_tlmin')||'10');
+let rotationMode  = localStorage.getItem('live_rotmode')||'goals'; // 'goals' | 'time'
+let rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
+let roundTimerInterval = null;
+let roundStartTime = null;
 // Per-round tracking
 let roundGoals = {orange:0, green:0};
 let roundTimer = null;       // setTimeout for auto-swap
@@ -343,9 +347,11 @@ function changeThreshold(d){
 
 function changeTimeLimitMin(d){
     timeLimitMin=Math.max(1,Math.min(90,timeLimitMin+d));
+    rotationMinutes=timeLimitMin;
     localStorage.setItem('live_tlmin',timeLimitMin);
+    localStorage.setItem('live_rotmin',timeLimitMin);
     renderThreeBar();
-    if(threeTeamMode) restartRoundTimer(); // restart with new time
+    if(threeTeamMode&&rotationMode==='time') restartRoundTimer();
 }
 
 function updateRoundTimerDisplay(){
@@ -398,11 +404,10 @@ function startRound(){
 
 function restartRoundTimer(){
     if(roundTimer){clearTimeout(roundTimer);roundTimer=null;}
-    if(!threeTeamMode||timerState==='idle') return;
-    const limitSec=timeLimitMin*60;
-    const elapsed=timerSeconds()-roundStartSec;
-    const remaining=Math.max(0,limitSec-elapsed)*1000;
-    roundTimer=setTimeout(()=>onRoundTimeout(),remaining);
+    if(!threeTeamMode) return;
+    const limitSec=(rotationMinutes||timeLimitMin||10)*60;
+    roundTimer=setTimeout(()=>onRoundTimeout(),limitSec*1000);
+    if(rotationMode==='time') startRoundTimer();
 }
 
 function stopRound(){
@@ -410,13 +415,12 @@ function stopRound(){
 }
 
 function onRoundTimeout(){
-    // Nobody reached goal threshold in time → random rotation
     const bench=players.filter(p=>p.status==='bench');
     if(!bench.length) return;
     showRotationToast('⏱️ TIMP EXPIRAT — ROTAȚIE RANDOM!');
     if(navigator.vibrate) navigator.vibrate([300,100,300]);
-    // Random loser: pick randomly between orange and green
     const loserTeam=Math.random()<0.5?'orange':'green';
+    stopRoundTimer();
     setTimeout(()=>doRotation(loserTeam,'timeout'),800);
 }
 
@@ -585,14 +589,18 @@ function setRotationMode(mode){
     document.getElementById('goalsRow').style.display=mode==='goals'?'flex':'none';
     document.getElementById('timeRow').style.display=mode==='time'?'flex':'none';
     document.getElementById('roundTimeBar').style.display=mode==='time'?'flex':'none';
-    if(mode==='time') startRoundTimer();
+    if(mode==='time') restartRoundTimer();
     else stopRoundTimer();
 }
 
 function changeRotMin(d){
-    rotationMinutes=Math.max(1,Math.min(60,rotationMinutes+d));
+    rotationMinutes=Math.max(1,Math.min(90,rotationMinutes+d));
+    timeLimitMin=rotationMinutes; // keep in sync
     localStorage.setItem('live_rotmin',rotationMinutes);
-    document.getElementById('rotMinVal').textContent=rotationMinutes;
+    localStorage.setItem('live_tlmin',rotationMinutes);
+    const el=document.getElementById('rotMinVal');if(el)el.textContent=rotationMinutes;
+    const el2=document.getElementById('timeLimitVal');if(el2)el2.textContent=rotationMinutes;
+    if(threeTeamMode && rotationMode==='time') startRoundTimer();
 }
 
 // ── Round timer ───────────────────────────────────────────────────
@@ -610,7 +618,7 @@ function stopRoundTimer(){
 function updateRoundTimer(){
     if(rotationMode!=='time')return;
     const elapsed=Math.floor((Date.now()-(roundStartTime||Date.now()))/1000);
-    const totalSec=rotationMinutes*60;
+    const totalSec=(rotationMinutes||timeLimitMin||10)*60;
     const remaining=Math.max(0,totalSec-elapsed);
     const pct=Math.min(100,Math.round((elapsed/totalSec)*100));
     const fillEl=document.getElementById('roundTimeFill');
