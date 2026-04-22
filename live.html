@@ -199,47 +199,39 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 
 <!-- 3-team waiting bar -->
 <div class="three-mode-bar" id="threeBar">
+  <!-- Waiting team -->
   <div class="waiting-team">
     <div class="waiting-hd">
       <span class="waiting-lbl">⏳ Echipa în Așteptare</span>
       <div style="display:flex;gap:5px;">
-        <button class="swap-btn swap-o" onclick="swapTeam('orange')">↔ vs 🟠</button>
-        <button class="swap-btn swap-g" onclick="swapTeam('green')">↔ vs 🟢</button>
+        <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔ vs 🟠</button>
+        <button class="swap-btn swap-g" onclick="manualSwap('green')">↔ vs 🟢</button>
       </div>
     </div>
     <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:5px;font-size:.75rem;"></div>
   </div>
-  <!-- Round mode toggle -->
-  <div style="display:flex;gap:6px;margin-bottom:8px;">
-      <button id="modeGoalsBtn" onclick="setRotationMode('goals')" style="flex:1;padding:5px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;background:rgba(124,77,255,.3);border:1px solid #7c4dff;color:#fff;">🎯 La goluri</button>
-      <button id="modeTimeBtn"  onclick="setRotationMode('time')"  style="flex:1;padding:5px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;background:#1c1f2b;border:1px solid #252836;color:#555;">⏱ La timp</button>
-  </div>
-  <div class="threshold-row" id="goalsRow">
-    <span class="thr-lbl">🎯 Schimb la goluri primite:</span>
+  <!-- Config: goals + time (both active simultaneously) -->
+  <div class="threshold-row">
+    <span class="thr-lbl">🎯 Goluri pentru schimb:</span>
     <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
     <span class="thr-val" id="thrVal">2</span>
     <button class="thr-btn" onclick="changeThreshold(1)">+</button>
     <span style="font-size:.62rem;color:#444;">goluri</span>
   </div>
-  <div class="threshold-row" id="timeRow" style="display:none;">
-    <span class="thr-lbl">⏱ Minute per rând:</span>
-    <button class="thr-btn" onclick="changeRotMin(-1)">−</button>
-    <span class="thr-val" id="rotMinVal">10</span>
-    <button class="thr-btn" onclick="changeRotMin(1)">+</button>
-    <span style="font-size:.62rem;color:#444;">min</span>
-  </div>
-  <div class="time-bar" id="roundTimeBar" style="display:none;">
-      <span style="font-size:.62rem;color:#555;">Rând curent:</span>
-      <div class="time-bar-fill"><div class="time-bar-fill-inner" id="roundTimeFill" style="width:0%;"></div></div>
-      <span class="time-remaining" id="roundTimeLeft">0:00</span>
-  </div>
-  <div class="threshold-row" style="border-top:1px solid #1e2130;padding-top:6px;margin-top:2px;">
-    <span class="thr-lbl">⏱️ Max timp tur:</span>
+  <div class="threshold-row" style="border-top:1px solid #1e2130;padding-top:5px;">
+    <span class="thr-lbl">⏱ Timp maxim per tur:</span>
     <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
     <span class="thr-val" id="timeLimitVal">10</span>
     <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
     <span style="font-size:.62rem;color:#444;">min</span>
-    <span id="roundTimerDisplay" style="font-size:.7rem;color:#888;margin-left:8px;">—</span>
+  </div>
+  <!-- Live round timer bar -->
+  <div id="roundTimeBar" style="display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #1e2130;margin-top:4px;">
+    <span style="font-size:.6rem;color:#555;">Tur curent:</span>
+    <div style="flex:1;height:5px;background:#1e2130;border-radius:3px;overflow:hidden;">
+      <div id="roundTimeFill" style="width:0%;height:100%;background:linear-gradient(90deg,#7c4dff,#ce93d8);border-radius:3px;transition:width 1s linear;"></div>
+    </div>
+    <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#ce93d8;min-width:36px;text-align:right;">0:00</span>
   </div>
 </div>
 
@@ -272,72 +264,166 @@ const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
-// ── 3-team mode ───────────────────────────────────────────────────
-// ── 3-team state ──────────────────────────────────────────────────
-let threeTeamMode = localStorage.getItem('live_3team')==='1';
-let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
-let timeLimitMin  = parseInt(localStorage.getItem('live_tlmin')||'10');
-let rotationMode  = localStorage.getItem('live_rotmode')||'goals'; // 'goals' | 'time'
-let rotationMinutes = parseInt(localStorage.getItem('live_rotmin')||'10');
-let roundTimerInterval = null;
-let roundStartTime = null;
-// Per-round tracking
-let roundGoals = {orange:0, green:0};
-let roundTimer = null;       // setTimeout for auto-swap
-let roundStartSec = 0;       // timerSeconds() when round started
-let matchPairings = [];      // [{orange[], green[], goals[], startAt, endAt, winner}]
-let pairingGoals = [];       // goals in THIS round only
-
-
-// ── 3-team mode functions ─────────────────────────────────────────
-function toggleThreeTeam(){
-    threeTeamMode=!threeTeamMode;
-    localStorage.setItem('live_3team', threeTeamMode?'1':'0');
-    const btn=document.getElementById('threeBtn');
-    if(btn){btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';btn.style.color=threeTeamMode?'#fff':'#ce93d8';}
-    renderThreeBar();
+// ── 3-team: unified goals+time mode ─────────────────────────────
+function changeThreshold(d){
+    goalThreshold=Math.max(1,Math.min(20,goalThreshold+d));
+    localStorage.setItem('live_threshold',goalThreshold);
+    const el=document.getElementById('thrVal');if(el)el.textContent=goalThreshold;
 }
-
-function updateRoundTimerDisplay(){
-    if(!threeTeamMode||timerState==='idle') return;
-    const roundElapsed=timerSeconds()-roundStartSec;
-    const remaining=Math.max(0, timeLimitMin*60 - roundElapsed);
-    const rm=Math.floor(remaining/60), rs=remaining%60;
-    const el=document.getElementById('roundTimerDisplay');
-    if(el){
-        el.textContent=`⏱ ${rm}:${String(rs).padStart(2,'0')}`;
-        el.style.color=remaining<30?'#ef9a9a':remaining<60?'#ffcc00':'#888';
-    }
+function changeTimeLimitMin(d){
+    timeLimitMin=Math.max(1,Math.min(90,timeLimitMin+d));
+    rotationMinutes=timeLimitMin;
+    localStorage.setItem('live_tlmin',timeLimitMin);
+    const el=document.getElementById('timeLimitVal');if(el)el.textContent=timeLimitMin;
+    if(threeTeamMode) restartRoundTimer();
 }
 
 function renderThreeBar(){
     const bar=document.getElementById('threeBar');
-    if(!bar)return;
-    bar.classList.toggle('show', threeTeamMode);
-    if(!threeTeamMode)return;
-    document.getElementById('thrVal').textContent=goalThreshold;
-    document.getElementById('timeLimitVal').textContent=timeLimitMin;
-    const chk=document.getElementById('timeLimitChk');
-    if(chk) chk.checked=timeLimitMode;
+    if(!bar) return;
+    bar.classList.toggle('show',threeTeamMode);
+    if(!threeTeamMode){stopRoundTimer();return;}
+    const thrEl=document.getElementById('thrVal');if(thrEl)thrEl.textContent=goalThreshold;
+    const tlEl=document.getElementById('timeLimitVal');if(tlEl)tlEl.textContent=timeLimitMin;
+    // Waiting team display
     const bench=players.filter(p=>p.status==='bench');
     const wp=document.getElementById('waitingPlayers');
-    if(wp){
-        wp.innerHTML=bench.length
-            ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
-            : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
+    if(wp) wp.innerHTML=bench.length
+        ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+        : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
+    // Show round timer bar when match running
+    const rtBar=document.getElementById('roundTimeBar');
+    if(rtBar) rtBar.style.display=(timerState==='running')?'flex':'none';
+}
+
+function updateRoundTimerDisplay(){
+    if(!threeTeamMode) return;
+    const totalSec=timeLimitMin*60;
+    const elapsed=roundStartSec>0?timerSeconds()-roundStartSec:0;
+    const remaining=Math.max(0,totalSec-elapsed);
+    const pct=Math.min(100,Math.round((elapsed/totalSec)*100));
+    const fillEl=document.getElementById('roundTimeFill');
+    const leftEl=document.getElementById('roundTimeLeft');
+    if(fillEl){
+        fillEl.style.width=pct+'%';
+        fillEl.style.background=pct>80?'linear-gradient(90deg,#e53935,#ef9a9a)':pct>60?'linear-gradient(90deg,#ff8c00,#ffcc00)':'linear-gradient(90deg,#7c4dff,#ce93d8)';
+    }
+    if(leftEl){const m=Math.floor(remaining/60);const s=remaining%60;leftEl.textContent=m+':'+(s<10?'0':'')+s;}
+}
+
+function startRound(){
+    pairingGoals=[];
+    roundGoals={orange:0,green:0};
+    roundStartSec=timerSeconds();
+    restartRoundTimer();
+    renderThreeBar();
+}
+
+function stopRound(){
+    stopRoundTimer();
+}
+
+function restartRoundTimer(){
+    stopRoundTimer();
+    if(!threeTeamMode) return;
+    const limitMs=timeLimitMin*60*1000;
+    roundTimer=setTimeout(()=>onRoundTimeout(), limitMs);
+}
+
+function stopRoundTimer(){
+    if(roundTimer){clearTimeout(roundTimer);roundTimer=null;}
+    if(roundTimerInterval){clearInterval(roundTimerInterval);roundTimerInterval=null;}
+}
+
+function onRoundTimeout(){
+    // Time expired — alert, keep team with most goals in current round
+    const bench=players.filter(p=>p.status==='bench');
+    if(!bench.length) return;
+    const oGoals=pairingGoals.filter(g=>g.team==='orange').length;
+    const gGoals=pairingGoals.filter(g=>g.team==='green').length;
+    let loser;
+    if(oGoals===0 && gGoals===0){
+        loser=Math.random()<0.5?'orange':'green';
+        showRotationToast('⏱️ 0-0 — ROTAȚIE RANDOM!');
+    } else {
+        // Team with fewer goals exits (lower scorer = loser)
+        loser=oGoals>=gGoals?'green':'orange';
+        const lbl=loser==='orange'?'🟠':'🟢';
+        showRotationToast(`⏱️ TIMP! ${lbl} Cel mai puțin goluri — IESE!`);
+    }
+    if(navigator.vibrate) navigator.vibrate([300,100,300]);
+    setTimeout(()=>doRotation(loser,'timeout'),700);
+}
+
+function checkGoalRotation(){
+    if(!threeTeamMode) return;
+    const bench=players.filter(p=>p.status==='bench');
+    if(!bench.length) return;
+    const oConc=roundGoals.green||0; // goals scored BY green = conceded by orange
+    const gConc=roundGoals.orange||0; // goals scored BY orange = conceded by green
+    // Wait: roundGoals tracks goals CONCEDED per team
+    // orange conceded = goals scored INTO orange = green scored
+    const oConceded=roundGoals.orange||0;
+    const gConceded=roundGoals.green||0;
+    if(oConceded>=goalThreshold){
+        stopRound();
+        showRotationToast(`🟠 ${oConceded} goluri primite — IESE!`);
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        setTimeout(()=>doRotation('orange','goals'),600);
+    } else if(gConceded>=goalThreshold){
+        stopRound();
+        showRotationToast(`🟢 ${gConceded} goluri primite — IESE!`);
+        if(navigator.vibrate) navigator.vibrate([200,100,200]);
+        setTimeout(()=>doRotation('green','goals'),600);
     }
 }
 
-
-// ── 3-team mode ───────────────────────────────────────────────────
-function toggleThreeTeam(){
-    threeTeamMode=!threeTeamMode;
-    localStorage.setItem('live_3team',threeTeamMode?'1':'0');
-    const btn=document.getElementById('threeBtn');
-    if(btn){btn.style.background=threeTeamMode?'rgba(124,77,255,.4)':'rgba(124,77,255,.15)';btn.style.color=threeTeamMode?'#fff':'#ce93d8';}
-    if(threeTeamMode) startRound(); else stopRound();
-    renderThreeBar();
+async function doRotation(loserTeam, reason){
+    const bench=players.filter(p=>p.status==='bench');
+    const losingPlayers=players.filter(p=>p.status===loserTeam);
+    if(!bench.length||!losingPlayers.length) return;
+    // Save pairing
+    const winnerTeam=loserTeam==='orange'?'green':'orange';
+    const oS=pairingGoals.filter(g=>g.team==='orange').length;
+    const gS=pairingGoals.filter(g=>g.team==='green').length;
+    matchPairings.push({
+        orange:players.filter(p=>p.status==='orange').map(p=>p.name),
+        green:players.filter(p=>p.status==='green').map(p=>p.name),
+        goals:[...pairingGoals], oScore:oS, gScore:gS,
+        winner:winnerTeam, endReason:reason,
+        startedAt:matchStartedAt||null, endedAt:new Date().toISOString(),
+        roundDurationSec:timerSeconds()-roundStartSec
+    });
+    // Swap
+    losingPlayers.forEach(p=>p.status='bench');
+    bench.forEach(p=>p.status=loserTeam);
+    try{ await Promise.all([...losingPlayers,...bench].map(p=>sb.from('players').update({status:p.status}).eq('id',p.id))); }
+    catch(e){console.warn('swap:',e.message);}
+    const lbl=loserTeam==='orange'?'🟠 PORTOCALIU':'🟢 VERDE';
+    showRotationToast(`${lbl} IESE · Echipa nouă INTRĂ`);
+    startRound();
+    render();
 }
+
+async function manualSwap(loserTeam){
+    stopRound();
+    await doRotation(loserTeam,'manual');
+}
+async function swapTeam(t){ return manualSwap(t); }
+
+function showRotationToast(msg){
+    const el=document.getElementById('rotationToast');
+    if(!el) return;
+    el.textContent=msg;
+    el.classList.add('show');
+    setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// Unused stubs to avoid reference errors
+function setRotationMode(){}
+function changeRotMin(d){ changeTimeLimitMin(d); }
+function startRoundTimer(){ restartRoundTimer(); }
+
 
 function changeThreshold(d){
     goalThreshold=Math.max(1,Math.min(20,goalThreshold+d));
@@ -576,22 +662,6 @@ function checkAutoRotation(team){
 }
 
 
-// ── Rotation mode ─────────────────────────────────────────────────
-function setRotationMode(mode){
-    rotationMode=mode;
-    localStorage.setItem('live_rotmode',mode);
-    document.getElementById('modeGoalsBtn').style.background=mode==='goals'?'rgba(124,77,255,.3)':'#1c1f2b';
-    document.getElementById('modeGoalsBtn').style.color=mode==='goals'?'#fff':'#555';
-    document.getElementById('modeGoalsBtn').style.borderColor=mode==='goals'?'#7c4dff':'#252836';
-    document.getElementById('modeTimeBtn').style.background=mode==='time'?'rgba(124,77,255,.3)':'#1c1f2b';
-    document.getElementById('modeTimeBtn').style.color=mode==='time'?'#fff':'#555';
-    document.getElementById('modeTimeBtn').style.borderColor=mode==='time'?'#7c4dff':'#252836';
-    document.getElementById('goalsRow').style.display=mode==='goals'?'flex':'none';
-    document.getElementById('timeRow').style.display=mode==='time'?'flex':'none';
-    document.getElementById('roundTimeBar').style.display=mode==='time'?'flex':'none';
-    if(mode==='time') restartRoundTimer();
-    else stopRoundTimer();
-}
 
 function changeRotMin(d){
     rotationMinutes=Math.max(1,Math.min(90,rotationMinutes+d));
@@ -603,13 +673,6 @@ function changeRotMin(d){
     if(threeTeamMode && rotationMode==='time') startRoundTimer();
 }
 
-// ── Round timer ───────────────────────────────────────────────────
-function startRoundTimer(){
-    stopRoundTimer();
-    roundStartTime=Date.now();
-    roundTimerInterval=setInterval(updateRoundTimer,1000);
-    updateRoundTimer();
-}
 
 function stopRoundTimer(){
     if(roundTimerInterval){clearInterval(roundTimerInterval);roundTimerInterval=null;}
@@ -663,10 +726,11 @@ function timerToggle(){
         timerStart=Date.now();
         timerState='running';
         if(!matchStartedAt) matchStartedAt=new Date().toISOString();
-        // Start first round timer
-        if(threeTeamMode && roundStartSec===0){
-            roundStartSec=timerSeconds();
+        if(threeTeamMode){
+            if(roundStartSec===0) roundStartSec=timerSeconds();
             restartRoundTimer();
+            const rtBar=document.getElementById('roundTimeBar');
+            if(rtBar) rtBar.style.display='flex';
         }
         btn.textContent='⏸ Pauză';btn.className='timer-btn pause';
         disp.className='timer-display running';
@@ -811,10 +875,11 @@ async function addGoal(name,team){
     const minute=timerState!=='idle'?timerMinute():null;
     const tmpId='tmp_'+Date.now();
     goals.push({id:tmpId,player_name:name,team,minute,created_at:new Date().toISOString()});
-    // 3-team: track pairing goals + conceded
+    // 3-team: track pairing goals + goals conceded by opposing team
     if(threeTeamMode){
-        const oppo=team==='orange'?'green':'orange';
-        roundGoals[oppo]=(roundGoals[oppo]||0)+1;
+        // scoring team = team, opposing team concedes
+        const opposing=team==='orange'?'green':'orange';
+        roundGoals[opposing]=(roundGoals[opposing]||0)+1;
         pairingGoals.push({id:tmpId,player_name:name,team,minute,created_at:new Date().toISOString()});
     }
     render(); bump(team);

@@ -1874,7 +1874,7 @@ async function loadAlgoSettings(){
         if(!data?.length) return;
         data.forEach(row=>{
             if(row.key==='weights') Object.assign(W, row.value);
-            if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||2.0;
+            if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||10.0;
         });
     }catch(e){ console.warn('loadAlgoSettings:', e.message); }
 }
@@ -2251,7 +2251,7 @@ const ROLES = {
 };
 
 // ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
-let TAG_BONUS_CAP = 2.0; // loaded from algo_settings in Supabase
+let TAG_BONUS_CAP = 10.0; // loaded from algo_settings in Supabase
 
 // Profile attrs used in multi-impact system
 const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
@@ -3843,7 +3843,7 @@ async function resetAlgorithm(){
     try{
         await sb.from('algo_settings').upsert([
             {key:'weights', value: DEFAULT_W},
-            {key:'tag_bonus_cap', value: 2.0}
+            {key:'tag_bonus_cap', value: 10.0}
         ], {onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
     }catch(e){ console.warn('reset algo error:',e.message); }
@@ -5805,17 +5805,18 @@ function doBalance(mode) {
     if (oStreak >= 3 && gStreak < 3) { handicap = 0.5 * oStreak; showToast(`⚡ Handicap: Portocaliu a câștigat ${oStreak} la rând!`); }
     else if (gStreak >= 3 && oStreak < 3) { handicap = -0.5 * gStreak; showToast(`⚡ Handicap: Verde a câștigat ${gStreak} la rând!`); }
 
+    // Strict snake draft: alternate picks based on cumulative sum
+    // This guarantees N/2 vs N/2 (or ceil/floor for odd)
     const oArr2 = [], gArr2 = [];
     let oSum2 = handicap, gSum2 = 0;
     sorted.forEach(p => {
         const r = getRating(p);
         const oFull = oArr2.length >= maxSize;
         const gFull = gArr2.length >= maxSize;
-        if (!oFull && (gFull || oSum2 <= gSum2)) {
-            p.status='orange'; oArr2.push(p); oSum2+=r;
-        } else {
-            p.status='green'; gArr2.push(p); gSum2+=r;
-        }
+        if (oFull) { p.status='green'; gArr2.push(p); gSum2+=r; }
+        else if (gFull) { p.status='orange'; oArr2.push(p); oSum2+=r; }
+        else if (oSum2 <= gSum2) { p.status='orange'; oArr2.push(p); oSum2+=r; }
+        else { p.status='green'; gArr2.push(p); gSum2+=r; }
     });
     render();
     Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
