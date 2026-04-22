@@ -335,6 +335,8 @@ function getTeamRegistry()  { return liveState?.team_registry || {}; }
 function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] || null; }
 
 async function patchState(patch) {
+    // Apply locally immediately — no waiting for Realtime roundtrip
+    liveState = { ...liveState, ...patch };
     const { error } = await sb.from('live_state').update(patch).eq('id', 1);
     if (error) console.error('patchState:', error.message);
 }
@@ -498,7 +500,6 @@ async function toggleThreeTeam() {
     const btn = document.getElementById('threeBtn');
 
     if (newMode) {
-        // Build team registry from current player positions
         const orange = players.filter(p => p.status === 'orange');
         const green  = players.filter(p => p.status === 'green');
         const bench  = players.filter(p => p.status === 'bench');
@@ -518,6 +519,7 @@ async function toggleThreeTeam() {
             round_start_sec: calcElapsedSec(liveState),
         });
         if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+        scheduleRoundTimeout(liveState);
     } else {
         await patchState({
             three_team_mode: false,
@@ -525,11 +527,13 @@ async function toggleThreeTeam() {
             color_map: {},
             round_start_sec: 0,
         });
-        // Clear rounds from DB
         await sb.from('live_rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        rounds = [];
         if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#ce93d8'; }
         cancelRoundTimeout();
     }
+    render();
+    applyTimerUI(liveState);
 }
 
 async function changeThreshold(d) {
