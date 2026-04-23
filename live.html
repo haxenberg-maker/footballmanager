@@ -205,7 +205,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="three-mode-bar" id="threeBar">
   <div class="waiting-team">
     <div class="waiting-hd">
-      <span class="waiting-lbl">⏳ Echipa în Așteptare</span>
+      <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
       <div style="display:flex;gap:5px;">
         <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔ vs 🟠</button>
         <button class="swap-btn swap-g" onclick="manualSwap('green')">↔ vs 🟢</button>
@@ -767,7 +767,14 @@ function render() {
             const bench = players.filter(p => p.status === 'bench');
             const bTid  = getTeamIdByColor('bench');
             const wp    = document.getElementById('waitingPlayers');
-            if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
+            const wLbl = document.getElementById('waitingLbl');
+        if (wLbl) {
+            if (!bTid) wLbl.textContent = '⏳ Echipa în Așteptare';
+            else if (bTid === 'teamC') wLbl.textContent = '🟣 Echipa Mov (teamC)';
+            else if (bTid === 'teamB') wLbl.textContent = '🟢 Echipa Verde (teamB)';
+            else wLbl.textContent = '🟠 Echipa Portocalie (teamA)';
+        }
+        if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
                 + (bench.length
                     ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
                     : '<span style="color:#333;font-size:.72rem;">Nimeni</span>');
@@ -890,211 +897,172 @@ async function undoLast() {
 }
 
 // ── Finalize ──────────────────────────────────────────────────────
-function openFinalize() {
-    const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
-    const oScore = realGoals.filter(g=>g.team==='orange').length;
-    const gScore = realGoals.filter(g=>g.team==='green').length;
-    const winner = oScore>gScore?'orange':gScore>oScore?'green':'draw';
-    const winnerLabel = winner==='orange'?'🟠 Portocaliu':winner==='green'?'🟢 Verde':'Egal';
-    const winColor = winner==='orange'?'var(--o)':winner==='green'?'var(--g)':'#aaa';
+let editRounds = [];
 
+function openFinalize() {
+    editRounds = rounds.map(r => ({...r}));
+    const roundG = getThreeTeamMode() ? getRoundGoals() : [];
+    const oG = roundG.filter(g=>g.team==='orange').length;
+    const gG = roundG.filter(g=>g.team==='green').length;
+    if (getThreeTeamMode() && (oG>0||gG>0)) {
+        editRounds.push({
+            id: '__current__',
+            num: editRounds.length+1,
+            team_a_id: getTeamIdByColor('orange')||'teamA',
+            team_b_id: getTeamIdByColor('green')||'teamB',
+            score_a: oG, score_b: gG,
+            orange_players: players.filter(p=>p.status==='orange').map(p=>p.name),
+            green_players:  players.filter(p=>p.status==='green').map(p=>p.name),
+            goals: roundG,
+            duration_sec: calcRoundElapsedSec(liveState),
+            end_reason: 'final',
+        });
+    }
+    renderFinalizeDialog();
+    document.getElementById('dialogOverlay').classList.add('show');
+}
+
+function renderFinalizeDialog() {
+    const allGoals = goals.filter(g=>!String(g.id).startsWith('tmp_'));
     const scorerMap = {};
-    realGoals.forEach(g => {
+    allGoals.forEach(g => {
         if (!scorerMap[g.player_name]) scorerMap[g.player_name]={count:0,team:g.team,mins:[]};
         scorerMap[g.player_name].count++;
         if (g.minute!=null) scorerMap[g.player_name].mins.push(g.minute+"'");
     });
     const sorted = Object.entries(scorerMap).sort((a,b)=>b[1].count-a[1].count);
     const mvp = sorted[0];
-    const mvpHtml = mvp ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${mvp[0]} · ${mvp[1].count} gol${mvp[1].count!==1?'uri':''}</div></div></div>` : '';
+    const mvpHtml = mvp
+        ? '<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">'+mvp[0]+' · '+mvp[1].count+' gol'+(mvp[1].count!==1?'uri':'')+'</div></div></div>'
+        : '';
     const scorersHtml = sorted.length
-        ? sorted.map(([name,d])=>`<div class="scorer-row"><div class="scorer-dot" style="background:${d.team==='orange'?'var(--o)':'var(--g)'};"></div><span class="scorer-name">${name}</span><span class="scorer-goals">${d.count}⚽</span><span class="scorer-mins">${d.mins.length?' · '+d.mins.join(', '):''}</span></div>`).join('')
+        ? sorted.map(([name,d])=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+d.count+'⚽</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>').join('')
         : '<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
 
-    // Ture summary in dialog (include current round preview if has goals)
     let tureHtml = '';
-    if (getThreeTeamMode()) {
-        const allRounds = [...rounds];
-        const roundG = getRoundGoals();
-        const oG = roundG.filter(g=>g.team==='orange').length;
-        const gG = roundG.filter(g=>g.team==='green').length;
-        if (oG>0||gG>0) {
-            allRounds.push({
-                num: rounds.length+1,
-                team_a_id: getTeamIdByColor('orange')||'teamA',
-                team_b_id: getTeamIdByColor('green')||'teamB',
-                score_a: oG, score_b: gG,
-                duration_sec: calcRoundElapsedSec(liveState),
-                end_reason: 'final',
-            });
-        }
-        if (allRounds.length) {
-            const rows = allRounds.map(r => `
-                <div style="display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #0f1118;font-size:.75rem;">
-                    <span style="color:#444;min-width:42px;">Tur ${r.num}</span>
-                    ${tidBadge(r.team_a_id)}
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;">${r.score_a}-${r.score_b}</span>
-                    ${tidBadge(r.team_b_id)}
-                    <span style="color:#444;font-size:.6rem;margin-left:auto;">${r.duration_sec?Math.ceil(r.duration_sec/60)+"'":''}
-                    </span>
-                </div>`).join('');
-            tureHtml = `<div class="dialog-section">Ture disputate</div><div>${rows}</div>`;
-        }
+    if (getThreeTeamMode() && editRounds.length) {
+        const rows = editRounds.map((r,idx) =>
+            '<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #0f1118;font-size:.75rem;">'
+            +'<span style="color:#444;min-width:34px;">Tur '+r.num+'</span>'
+            +tidBadge(r.team_a_id)
+            +'<input type="number" min="0" max="99" value="'+r.score_a+'" style="width:34px;background:#0a0c10;border:1px solid #2a2d40;color:#fff;border-radius:4px;text-align:center;font-size:.95rem;padding:1px 2px;" onchange="editRoundScore('+idx+',\'a\',this.value)">'
+            +'<span style="color:#333;">-</span>'
+            +'<input type="number" min="0" max="99" value="'+r.score_b+'" style="width:34px;background:#0a0c10;border:1px solid #2a2d40;color:#fff;border-radius:4px;text-align:center;font-size:.95rem;padding:1px 2px;" onchange="editRoundScore('+idx+',\'b\',this.value)">'
+            +tidBadge(r.team_b_id)
+            +'<span style="color:#444;font-size:.6rem;margin-left:auto;">'+(r.duration_sec?Math.ceil(r.duration_sec/60)+"'":'')+'</span>'
+            +'<button onclick="deleteEditRound('+idx+')" style="background:none;border:1px solid #c6282855;color:#ef9a9a66;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:.65rem;" onmouseover="this.style.color=\'#ef9a9a\'" onmouseout="this.style.color=\'#ef9a9a66\'">✕</button>'
+            +'</div>'
+        ).join('');
+        tureHtml = '<div class="dialog-section">Ture disputate <span style="color:#444;font-weight:400;">(editabile)</span></div><div>'+rows+'</div>';
     }
 
-    document.getElementById('dialogBox').innerHTML = `
-        <div class="dialog-title">🏁 Finalizează Meciul</div>
-        <div class="dialog-score" style="color:${winColor};">${winnerLabel} <span style="color:#555;font-size:1rem;">${oScore}:${gScore}</span></div>
-        ${mvpHtml}${tureHtml}
-        <div class="dialog-section">Marcatori</div>
-        <div>${scorersHtml}</div>
-        <div class="dialog-actions">
-            <button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>
-            <button class="dia-confirm" onclick="finalizeMatch('${winner}',${oScore},${gScore})">✅ Salvează${winner==='draw'?' Egal':' & Finalizează'}</button>
-        </div>`;
-    document.getElementById('dialogOverlay').classList.add('show');
+    document.getElementById('dialogBox').innerHTML =
+        '<div class="dialog-title">🏁 Finalizează Meciul</div>'
+        +mvpHtml+tureHtml
+        +'<div class="dialog-section">Marcatori</div>'
+        +'<div>'+scorersHtml+'</div>'
+        +'<div class="dialog-actions">'
+        +'<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
+        +'<button class="dia-confirm" onclick="confirmFinalize()">✅ Salvează & Finalizează</button>'
+        +'</div>';
 }
+
+function editRoundScore(idx, side, val) {
+    const v = Math.max(0, parseInt(val)||0);
+    if (side === 'a') editRounds[idx].score_a = v;
+    else              editRounds[idx].score_b = v;
+}
+function deleteEditRound(idx) {
+    editRounds.splice(idx, 1);
+    editRounds.forEach((r,i) => r.num = i+1);
+    renderFinalizeDialog();
+}
+function confirmFinalize() { finalizeMatch(editRounds); }
 function closeDialog() { document.getElementById('dialogOverlay').classList.remove('show'); }
 
-async function finalizeMatch(winner, oScore, gScore) {
+async function finalizeMatch(finalRounds) {
     if (isSaving) return;
     isSaving = true;
     document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
-
-    // Save current round if has goals
-    if (getThreeTeamMode()) {
-        const roundG = getRoundGoals();
-        const oG = roundG.filter(g=>g.team==='orange').length;
-        const gG = roundG.filter(g=>g.team==='green').length;
-        if (oG>0||gG>0) await saveRoundToDB('final','final');
-        // Reload rounds after save
-        const { data: rd } = await sb.from('live_rounds').select('*').order('num');
-        rounds = rd || [];
-    }
-
     const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
-
     try {
-        if (getThreeTeamMode() && rounds.length > 0) {
-            // Save each round as separate match_history entry
+        if (getThreeTeamMode() && finalRounds && finalRounds.length > 0) {
             let savedCount = 0;
-            for (const r of rounds) {
-                if (!r.orange_players?.length||!r.green_players?.length) continue;
+            for (const r of finalRounds) {
+                if (!r.orange_players?.length || !r.green_players?.length) continue;
                 const pWinner = r.score_a>r.score_b?'Portocaliu':r.score_b>r.score_a?'Verde':'Egal';
-                const { data: mh } = await sb.from('match_history').insert({
+                const { data: mh, error: mhErr } = await sb.from('match_history').insert({
                     date: today, winner: pWinner, score: r.score_a+':'+r.score_b,
                     imbalanced: Math.abs(r.score_a-r.score_b)>=3,
                     orange_players: r.orange_players, green_players: r.green_players,
                     started_at: liveState?.match_started_at||null,
                     ended_at: r.ended_at||new Date().toISOString(),
-                }).select().single().catch(()=>({data:null}));
-
+                }).select().single();
+                if (mhErr) { console.warn('mh err:', mhErr.message); savedCount++; continue; }
                 const rGoals = Array.isArray(r.goals) ? r.goals : [];
                 if (mh?.id && rGoals.length) {
-                    await sb.from('match_goals').insert(rGoals.map(g=>({
-                        match_id:mh.id,player_name:g.player_name,team:g.team,
-                        goals:1,goals_conceded:0,minute:g.minute??null
-                    }))).catch(()=>{});
+                    try { await sb.from('match_goals').insert(rGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}))); } catch(e){}
                     const sc={};rGoals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
                     const mvpE=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
-                    if (mvpE) await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}).catch(()=>{});
+                    if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
                 }
                 for (const name of [...(r.orange_players||[]),...(r.green_players||[])]) {
                     const p=players.find(x=>x.name===name); if(!p) continue;
                     const inO=r.orange_players.includes(name);
                     const won=(inO&&r.score_a>r.score_b)||(!inO&&r.score_b>r.score_a);
                     const pGoals=rGoals.filter(g=>g.player_name===name).length;
-                    await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single()
-                        .then(({data:cur})=>{
-                            if(!cur)return;
-                            return sb.from('players').update({
-                                wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,
-                                match_history:[...(cur.match_history||[]),won?'W':'L'].slice(-20),
-                                total_goals:(cur.total_goals||0)+pGoals
-                            }).eq('id',p.id);
-                        }).catch(()=>{});
+                    try {
+                        const {data:cur}=await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single();
+                        if(cur) await sb.from('players').update({wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,match_history:[...(cur.match_history||[]),won?'W':'L'].slice(-20),total_goals:(cur.total_goals||0)+pGoals}).eq('id',p.id);
+                    } catch(e){}
                 }
                 savedCount++;
             }
-            // Clean up live tables
             await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
             await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await patchState({
-                timer_status:'idle', timer_elapsed_ms:0, timer_started_at:null,
-                three_team_mode:false, team_registry:{}, color_map:{},
-                round_start_sec:0, match_started_at:null,
-            });
-            showToast(`✅ ${savedCount} meciuri salvate (3 echipe)!`);
+            await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null});
+            rounds=[];goals=[];
+            render(); applyTimerUI(liveState);
+            showToast('✅ '+savedCount+' meciuri salvate (3 echipe)!');
         } else {
-            // Standard 2-team finalize
-            const orange = players.filter(p=>p.status==='orange').map(p=>p.name);
-            const green  = players.filter(p=>p.status==='green').map(p=>p.name);
-            const winnerLabel = winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
-            const imbalanced = Math.abs(oScore-gScore)>=3;
-            const realGoals = goals.filter(g=>!String(g.id).startsWith('tmp_'));
-            const goalMap={};
-            realGoals.forEach(g=>{if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};goalMap[g.player_name].count++;});
-
-            let endedAt = new Date().toISOString();
-            if (liveState?.match_started_at) {
-                endedAt = new Date(new Date(liveState.match_started_at).getTime()+calcElapsedSec(liveState)*1000).toISOString();
-            }
-            const {data:mh,error:mhErr} = await sb.from('match_history').insert({
-                date:today, winner:winnerLabel, score:oScore+':'+gScore, imbalanced,
-                orange_players:orange, green_players:green,
-                started_at:liveState?.match_started_at||null, ended_at:endedAt
-            }).select().single();
-            if (mhErr) throw mhErr;
-
-            if (mh?.id) {
+            const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
+            const green=players.filter(p=>p.status==='green').map(p=>p.name);
+            const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
+            const goalMap={};realGoals.forEach(g=>{if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};goalMap[g.player_name].count++;});
+            const oScore=realGoals.filter(g=>g.team==='orange').length;
+            const gScore=realGoals.filter(g=>g.team==='green').length;
+            const winner=oScore>gScore?'orange':gScore>oScore?'green':'draw';
+            const winnerLabel=winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
+            const imbalanced=Math.abs(oScore-gScore)>=3;
+            let endedAt=new Date().toISOString();
+            if(liveState?.match_started_at) endedAt=new Date(new Date(liveState.match_started_at).getTime()+calcElapsedSec(liveState)*1000).toISOString();
+            const{data:mh,error:mhErr}=await sb.from('match_history').insert({date:today,winner:winnerLabel,score:oScore+':'+gScore,imbalanced,orange_players:orange,green_players:green,started_at:liveState?.match_started_at||null,ended_at:endedAt}).select().single();
+            if(mhErr) throw mhErr;
+            if(mh?.id){
                 const mvpRows=[];
-                ['orange','green'].forEach(team=>{
-                    const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);
-                    if(tg.length&&tg[0][1].count>0) mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});
-                });
-                if(mvpRows.length) await sb.from('mvp_votes').insert(mvpRows).catch(()=>{});
-                if(realGoals.length) await sb.from('match_goals').insert(
-                    realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}))
-                );
+                ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
+                if(mvpRows.length){try{await sb.from('mvp_votes').insert(mvpRows);}catch(e){}}
+                if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null})));
             }
-            await Promise.all([...orange,...green].map(name=>{
-                const p=players.find(x=>x.name===name); if(!p) return null;
+            for(const name of [...orange,...green]){
+                const p=players.find(x=>x.name===name);if(!p)continue;
                 const inO=orange.includes(name);
                 const won=(inO&&winner==='orange')||(!inO&&winner==='green');
                 const lost=(inO&&winner==='green')||(!inO&&winner==='orange');
                 const pGoals=goalMap[name]?.count||0;
-                return sb.from('players').select('wins,games,match_history,total_goals,last_imbalance_loss').eq('id',p.id).single()
-                    .then(({data:cur})=>{
-                        if(!cur)return;
-                        return sb.from('players').update({
-                            wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,
-                            match_history:[...(cur.match_history||[]),won?'W':'L'],
-                            total_goals:(cur.total_goals||0)+pGoals,
-                            last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)
-                        }).eq('id',p.id);
-                    });
-            }).filter(Boolean));
-
+                try{const{data:cur}=await sb.from('players').select('wins,games,match_history,total_goals,last_imbalance_loss').eq('id',p.id).single();if(cur)await sb.from('players').update({wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,match_history:[...(cur.match_history||[]),won?'W':'L'],total_goals:(cur.total_goals||0)+pGoals,last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)}).eq('id',p.id);}catch(e){}
+            }
             await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            try {
-                const active=players.filter(p=>p.status==='orange'||p.status==='green');
-                if(active.length){
-                    await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));
-                }
-                await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);
-            } catch(e){ console.warn('post-reset:',e.message); }
-            await patchState({
-                timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,
-                match_started_at:null,round_start_sec:0,
-            });
+            try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
+            await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
+            goals=[];render();applyTimerUI(liveState);
             const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
             showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
         }
-        isSaving = false;
-    } catch(e) { isSaving=false; showToast('⚠️ '+e.message); console.error(e); }
+        isSaving=false;
+    } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
 }
-
 // ── Share ─────────────────────────────────────────────────────────
 async function shareScore() {
     const oScore = goals.filter(g=>g.team==='orange').length;
@@ -1113,15 +1081,15 @@ async function shareScore() {
 async function confirmReset() {
     if (!confirm('Resetezi tot meciul live (scor, ture, cronometru)?')) return;
     stopLocalTimerTick(); cancelRoundTimeout();
-    await Promise.all([
-        sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-        sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-        patchState({
-            timer_status:'idle', timer_elapsed_ms:0, timer_started_at:null,
-            three_team_mode:false, team_registry:{}, color_map:{},
-            round_start_sec:0, match_started_at:null,
-        }),
-    ]).catch(e => showToast('⚠️ '+e.message));
+    try {
+        await Promise.all([
+            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null}),
+        ]);
+        rounds=[]; goals=[];
+        render(); applyTimerUI(liveState);
+    } catch(e) { showToast('⚠️ '+e.message); }
 }
 
 // ── Realtime subscriptions ────────────────────────────────────────
