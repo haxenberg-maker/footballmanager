@@ -13,18 +13,20 @@
 html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;}
 :root{--o:#ff8c00;--g:#28a745;--b:#1e2130;--accent:#3d5afe;}
 
+/* ── Header ─────────────────────────────── */
 .hd{background:#080a12;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
 .hd-logo{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:3px;}
 .hd-right{display:flex;align-items:center;gap:8px;}
 .live-pill{display:flex;align-items:center;gap:4px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);padding:2px 7px;border-radius:12px;}
-.live-dot{width:6px;height:6px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:blink 1.5s infinite;}
-@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:p 1.5s infinite;}
+@keyframes p{0%,100%{opacity:1;}50%{opacity:.2;}}
 .live-lbl{font-size:.58rem;font-weight:700;color:#69f0ae;text-transform:uppercase;letter-spacing:1px;}
 .icon-btn{background:none;border:1px solid var(--b);color:#444;padding:4px 9px;border-radius:6px;font-size:.7rem;cursor:pointer;white-space:nowrap;}
 .icon-btn:hover{border-color:#555;color:#aaa;}
 .icon-btn.danger{border-color:#c6282833;color:#ef9a9a44;}
 .icon-btn.danger:hover{border-color:#c62828;color:#ef9a9a;}
 
+/* ── Timer bar ──────────────────────────── */
 .timer-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:10px;}
 .timer-btn{padding:6px 16px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .12s;flex-shrink:0;}
 .timer-btn.start{background:rgba(40,167,69,.1);border-color:var(--g);color:#69f0ae;}
@@ -35,6 +37,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .timer-display.paused{color:#ffcc00;}
 .half-badge{font-size:.62rem;color:#555;flex:1;}
 
+/* ── Score ──────────────────────────────── */
 .score-wrap{background:#080a12;border-bottom:2px solid var(--b);padding:10px 12px 4px;}
 .score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .sc-side{display:flex;flex-direction:column;}
@@ -47,15 +50,17 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .sc-n.g{color:var(--g);}
 .sc-n.bump{transform:scale(1.25);text-shadow:0 0 30px currentColor;}
 .sc-sep{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#1e2130;padding:0 4px;}
-.score-sub{text-align:center;font-size:.62rem;color:#555;padding:3px 0 7px;min-height:18px;}
+.score-sub{text-align:center;font-size:.62rem;color:#555;padding:3px 0 7px;min-height:18px;letter-spacing:.3px;}
 .score-sub b{color:#888;}
 
+/* ── Undo bar ───────────────────────────── */
 .undo-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:6px 14px;display:flex;align-items:center;gap:8px;min-height:32px;}
 .undo-lbl{flex:1;font-size:.72rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#fff;}
 .undo-btn{background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;padding:3px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;flex-shrink:0;}
 .undo-btn.show{display:block;}
 
+/* ── Teams ──────────────────────────────── */
 .teams-wrap{display:grid;grid-template-columns:1fr 1fr;}
 .team-col{padding:6px 5px 8px;}
 .team-col.o-col{border-right:1px solid var(--b);}
@@ -78,6 +83,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .g-col .pr-plus{background:rgba(40,167,69,.08);border-color:rgba(40,167,69,.2);color:var(--g);}
 .g-col .pr-plus:active{background:rgba(40,167,69,.22);}
 
+/* ── Log panel ──────────────────────────── */
 .log-toggle{background:#0a0c10;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
 .log-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
 .log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #2a2d40;color:#82b1ff;font-size:.6rem;padding:1px 6px;border-radius:10px;}
@@ -91,13 +97,15 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#69f0ae;}
 .log-empty{padding:16px 14px;color:#333;font-size:.78rem;text-align:center;}
 
+/* ── Bottom bar ─────────────────────────── */
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--b);padding:8px 12px;display:flex;gap:7px;z-index:30;}
 .btn-share{flex:0 0 auto;padding:10px 14px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;cursor:pointer;background:#141720;border:1px solid var(--b);color:#555;}
 .btn-share:hover{border-color:#555;color:#fff;}
 .btn-finalize{flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
 
-.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+/* ── Confirm dialog ──────────────────────── */
+.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:none;align-items:flex-end;justify-content:center;padding:0;}
 .dialog-overlay.show{display:flex;}
 .dialog-box{background:#141720;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:20px;max-height:85vh;overflow-y:auto;}
 .dialog-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:4px;}
@@ -117,17 +125,18 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .dia-cancel{flex:0 0 auto;padding:12px 16px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;cursor:pointer;}
 .dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#fff;background:linear-gradient(135deg,#1a3a2a,var(--g));}
 
+/* ── Toast ──────────────────────────────── */
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;}
 .empty-teams{text-align:center;padding:40px 16px;color:#333;grid-column:span 2;font-size:.85rem;}
 
-/* 3-team */
+/* ── 3-team mode ────────────────────────── */
 .three-mode-bar{background:#0d0f18;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
 .three-mode-bar.show{display:block;}
 .waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
 .waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#ce93d8;}
-.swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;border:none;white-space:nowrap;}
 .swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
 .swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
 .threshold-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
@@ -137,16 +146,17 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;margin-left:4px;}
 .rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#fff;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
+.time-alert{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #ef5350;color:#fff;padding:12px 20px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;z-index:600;display:none;text-align:center;}
+.time-alert.show{display:block;animation:rotPop .3s ease;}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
-#roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #1e2130;margin-top:4px;}
 
-/* Team ID badges */
+/* ── Team ID badges ─────────────────────── */
 .tid{font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;font-family:'Rajdhani',sans-serif;vertical-align:middle;}
 .tid-a{background:rgba(255,140,0,.18);color:#ff8c00;border:1px solid rgba(255,140,0,.35);}
 .tid-b{background:rgba(40,167,69,.18);color:#28a745;border:1px solid rgba(40,167,69,.35);}
 .tid-c{background:rgba(124,77,255,.18);color:#ce93d8;border:1px solid rgba(124,77,255,.35);}
 
-/* Ture history */
+/* ── Ture history ───────────────────────── */
 .ture-section{display:none;background:#080a12;border-top:1px solid #1e2130;}
 .ture-section.show{display:block;}
 .ture-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;border-bottom:1px solid #0f1118;}
@@ -164,26 +174,29 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .tur-reason.goals{background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#69f0ae;}
 .tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#ce93d8;}
 .tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#ffcc00;}
-.tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #333;color:#555;}
+.tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #333;color:#666;}
 </style>
 </head>
 <body>
 
+<!-- Header -->
 <div class="hd">
   <div class="hd-logo">⚽ Arena FC</div>
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
-    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
+    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" title="Mod 3 Echipe" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
 </div>
 
+<!-- Timer bar -->
 <div class="timer-bar">
   <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start Meci</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
 </div>
 
+<!-- Score -->
 <div class="score-wrap">
   <div class="score-row">
     <div class="sc-side"><div class="sc-lbl o" id="lblO">🟠 Portocaliu</div><div class="sc-n o" id="scoreO">0</div></div>
@@ -193,19 +206,26 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <div class="score-sub" id="scoreSub"></div>
 </div>
 
+<!-- Undo -->
 <div class="undo-bar">
   <div class="undo-lbl" id="undoLbl">Niciun gol înregistrat</div>
   <button class="undo-btn" id="undoBtn" onclick="undoLast()">↩ Anulează</button>
 </div>
 
-<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
+<!-- Teams -->
+<div class="teams-wrap" id="teamsWrap">
+  <div class="empty-teams">Se încarcă...</div>
+</div>
 
+<!-- Rotation toast -->
 <div class="rotation-toast" id="rotationToast"></div>
+<div class="time-alert" id="timeAlert"></div>
 
+<!-- 3-team waiting bar -->
 <div class="three-mode-bar" id="threeBar">
   <div class="waiting-team">
     <div class="waiting-hd">
-      <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
+      <span class="waiting-lbl">⏳ Echipa în Așteptare</span>
       <div style="display:flex;gap:5px;">
         <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔ vs 🟠</button>
         <button class="swap-btn swap-g" onclick="manualSwap('green')">↔ vs 🟢</button>
@@ -236,6 +256,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   </div>
 </div>
 
+<!-- Ture history -->
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
     <span class="ture-toggle-lbl">📊 Istoric Ture <span class="ture-cnt" id="tureCnt">0</span></span>
@@ -244,6 +265,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <div class="ture-body" id="tureBody"></div>
 </div>
 
+<!-- Log toggle -->
 <div class="log-toggle" onclick="toggleLog()">
   <span class="log-toggle-lbl">📋 Log goluri <span class="log-toggle-cnt" id="logCnt">0</span></span>
   <span style="font-size:.7rem;color:#333;" id="logChevron">▲</span>
@@ -252,193 +274,210 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
 </div>
 
+<!-- Bottom bar -->
 <div class="bottom-bar">
   <button class="btn-share" onclick="shareScore()">📋 Share</button>
   <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
 </div>
 
+<!-- Confirm dialog -->
 <div class="dialog-overlay" id="dialogOverlay">
   <div class="dialog-box" id="dialogBox"></div>
 </div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
-const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
-// ── Local state (derived from DB, never source of truth) ──────────
-let players    = [];
-let goals      = [];
-let rounds     = [];   // live_rounds rows
-let liveState  = null; // live_state row
-let isSaving   = false;
+// ── State ─────────────────────────────────────────────────────────
+let players=[], goals=[], matchStartedAt=null, isSaving=false;
 
-// Local timer tick interval
-let timerInterval    = null;
-let roundTimerTO     = null;  // setTimeout for round timeout
-let roundTimerIV     = null;  // setInterval for round bar update
+// ── 3-team state ──────────────────────────────────────────────────
+let threeTeamMode = localStorage.getItem('live_3team')==='1';
+let goalThreshold = parseInt(localStorage.getItem('live_threshold')||'2');
+let timeLimitMin  = parseInt(localStorage.getItem('live_tlmin')||'10');
 
-// ── Helpers ───────────────────────────────────────────────────────
-function tidBadge(tid) {
-    if (!tid) return '';
-    const letter = tid.slice(-1).toLowerCase();
-    return `<span class="tid tid-${letter}">${tid}</span>`;
-}
+// Team registry — assigned once when 3-team activates, fixed for the match
+// colorMap: 'orange' | 'green' | 'bench'  →  'teamA' | 'teamB' | 'teamC'
+// teamMap:  'teamA'  | 'teamB' | 'teamC'  →  { players:[], color: }
+let colorMap = {};   // color → teamId
+let teamMap  = {};   // teamId → { players, color }
 
-function fmtTimer(s) {
-    const m = Math.floor(s / 60), ss = s % 60;
-    return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
-}
+// Current round tracking
+let roundGoals   = { orange: 0, green: 0 };
+let roundGoalLog = [];
+let roundStartSec = 0;
+let roundStartedAt = null; // ISO timestamp when this round started
+let roundTimer = null, roundTimerInterval = null;
 
-// Calculate elapsed seconds from live_state
-function calcElapsedSec(st) {
-    if (!st) return 0;
-    let ms = parseInt(st.timer_elapsed_ms) || 0;
-    if (st.timer_status === 'running' && st.timer_started_at) {
-        ms += Date.now() - new Date(st.timer_started_at).getTime();
-    }
-    return Math.floor(ms / 1000);
-}
+// Completed rounds
+let matchPairings = [];
 
-function calcRoundElapsedSec(st) {
-    if (!st) return 0;
-    const totalSec = calcElapsedSec(st);
-    return Math.max(0, totalSec - (st.round_start_sec || 0));
-}
+// ── Timer state ───────────────────────────────────────────────────
+let timerState = 'idle';
+let timerStart = 0, timerElapsed = 0, timerInterval = null;
 
-function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2800);
+// ── Timer functions ───────────────────────────────────────────────
+function timerSeconds() {
+    if (timerState === 'running') return Math.floor((Date.now() - timerStart + timerElapsed) / 1000);
+    return Math.floor(timerElapsed / 1000);
 }
-function showRotationToast(msg) {
-    const el = document.getElementById('rotationToast');
-    if (!el) return;
-    el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
-}
-function bump(team) {
-    const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
-    el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
-}
-function goalsMap() {
-    const m = {}; goals.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; }); return m;
-}
+function timerMinute() { return Math.floor(timerSeconds() / 60); }
+function fmtTimer(s) { const m = Math.floor(s/60), ss = s%60; return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0'); }
 
-// ── live_state helpers ────────────────────────────────────────────
-function getThreeTeamMode() { return liveState?.three_team_mode || false; }
-function getGoalThreshold() { return liveState?.goal_threshold || 2; }
-function getTimeLimitMin()  { return liveState?.time_limit_min || 10; }
-function getColorMap()      { return liveState?.color_map || {}; }
-function getTeamRegistry()  { return liveState?.team_registry || {}; }
-function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] || null; }
-
-async function patchState(patch) {
-    // Apply locally immediately — no waiting for Realtime roundtrip
-    liveState = { ...liveState, ...patch };
-    const { error } = await sb.from('live_state').update(patch).eq('id', 1);
-    if (error) console.error('patchState:', error.message);
-}
-
-// ── Timer ─────────────────────────────────────────────────────────
-function startLocalTimerTick() {
-    stopLocalTimerTick();
-    timerInterval = setInterval(() => {
-        if (!liveState) return;
-        const s = calcElapsedSec(liveState);
-        document.getElementById('timerDisplay').textContent = fmtTimer(s);
-        const min = Math.floor(s / 60);
-        document.getElementById('halfBadge').textContent = min >= 1 ? min+"'" : '';
-        updateRoundTimerBar();
-    }, 500);
-}
-function stopLocalTimerTick() {
-    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-}
-
-async function timerToggle() {
-    if (!liveState) return;
-    const st = liveState.timer_status;
-    if (st === 'idle' || st === 'paused') {
-        // Start / resume
-        const patch = {
-            timer_status: 'running',
-            timer_started_at: new Date().toISOString(),
-        };
-        if (!liveState.match_started_at) patch.match_started_at = new Date().toISOString();
-        // If 3-team and round not started yet, set round_start_sec
-        if (getThreeTeamMode() && !liveState.round_start_sec) {
-            patch.round_start_sec = calcElapsedSec(liveState);
-        }
-        await patchState(patch);
-    } else {
-        // Pause
-        const elapsed = (liveState.timer_elapsed_ms || 0) +
-            (Date.now() - new Date(liveState.timer_started_at).getTime());
-        await patchState({
-            timer_status: 'paused',
-            timer_elapsed_ms: elapsed,
-            timer_started_at: null,
-        });
-    }
-}
-
-function applyTimerUI(st) {
-    const btn  = document.getElementById('timerBtn');
+function timerToggle() {
+    const btn = document.getElementById('timerBtn');
     const disp = document.getElementById('timerDisplay');
-    if (!st) return;
-    const s   = calcElapsedSec(st);
-    disp.textContent = fmtTimer(s);
-    document.getElementById('halfBadge').textContent = Math.floor(s/60) >= 1 ? Math.floor(s/60)+"'" : '';
-
-    if (st.timer_status === 'running') {
+    if (timerState === 'idle' || timerState === 'paused') {
+        timerStart = Date.now();
+        timerState = 'running';
+        if (!matchStartedAt) matchStartedAt = new Date().toISOString();
+        if (threeTeamMode) {
+            if (roundStartSec === 0) { roundStartSec = timerSeconds(); roundStartedAt = new Date().toISOString(); }
+            restartRoundTimer();
+            const rtBar = document.getElementById('roundTimeBar');
+            if (rtBar) rtBar.style.display = 'flex';
+        }
         btn.textContent = '⏸ Pauză'; btn.className = 'timer-btn pause';
         disp.className = 'timer-display running';
-        startLocalTimerTick();
-        scheduleRoundTimeout(st);
-    } else if (st.timer_status === 'paused') {
+        timerInterval = setInterval(() => {
+            document.getElementById('timerDisplay').textContent = fmtTimer(timerSeconds());
+            document.getElementById('halfBadge').textContent = timerMinute() >= 1 ? timerMinute()+"'" : '';
+            updateRoundTimerBar();
+        }, 500);
+    } else {
+        timerElapsed += Date.now() - timerStart;
+        timerState = 'paused';
+        clearInterval(timerInterval);
         btn.textContent = '▶ Continuă'; btn.className = 'timer-btn resume';
         disp.className = 'timer-display paused';
-        stopLocalTimerTick();
-        cancelRoundTimeout();
-    } else {
-        btn.textContent = '▶ Start Meci'; btn.className = 'timer-btn start';
-        disp.className = 'timer-display';
-        stopLocalTimerTick();
-        cancelRoundTimeout();
     }
 }
 
-// ── Round timeout scheduling ──────────────────────────────────────
-function scheduleRoundTimeout(st) {
-    cancelRoundTimeout();
-    if (!st.three_team_mode || st.timer_status !== 'running') return;
-    if (!players.filter(p => p.status === 'bench').length) return;
-
-    const timeLimitMs = (st.time_limit_min || 10) * 60 * 1000;
-    const roundElapsedMs = calcRoundElapsedSec(st) * 1000;
-    const remaining = Math.max(0, timeLimitMs - roundElapsedMs);
-
-    if (remaining <= 0) { onRoundTimeout(); return; }
-    roundTimerTO = setTimeout(() => onRoundTimeout(), remaining);
-    roundTimerIV = setInterval(() => updateRoundTimerBar(), 500);
-}
-function cancelRoundTimeout() {
-    if (roundTimerTO) { clearTimeout(roundTimerTO); roundTimerTO = null; }
-    if (roundTimerIV) { clearInterval(roundTimerIV); roundTimerIV = null; }
+function timerReset() {
+    clearInterval(timerInterval); timerInterval = null;
+    timerState = 'idle'; timerStart = 0; timerElapsed = 0;
+    document.getElementById('timerBtn').textContent = '▶ Start Meci';
+    document.getElementById('timerBtn').className = 'timer-btn start';
+    document.getElementById('timerDisplay').textContent = '00:00';
+    document.getElementById('timerDisplay').className = 'timer-display';
+    document.getElementById('halfBadge').textContent = '';
 }
 
+// ── Team ID registry ──────────────────────────────────────────────
+function tidBadge(tid) {
+    if (!tid) return '';
+    return `<span class="tid tid-${tid.slice(-1).toLowerCase()}">${tid}</span>`;
+}
+
+function initTeamRegistry() {
+    // Only call when players are already distributed on colors
+    const orange = players.filter(p => p.status === 'orange');
+    const green  = players.filter(p => p.status === 'green');
+    const bench  = players.filter(p => p.status === 'bench');
+    // Need at least players on orange and green to make sense
+    if (!orange.length && !green.length) return false;
+    colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
+    teamMap  = {
+        teamA: { players: orange.map(p => p.name), color: 'orange' },
+        teamB: { players: green.map(p => p.name),  color: 'green'  },
+        teamC: { players: bench.map(p => p.name),  color: 'bench'  },
+    };
+    return true;
+}
+
+// After a swap: loserColor goes to bench, bench comes in on loserColor
+// We know exactly which teamIds swapped — update colorMap/teamMap directly
+function swapTeamColors(loserColor) {
+    const benchColor = 'bench';
+    const loserTeamId = colorMap[loserColor];
+    const benchTeamId = colorMap[benchColor];
+    if (!loserTeamId || !benchTeamId) return;
+    // Swap the color assignments
+    colorMap[loserColor] = benchTeamId;
+    colorMap[benchColor] = loserTeamId;
+    teamMap[loserTeamId].color = benchColor;
+    teamMap[benchTeamId].color = loserColor;
+}
+
+function getTeamIdByColor(color) { return colorMap[color] || null; }
+
+// Cumulative score between two specific teamIds across all completed pairings
+function getCumulativeScore(tidA, tidB) {
+    let sA = 0, sB = 0, count = 0;
+    for (const p of matchPairings) {
+        const [pA, pB] = p.teamOnField;
+        if ((pA === tidA && pB === tidB) || (pA === tidB && pB === tidA)) {
+            sA += p.scores[tidA] || 0;
+            sB += p.scores[tidB] || 0;
+            count++;
+        }
+    }
+    return { sA, sB, count };
+}
+
+// ── 3-team toggle ─────────────────────────────────────────────────
+function toggleThreeTeam() {
+    threeTeamMode = !threeTeamMode;
+    localStorage.setItem('live_3team', threeTeamMode ? '1' : '0');
+    const btn = document.getElementById('threeBtn');
+    if (btn) {
+        btn.style.background = threeTeamMode ? 'rgba(124,77,255,.4)' : 'rgba(124,77,255,.15)';
+        btn.style.color = threeTeamMode ? '#fff' : '#ce93d8';
+    }
+    if (threeTeamMode) {
+        // Initialize registry only if players are already on colors
+        const ok = initTeamRegistry();
+        if (!ok) {
+            // No players set yet — will init on first render after players load
+        }
+        roundGoals = { orange: 0, green: 0 };
+        roundGoalLog = [];
+        roundStartSec = timerSeconds();
+        if (timerState === 'running') restartRoundTimer();
+    } else {
+        stopRoundTimer();
+        colorMap = {}; teamMap = {}; matchPairings = [];
+        roundGoals = { orange: 0, green: 0 }; roundGoalLog = [];
+    }
+    render();
+}
+
+// ── 3-team config ─────────────────────────────────────────────────
+function changeThreshold(d) {
+    goalThreshold = Math.max(1, Math.min(20, goalThreshold + d));
+    localStorage.setItem('live_threshold', goalThreshold);
+    const el = document.getElementById('thrVal'); if (el) el.textContent = goalThreshold;
+}
+function changeTimeLimitMin(d) {
+    timeLimitMin = Math.max(1, Math.min(90, timeLimitMin + d));
+    localStorage.setItem('live_tlmin', timeLimitMin);
+    const el = document.getElementById('timeLimitVal'); if (el) el.textContent = timeLimitMin;
+    if (threeTeamMode && timerState === 'running') restartRoundTimer();
+}
+
+// ── Round timer ───────────────────────────────────────────────────
+function restartRoundTimer() {
+    stopRoundTimer();
+    if (!threeTeamMode) return;
+    roundTimer = setTimeout(() => onRoundTimeout(), timeLimitMin * 60 * 1000);
+    roundTimerInterval = setInterval(() => updateRoundTimerBar(), 500);
+}
+function stopRoundTimer() {
+    if (roundTimer) { clearTimeout(roundTimer); roundTimer = null; }
+    if (roundTimerInterval) { clearInterval(roundTimerInterval); roundTimerInterval = null; }
+}
 function updateRoundTimerBar() {
-    if (!liveState || !liveState.three_team_mode || liveState.timer_status === 'idle') return;
-    const totalSec    = (liveState.time_limit_min || 10) * 60;
-    const elapsed     = calcRoundElapsedSec(liveState);
-    const remaining   = Math.max(0, totalSec - elapsed);
-    const pct         = Math.min(100, Math.round((elapsed / totalSec) * 100));
+    if (!threeTeamMode || timerState === 'idle') return;
+    const totalSec = timeLimitMin * 60;
+    const elapsed  = timerSeconds() - roundStartSec;
+    const remaining = Math.max(0, totalSec - elapsed);
+    const pct = Math.min(100, Math.round((elapsed / totalSec) * 100));
     const fill = document.getElementById('roundTimeFill');
     const left = document.getElementById('roundTimeLeft');
-    const bar  = document.getElementById('roundTimeBar');
-    if (bar) bar.style.display = liveState.timer_status === 'running' ? 'flex' : 'none';
     if (fill) {
         fill.style.width = pct + '%';
         fill.style.background = pct > 80
@@ -449,18 +488,11 @@ function updateRoundTimerBar() {
     }
     if (left) { const m = Math.floor(remaining/60), s = remaining%60; left.textContent = m+':'+(s<10?'0':'')+s; }
 }
-
-async function onRoundTimeout() {
-    cancelRoundTimeout();
-    if (!liveState?.three_team_mode) return;
+function onRoundTimeout() {
     const bench = players.filter(p => p.status === 'bench');
     if (!bench.length) return;
-
-    // Count current round goals from live_goals
-    const roundStartSec = liveState.round_start_sec || 0;
-    const roundGoals = getRoundGoals();
-    const oG = roundGoals.filter(g => g.team === 'orange').length;
-    const gG = roundGoals.filter(g => g.team === 'green').length;
+    const oG = roundGoalLog.filter(g => g.team === 'orange').length;
+    const gG = roundGoalLog.filter(g => g.team === 'green').length;
     let loser;
     if (oG === 0 && gG === 0) {
         loser = Math.random() < 0.5 ? 'orange' : 'green';
@@ -473,236 +505,161 @@ async function onRoundTimeout() {
     setTimeout(() => doRotation(loser, 'time'), 700);
 }
 
-// ── Round goals (current round only, from live_goals) ─────────────
-function getRoundGoals() {
-    if (!liveState?.three_team_mode) return goals;
-    const roundStartSec = liveState.round_start_sec || 0;
-    // Goals scored after round_start_sec elapsed time
-    // We use the match_started_at + round_start_sec to get absolute timestamp
-    if (!liveState.match_started_at) return goals;
-    const matchStartMs = new Date(liveState.match_started_at).getTime();
-    const roundStartMs = matchStartMs + roundStartSec * 1000;
-    return goals.filter(g => new Date(g.created_at).getTime() >= roundStartMs - 3000); // 3s tolerance
-}
-
-function getRoundConceded() {
-    const rg = getRoundGoals();
-    return {
-        orange: rg.filter(g => g.team === 'green').length,  // green scored = orange conceded
-        green:  rg.filter(g => g.team === 'orange').length, // orange scored = green conceded
-    };
-}
-
-// ── 3-team toggle ─────────────────────────────────────────────────
-async function toggleThreeTeam() {
-    if (!liveState) return;
-    const newMode = !liveState.three_team_mode;
-    const btn = document.getElementById('threeBtn');
-
-    if (newMode) {
-        const orange = players.filter(p => p.status === 'orange');
-        const green  = players.filter(p => p.status === 'green');
-        const bench  = players.filter(p => p.status === 'bench');
-        if (!orange.length && !green.length) {
-            showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
-        }
-        const teamRegistry = {
-            teamA: { players: orange.map(p => p.name), color: 'orange' },
-            teamB: { players: green.map(p => p.name),  color: 'green'  },
-            teamC: { players: bench.map(p => p.name),  color: 'bench'  },
-        };
-        const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
-        await patchState({
-            three_team_mode: true,
-            team_registry: teamRegistry,
-            color_map: colorMap,
-            round_start_sec: calcElapsedSec(liveState),
-        });
-        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
-        scheduleRoundTimeout(liveState);
-    } else {
-        await patchState({
-            three_team_mode: false,
-            team_registry: {},
-            color_map: {},
-            round_start_sec: 0,
-        });
-        await sb.from('live_rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        rounds = [];
-        if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#ce93d8'; }
-        cancelRoundTimeout();
-    }
-    render();
-    applyTimerUI(liveState);
-}
-
-async function changeThreshold(d) {
-    if (!liveState) return;
-    const v = Math.max(1, Math.min(20, (liveState.goal_threshold||2) + d));
-    await patchState({ goal_threshold: v });
-}
-async function changeTimeLimitMin(d) {
-    if (!liveState) return;
-    const v = Math.max(1, Math.min(90, (liveState.time_limit_min||10) + d));
-    await patchState({ time_limit_min: v });
-    if (liveState.three_team_mode && liveState.timer_status === 'running') {
-        scheduleRoundTimeout({ ...liveState, time_limit_min: v });
-    }
-}
-
 // ── Goal rotation check ───────────────────────────────────────────
-async function checkGoalRotation() {
-    if (!liveState?.three_team_mode) return;
+function checkGoalRotation() {
+    if (!threeTeamMode) return;
     if (!players.filter(p => p.status === 'bench').length) return;
-    const threshold = liveState.goal_threshold || 2;
-    const conc = getRoundConceded();
-    if (conc.orange >= threshold) {
-        cancelRoundTimeout();
-        showRotationToast(`🟠 ${conc.orange} goluri primite — IESE!`);
+    // roundGoals[color] = goals CONCEDED by that color team
+    if (roundGoals.orange >= goalThreshold) {
+        stopRoundTimer();
+        showRotationToast(`🟠 ${roundGoals.orange} goluri primite — IESE!`);
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
         setTimeout(() => doRotation('orange', 'goals'), 600);
-    } else if (conc.green >= threshold) {
-        cancelRoundTimeout();
-        showRotationToast(`🟢 ${conc.green} goluri primite — IESE!`);
+    } else if (roundGoals.green >= goalThreshold) {
+        stopRoundTimer();
+        showRotationToast(`🟢 ${roundGoals.green} goluri primite — IESE!`);
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
         setTimeout(() => doRotation('green', 'goals'), 600);
     }
 }
 
-// ── Save round to DB (call BEFORE swapping) ───────────────────────
-async function saveRoundToDB(loserColor, reason) {
-    const colorMap = getColorMap();
-    const oTid = colorMap['orange'];
-    const gTid = colorMap['green'];
-    const roundGoals = getRoundGoals();
-    const oG = roundGoals.filter(g => g.team === 'orange').length;
-    const gG = roundGoals.filter(g => g.team === 'green').length;
-    const durationSec = Math.max(0, calcRoundElapsedSec(liveState));
+// ── Save pairing (call BEFORE swapping colors) ────────────────────
+function savePairing(reason) {
+    // Only save if there's actually been play (goals or timer ran)
+    const oG = roundGoalLog.filter(g => g.team === 'orange').length;
+    const gG = roundGoalLog.filter(g => g.team === 'green').length;
+    const durationSec = timerSeconds() - roundStartSec;
+
+    const oTid = getTeamIdByColor('orange');
+    const gTid = getTeamIdByColor('green');
+
     const scores = {};
     if (oTid) scores[oTid] = oG;
     if (gTid) scores[gTid] = gG;
-    const num = rounds.length + 1;
 
-    const { error } = await sb.from('live_rounds').insert({
-        num,
-        team_a_id:      oTid || 'teamA',
-        team_b_id:      gTid || 'teamB',
-        score_a:        oG,
-        score_b:        gG,
-        orange_players: players.filter(p => p.status === 'orange').map(p => p.name),
-        green_players:  players.filter(p => p.status === 'green').map(p => p.name),
-        goals:          roundGoals,
-        duration_sec:   durationSec,
-        end_reason:     reason,
+    matchPairings.push({
+        num: matchPairings.length + 1,
+        teamOnField: [oTid, gTid].filter(Boolean),
+        scores,
+        orangePlayers: players.filter(p => p.status === 'orange').map(p => p.name),
+        greenPlayers:  players.filter(p => p.status === 'green').map(p => p.name),
+        goals: [...roundGoalLog],
+        durationSec: Math.max(0, durationSec),
+        endReason: reason,
+        startedAt: roundStartedAt || matchStartedAt || null,
+        endedAt: new Date().toISOString(),
     });
-    if (error) console.error('saveRound:', error.message);
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
 async function doRotation(loserColor, reason) {
-    if (isSaving) return;
-    isSaving = true;
-    const bench   = players.filter(p => p.status === 'bench');
-    const losers  = players.filter(p => p.status === loserColor);
-    if (!bench.length || !losers.length) { isSaving=false; return; }
+    const bench = players.filter(p => p.status === 'bench');
+    const losers = players.filter(p => p.status === loserColor);
+    if (!bench.length || !losers.length) return;
 
-    // 1. Save completed round to DB FIRST
-    await saveRoundToDB(loserColor, reason);
+    // 1. Save the completed round BEFORE any state changes
+    savePairing(reason);
 
-    // 2. Swap players in DB
-    const swapOps = [...losers.map(p => ({ id: p.id, status: 'bench' })),
-                     ...bench.map(p  => ({ id: p.id, status: loserColor }))];
-    await Promise.all(swapOps.map(({ id, status }) =>
-        sb.from('players').update({ status }).eq('id', id)
-    )).catch(e => console.warn('swap:', e.message));
+    // 2. Swap players in memory
+    losers.forEach(p => p.status = 'bench');
+    bench.forEach(p => p.status = loserColor);
 
-    // 3. Update colorMap in live_state (direct swap, no player lookup)
-    const oldColorMap = { ...getColorMap() };
-    const loserTeamId = oldColorMap[loserColor];
-    const benchTeamId = oldColorMap['bench'];
-    const newColorMap = { ...oldColorMap };
-    newColorMap[loserColor] = benchTeamId;
-    newColorMap['bench']    = loserTeamId;
+    // 3. Update teamId↔color mapping (direct swap, no player lookup needed)
+    swapTeamColors(loserColor);
 
-    // Update team_registry colors too
-    const oldRegistry = { ...getTeamRegistry() };
-    if (loserTeamId && oldRegistry[loserTeamId]) oldRegistry[loserTeamId] = { ...oldRegistry[loserTeamId], color: 'bench' };
-    if (benchTeamId && oldRegistry[benchTeamId]) oldRegistry[benchTeamId] = { ...oldRegistry[benchTeamId], color: loserColor };
+    // 4. Reset round state
+    roundGoals = { orange: 0, green: 0 };
+    roundGoalLog = [];
+    roundStartSec = timerSeconds();
+    roundStartedAt = new Date().toISOString();
 
-    // 4. Update round_start_sec in live_state
-    const newRoundStartSec = calcElapsedSec(liveState);
-    await patchState({
-        color_map:      newColorMap,
-        team_registry:  oldRegistry,
-        round_start_sec: newRoundStartSec,
-    });
+    // 5. Restart round timer
+    restartRoundTimer();
+    const rtBar = document.getElementById('roundTimeBar');
+    if (rtBar) rtBar.style.display = timerState === 'running' ? 'flex' : 'none';
+
+    // 6. Save to DB
+    try {
+        await Promise.all([...losers, ...bench].map(p =>
+            sb.from('players').update({ status: p.status }).eq('id', p.id)
+        ));
+    } catch(e) { console.warn('swap save:', e.message); }
 
     showRotationToast(`${loserColor==='orange'?'🟠 PORTOCALIU':'🟢 VERDE'} IESE · Echipa nouă INTRĂ`);
-    isSaving = false;
-    // Re-schedule round timer for new round
-    scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
+    render();
 }
 
 async function manualSwap(loserColor) {
-    cancelRoundTimeout();
+    stopRoundTimer();
     await doRotation(loserColor, 'manual');
 }
 
-// ── Load all data ─────────────────────────────────────────────────
+function showRotationToast(msg) {
+    const el = document.getElementById('rotationToast');
+    if (!el) return;
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Utilities ─────────────────────────────────────────────────────
+function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2800); }
+function bump(team) { const el = document.getElementById(team==='orange'?'scoreO':'scoreG'); el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200); }
+function teamScoreReal(team) { return goals.filter(g => g.team === team).length; }
+function goalsMap() { const m = {}; goals.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; }); return m; }
+
+// ── Load ──────────────────────────────────────────────────────────
 async function loadAll() {
-    const [{ data: st }, { data: pl }, { data: gl }, { data: rd }] = await Promise.all([
-        sb.from('live_state').select('*').eq('id', 1).single(),
+    const [{ data: pl }, { data: gl }] = await Promise.all([
         sb.from('players').select('id,name,status').order('name'),
         sb.from('live_goals').select('*').order('created_at', { ascending: true }),
-        sb.from('live_rounds').select('*').order('num', { ascending: true }),
     ]);
-    liveState = st;
-    players   = pl || [];
-    goals     = gl || [];
-    rounds    = rd || [];
+    players = pl || []; goals = gl || [];
+    // If 3-team mode was on but registry is empty (page reload), reinit
+    if (threeTeamMode && Object.keys(colorMap).length === 0) {
+        initTeamRegistry();
+    }
     render();
-    applyTimerUI(liveState);
 }
 
 // ── Render ────────────────────────────────────────────────────────
 function render() {
-    if (!liveState) return;
-    const st   = liveState;
-    const mode = st.three_team_mode;
+    // If 3-team active but registry still empty, try to init now
+    if (threeTeamMode && Object.keys(colorMap).length === 0 && players.length) {
+        initTeamRegistry();
+    }
+
     const orange = players.filter(p => p.status === 'orange');
     const green  = players.filter(p => p.status === 'green');
     const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
 
-    const oTid = mode ? getTeamIdByColor('orange') : null;
-    const gTid = mode ? getTeamIdByColor('green')  : null;
-
     // Score: per-round in 3-team, cumulative otherwise
-    const roundG = getRoundGoals();
-    const oScore = mode ? roundG.filter(g => g.team==='orange').length : goals.filter(g=>g.team==='orange').length;
-    const gScore = mode ? roundG.filter(g => g.team==='green').length  : goals.filter(g=>g.team==='green').length;
+    const oScore = threeTeamMode
+        ? roundGoalLog.filter(g => g.team === 'orange').length
+        : goals.filter(g => g.team === 'orange').length;
+    const gScore = threeTeamMode
+        ? roundGoalLog.filter(g => g.team === 'green').length
+        : goals.filter(g => g.team === 'green').length;
 
     document.getElementById('scoreO').textContent = oScore;
     document.getElementById('scoreG').textContent = gScore;
+
+    // Score labels with team ID badges
+    const oTid = threeTeamMode ? getTeamIdByColor('orange') : null;
+    const gTid = threeTeamMode ? getTeamIdByColor('green')  : null;
     document.getElementById('lblO').innerHTML = '🟠 Portocaliu' + (oTid ? ' '+tidBadge(oTid) : '');
     document.getElementById('lblG').innerHTML = 'Verde 🟢'      + (gTid ? ' '+tidBadge(gTid) : '');
 
-    // Score sub: cumulative same-pair total
+    // Score sub-line: cumulative between same two teams
     const subEl = document.getElementById('scoreSub');
     if (subEl) {
-        if (mode && oTid && gTid && rounds.length) {
-            let sA=0, sB=0, cnt=0;
-            rounds.forEach(r => {
-                const [rA, rB] = [r.team_a_id, r.team_b_id];
-                if ((rA===oTid&&rB===gTid)||(rA===gTid&&rB===oTid)) {
-                    sA += rA===oTid ? r.score_a : r.score_b;
-                    sB += rB===gTid ? r.score_b : r.score_a;
-                    cnt++;
-                }
-            });
-            subEl.innerHTML = cnt > 0
-                ? `Total ${tidBadge(oTid)} vs ${tidBadge(gTid)}: <b>${sA} - ${sB}</b> (${cnt} tur${cnt!==1?'e':''})`
+        if (threeTeamMode && oTid && gTid) {
+            const { sA, sB, count } = getCumulativeScore(oTid, gTid);
+            subEl.innerHTML = count > 0
+                ? `Total ${tidBadge(oTid)} vs ${tidBadge(gTid)}: <b>${sA} - ${sB}</b> (${count} tur${count!==1?'e':''})`
                 : '';
-        } else subEl.innerHTML = '';
+        } else {
+            subEl.innerHTML = '';
+        }
     }
 
     // Undo bar
@@ -717,14 +674,7 @@ function render() {
     }
 
     // Finalize button
-    document.getElementById('btnFinalize').disabled = realGoals.length === 0 && rounds.length === 0;
-
-    // 3-team button visual
-    const threeBtnEl = document.getElementById('threeBtn');
-    if (threeBtnEl) {
-        threeBtnEl.style.background = mode ? 'rgba(124,77,255,.4)' : 'rgba(124,77,255,.15)';
-        threeBtnEl.style.color      = mode ? '#fff' : '#ce93d8';
-    }
+    document.getElementById('btnFinalize').disabled = realGoals.length === 0 && matchPairings.length === 0;
 
     // Teams grid
     const wrap = document.getElementById('teamsWrap');
@@ -732,52 +682,48 @@ function render() {
         wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
     } else {
         const gpm = goalsMap();
-        const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
             return '<div class="pr">'
                 + '<div class="pr-name">'+p.name+'</div>'
-                + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
+                + '<button class="pr-minus'+(cnt?' show':'')
+                    +'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
                 + '<button class="pr-plus" onclick="addGoal(\''+p.name+'\',\''+team+'\')">+</button>'
                 + '</div>';
         }).join('');
-        const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
-        const gBadge = mode ? `<span class="round-badge">${conc.green}/${st.goal_threshold||2} prim.</span>`  : '';
+        const oBadge = threeTeamMode ? '<span class="round-badge">'+(roundGoals.orange||0)+'/'+goalThreshold+' prim.</span>' : '';
+        const gBadge = threeTeamMode ? '<span class="round-badge">'+(roundGoals.green||0)+'/'+goalThreshold+' prim.</span>'  : '';
         const oTidH  = oTid ? tidBadge(oTid)+' ' : '';
         const gTidH  = gTid ? tidBadge(gTid)+' ' : '';
         wrap.innerHTML =
             '<div class="team-col o-col">'
-            + '<div class="team-hd">'+oTidH+'<span class="team-hd-lbl o">🟠 Portocaliu</span>'+oBadge+' <span class="team-hd-cnt">'+oScore+'G</span></div>'
-            + makeRows(orange, 'orange')
+                + '<div class="team-hd">'+oTidH+'<span class="team-hd-lbl o">🟠 Portocaliu</span>'+oBadge+' <span class="team-hd-cnt">'+oScore+'G</span></div>'
+                + makeRows(orange, 'orange')
             + '</div>'
             + '<div class="team-col g-col">'
-            + '<div class="team-hd">'+gTidH+'<span class="team-hd-lbl g">🟢 Verde</span>'+gBadge+' <span class="team-hd-cnt">'+gScore+'G</span></div>'
-            + makeRows(green, 'green')
+                + '<div class="team-hd">'+gTidH+'<span class="team-hd-lbl g">🟢 Verde</span>'+gBadge+' <span class="team-hd-cnt">'+gScore+'G</span></div>'
+                + makeRows(green, 'green')
             + '</div>';
     }
 
     // 3-team bar
     const bar = document.getElementById('threeBar');
     if (bar) {
-        bar.classList.toggle('show', mode);
-        if (mode) {
-            const thrEl = document.getElementById('thrVal'); if (thrEl) thrEl.textContent = st.goal_threshold || 2;
-            const tlEl  = document.getElementById('timeLimitVal'); if (tlEl) tlEl.textContent = st.time_limit_min || 10;
+        bar.classList.toggle('show', threeTeamMode);
+        if (threeTeamMode) {
+            const thrEl = document.getElementById('thrVal'); if (thrEl) thrEl.textContent = goalThreshold;
+            const tlEl  = document.getElementById('timeLimitVal'); if (tlEl) tlEl.textContent = timeLimitMin;
             const bench = players.filter(p => p.status === 'bench');
             const bTid  = getTeamIdByColor('bench');
-            const wp    = document.getElementById('waitingPlayers');
-            const wLbl = document.getElementById('waitingLbl');
-        if (wLbl) {
-            if (!bTid) wLbl.textContent = '⏳ Echipa în Așteptare';
-            else if (bTid === 'teamC') wLbl.textContent = '🟣 Echipa Mov (teamC)';
-            else if (bTid === 'teamB') wLbl.textContent = '🟢 Echipa Verde (teamB)';
-            else wLbl.textContent = '🟠 Echipa Portocalie (teamA)';
-        }
-        if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
+            const wp = document.getElementById('waitingPlayers');
+            if (wp) wp.innerHTML = bTid ? tidBadge(bTid)+' '
                 + (bench.length
                     ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
-                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>');
+                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>')
+                : '<span style="color:#333;font-size:.72rem;">Niciun jucător pe bancă</span>';
+            const rtBar = document.getElementById('roundTimeBar');
+            if (rtBar) rtBar.style.display = timerState === 'running' ? 'flex' : 'none';
         }
     }
 
@@ -792,30 +738,31 @@ function renderTureHistory() {
     const body    = document.getElementById('tureBody');
     const cnt     = document.getElementById('tureCnt');
     if (!section || !body) return;
-    const mode = getThreeTeamMode();
-    const show = mode && rounds.length > 0;
+
+    const show = threeTeamMode && matchPairings.length > 0;
     section.classList.toggle('show', show);
-    if (cnt) cnt.textContent = rounds.length;
+    if (cnt) cnt.textContent = matchPairings.length;
     if (!show) return;
 
-    body.innerHTML = [...rounds].reverse().map(r => {
-        const tA = r.team_a_id, tB = r.team_b_id;
-        const sA = r.score_a || 0, sB = r.score_b || 0;
+    body.innerHTML = [...matchPairings].reverse().map(p => {
+        const [tA, tB] = p.teamOnField;
+        const sA = p.scores[tA] || 0;
+        const sB = p.scores[tB] || 0;
         const winA = sA > sB, winB = sB > sA;
         const cA = winA ? '#69f0ae' : winB ? '#ef9a9a' : '#aaa';
         const cB = winB ? '#69f0ae' : winA ? '#ef9a9a' : '#aaa';
-        const min = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
-        const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final' };
-        const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
+        const min = p.durationSec ? Math.ceil(p.durationSec/60)+"'" : '';
+        const reasonLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final' };
+        const rLabel = reasonLabels[p.endReason] || p.endReason;
         return `<div class="tur-row">
-            <span class="tur-num">Tur ${r.num}</span>
+            <span class="tur-num">Tur ${p.num}</span>
             <span class="tur-teams">${tidBadge(tA)} ${tidBadge(tB)}</span>
-            <span class="tur-score">
+            <span class="tur-score" style="color:#fff">
                 <span style="color:${cA}">${sA}</span>
                 <span style="color:#333;font-size:.7rem;margin:0 2px">-</span>
                 <span style="color:${cB}">${sB}</span>
             </span>
-            <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
+            <span class="tur-meta">${min}<span class="tur-reason ${p.endReason}">${rLabel}</span></span>
         </div>`;
     }).join('');
 }
@@ -834,7 +781,7 @@ function renderLog(realGoals) {
     const panel = document.getElementById('logPanel');
     const empty = document.getElementById('logEmpty');
     panel.querySelectorAll('.log-entry').forEach(e => e.remove());
-    if (!realGoals.length) { if (empty) empty.style.display='block'; return; }
+    if (!realGoals.length) { if (empty) empty.style.display = 'block'; return; }
     if (empty) empty.style.display = 'none';
     const frag = document.createDocumentFragment();
     [...realGoals].reverse().forEach(g => {
@@ -850,6 +797,7 @@ function renderLog(realGoals) {
     });
     panel.insertBefore(frag, panel.firstChild);
 }
+
 function toggleLog() {
     const panel   = document.getElementById('logPanel');
     const chevron = document.getElementById('logChevron');
@@ -859,218 +807,313 @@ function toggleLog() {
 // ── Goal actions ──────────────────────────────────────────────────
 async function addGoal(name, team) {
     if (navigator.vibrate) navigator.vibrate(40);
-    const minute = liveState?.timer_status !== 'idle'
-        ? Math.floor(calcElapsedSec(liveState) / 60) : null;
+    const minute = timerState !== 'idle' ? timerMinute() : null;
     const tmpId  = 'tmp_' + Date.now();
-    goals.push({ id: tmpId, player_name: name, team, minute, created_at: new Date().toISOString() });
+    const goalObj = { id: tmpId, player_name: name, team, minute, created_at: new Date().toISOString() };
+
+    goals.push(goalObj);
+
+    if (threeTeamMode) {
+        // The team that scored makes the opposing team concede
+        const opposing = team === 'orange' ? 'green' : 'orange';
+        roundGoals[opposing] = (roundGoals[opposing] || 0) + 1;
+        roundGoalLog.push({ ...goalObj });
+    }
+
     render(); bump(team);
+    if (threeTeamMode) checkGoalRotation();
 
     try {
-        const { data, error } = await sb.from('live_goals')
-            .insert({ player_name: name, team, minute }).select().single();
+        const { data, error } = await sb.from('live_goals').insert({ player_name: name, team, minute }).select().single();
         if (error) throw error;
+        // Replace tmp with real
         goals = goals.map(g => g.id === tmpId ? data : g);
+        if (threeTeamMode) {
+            const i = roundGoalLog.findIndex(g => g.id === tmpId);
+            if (i !== -1) roundGoalLog[i] = { ...roundGoalLog[i], id: data.id };
+        }
         render();
-        if (liveState?.three_team_mode) await checkGoalRotation();
     } catch(e) {
         goals = goals.filter(g => g.id !== tmpId);
+        if (threeTeamMode) {
+            roundGoalLog = roundGoalLog.filter(g => g.id !== tmpId);
+            const opposing = team === 'orange' ? 'green' : 'orange';
+            roundGoals[opposing] = Math.max(0, (roundGoals[opposing]||0) - 1);
+        }
         render(); showToast('⚠️ ' + e.message);
     }
 }
 
 async function removeGoal(name, team) {
-    const arr = [...goals].map((g,i)=>({g,i})).filter(({g})=>g.player_name===name&&g.team===team&&!String(g.id).startsWith('tmp_'));
+    const arr = [...goals].map((g,i) => ({g,i})).filter(({g}) => g.player_name===name && g.team===team && !String(g.id).startsWith('tmp_'));
     if (!arr.length) return;
     const { g, i } = arr[arr.length-1];
-    goals.splice(i, 1); render();
+    goals.splice(i, 1);
+    if (threeTeamMode) {
+        const ri = roundGoalLog.findIndex(x => x.id === g.id);
+        if (ri !== -1) {
+            roundGoalLog.splice(ri, 1);
+            const opposing = team === 'orange' ? 'green' : 'orange';
+            roundGoals[opposing] = Math.max(0, (roundGoals[opposing]||0) - 1);
+        }
+    }
+    render();
     try { await sb.from('live_goals').delete().eq('id', g.id); }
-    catch(e) { goals.splice(i,0,g); render(); showToast('⚠️ '+e.message); }
+    catch(e) { goals.splice(i, 0, g); render(); showToast('⚠️ ' + e.message); }
 }
 
 async function undoLast() {
     const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
     const lastG = realGoals[realGoals.length-1];
     if (!lastG) return;
-    goals = goals.filter(x => x.id !== lastG.id); render();
+    goals = goals.filter(x => x.id !== lastG.id);
+    if (threeTeamMode) {
+        const ri = roundGoalLog.findIndex(x => x.id === lastG.id);
+        if (ri !== -1) {
+            roundGoalLog.splice(ri, 1);
+            const opposing = lastG.team === 'orange' ? 'green' : 'orange';
+            roundGoals[opposing] = Math.max(0, (roundGoals[opposing]||0) - 1);
+        }
+    }
+    render();
     try { await sb.from('live_goals').delete().eq('id', lastG.id); }
     catch(e) { showToast('⚠️ ' + e.message); }
 }
 
 // ── Finalize ──────────────────────────────────────────────────────
-let editRounds = [];
-
 function openFinalize() {
-    editRounds = rounds.map(r => ({...r}));
-    const roundG = getThreeTeamMode() ? getRoundGoals() : [];
-    const oG = roundG.filter(g=>g.team==='orange').length;
-    const gG = roundG.filter(g=>g.team==='green').length;
-    if (getThreeTeamMode() && (oG>0||gG>0)) {
-        editRounds.push({
-            id: '__current__',
-            num: editRounds.length+1,
-            team_a_id: getTeamIdByColor('orange')||'teamA',
-            team_b_id: getTeamIdByColor('green')||'teamB',
-            score_a: oG, score_b: gG,
-            orange_players: players.filter(p=>p.status==='orange').map(p=>p.name),
-            green_players:  players.filter(p=>p.status==='green').map(p=>p.name),
-            goals: roundG,
-            duration_sec: calcRoundElapsedSec(liveState),
-            end_reason: 'final',
-        });
+    const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
+
+    // In 3-team mode calculate score per current round only (not total)
+    let oScore, gScore, winner, winnerLabel, winColor;
+    if (threeTeamMode) {
+        oScore = roundGoalLog.filter(g => g.team==='orange').length;
+        gScore = roundGoalLog.filter(g => g.team==='green').length;
+    } else {
+        oScore = realGoals.filter(g => g.team === 'orange').length;
+        gScore = realGoals.filter(g => g.team === 'green').length;
     }
-    renderFinalizeDialog();
+    winner = oScore > gScore ? 'orange' : gScore > oScore ? 'green' : 'draw';
+    winnerLabel = winner==='orange' ? '🟠 Portocaliu' : winner==='green' ? '🟢 Verde' : 'Egal';
+    winColor = winner==='orange' ? 'var(--o)' : winner==='green' ? 'var(--g)' : '#aaa';
+
+    const scorerMap = {};
+    realGoals.forEach(g => {
+        if (!scorerMap[g.player_name]) scorerMap[g.player_name] = { count:0, team:g.team, mins:[] };
+        scorerMap[g.player_name].count++;
+        if (g.minute != null) scorerMap[g.player_name].mins.push(g.minute+"'");
+    });
+    const sorted = Object.entries(scorerMap).sort((a,b) => b[1].count - a[1].count);
+    const mvp = sorted[0];
+    const mvpHtml = mvp ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${mvp[0]} · ${mvp[1].count} gol${mvp[1].count!==1?'uri':''}</div></div></div>` : '';
+    const scorersHtml = sorted.length
+        ? sorted.map(([name, d]) => {
+            const dot = d.team==='orange' ? 'var(--o)' : 'var(--g)';
+            return `<div class="scorer-row"><div class="scorer-dot" style="background:${dot};"></div><span class="scorer-name">${name}</span><span class="scorer-goals">${d.count}⚽</span><span class="scorer-mins">${d.mins.length?' · '+d.mins.join(', '):''}</span></div>`;
+          }).join('')
+        : '<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
+
+    // 3-team: ture summary in dialog (include current round if has goals)
+    let tureHtml = '';
+    if (threeTeamMode) {
+        const allPairings = [...matchPairings];
+        // Preview current round if it has goals
+        const oG = roundGoalLog.filter(g => g.team==='orange').length;
+        const gG = roundGoalLog.filter(g => g.team==='green').length;
+        if (oG > 0 || gG > 0) {
+            const oTid = getTeamIdByColor('orange'), gTid = getTeamIdByColor('green');
+            allPairings.push({
+                num: allPairings.length+1,
+                teamOnField: [oTid, gTid].filter(Boolean),
+                scores: { [oTid]: oG, [gTid]: gG },
+                durationSec: timerSeconds() - roundStartSec,
+                endReason: 'final',
+            });
+        }
+        if (allPairings.length) {
+            const rows = allPairings.map(p => {
+                const [tA, tB] = p.teamOnField;
+                const sA = p.scores[tA]||0, sB = p.scores[tB]||0;
+                const min = p.durationSec ? Math.ceil(p.durationSec/60)+"'" : '';
+                const namesA = (p.orangePlayers||[]).slice(0,3).join(', ')+(p.orangePlayers?.length>3?'…':'');
+                const namesB = (p.greenPlayers||[]).slice(0,3).join(', ')+(p.greenPlayers?.length>3?'…':'');
+                const wColor = sA>sB?'var(--o)':sB>sA?'var(--g)':'#666';
+                return `<div style="padding:6px 0;border-bottom:1px solid #0f1118;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                        <span style="font-size:.6rem;color:#444;min-width:36px;">Tur ${p.num}</span>
+                        <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${wColor};">${sA}:${sB}</span>
+                        <span style="font-size:.6rem;color:#444;margin-left:auto;">${min}</span>
+                    </div>
+                    <div style="display:flex;gap:6px;font-size:.68rem;">
+                        <span style="color:var(--o);">🟠 ${namesA}</span>
+                        <span style="color:#444;">vs</span>
+                        <span style="color:var(--g);">🟢 ${namesB}</span>
+                    </div>
+                </div>`;
+            }).join('');
+            tureHtml = `<div class="dialog-section">Ture disputate</div><div>${rows}</div>`;
+        }
+    }
+
+    const headerHtml = threeTeamMode
+        ? `<div class="dialog-score" style="color:#ce93d8;">3️⃣ Mod 3 Echipe · ${matchPairings.length + (oScore+gScore>0?1:0)} ture</div>`
+        : `<div class="dialog-score" style="color:${winColor};">${winnerLabel} <span style="color:#555;font-size:1rem;">${oScore}:${gScore}</span></div>`;
+    document.getElementById('dialogBox').innerHTML = `
+        <div class="dialog-title">🏁 Finalizează Meciul</div>
+        ${headerHtml}
+        ${threeTeamMode?'':mvpHtml}${tureHtml}
+        <div class="dialog-section">Marcatori</div>
+        <div>${scorersHtml}</div>
+        <div class="dialog-actions">
+            <button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>
+            <button class="dia-confirm" onclick="finalizeMatch('${winner}',${oScore},${gScore})">✅ Salvează${winner==='draw'?' Egal':' & Finalizează'}</button>
+        </div>`;
     document.getElementById('dialogOverlay').classList.add('show');
 }
 
-function renderFinalizeDialog() {
-    const allGoals = goals.filter(g=>!String(g.id).startsWith('tmp_'));
-    const scorerMap = {};
-    allGoals.forEach(g => {
-        if (!scorerMap[g.player_name]) scorerMap[g.player_name]={count:0,team:g.team,mins:[]};
-        scorerMap[g.player_name].count++;
-        if (g.minute!=null) scorerMap[g.player_name].mins.push(g.minute+"'");
-    });
-    const sorted = Object.entries(scorerMap).sort((a,b)=>b[1].count-a[1].count);
-    const mvp = sorted[0];
-    const mvpHtml = mvp
-        ? '<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">'+mvp[0]+' · '+mvp[1].count+' gol'+(mvp[1].count!==1?'uri':'')+'</div></div></div>'
-        : '';
-    const scorersHtml = sorted.length
-        ? sorted.map(([name,d])=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+d.count+'⚽</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>').join('')
-        : '<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
-
-    let tureHtml = '';
-    if (getThreeTeamMode() && editRounds.length) {
-        const rows = editRounds.map((r,idx) =>
-            '<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid #0f1118;font-size:.75rem;">'
-            +'<span style="color:#444;min-width:34px;">Tur '+r.num+'</span>'
-            +tidBadge(r.team_a_id)
-            +'<input type="number" min="0" max="99" value="'+r.score_a+'" style="width:34px;background:#0a0c10;border:1px solid #2a2d40;color:#fff;border-radius:4px;text-align:center;font-size:.95rem;padding:1px 2px;" onchange="editRoundScore('+idx+',\'a\',this.value)">'
-            +'<span style="color:#333;">-</span>'
-            +'<input type="number" min="0" max="99" value="'+r.score_b+'" style="width:34px;background:#0a0c10;border:1px solid #2a2d40;color:#fff;border-radius:4px;text-align:center;font-size:.95rem;padding:1px 2px;" onchange="editRoundScore('+idx+',\'b\',this.value)">'
-            +tidBadge(r.team_b_id)
-            +'<span style="color:#444;font-size:.6rem;margin-left:auto;">'+(r.duration_sec?Math.ceil(r.duration_sec/60)+"'":'')+'</span>'
-            +'<button onclick="deleteEditRound('+idx+')" style="background:none;border:1px solid #c6282855;color:#ef9a9a66;border-radius:4px;padding:1px 6px;cursor:pointer;font-size:.65rem;" onmouseover="this.style.color=\'#ef9a9a\'" onmouseout="this.style.color=\'#ef9a9a66\'">✕</button>'
-            +'</div>'
-        ).join('');
-        tureHtml = '<div class="dialog-section">Ture disputate <span style="color:#444;font-weight:400;">(editabile)</span></div><div>'+rows+'</div>';
-    }
-
-    document.getElementById('dialogBox').innerHTML =
-        '<div class="dialog-title">🏁 Finalizează Meciul</div>'
-        +mvpHtml+tureHtml
-        +'<div class="dialog-section">Marcatori</div>'
-        +'<div>'+scorersHtml+'</div>'
-        +'<div class="dialog-actions">'
-        +'<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
-        +'<button class="dia-confirm" onclick="confirmFinalize()">✅ Salvează & Finalizează</button>'
-        +'</div>';
-}
-
-function editRoundScore(idx, side, val) {
-    const v = Math.max(0, parseInt(val)||0);
-    if (side === 'a') editRounds[idx].score_a = v;
-    else              editRounds[idx].score_b = v;
-}
-function deleteEditRound(idx) {
-    editRounds.splice(idx, 1);
-    editRounds.forEach((r,i) => r.num = i+1);
-    renderFinalizeDialog();
-}
-function confirmFinalize() { finalizeMatch(editRounds); }
 function closeDialog() { document.getElementById('dialogOverlay').classList.remove('show'); }
 
-async function finalizeMatch(finalRounds) {
+async function finalizeMatch(winner, oScore, gScore) {
     if (isSaving) return;
     isSaving = true;
-    document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
+    document.querySelectorAll('.dia-confirm').forEach(b => { b.disabled=true; b.textContent='⏳ Se salvează...'; });
     closeDialog();
-    const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
-    try {
-        if (getThreeTeamMode() && finalRounds && finalRounds.length > 0) {
+
+    // ── 3-team: save each pairing as separate match ────────────────
+    if (threeTeamMode) {
+        stopRoundTimer();
+        // Save current round if it has goals
+        const oG = roundGoalLog.filter(g => g.team==='orange').length;
+        const gG = roundGoalLog.filter(g => g.team==='green').length;
+        if (oG > 0 || gG > 0) savePairing('final');
+
+        try {
+            const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
             let savedCount = 0;
-            for (const r of finalRounds) {
-                if (!r.orange_players?.length || !r.green_players?.length) continue;
-                const pWinner = r.score_a>r.score_b?'Portocaliu':r.score_b>r.score_a?'Verde':'Egal';
-                const { data: mh, error: mhErr } = await sb.from('match_history').insert({
-                    date: today, winner: pWinner, score: r.score_a+':'+r.score_b,
-                    imbalanced: Math.abs(r.score_a-r.score_b)>=3,
-                    orange_players: r.orange_players, green_players: r.green_players,
-                    started_at: liveState?.match_started_at||null,
-                    ended_at: r.ended_at||new Date().toISOString(),
-                }).select().single();
-                if (mhErr) { console.warn('mh err:', mhErr.message); savedCount++; continue; }
-                const rGoals = Array.isArray(r.goals) ? r.goals : [];
-                if (mh?.id && rGoals.length) {
-                    try { await sb.from('match_goals').insert(rGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null}))); } catch(e){}
-                    const sc={};rGoals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
-                    const mvpE=Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
-                    if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
+            for (const pair of matchPairings) {
+                if (!pair.orangePlayers?.length || !pair.greenPlayers?.length) continue;
+                const [tA, tB] = pair.teamOnField;
+                const pOG = pair.scores[tA]||0, pGG = pair.scores[tB]||0;
+                // Determine winner: team with more goals wins; use 'Portocaliu'/'Verde' based on who scored more
+                // orangePlayers scored pOG goals, greenPlayers scored pGG
+                const pWinner = pOG > pGG ? 'Portocaliu' : pGG > pOG ? 'Verde' : 'Egal';
+                const { data: mh } = await sb.from('match_history').insert({
+                    date: today, winner: pWinner, score: pOG+':'+pGG,
+                    imbalanced: Math.abs(pOG-pGG) >= 3,
+                    orange_players: pair.orangePlayers, green_players: pair.greenPlayers,
+                    started_at: pair.startedAt||matchStartedAt||null, ended_at: pair.endedAt||new Date().toISOString()
+                }).select().single().catch(() => ({ data: null }));
+
+                if (mh?.id && pair.goals?.length) {
+                    await sb.from('match_goals').insert(
+                        pair.goals.map(g => ({ match_id:mh.id, player_name:g.player_name, team:g.team, goals:1, goals_conceded:0, minute:g.minute??null }))
+                    ).catch(() => {});
+                    const sc = {}; pair.goals.forEach(g => { sc[g.player_name]=(sc[g.player_name]||0)+1; });
+                    const mvpE = Object.entries(sc).sort((a,b) => b[1]-a[1])[0];
+                    if (mvpE) await sb.from('mvp_votes').insert({ match_id:mh.id, voter:'system', mvp_player_name:mvpE[0], mvp_type:'goals' }).catch(() => {});
                 }
-                for (const name of [...(r.orange_players||[]),...(r.green_players||[])]) {
-                    const p=players.find(x=>x.name===name); if(!p) continue;
-                    const inO=r.orange_players.includes(name);
-                    const won=(inO&&r.score_a>r.score_b)||(!inO&&r.score_b>r.score_a);
-                    const pGoals=rGoals.filter(g=>g.player_name===name).length;
-                    try {
-                        const {data:cur}=await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single();
-                        if(cur) await sb.from('players').update({wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,match_history:[...(cur.match_history||[]),won?'W':'L'].slice(-20),total_goals:(cur.total_goals||0)+pGoals}).eq('id',p.id);
-                    } catch(e){}
+                for (const name of [...pair.orangePlayers, ...pair.greenPlayers]) {
+                    const p = players.find(x => x.name === name); if (!p) continue;
+                    const inO = pair.orangePlayers.includes(name);
+                    const won = (inO && pOG > pGG) || (!inO && pGG > pOG);
+                    const pGoals = pair.goals?.filter(g => g.player_name===name).length || 0;
+                    await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single().then(({data:cur}) => {
+                        if (!cur) return;
+                        return sb.from('players').update({
+                            wins: (cur.wins||0)+(won?1:0), games: (cur.games||0)+1,
+                            match_history: [...(cur.match_history||[]), won?'W':'L'].slice(-20),
+                            total_goals: (cur.total_goals||0)+pGoals
+                        }).eq('id',p.id);
+                    }).catch(() => {});
                 }
                 savedCount++;
             }
             await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null});
-            rounds=[];goals=[];
-            render(); applyTimerUI(liveState);
-            showToast('✅ '+savedCount+' meciuri salvate (3 echipe)!');
-        } else {
-            const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
-            const green=players.filter(p=>p.status==='green').map(p=>p.name);
-            const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
-            const goalMap={};realGoals.forEach(g=>{if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};goalMap[g.player_name].count++;});
-            const oScore=realGoals.filter(g=>g.team==='orange').length;
-            const gScore=realGoals.filter(g=>g.team==='green').length;
-            const winner=oScore>gScore?'orange':gScore>oScore?'green':'draw';
-            const winnerLabel=winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
-            const imbalanced=Math.abs(oScore-gScore)>=3;
-            let endedAt=new Date().toISOString();
-            if(liveState?.match_started_at) endedAt=new Date(new Date(liveState.match_started_at).getTime()+calcElapsedSec(liveState)*1000).toISOString();
-            const{data:mh,error:mhErr}=await sb.from('match_history').insert({date:today,winner:winnerLabel,score:oScore+':'+gScore,imbalanced,orange_players:orange,green_players:green,started_at:liveState?.match_started_at||null,ended_at:endedAt}).select().single();
-            if(mhErr) throw mhErr;
-            if(mh?.id){
-                const mvpRows=[];
-                ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
-                if(mvpRows.length){try{await sb.from('mvp_votes').insert(mvpRows);}catch(e){}}
-                if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null})));
-            }
-            for(const name of [...orange,...green]){
-                const p=players.find(x=>x.name===name);if(!p)continue;
-                const inO=orange.includes(name);
-                const won=(inO&&winner==='orange')||(!inO&&winner==='green');
-                const lost=(inO&&winner==='green')||(!inO&&winner==='orange');
-                const pGoals=goalMap[name]?.count||0;
-                try{const{data:cur}=await sb.from('players').select('wins,games,match_history,total_goals,last_imbalance_loss').eq('id',p.id).single();if(cur)await sb.from('players').update({wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,match_history:[...(cur.match_history||[]),won?'W':'L'],total_goals:(cur.total_goals||0)+pGoals,last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)}).eq('id',p.id);}catch(e){}
-            }
-            await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
-            await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
-            goals=[];render();applyTimerUI(liveState);
-            const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
-            showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
+            goals=[]; roundGoalLog=[]; matchPairings=[]; matchStartedAt=null; roundStartSec=0;
+            colorMap={}; teamMap={};
+            timerReset(); render();
+            showToast(`✅ ${savedCount} meciuri salvate (3 echipe)!`);
+            isSaving = false;
+        } catch(e) { isSaving=false; showToast('⚠️ '+e.message); }
+        return;
+    }
+
+    // ── Standard 2-team finalize ───────────────────────────────────
+    const orange = players.filter(p => p.status==='orange').map(p => p.name);
+    const green  = players.filter(p => p.status==='green').map(p => p.name);
+    const winnerLabel = winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
+    const imbalanced = Math.abs(oScore-gScore) >= 3;
+    const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
+    const goalMap = {};
+    realGoals.forEach(g => { if(!goalMap[g.player_name]) goalMap[g.player_name]={count:0,team:g.team}; goalMap[g.player_name].count++; });
+
+    try {
+        let endedAt = new Date().toISOString();
+        if (matchStartedAt) endedAt = new Date(new Date(matchStartedAt).getTime() + timerSeconds()*1000).toISOString();
+
+        const { data: mh, error: mhErr } = await sb.from('match_history').insert({
+            date: new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.'),
+            winner: winnerLabel, score: oScore+':'+gScore, imbalanced,
+            orange_players: orange, green_players: green,
+            started_at: matchStartedAt||null, ended_at: endedAt
+        }).select().single();
+        if (mhErr) throw mhErr;
+
+        if (mh?.id) {
+            const mvpRows = [];
+            ['orange','green'].forEach(team => {
+                const tg = Object.entries(goalMap).filter(([,g]) => g.team===team).sort((a,b) => b[1].count-a[1].count);
+                if (tg.length && tg[0][1].count > 0) mvpRows.push({ match_id:mh.id, voter:'system', mvp_player_name:tg[0][0], mvp_type:'goals' });
+            });
+            if (mvpRows.length) await sb.from('mvp_votes').insert(mvpRows).catch(() => {});
+            if (realGoals.length) await sb.from('match_goals').insert(
+                realGoals.map(g => ({ match_id:mh.id, player_name:g.player_name, team:g.team, goals:1, goals_conceded:0, minute:g.minute??null }))
+            );
         }
-        isSaving=false;
-    } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
+
+        await Promise.all([...orange,...green].map(name => {
+            const p = players.find(x => x.name===name); if (!p) return null;
+            const inO = orange.includes(name);
+            const won  = (inO&&winner==='orange')||(!inO&&winner==='green');
+            const lost = (inO&&winner==='green') ||(!inO&&winner==='orange');
+            const pGoals = goalMap[name]?.count||0;
+            return sb.from('players').select('wins,games,match_history,total_goals,last_imbalance_loss').eq('id',p.id).single().then(({data:cur}) => {
+                if (!cur) return;
+                return sb.from('players').update({
+                    wins:(cur.wins||0)+(won?1:0), games:(cur.games||0)+1,
+                    match_history:[...(cur.match_history||[]),won?'W':'L'],
+                    total_goals:(cur.total_goals||0)+pGoals,
+                    last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)
+                }).eq('id',p.id);
+            });
+        }).filter(Boolean));
+
+        await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        goals=[]; matchStartedAt=null;
+
+        try {
+            const active = players.filter(p => p.status==='orange'||p.status==='green');
+            if (active.length) {
+                await Promise.all(active.map(p => sb.from('players').update({status:'bench'}).eq('id',p.id)));
+                active.forEach(p => p.status='bench');
+            }
+            await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);
+        } catch(e) { console.warn('post-match reset:', e.message); }
+
+        timerReset(); render();
+        const top = Object.entries(goalMap).sort((a,b) => b[1].count-a[1].count)[0];
+        showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
+        isSaving = false;
+    } catch(e) { isSaving=false; showToast('⚠️ '+e.message); }
 }
+
 // ── Share ─────────────────────────────────────────────────────────
 async function shareScore() {
-    const oScore = goals.filter(g=>g.team==='orange').length;
-    const gScore = goals.filter(g=>g.team==='green').length;
+    const oScore = teamScoreReal('orange'), gScore = teamScoreReal('green');
     const dateStr = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'});
     const gpm = goalsMap();
-    const top = Object.entries(gpm).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>'⚽ '+n+' ('+c+')').join('\n');
-    const text = `🟠 Portocaliu ${oScore} - ${gScore} Verde 🟢\nArena Friends FC · ${dateStr}${top?'\n\n'+top:''}`;
+    const topScorers = Object.entries(gpm).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>'⚽ '+n+' ('+c+')').join('\n');
+    const text = `🟠 Portocaliu ${oScore} - ${gScore} Verde 🟢\nArena Friends FC · ${dateStr}${topScorers?'\n\n'+topScorers:''}`;
     try {
         if (navigator.share) await navigator.share({title:'Arena Friends FC',text});
         else { await navigator.clipboard.writeText(text); showToast('📋 Scor copiat!'); }
@@ -1079,40 +1122,18 @@ async function shareScore() {
 
 // ── Reset ─────────────────────────────────────────────────────────
 async function confirmReset() {
-    if (!confirm('Resetezi tot meciul live (scor, ture, cronometru)?')) return;
-    stopLocalTimerTick(); cancelRoundTimeout();
-    try {
-        await Promise.all([
-            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null}),
-        ]);
-        rounds=[]; goals=[];
-        render(); applyTimerUI(liveState);
-    } catch(e) { showToast('⚠️ '+e.message); }
+    if (!confirm('Resetezi scorul live, turele și cronometrul?')) return;
+    goals=[]; roundGoalLog=[]; matchPairings=[]; matchStartedAt=null;
+    roundGoals={orange:0,green:0}; roundStartSec=0;
+    colorMap={}; teamMap={};
+    timerReset(); stopRoundTimer(); render();
+    try { await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'); }
+    catch(e) { showToast('⚠️ '+e.message); }
 }
 
-// ── Realtime subscriptions ────────────────────────────────────────
+// ── Realtime ──────────────────────────────────────────────────────
 function subscribe() {
-    // live_state changes
-    sb.channel('live_state_rt')
-        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'}, payload => {
-            const prev = liveState ? { ...liveState } : null;
-            liveState = payload.new;
-            render();
-            // Only restart timer UI if status changed
-            if (!prev || prev.timer_status !== liveState.timer_status
-                || prev.timer_started_at !== liveState.timer_started_at) {
-                applyTimerUI(liveState);
-            }
-            if (liveState.timer_status === 'running' && liveState.three_team_mode) {
-                scheduleRoundTimeout(liveState);
-            }
-        })
-        .subscribe();
-
-    // live_goals changes
-    sb.channel('live_goals_rt')
+    sb.channel('live_rt2')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'}, p => {
             if (!goals.some(g => g.id === p.new.id)) {
                 const ti = goals.findIndex(g => String(g.id).startsWith('tmp_') && g.player_name===p.new.player_name);
@@ -1120,33 +1141,21 @@ function subscribe() {
                 render(); bump(p.new.team);
             }
         })
-        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'}, () => {
-            sb.from('live_goals').select('*').order('created_at',{ascending:true}).then(({data})=>{ goals=data||[]; render(); });
-        })
-        .subscribe();
-
-    // live_rounds changes
-    sb.channel('live_rounds_rt')
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_rounds'}, p => {
-            if (!rounds.some(r => r.id === p.new.id)) { rounds.push(p.new); render(); }
-        })
-        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; render(); });
-        })
-        .subscribe();
-
-    // players changes
-    sb.channel('players_rt')
+        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'}, () => loadAll())
         .on('postgres_changes',{event:'*',schema:'public',table:'players'}, () => {
-            sb.from('players').select('id,name,status').order('name').then(({data})=>{ players=data||[]; render(); });
+            sb.from('players').select('id,name,status').order('name').then(({data}) => { players=data||[]; render(); });
         })
         .subscribe();
 }
 
 // ── Init ──────────────────────────────────────────────────────────
-document.getElementById('dialogOverlay').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeDialog();
-});
+document.getElementById('dialogOverlay').addEventListener('click', e => { if (e.target===e.currentTarget) closeDialog(); });
+
+// Restore 3-team button visual state on load
+(function(){
+    const btn = document.getElementById('threeBtn');
+    if (btn && threeTeamMode) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+})();
 
 async function init() { await loadAll(); subscribe(); }
 init();
