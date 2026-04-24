@@ -164,8 +164,38 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .ture-body{max-height:220px;overflow-y:auto;display:none;}
 .ture-body.open{display:block;}
-.tur-row{display:flex;align-items:center;gap:7px;padding:7px 14px;border-bottom:1px solid #0a0c14;font-size:.76rem;}
+/* ── Round Detail Modal ─────────────────────────────────── */
+.round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
+.round-detail-overlay.show{display:flex;}
+.round-detail-box{background:#141720;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
+.rd-hd{background:linear-gradient(135deg,#1a0050,#3d006a);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.rd-hd-left{flex:1;}
+.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.rd-sub{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px;}
+.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.rd-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;background:#0d0f18;border-bottom:1px solid #1e2130;}
+.rd-team{text-align:center;flex:1;}
+.rd-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:4px;}
+.rd-team-score{font-family:'Bebas Neue',sans-serif;font-size:3rem;line-height:1;}
+.rd-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.rd-body{overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
+.rd-section{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;}
+.rd-players{display:flex;gap:8px;}
+.rd-pl-col{flex:1;background:#0d0f18;border-radius:8px;padding:8px 10px;border:1px solid #1e2130;}
+.rd-pl-col-hd{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.rd-pl-name{font-size:.78rem;color:#888;padding:2px 0;display:flex;align-items:center;gap:5px;}
+.rd-goal-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #0a0c14;font-size:.8rem;}
+.rd-goal-row:last-child{border-bottom:none;}
+.rd-goal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.rd-goal-name{flex:1;font-weight:700;}
+.rd-goal-min{font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;}
+.rd-meta-row{display:flex;gap:8px;}
+.rd-meta-chip{flex:1;background:#0d0f18;border:1px solid #1e2130;border-radius:8px;padding:8px 10px;text-align:center;}
+.rd-meta-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ce93d8;}
+.rd-meta-lbl{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #0a0c14;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
 .tur-row:last-child{border-bottom:none;}
+.tur-row:active{background:#0f1118;}
 .tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#444;min-width:34px;}
 .tur-teams{display:flex;align-items:center;gap:4px;flex:1;}
 .tur-score{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:28px;text-align:center;}
@@ -644,12 +674,9 @@ async function saveRoundToDB(loserColor, reason) {
     const oG = roundGoals.filter(g => g.team === 'orange').length;
     const gG = roundGoals.filter(g => g.team === 'green').length;
     const durationSec = Math.max(0, calcRoundElapsedSec(liveState));
-    const scores = {};
-    if (oTid) scores[oTid] = oG;
-    if (gTid) scores[gTid] = gG;
     const num = rounds.length + 1;
 
-    const { error } = await sb.from('live_rounds').insert({
+    const roundData = {
         num,
         team_a_id:      oTid || 'teamA',
         team_b_id:      gTid || 'teamB',
@@ -660,8 +687,18 @@ async function saveRoundToDB(loserColor, reason) {
         goals:          roundGoals,
         duration_sec:   durationSec,
         end_reason:     reason,
-    });
-    if (error) console.error('saveRound:', error.message);
+    };
+
+    const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
+    if (error) {
+        console.error('saveRound:', error.message);
+        // Push with temp id so UI updates even if DB fails
+        rounds.push({ ...roundData, id: 'tmp_' + Date.now() });
+    } else if (data) {
+        // Update locally immediately — don't wait for Realtime roundtrip
+        if (!rounds.some(r => r.id === data.id)) rounds.push(data);
+    }
+    renderTureHistory();
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
@@ -871,9 +908,10 @@ function renderTureHistory() {
         const cA = winA ? '#69f0ae' : winB ? '#ef9a9a' : '#aaa';
         const cB = winB ? '#69f0ae' : winA ? '#ef9a9a' : '#aaa';
         const min = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
-        const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final' };
+        const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final', penalty:'penalty' };
         const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
-        return `<div class="tur-row">
+        const rId = r.id;
+        return `<div class="tur-row" onclick="showRoundDetail('${rId}')">
             <span class="tur-num">Tur ${r.num}</span>
             <span class="tur-teams">${tidBadge(tA)} ${tidBadge(tB)}</span>
             <span class="tur-score">
@@ -882,6 +920,7 @@ function renderTureHistory() {
                 <span style="color:${cB}">${sB}</span>
             </span>
             <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
+            <span style="color:#333;font-size:.7rem;">›</span>
         </div>`;
     }).join('');
 }
@@ -892,6 +931,66 @@ function toggleTure() {
     if (!body) return;
     const open = body.classList.toggle('open');
     if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+// ── Round Detail Modal ────────────────────────────────────────────
+function showRoundDetail(roundId) {
+    const r = rounds.find(x => String(x.id) === String(roundId));
+    if (!r) return;
+
+    const tA = r.team_a_id, tB = r.team_b_id;
+    const sA = r.score_a || 0, sB = r.score_b || 0;
+    const winA = sA > sB, winB = sB > sA;
+    const cA = winA ? 'var(--g)' : winB ? '#ef9a9a' : '#aaa';
+    const cB = winB ? 'var(--g)' : winA ? '#ef9a9a' : '#aaa';
+
+    const rLabels = { goals:'⚽ Goluri', time:'⏱ Timp', manual:'✋ Manual', final:'🏁 Final', penalty:'⚽ Penalty' };
+    const endLabel = rLabels[r.end_reason] || r.end_reason || '—';
+    const durMin = r.duration_sec ? Math.floor(r.duration_sec/60)+"'"+String(r.duration_sec%60).padStart(2,'0')+"\"" : '—';
+
+    // Goals from this round
+    const rGoals = Array.isArray(r.goals) ? r.goals : [];
+    const scorersHtml = rGoals.length
+        ? rGoals.map(g => {
+            const col = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
+            const min = g.minute != null ? g.minute+"'" : '';
+            return `<div class="rd-goal-row">
+                <div class="rd-goal-dot" style="background:${col};"></div>
+                <span class="rd-goal-name">${g.player_name}</span>
+                <span class="rd-goal-min">${min}</span>
+            </div>`;
+        }).join('')
+        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat</div>';
+
+    // Players columns
+    const oPlayers = Array.isArray(r.orange_players) ? r.orange_players : [];
+    const gPlayers = Array.isArray(r.green_players)  ? r.green_players  : [];
+    const oGoals = rGoals.filter(g => g.team === 'orange');
+    const gGoals = rGoals.filter(g => g.team === 'green');
+
+    const makePlayerList = (pls, teamGoals) => pls.map(name => {
+        const cnt = teamGoals.filter(g => g.player_name === name).length;
+        return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#69f0ae;">⚽'+cnt+'</span>' : ''}</div>`;
+    }).join('') || '<div style="color:#333;font-size:.72rem;">—</div>';
+
+    document.getElementById('rdTitle').textContent = `Tur ${r.num}`;
+    document.getElementById('rdSub').textContent = `${tA} vs ${tB}`;
+    document.getElementById('rdScoreA').style.color = cA;
+    document.getElementById('rdScoreA').textContent = sA;
+    document.getElementById('rdScoreB').style.color = cB;
+    document.getElementById('rdScoreB').textContent = sB;
+    document.getElementById('rdTeamA').innerHTML = tidBadge(tA);
+    document.getElementById('rdTeamB').innerHTML = tidBadge(tB);
+    document.getElementById('rdDur').textContent = durMin;
+    document.getElementById('rdEnd').textContent = endLabel;
+    document.getElementById('rdOPlayers').innerHTML = makePlayerList(oPlayers, oGoals);
+    document.getElementById('rdGPlayers').innerHTML = makePlayerList(gPlayers, gGoals);
+    document.getElementById('rdScorers').innerHTML = scorersHtml;
+
+    document.getElementById('roundDetailOverlay').classList.add('show');
+}
+function closeRoundDetail() {
+    document.getElementById('roundDetailOverlay').classList.remove('show');
 }
 
 // ── Log ───────────────────────────────────────────────────────────
@@ -1197,10 +1296,14 @@ function subscribe() {
     // live_rounds changes
     sb.channel('live_rounds_rt')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_rounds'}, p => {
-            if (!rounds.some(r => r.id === p.new.id)) { rounds.push(p.new); render(); }
+            // Replace any tmp_ placeholder with real DB row
+            const tmpIdx = rounds.findIndex(r => String(r.id).startsWith('tmp_') && r.num === p.new.num);
+            if (tmpIdx !== -1) rounds[tmpIdx] = p.new;
+            else if (!rounds.some(r => r.id === p.new.id)) rounds.push(p.new);
+            renderTureHistory();
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; render(); });
+            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
         })
         .subscribe();
 
@@ -1529,6 +1632,59 @@ init();
     </div>
   </div>
 </div>
+<!-- Round Detail Modal -->
+<div class="round-detail-overlay" id="roundDetailOverlay" onclick="if(event.target===this)closeRoundDetail()">
+  <div class="round-detail-box">
+    <div class="rd-hd">
+      <div class="rd-hd-left">
+        <div class="rd-title" id="rdTitle">Tur 1</div>
+        <div class="rd-sub" id="rdSub"></div>
+      </div>
+      <button class="rd-close" onclick="closeRoundDetail()">✕</button>
+    </div>
+    <div class="rd-score-row">
+      <div class="rd-team">
+        <div class="rd-team-lbl" id="rdTeamA">teamA</div>
+        <div class="rd-team-score" id="rdScoreA" style="color:var(--o)">0</div>
+      </div>
+      <div class="rd-vs">:</div>
+      <div class="rd-team">
+        <div class="rd-team-lbl" id="rdTeamB">teamB</div>
+        <div class="rd-team-score" id="rdScoreB" style="color:var(--g)">0</div>
+      </div>
+    </div>
+    <div class="rd-body">
+      <div>
+        <div class="rd-section">Jucători</div>
+        <div class="rd-players">
+          <div class="rd-pl-col">
+            <div class="rd-pl-col-hd" style="color:var(--o)">🟠 Portocaliu</div>
+            <div id="rdOPlayers"></div>
+          </div>
+          <div class="rd-pl-col">
+            <div class="rd-pl-col-hd" style="color:var(--g)">🟢 Verde</div>
+            <div id="rdGPlayers"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="rd-section">Goluri marcate</div>
+        <div id="rdScorers"></div>
+      </div>
+      <div class="rd-meta-row">
+        <div class="rd-meta-chip">
+          <div class="rd-meta-val" id="rdDur">—</div>
+          <div class="rd-meta-lbl">Durată</div>
+        </div>
+        <div class="rd-meta-chip">
+          <div class="rd-meta-val" id="rdEnd">—</div>
+          <div class="rd-meta-lbl">Motiv schimb</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Reset Confirm Modal -->
 <div class="reset-overlay" id="resetOverlay">
   <div class="reset-box">
