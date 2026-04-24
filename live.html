@@ -629,6 +629,8 @@ function switchTeamTab(teamId, teamIds) {
     renderColorPalette(cfg.hex);
     renderTeamTabs(teamIds);
 }
+
+async function patchState(patch) {
     // Apply locally immediately — no waiting for Realtime roundtrip
     liveState = { ...liveState, ...patch };
     const { error } = await sb.from('live_state').update(patch).eq('id', 1);
