@@ -986,16 +986,20 @@ async function manualSwap(loserColor) {
 
 // ── Load all data ─────────────────────────────────────────────────
 async function loadAll() {
-    const [{ data: st }, { data: pl }, { data: gl }, { data: rd }] = await Promise.all([
+    const [{ data: st }, { data: pl }, { data: gl }] = await Promise.all([
         sb.from('live_state').select('*').eq('id', 1).single(),
         sb.from('players').select('id,name,status').order('name'),
         sb.from('live_goals').select('*').order('created_at', { ascending: true }),
-        sb.from('live_rounds').select('*').eq('session_id', st.session_id || '').order('num', { ascending: true }),
     ]);
     liveState = st;
     players   = pl || [];
     goals     = gl || [];
-    rounds    = rd || [];
+    // Fetch rounds filtered by session_id (needs liveState first)
+    const { data: rd } = await sb.from('live_rounds')
+        .select('*')
+        .eq('session_id', st?.session_id || '')
+        .order('num', { ascending: true });
+    rounds = rd || [];
     render();
     applyTimerUI(liveState);
 }
