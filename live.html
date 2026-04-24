@@ -293,10 +293,6 @@ main, body{padding-bottom:80px;}
   <div class="half-badge" id="halfBadge"></div>
   <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
     <div style="width:1px;height:18px;background:#1e2130;margin:0 2px;"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;">
-      <span style="font-size:.42rem;color:#444;text-transform:uppercase;letter-spacing:.5px;">TUR</span>
-      <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#ce93d8;line-height:1;">0:00</span>
-    </div>
     <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
 </div>
@@ -306,7 +302,7 @@ main, body{padding-bottom:80px;}
     <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
     <div class="sc-sep">
       <div>:</div>
-      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;letter-spacing:1px;text-align:center;margin-top:3px;display:none;line-height:1;">0:00</div>
+      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#ce93d8;letter-spacing:2px;text-align:center;margin-top:2px;display:none;line-height:1;"></div>
     </div>
     <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
@@ -812,25 +808,19 @@ function updateRoundTimerBar() {
     if (!widget) return;
     const in3team = !!liveState?.three_team_mode;
     widget.style.display = in3team ? 'flex' : 'none';
-    if (!in3team) return;
-    const lbl = document.getElementById('roundTimeLeft');
-    if (liveState?.timer_status !== 'running') { if (lbl) lbl.textContent = '—'; return; }
+    const lbl = document.getElementById('roundTimeLbl');
+    if (!lbl) return;
+    if (!in3team || liveState?.timer_status !== 'running' || !liveState?.time_limit_min) {
+        lbl.style.display = 'none'; return;
+    }
     const totalSec  = (liveState.time_limit_min || 10) * 60;
     const elapsed   = calcRoundElapsedSec(liveState);
     const remaining = Math.max(0, totalSec - elapsed);
     const pct       = Math.min(1, elapsed / totalSec);
-    if (lbl) {
-        const m = Math.floor(remaining/60), s = remaining%60;
-        lbl.textContent = m+':'+(s<10?'0':'')+s;
-        lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
-    }
-    // Also update the score-area label
-    const scLbl = document.getElementById('roundTimeLbl');
-    if (scLbl && scLbl.style.display !== 'none') {
-        const m2 = Math.floor(remaining/60), s2 = remaining%60;
-        scLbl.textContent = m2+':'+(s2<10?'0':'')+s2;
-        scLbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
-    }
+    const m = Math.floor(remaining/60), s = remaining%60;
+    lbl.textContent = m+':'+(s<10?'0':'')+s;
+    lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
+    lbl.style.display = 'block';
 }
 
 async function onRoundTimeout() {
@@ -1223,20 +1213,6 @@ function render() {
     renderLog();
     renderTureHistory();
     updateRoundTimerBar();
-
-    // Round time LEFT under colon — shown in 3-team mode when timer running
-    const rtLbl = document.getElementById('roundTimeLbl');
-    if (rtLbl) {
-        if (mode && liveState.timer_status === 'running' && liveState.time_limit_min) {
-            const totalSec = (liveState.time_limit_min || 10) * 60;
-            const elapsed  = calcRoundElapsedSec(liveState);
-            const left     = Math.max(0, totalSec - elapsed);
-            const m = Math.floor(left/60), s = left%60;
-            rtLbl.textContent = m+':'+(s<10?'0':'')+s;
-            rtLbl.style.color = left < 60 ? '#ef9a9a' : left < 120 ? '#ffd54f' : '#ce93d8';
-            rtLbl.style.display = 'block';
-        } else { rtLbl.style.display = 'none'; }
-    }
 
     // Transfer button: admin only
     const tbw = document.getElementById('transferBtnWrap');
