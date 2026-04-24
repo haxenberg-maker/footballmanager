@@ -994,11 +994,12 @@ async function loadAll() {
     liveState = st;
     players   = pl || [];
     goals     = gl || [];
-    // Fetch rounds filtered by session_id (needs liveState first)
-    const { data: rd } = await sb.from('live_rounds')
-        .select('*')
-        .eq('session_id', st?.session_id || '')
-        .order('num', { ascending: true });
+    // Fetch rounds - filter by session_id if available, otherwise fetch all
+    const sessionId = st?.session_id;
+    const roundsQuery = sessionId
+        ? sb.from('live_rounds').select('*').eq('session_id', sessionId).order('num', { ascending: true })
+        : sb.from('live_rounds').select('*').order('num', { ascending: true });
+    const { data: rd } = await roundsQuery;
     rounds = rd || [];
     render();
     applyTimerUI(liveState);
@@ -1711,7 +1712,11 @@ function subscribe() {
             renderTureHistory();
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            sb.from('live_rounds').select('*').eq('session_id', liveState?.session_id || '').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
+            const sid = liveState?.session_id;
+            const q = sid
+                ? sb.from('live_rounds').select('*').eq('session_id', sid).order('num',{ascending:true})
+                : sb.from('live_rounds').select('*').order('num',{ascending:true});
+            q.then(({data})=>{ rounds=data||[]; renderTureHistory(); });
         })
         .subscribe();
 
