@@ -103,7 +103,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .log-toggle{background:#0a0c10;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
 .log-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
 .log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #2a2d40;color:#82b1ff;font-size:.6rem;padding:1px 6px;border-radius:10px;}
-.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:80px;}
+.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
 .log-panel.open{display:block;}
 .log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #0a0c14;font-size:.78rem;}
 .log-entry:last-child{border-bottom:none;}
@@ -117,7 +117,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
 /* Extra padding so last player row is never hidden by bottom-bar */
-.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;}
 main, body{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
@@ -443,6 +442,8 @@ function tryAutoAuth() {
         isLiveAdmin = player.role === 'admin';
         document.getElementById('adminBadge').textContent = player.name;
         document.getElementById('adminBadge').style.display = 'inline-block';
+        // Re-render so transfer button appears if admin
+        if (isLiveAdmin) render();
     }
 }
 
@@ -855,7 +856,9 @@ function getRoundGoals() {
 
 // ── All match goals = past rounds + current round ─────────────────
 function allMatchGoals() {
-    const past = rounds.flatMap(r => Array.isArray(r.goals) ? r.goals : []);
+    const past = rounds.flatMap(r =>
+        (Array.isArray(r.goals) ? r.goals : []).map(g => ({ ...g, _roundNum: r.num }))
+    );
     return [...past, ...goals.filter(g => !String(g.id).startsWith('tmp_'))];
 }
 
@@ -1210,7 +1213,7 @@ function render() {
         }
     }
 
-    renderLog(realGoals);
+    renderLog();
     renderTureHistory();
     updateRoundTimerBar();
 
@@ -1343,23 +1346,28 @@ function closeRoundDetail() {
 }
 
 // ── Log ───────────────────────────────────────────────────────────
-function renderLog(realGoals) {
-    document.getElementById('logCnt').textContent = realGoals.length;
+function renderLog() {
+    // Show ALL goals across entire match (past rounds + current round)
+    const allGoals = allMatchGoals();
+    document.getElementById('logCnt').textContent = allGoals.length;
     const panel = document.getElementById('logPanel');
     const empty = document.getElementById('logEmpty');
     panel.querySelectorAll('.log-entry').forEach(e => e.remove());
-    if (!realGoals.length) { if (empty) empty.style.display='block'; return; }
+    if (!allGoals.length) { if (empty) empty.style.display='block'; return; }
     if (empty) empty.style.display = 'none';
     const frag = document.createDocumentFragment();
-    [...realGoals].reverse().forEach(g => {
+    [...allGoals].reverse().forEach(g => {
         const div = document.createElement('div');
         div.className = 'log-entry';
+        // In past rounds, team slot may have rotated — use team field as stored
         const dot = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
         const min = g.minute != null ? g.minute+"'" : "—'";
-        div.innerHTML = '<span class="log-min">'+min+'</span>'
+        const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#333;">T${g._roundNum}</span> ` : '';
+        div.innerHTML = roundLbl
+            + '<span class="log-min">'+min+'</span>'
             + '<div class="log-dot" style="background:'+dot+';"></div>'
             + '<span class="log-name">'+g.player_name+'</span>'
-            + '<span class="log-badge">⚽ Gol</span>';
+            + '<span class="log-badge">⚽</span>';
         frag.appendChild(div);
     });
     panel.insertBefore(frag, panel.firstChild);
