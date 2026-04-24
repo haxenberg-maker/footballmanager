@@ -6282,7 +6282,7 @@ async function launchLive(){
 
         closeStartMatch();
         showToast('✅ Meci pregătit! Deschidere Live...');
-        setTimeout(()=> window.open('live.html?match='+matchId, '_blank'), 400);
+        setTimeout(()=> window.open('live.html?match='+matchId+'&admin=1', '_blank'), 400);
     }catch(e){
         showToast('⚠️ Eroare: '+e.message);
         if(btn){ btn.disabled=false; btn.textContent='▶ Start Meci — Deschide Live'; }

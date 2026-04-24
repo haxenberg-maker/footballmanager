@@ -114,10 +114,11 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .log-empty{padding:16px 14px;color:#333;font-size:.78rem;text-align:center;}
 
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
-.btn-share{flex:0 0 auto;padding:12px 16px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;cursor:pointer;background:#141720;border:1px solid var(--b);color:#555;min-height:48px;touch-action:manipulation;}
-.btn-share:hover{border-color:#555;color:#fff;}
-.btn-finalize{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
+.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
+/* Extra padding so last player row is never hidden by bottom-bar */
+.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;}
+main, body{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog-overlay.show{display:flex;}
@@ -297,7 +298,10 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="score-wrap">
   <div class="score-row">
     <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
-    <div class="sc-sep">:</div>
+    <div class="sc-sep">
+      <div>:</div>
+      <div id="roundElapsedLbl" style="font-family:'Bebas Neue',sans-serif;font-size:.7rem;color:#333;letter-spacing:1px;text-align:center;margin-top:2px;display:none;">0:00</div>
+    </div>
     <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
   <div class="score-sub" id="scoreSub"></div>
@@ -341,7 +345,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 
 <div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
 
-<div class="rotation-toast" id="rotationToast"></div>
+<!-- Transfer button - admin only -->
+<div id="transferBtnWrap" style="display:none;padding:6px 12px 2px;">
+  <button onclick="openTransfer()" style="width:100%;padding:10px;border-radius:9px;background:#0d0f18;border:1px dashed #2a2d40;color:#555;font-size:.78rem;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;">
+    ⇄ Transfer jucător între echipe
+  </button>
+</div>
 
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
@@ -360,7 +369,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 </div>
 
 <div class="bottom-bar">
-  <button class="btn-share" onclick="shareScore()">📋 Share</button>
   <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
 </div>
 
@@ -373,6 +381,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
+const isLiveAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
 
 // ── Local state (derived from DB, never source of truth) ──────────
 let players    = [];
@@ -1146,6 +1155,21 @@ function render() {
     renderLog(realGoals);
     renderTureHistory();
     updateRoundTimerBar();
+
+    // Round elapsed under colon
+    const elLbl = document.getElementById('roundElapsedLbl');
+    if (elLbl) {
+        if (mode && liveState.timer_status === 'running') {
+            const e = calcRoundElapsedSec(liveState);
+            const m = Math.floor(e/60), s = e%60;
+            elLbl.textContent = m+':'+(s<10?'0':'')+s;
+            elLbl.style.display = 'block';
+        } else { elLbl.style.display = 'none'; }
+    }
+
+    // Transfer button: admin only
+    const tbw = document.getElementById('transferBtnWrap');
+    if (tbw) tbw.style.display = isLiveAdmin ? 'block' : 'none';
 }
 
 // ── Ture history ──────────────────────────────────────────────────
@@ -1633,20 +1657,79 @@ async function finalizeMatch2Team(finalRounds) {
         isSaving=false;
     } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
 }
-// ── Share ─────────────────────────────────────────────────────────
-async function shareScore() {
-    const oScore = goals.filter(g=>g.team==='orange').length;
-    const gScore = goals.filter(g=>g.team==='green').length;
-    const dateStr = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'});
-    const gpm = goalsMap();
-    const top = Object.entries(gpm).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>'⚽ '+n+' ('+c+')').join('\n');
-    const text = `${getTeamName('orange')} ${oScore} - ${gScore} ${getTeamName('green')}\nArena Friends FC · ${dateStr}${top?'\n\n'+top:''}`;
-    try {
-        if (navigator.share) await navigator.share({title:'Arena Friends FC',text});
-        else { await navigator.clipboard.writeText(text); showToast('📋 Scor copiat!'); }
-    } catch(e) { showToast('⚠️ Nu s-a putut copia'); }
-}
+// ── Transfer jucător ──────────────────────────────────────────────
+let _transferPlayer = null;
+let _transferTarget = null;
 
+function openTransfer() {
+    _transferPlayer = null; _transferTarget = null;
+    renderTransferBody();
+    document.getElementById('transferOverlay').classList.add('show');
+}
+function closeTransfer() {
+    document.getElementById('transferOverlay').classList.remove('show');
+}
+function renderTransferBody() {
+    const all = players.filter(p => ['orange','green','bench'].includes(p.status));
+    const slots = ['orange','green','bench'];
+    const slotLabel = s => getTeamName(s);
+    const slotHex   = s => getTeamHex(s);
+
+    const playersList = slots.map(slot => {
+        const grp = all.filter(p => p.status === slot);
+        if (!grp.length) return '';
+        return `<div style="margin-bottom:8px;">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:${slotHex(slot)};font-weight:700;margin-bottom:4px;">${slotLabel(slot)}</div>
+            ${grp.map(p => `
+                <div onclick="selectTransferPlayer('${p.id}')" id="tp_${p.id}"
+                    style="padding:8px 10px;border-radius:8px;border:1px solid ${_transferPlayer===p.id?slotHex(slot):'#1e2130'};
+                    background:${_transferPlayer===p.id?slotHex(slot)+'22':'#0d0f18'};
+                    color:${_transferPlayer===p.id?'#fff':'#888'};font-size:.82rem;font-weight:700;
+                    margin-bottom:3px;cursor:pointer;touch-action:manipulation;">
+                    ${p.name} <span style="font-size:.65rem;color:${slotHex(slot)};opacity:.6;">(${slotLabel(slot)})</span>
+                </div>`).join('')}
+        </div>`;
+    }).join('');
+
+    const targetHtml = _transferPlayer ? (() => {
+        const cur = players.find(p=>p.id===_transferPlayer);
+        return `<div style="margin-top:10px;border-top:1px solid #1e2130;padding-top:10px;">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:6px;">Mută la echipa:</div>
+            ${slots.filter(s=>s!==cur?.status).map(s=>`
+                <div onclick="selectTransferTarget('${s}')" 
+                    style="padding:9px 12px;border-radius:8px;border:1px solid ${_transferTarget===s?slotHex(s):'#1e2130'};
+                    background:${_transferTarget===s?slotHex(s)+'22':'#0d0f18'};
+                    color:${_transferTarget===s?'#fff':'#666'};font-size:.85rem;font-weight:700;
+                    margin-bottom:4px;cursor:pointer;touch-action:manipulation;">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${slotHex(s)};margin-right:6px;vertical-align:middle;"></span>
+                    ${slotLabel(s)}
+                </div>`).join('')}
+        </div>`;
+    })() : '';
+
+    document.getElementById('transferBody').innerHTML = playersList + targetHtml;
+    const btn = document.getElementById('transferConfirmBtn');
+    if (btn) btn.disabled = !(_transferPlayer && _transferTarget);
+}
+function selectTransferPlayer(id) {
+    _transferPlayer = id; _transferTarget = null;
+    renderTransferBody();
+}
+function selectTransferTarget(slot) {
+    _transferTarget = slot;
+    renderTransferBody();
+}
+async function confirmTransfer() {
+    if (!_transferPlayer || !_transferTarget) return;
+    const p = players.find(x=>x.id===_transferPlayer);
+    if (!p) return;
+    players = players.map(x=>x.id===_transferPlayer ? {...x,status:_transferTarget} : x);
+    render();
+    closeTransfer();
+    try { await sb.from('players').update({status:_transferTarget}).eq('id',_transferPlayer); }
+    catch(e) { showToast('⚠️ '+e.message); }
+    showToast(`✓ ${p.name} → ${getTeamName(_transferTarget)}`);
+}
 // ── Reset ─────────────────────────────────────────────────────────
 function confirmReset() {
     document.getElementById('resetOverlay').classList.add('show');
@@ -2163,5 +2246,18 @@ init();
     </div>
   </div>
 </div>
+<!-- Transfer Modal -->
+<div class="dialog-overlay" id="transferOverlay" onclick="if(event.target===this)closeTransfer()">
+  <div class="dialog-box" style="max-width:380px;">
+    <div class="dialog-title" style="font-size:1rem;">⇄ Transfer Jucător</div>
+    <div id="transferBody"></div>
+    <div class="dialog-actions" style="margin-top:12px;">
+      <button class="dia-cancel" onclick="closeTransfer()">✕ Anulează</button>
+      <button class="dia-confirm" id="transferConfirmBtn" onclick="confirmTransfer()" disabled>✓ Transferă</button>
+    </div>
+  </div>
+</div>
+
+<div class="rotation-toast" id="rotationToast"></div>
 </body>
 </html>
