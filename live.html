@@ -310,8 +310,8 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
       <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
       <div style="display:flex;gap:5px;align-items:center;">
         <button onclick="openPenalty()" style="padding:4px 8px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;">⚽ Pen</button>
-        <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔🟠</button>
-        <button class="swap-btn swap-g" onclick="manualSwap('green')">↔🟢</button>
+        <button class="swap-btn swap-o" onclick="manualSwap('orange')" id="swapBtnO">↔ O</button>
+        <button class="swap-btn swap-g" onclick="manualSwap('green')" id="swapBtnG">↔ G</button>
       </div>
     </div>
     <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
@@ -751,9 +751,8 @@ async function onRoundTimeout() {
         showRotationToast(`⏱️ TIMP! ${oG}-${gG} — PENALTYURI!`);
         setTimeout(() => openPenaltyModal(), 800);
     } else {
-        // Clear winner by goals — loser exits
         const loser = oG > gG ? 'green' : 'orange';
-        showRotationToast(`⏱️ TIMP! ${loser==='orange'?'🟠':'🟢'} Cel mai puțin goluri — IESE!`);
+        showRotationToast(`⏱️ TIMP! ${getTeamName(loser)} — goluri mai puține, IESE!`);
         setTimeout(() => doRotation(loser, 'time'), 700);
     }
 }
@@ -852,11 +851,11 @@ async function checkGoalRotation() {
     if (conc.orange >= threshold) {
         cancelRoundTimeout();
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
-        setTimeout(() => showRotationConfirm('orange','goals',`🟠 ${conc.orange} goluri primite — trebuie să schimbăm!`), 400);
+        setTimeout(() => showRotationConfirm('orange','goals',`${getTeamName('orange')}: ${conc.orange} goluri primite — schimb!`), 400);
     } else if (conc.green >= threshold) {
         cancelRoundTimeout();
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
-        setTimeout(() => showRotationConfirm('green','goals',`🟢 ${conc.green} goluri primite — trebuie să schimbăm!`), 400);
+        setTimeout(() => showRotationConfirm('green','goals',`${getTeamName('green')}: ${conc.green} goluri primite — schimb!`), 400);
     }
 }
 
@@ -947,7 +946,7 @@ async function doRotation(loserColor, reason) {
         const newRoundStartSec = calcElapsedSec(liveState);
         await patchState({ color_map: newColorMap, team_registry: oldRegistry, round_start_sec: newRoundStartSec });
 
-        showRotationToast(`${loserColor === 'orange' ? '🟠 PORTOCALIU' : '🟢 VERDE'} IESE · Echipa nouă INTRĂ`);
+        showRotationToast(`${getTeamName(loserColor)} IESE · ${getTeamName('bench')} INTRĂ`);
         scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
 
     } catch(e) {
@@ -1108,6 +1107,10 @@ function render() {
                 wLbl.style.cursor = 'pointer';
                 wLbl.onclick = () => openNameEdit('bench');
             }
+            const swapO = document.getElementById('swapBtnO');
+            const swapG = document.getElementById('swapBtnG');
+            if (swapO) { swapO.textContent = '↔ ' + oName; swapO.style.borderColor = oHex; swapO.style.color = oHex; }
+            if (swapG) { swapG.textContent = '↔ ' + gName; swapG.style.borderColor = gHex; swapG.style.color = gHex; }
             if (wp) wp.innerHTML = bench.length
                     ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
                     : '<span style="color:#333;font-size:.72rem;">Nimeni</span>';
@@ -1390,7 +1393,7 @@ async function finalizeMatch(finalRounds) {
             let savedCount = 0;
             for (const r of finalRounds) {
                 if (!r.orange_players?.length || !r.green_players?.length) continue;
-                const pWinner = r.score_a>r.score_b?'Portocaliu':r.score_b>r.score_a?'Verde':'Egal';
+                const pWinner = r.score_a>r.score_b ? getTeamNameById(r.team_a_id) : r.score_b>r.score_a ? getTeamNameById(r.team_b_id) : 'Egal';
                 const { data: mh, error: mhErr } = await sb.from('match_history').insert({
                     date: today, winner: pWinner, score: r.score_a+':'+r.score_b,
                     imbalanced: Math.abs(r.score_a-r.score_b)>=3,
@@ -1432,7 +1435,7 @@ async function finalizeMatch(finalRounds) {
             const oScore=realGoals.filter(g=>g.team==='orange').length;
             const gScore=realGoals.filter(g=>g.team==='green').length;
             const winner=oScore>gScore?'orange':gScore>oScore?'green':'draw';
-            const winnerLabel=winner==='orange'?'Portocaliu':winner==='green'?'Verde':'Egal';
+            const winnerLabel=winner==='orange'?getTeamName('orange'):winner==='green'?getTeamName('green'):'Egal';
             const imbalanced=Math.abs(oScore-gScore)>=3;
             let endedAt=new Date().toISOString();
             if(liveState?.match_started_at) endedAt=new Date(new Date(liveState.match_started_at).getTime()+calcElapsedSec(liveState)*1000).toISOString();
@@ -1469,7 +1472,7 @@ async function shareScore() {
     const dateStr = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'});
     const gpm = goalsMap();
     const top = Object.entries(gpm).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,c])=>'⚽ '+n+' ('+c+')').join('\n');
-    const text = `🟠 Portocaliu ${oScore} - ${gScore} Verde 🟢\nArena Friends FC · ${dateStr}${top?'\n\n'+top:''}`;
+    const text = `${getTeamName('orange')} ${oScore} - ${gScore} ${getTeamName('green')}\nArena Friends FC · ${dateStr}${top?'\n\n'+top:''}`;
     try {
         if (navigator.share) await navigator.share({title:'Arena Friends FC',text});
         else { await navigator.clipboard.writeText(text); showToast('📋 Scor copiat!'); }
@@ -1607,9 +1610,9 @@ function renderPenaltySelect() {
     }).join('');
     const ready=penState.kickersO.length===N&&penState.kickersG.length===N;
     return `<div class="pen-select-area">
-        <div class="pen-select-title">🟠 Portocaliu — selectează ${N} lovitori (în ordine)</div>
+        <div class="pen-select-title" style="color:${getTeamHex('orange')}">${getTeamName('orange')} — selectează ${N} lovitori (în ordine)</div>
         <div>${chips(oP,'orange',penState.kickersO)}</div>
-        <div class="pen-select-title" style="margin-top:12px;">🟢 Verde — selectează ${N} lovitori</div>
+        <div class="pen-select-title" style="margin-top:12px;color:${getTeamHex('green')}">${getTeamName('green')} — selectează ${N} lovitori</div>
         <div>${chips(gP,'green',penState.kickersG)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
             <span style="font-size:.7rem;color:#555;">Lovituri:</span>
@@ -1649,7 +1652,7 @@ function renderPenaltyShooting() {
     if(idx>=shots.length){ checkPenaltyRoundEnd(); return renderPenalty()||''; }
     const cur=shots[idx];
     const teamColor=cur.team==='orange'?'var(--o)':'var(--g)';
-    const teamLabel=cur.team==='orange'?'🟠 Portocaliu':'🟢 Verde';
+    const teamLabel=cur.team==='orange'?getTeamName('orange'):getTeamName('green');
     const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
     const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
     const makeDots=team=>penState[team==='orange'?'kickersO':'kickersG'].map((_,i)=>{
@@ -1658,9 +1661,9 @@ function renderPenaltyShooting() {
         return `<div class="pen-dot ${cls}"></div>`;
     }).join('');
     return `<div class="penalty-score-row">
-        <div class="pen-team-score"><div class="pen-team-lbl">🟠 Portocaliu</div><div class="pen-score-num" style="color:var(--o);">${oG}</div><div class="pen-dots">${makeDots('orange')}</div></div>
+        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('orange')}">${getTeamName('orange')}</div><div class="pen-score-num" style="color:var(--o);">${oG}</div><div class="pen-dots">${makeDots('orange')}</div></div>
         <div class="pen-vs">vs</div>
-        <div class="pen-team-score"><div class="pen-team-lbl">🟢 Verde</div><div class="pen-score-num" style="color:var(--g);">${gG}</div><div class="pen-dots">${makeDots('green')}</div></div>
+        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('green')}">${getTeamName('green')}</div><div class="pen-score-num" style="color:var(--g);">${gG}</div><div class="pen-dots">${makeDots('green')}</div></div>
     </div>
     <div class="penalty-current">
         <div class="penalty-kicker-label">Lovitură ${Math.floor(idx/2)+1} — ${teamLabel}</div>
@@ -1672,9 +1675,9 @@ function renderPenaltyShooting() {
         <button class="penalty-btn-miss" onclick="recordPenaltyShot('miss')">❌ RATAT</button>
     </div>
     <div class="penalty-kicker-list">
-        <div class="pen-list-section">🟠</div>
+        <div class="pen-list-section" style="color:${getTeamHex('orange')}">${getTeamName('orange')}</div>
         ${penState.kickersO.map((n,i)=>{const s=shots[i*2];return '<div class="pen-list-row"><span class="pen-list-name">'+n+'</span><span class="pen-list-result">'+(s?.result==='goal'?'✅':s?.result==='miss'?'❌':'○')+'</span></div>';}).join('')}
-        <div class="pen-list-section" style="margin-top:6px;">🟢</div>
+        <div class="pen-list-section" style="margin-top:6px;color:${getTeamHex('green')}">${getTeamName('green')}</div>
         ${penState.kickersG.map((n,i)=>{const s=shots[i*2+1];return '<div class="pen-list-row"><span class="pen-list-name">'+n+'</span><span class="pen-list-result">'+(s?.result==='goal'?'✅':s?.result==='miss'?'❌':'○')+'</span></div>';}).join('')}
     </div>`;
 }
@@ -1715,8 +1718,8 @@ function checkPenaltyRoundEnd() {
 
 function renderPenaltyDone() {
     const loser=penState.loser, winner=loser==='orange'?'green':'orange';
-    const winLabel=winner==='orange'?'🟠 Portocaliu':'🟢 Verde';
-    const loseLabel=loser==='orange'?'🟠 Portocaliu':'🟢 Verde';
+    const winLabel=winner==='orange'?getTeamName('orange'):getTeamName('green');
+    const loseLabel=loser==='orange'?getTeamName('orange'):getTeamName('green');
     const oG=penState.shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
     const gG=penState.shots.filter(s=>s.team==='green' &&s.result==='goal').length;
     const winColor=winner==='orange'?'var(--o)':'var(--g)';
@@ -1743,24 +1746,25 @@ async function showRotationConfirm(loserColor, reason, triggerMsg) {
     const winnerColor  = loserColor === 'orange' ? 'green' : 'orange';
     const winnerPlayers= players.filter(p => p.status === winnerColor);
     const benchPlayers = players.filter(p => p.status === 'bench');
-    const loseLabel    = loserColor === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
-    const winLabel     = winnerColor === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
-    const loserTid     = getTeamIdByColor(loserColor);
-    const winnerTid    = getTeamIdByColor(winnerColor);
-    const benchTid     = getTeamIdByColor('bench');
+
+    const loseName  = getTeamName(loserColor);
+    const winName   = getTeamName(winnerColor);
+    const benchName = getTeamName('bench');
+    const loseHex   = getTeamHex(loserColor);
+    const winHex    = getTeamHex(winnerColor);
+    const benchHex  = getTeamHex('bench');
 
     const roundG = getRoundGoals();
     const oG = roundG.filter(g=>g.team==='orange').length;
     const gG = roundG.filter(g=>g.team==='green').length;
 
-    // Build scorers list for this round
     const scorers = {};
     roundG.forEach(g => { scorers[g.player_name]=(scorers[g.player_name]||0)+1; });
     const scorerHtml = Object.entries(scorers).length
         ? Object.entries(scorers).sort((a,b)=>b[1]-a[1])
             .map(([n,cnt])=>{
                 const team = roundG.find(g=>g.player_name===n)?.team||'orange';
-                const col  = team==='orange'?'var(--o)':'var(--g)';
+                const col  = getTeamHex(team);
                 return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #0a0c14;">
                     <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
                     <span style="flex:1;font-weight:700;font-size:.82rem;">${n}</span>
@@ -1769,24 +1773,25 @@ async function showRotationConfirm(loserColor, reason, triggerMsg) {
             }).join('')
         : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
 
-    document.getElementById('rotConfirmTitle').textContent = '🔄 ' + loseLabel + ' IESE';
-    document.getElementById('rotConfirmSub').textContent   = triggerMsg;
-    document.getElementById('rotConfirmBody').innerHTML    = `
+    document.getElementById('rotConfirmTitle').innerHTML =
+        `🔄 <span style="color:${loseHex}">${loseName}</span> IESE`;
+    document.getElementById('rotConfirmSub').textContent = triggerMsg;
+    document.getElementById('rotConfirmBody').innerHTML = `
         <div style="text-align:center;margin-bottom:12px;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:${loserColor==='orange'?'var(--o)':'var(--g)'};">${oG} : ${gG}</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:${getTeamHex(loserColor)};">${oG} : ${gG}</div>
             <div style="font-size:.65rem;color:#555;">Scor tur curent</div>
         </div>
-        <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcat în tur</div>
+        <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcate în tur</div>
         <div style="margin-bottom:12px;">${scorerHtml}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.72rem;">
-            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid #28a74533;">
-                <div style="color:#28a745;font-weight:700;margin-bottom:4px;">✅ ${winLabel} rămâne</div>
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${winHex}44;">
+                <div style="color:${winHex};font-weight:700;margin-bottom:4px;">✅ ${winName} rămâne</div>
                 ${winnerPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
             </div>
-            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid #ff8c0033;">
-                <div style="color:#ff8c00;font-weight:700;margin-bottom:4px;">↩ ${loseLabel} iese</div>
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${loseHex}44;">
+                <div style="color:${loseHex};font-weight:700;margin-bottom:4px;">↩ ${loseName} iese</div>
                 ${loserPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
-                ${benchPlayers.length?`<div style="color:#ce93d8;font-size:.65rem;margin-top:4px;">Intră: ${benchPlayers.map(p=>p.name).join(', ')}</div>`:''}
+                ${benchPlayers.length?`<div style="color:${benchHex};font-size:.65rem;margin-top:4px;">Intră: ${benchName} (${benchPlayers.map(p=>p.name).join(', ')})</div>`:''}
             </div>
         </div>`;
 
@@ -1933,11 +1938,11 @@ init();
         <div class="rd-section">Jucători</div>
         <div class="rd-players">
           <div class="rd-pl-col">
-            <div class="rd-pl-col-hd" style="color:var(--o)">🟠 Portocaliu</div>
+            <div class="rd-pl-col-hd" style="color:var(--o)" id="rdOHd">Portocaliu</div>
             <div id="rdOPlayers"></div>
           </div>
           <div class="rd-pl-col">
-            <div class="rd-pl-col-hd" style="color:var(--g)">🟢 Verde</div>
+            <div class="rd-pl-col-hd" style="color:var(--g)" id="rdGHd">Verde</div>
             <div id="rdGPlayers"></div>
           </div>
         </div>
