@@ -423,7 +423,12 @@ function bump(team) {
     el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
 }
 function goalsMap() {
-    const m = {}; goals.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; }); return m;
+    // In 3-team mode: count goals across ALL rounds + current round
+    // In 2-team mode: live_goals is never cleared, so goals = all match goals
+    const src = liveState?.three_team_mode ? allMatchGoals() : goals;
+    const m = {};
+    src.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; });
+    return m;
 }
 
 // ── live_state helpers ────────────────────────────────────────────
@@ -638,16 +643,15 @@ async function onRoundTimeout() {
     }
 }
 
-// ── Round goals (current round only, from live_goals) ─────────────
+// ── Round goals = live_goals (cleared after each rotation) ───────
 function getRoundGoals() {
-    if (!liveState?.three_team_mode) return goals;
-    const roundStartSec = liveState.round_start_sec || 0;
-    // Goals scored after round_start_sec elapsed time
-    // We use the match_started_at + round_start_sec to get absolute timestamp
-    if (!liveState.match_started_at) return goals;
-    const matchStartMs = new Date(liveState.match_started_at).getTime();
-    const roundStartMs = matchStartMs + roundStartSec * 1000;
-    return goals.filter(g => new Date(g.created_at).getTime() >= roundStartMs - 3000); // 3s tolerance
+    return goals.filter(g => !String(g.id).startsWith('tmp_'));
+}
+
+// ── All match goals = past rounds + current round ─────────────────
+function allMatchGoals() {
+    const past = rounds.flatMap(r => Array.isArray(r.goals) ? r.goals : []);
+    return [...past, ...goals.filter(g => !String(g.id).startsWith('tmp_'))];
 }
 
 function getRoundConceded() {
@@ -789,6 +793,11 @@ async function doRotation(loserColor, reason) {
         // 1. Save round FIRST (before any swap)
         await saveRoundToDB(loserColor, reason);
 
+        // *** Clear live_goals so score resets to 0-0 for new round ***
+        goals = [];
+        render(); // show 0-0 immediately
+        await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
         // 2. *** OPTIMISTIC LOCAL UPDATE *** — apply swap to local players immediately
         //    This prevents Realtime intermediate-state refetches from corrupting the UI
         const loserIds = new Set(losers.map(p => p.id));
@@ -866,10 +875,9 @@ function render() {
     const oTid = mode ? getTeamIdByColor('orange') : null;
     const gTid = mode ? getTeamIdByColor('green')  : null;
 
-    // Score: per-round in 3-team, cumulative otherwise
-    const roundG = getRoundGoals();
-    const oScore = mode ? roundG.filter(g => g.team==='orange').length : goals.filter(g=>g.team==='orange').length;
-    const gScore = mode ? roundG.filter(g => g.team==='green').length  : goals.filter(g=>g.team==='green').length;
+    // Score = all current live_goals (cleared after each rotation in 3-team mode)
+    const oScore = goals.filter(g => g.team === 'orange').length;
+    const gScore = goals.filter(g => g.team === 'green').length;
 
     const oName = getTeamName('orange');
     const gName = getTeamName('green');
@@ -1389,7 +1397,10 @@ function subscribe() {
             }
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'}, () => {
-            sb.from('live_goals').select('*').order('created_at',{ascending:true}).then(({data})=>{ goals=data||[]; render(); });
+            // Re-fetch only — local array is already updated optimistically in doRotation/undoLast
+            // This handler mainly helps spectators / other devices
+            sb.from('live_goals').select('*').order('created_at',{ascending:true})
+                .then(({data})=>{ goals=data||[]; render(); });
         })
         .subscribe();
 
