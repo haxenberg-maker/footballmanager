@@ -1193,13 +1193,13 @@
     <!-- Score display -->
     <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:14px 20px;background:#080a12;border-bottom:1px solid #1e2130;">
         <div style="text-align:center;">
-            <div style="font-size:.62rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🟠 Portocaliu</div>
+            <div class="me-score-lbl" style="font-size:.62rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Portocaliu</div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--orange);line-height:1;" id="goalScoreO">0</div>
         </div>
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#333;">:</div>
         <div style="text-align:center;">
-            <div style="font-size:.62rem;color:#4caf50;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">🟢 Verde</div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:#4caf50;line-height:1;" id="goalScoreG">0</div>
+            <div class="me-score-lbl" style="font-size:.62rem;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Verde</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--green);line-height:1;" id="goalScoreG">0</div>
         </div>
     </div>
     <!-- Players grid -->
@@ -1228,11 +1228,11 @@
     <!-- Captains bar -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #1e2130;">
         <div id="draftCapOrange" style="padding:10px 16px;background:rgba(255,140,0,.07);border-right:1px solid #1e2130;">
-            <div style="font-size:.6rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟠 Căpitan Portocaliu</div>
+            <div data-team-label-o style="font-size:.6rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Căpitan Portocaliu</div>
             <div id="draftCapOrangeName" style="font-weight:700;color:#fff;font-size:.9rem;">—</div>
         </div>
         <div id="draftCapGreen" style="padding:10px 16px;background:rgba(40,167,69,.07);">
-            <div style="font-size:.6rem;color:#4caf50;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">🟢 Căpitan Verde</div>
+            <div data-team-label-g style="font-size:.6rem;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Căpitan Verde</div>
             <div id="draftCapGreenName" style="font-weight:700;color:#fff;font-size:.9rem;">—</div>
         </div>
     </div>
@@ -1258,12 +1258,12 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;min-height:200px;">
         <!-- Orange -->
         <div style="border-right:1px solid #1e2130;">
-            <div style="background:linear-gradient(135deg,#ff6a00,#ee8a00);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#000;">🟠 Echipa Portocalie</div>
+            <div style="background:var(--orange);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#000;" id="matchOrangeTitle">Portocaliu</div>
             <div id="tableOrangePlayers" style="padding:10px 16px;"></div>
         </div>
         <!-- Green -->
         <div>
-            <div style="background:linear-gradient(135deg,#1a7a30,#28a745);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#fff;">🟢 Echipa Verde</div>
+            <div style="background:var(--green);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#fff;" id="matchGreenTitle">Verde</div>
             <div id="tableGreenPlayers" style="padding:10px 16px;"></div>
         </div>
     </div>
@@ -1318,8 +1318,8 @@
         <div class="me-field">
             <label>Câștigător</label>
             <div style="display:flex;gap:8px;">
-                <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">🟠 Portocaliu</button>
-                <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">🟢 Verde</button>
+                <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">Portocaliu</button>
+                <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">Verde</button>
             </div>
         </div>
     </div>
@@ -1329,13 +1329,13 @@
         <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
             <div style="text-align:center;">
-                <div style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">🟠 Portocaliu</div>
+                <div class="me-score-lbl" style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">Portocaliu</div>
                 <input type="number" min="0" max="99" id="meScoreO" value="0"
                     style="width:52px;background:#1c1f2b;border:1px solid #2a2d40;color:var(--orange);padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
             <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#333;">:</div>
             <div style="text-align:center;">
-                <div style="font-size:.6rem;color:#4caf50;margin-bottom:4px;">🟢 Verde</div>
+                <div class="me-score-lbl" style="font-size:.6rem;color:var(--green);margin-bottom:4px;">Verde</div>
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
                     style="width:52px;background:#1c1f2b;border:1px solid #2a2d40;color:#4caf50;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
@@ -1355,11 +1355,11 @@
 
     <div class="me-teams-grid">
         <div class="me-team-col">
-            <div class="me-team-header" style="color:var(--orange);">🟠 Echipa Portocalie</div>
+            <div class="me-team-header" style="color:var(--orange);">Portocaliu</div>
             <div class="me-players-checklist" id="meOrangePlayers"></div>
         </div>
         <div class="me-team-col">
-            <div class="me-team-header" style="color:#4caf50;">🟢 Echipa Verde</div>
+            <div class="me-team-header" style="color:var(--green);">Verde</div>
             <div class="me-players-checklist" id="meGreenPlayers"></div>
         </div>
     </div>
@@ -1584,11 +1584,11 @@
     <!-- Teams -->
     <div class="match-teams">
         <div class="match-team-block">
-            <div class="match-team-title" id="matchOrangeTitle" style="color:var(--orange)">🟠 Portocaliu</div>
+            <div class="match-team-title" id="matchOrangeTitle" style="color:var(--orange)">Portocaliu</div>
             <div id="matchOrangePlayers"></div>
         </div>
         <div class="match-team-block">
-            <div class="match-team-title" id="matchGreenTitle" style="color:var(--green)">🟢 Verde</div>
+            <div class="match-team-title" id="matchGreenTitle" style="color:var(--green)">Verde</div>
             <div id="matchGreenPlayers"></div>
         </div>
     </div>
@@ -2055,6 +2055,7 @@ async function loadAll() {
         await loadTagsConfig();
         await loadAlgoSettings();
         await loadScenarios();
+        await loadTeamConfigs(); // ← load team names + colors from Supabase
         // Players + Ratings (joined)
         const { data: playersRaw, error: pe } = await sb
             .from('players')
@@ -3126,17 +3127,17 @@ function copyTeams(){
         `⚽ ECHIPE ${today}`,
         '',
         `━━━ V1 — Smart Rating ━━━`,
-        `🟠 Portocaliu (★${oSmartAvg.toFixed(1)}) — ${oChanceSmart}% șanse câștig`,
+        `${teamNames.orange} (★${oSmartAvg.toFixed(1)}) — ${oChanceSmart}% șanse câștig`,
         oSmart.map(fmtSmart).join('\n'),
         '',
-        `🟢 Verde (★${gSmartAvg.toFixed(1)}) — ${gChanceSmart}% șanse câștig`,
+        `${teamNames.green} (★${gSmartAvg.toFixed(1)}) — ${gChanceSmart}% șanse câștig`,
         gSmart.map(fmtSmart).join('\n'),
         '',
         `━━━ V2 — Rating General ━━━`,
-        `🟠 Portocaliu (⭐${oGenAvg.toFixed(1)}) — ${oChanceGeneral}% șanse câștig`,
+        `${teamNames.orange} (⭐${oGenAvg.toFixed(1)}) — ${oChanceGeneral}% șanse câștig`,
         oGen.map(fmtGeneral).join('\n'),
         '',
-        `🟢 Verde (⭐${gGenAvg.toFixed(1)}) — ${gChanceGeneral}% șanse câștig`,
+        `${teamNames.green} (⭐${gGenAvg.toFixed(1)}) — ${gChanceGeneral}% șanse câștig`,
         gGen.map(fmtGeneral).join('\n'),
         '',
         `📱 Arena Friends FC`
@@ -3174,36 +3175,147 @@ function renderTeamTitles(){
     const tB=document.getElementById('titleBench');
     if(tO) tO.textContent=teamNames.orange;
     if(tG) tG.textContent=teamNames.green;
-    if(tB&&threeTeamMode) tB.textContent=teamNames.bench+' 🟣';
+    if(tB&&threeTeamMode) tB.textContent=teamNames.bench;
     document.querySelectorAll('.me-team-header').forEach((el,i)=>{
-        if(i===0) el.textContent='🟠 '+teamNames.orange;
-        if(i===1) el.textContent='🟢 '+teamNames.green;
+        if(i===0){ el.textContent=teamNames.orange; el.style.color=teamColors.orange; }
+        if(i===1){ el.textContent=teamNames.green;  el.style.color=teamColors.green;  }
     });
+    applyTeamColors();
+    updateAllTeamLabels();
+}
+
+function updateAllTeamLabels() {
+    const o = teamNames.orange, g = teamNames.green;
+    const oH = teamColors.orange, gH = teamColors.green;
+
+    // Score display labels (goal tracking area)
+    const sLblO = document.querySelector('#goalScoreO')?.previousElementSibling;
+    const sLblG = document.querySelector('#goalScoreG')?.previousElementSibling;
+    if (sLblO) { sLblO.textContent = o; sLblO.style.color = oH; }
+    if (sLblG) { sLblG.textContent = g; sLblG.style.color = gH; }
+    const gSO = document.getElementById('goalScoreO');
+    const gSG = document.getElementById('goalScoreG');
+    if (gSO) gSO.style.color = oH;
+    if (gSG) gSG.style.color = gH;
+
+    // Captain labels
+    document.querySelectorAll('[data-team-label-o]').forEach(el => { el.textContent = 'Căpitan ' + o; el.style.color = oH; });
+    document.querySelectorAll('[data-team-label-g]').forEach(el => { el.textContent = 'Căpitan ' + g; el.style.color = gH; });
+
+    // Match editor win buttons
+    const meWinO = document.getElementById('meWinO');
+    const meWinG = document.getElementById('meWinG');
+    if (meWinO) meWinO.textContent = o;
+    if (meWinG) meWinG.textContent = g;
+
+    // Match editor score labels
+    const meScoreLbls = document.querySelectorAll('.me-score-lbl');
+    if (meScoreLbls[0]) { meScoreLbls[0].textContent = o; meScoreLbls[0].style.color = oH; }
+    if (meScoreLbls[1]) { meScoreLbls[1].textContent = g; meScoreLbls[1].style.color = gH; }
+
+    // Live score / match title bars
+    const mOT = document.getElementById('matchOrangeTitle');
+    const mGT = document.getElementById('matchGreenTitle');
+    if (mOT) { mOT.textContent = o; mOT.style.color = oH; }
+    if (mGT) { mGT.textContent = g; mGT.style.color = gH; }
+
+    // Balance popup swap options text
+    const swapOpts = document.querySelectorAll('.balance-opt span:last-child');
+    if (swapOpts[0]) swapOpts[0].textContent = o + ' ↔ Bancă';
+    if (swapOpts[1]) swapOpts[1].textContent = g + ' ↔ Bancă';
+
+    // Export/snapshot team headers in modals
+    document.querySelectorAll('.snap-team-o').forEach(el => { el.textContent = o; el.style.color = oH; });
+    document.querySelectorAll('.snap-team-g').forEach(el => { el.textContent = g; el.style.color = gH; });
 }
 
 function startEditTeamName(side){
     if(!isAdmin()) return;
-    const elId = side==='orange'?'titleOrange':'titleGreen';
-    const el = document.getElementById(elId);
-    if(!el) return;
-    const current = teamNames[side];
-    const input = document.createElement('input');
-    input.value = current;
-    input.style.fontFamily="Bebas Neue,sans-serif";input.style.fontSize=".85rem";input.style.letterSpacing="2px";input.style.background="transparent";input.style.border="none";input.style.borderBottom="1px solid var(--accent)";input.style.color="#fff";input.style.outline="none";input.style.width="100%";input.style.textTransform="uppercase";
-    el.innerHTML='';
-    el.appendChild(input);
-    el.onclick=null;
-    input.focus();
-    input.select();
-    const save=()=>{
-        const val=input.value.trim()||current;
-        teamNames[side]=val;
-        localStorage.setItem('team_name_'+side, val);
-        renderTeamTitles();
-        el.onclick=()=>startEditTeamName(side);
-    };
-    input.addEventListener('blur', save);
-    input.addEventListener('keydown', e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape'){renderTeamTitles();el.onclick=()=>startEditTeamName(side);}});
+    openTeamConfigEditor(side);
+}
+
+function openTeamConfigEditor(side) {
+    if(!isAdmin()) return;
+    const modal = document.getElementById('teamConfigModal');
+    if (!modal) { buildTeamConfigModal(); }
+    const cfg = { name: teamNames[side], hex: teamColors[side] };
+    document.getElementById('tcmSide').value = side;
+    document.getElementById('tcmName').value = cfg.name;
+    _tcmHex = cfg.hex;
+    document.getElementById('tcmTitle').textContent =
+        side === 'orange' ? 'Configurează Echipa 1' :
+        side === 'green'  ? 'Configurează Echipa 2' : 'Configurează Echipa 3';
+    renderTcmPalette();
+    document.getElementById('teamConfigModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('tcmName').select(), 80);
+}
+
+let _tcmHex = '#ff8c00';
+
+function buildTeamConfigModal() {
+    const el = document.createElement('div');
+    el.id = 'teamConfigModal';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;';
+    el.innerHTML = `
+        <div style="background:#141720;width:100%;max-width:340px;border-radius:16px;border:1px solid #2a2d40;overflow:hidden;">
+            <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:#0d0f18;border-bottom:1px solid #1e2130;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;" id="tcmTitle">Configurează Echipa</div>
+                <button onclick="document.getElementById('teamConfigModal').style.display='none'"
+                    style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
+            </div>
+            <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+                <input type="hidden" id="tcmSide" value="orange">
+                <div>
+                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;">Nume echipă</div>
+                    <input id="tcmName" type="text" maxlength="20"
+                        style="width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:10px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;"
+                        onkeydown="if(event.key==='Enter')saveTcm()">
+                </div>
+                <div>
+                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:8px;">Culoare echipă</div>
+                    <div id="tcmPalette" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+                    <div id="tcmPreview" style="height:4px;border-radius:2px;margin-top:8px;transition:background .2s;"></div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button onclick="document.getElementById('teamConfigModal').style.display='none'"
+                        style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;">Anulează</button>
+                    <button onclick="saveTcm()"
+                        style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;">✓ Salvează</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.appendChild(el);
+}
+
+function renderTcmPalette() {
+    const container = document.getElementById('tcmPalette');
+    const preview = document.getElementById('tcmPreview');
+    if (!container) return;
+    container.innerHTML = TEAM_COLOR_PALETTE.map(hex => `
+        <div onclick="selectTcmColor('${hex}')"
+            style="width:34px;height:34px;border-radius:8px;background:${hex};cursor:pointer;
+                   border:2px solid ${hex===_tcmHex?'#fff':'transparent'};
+                   transform:${hex===_tcmHex?'scale(1.1)':'scale(1)'};
+                   transition:all .1s;box-shadow:${hex===_tcmHex?'0 0 0 2px rgba(255,255,255,.3)':'none'};"></div>
+    `).join('');
+    if (preview) preview.style.background = _tcmHex;
+}
+
+function selectTcmColor(hex) {
+    _tcmHex = hex;
+    renderTcmPalette();
+}
+
+async function saveTcm() {
+    const side = document.getElementById('tcmSide').value;
+    const name = document.getElementById('tcmName').value.trim();
+    if (!name) return;
+    teamNames[side] = name;
+    teamColors[side] = _tcmHex;
+    localStorage.setItem('team_name_' + side, name);
+    renderTeamTitles();
+    document.getElementById('teamConfigModal').style.display = 'none';
+    await saveTeamConfigs();
 }
 
 // ── Export teams as copyable text ─────────────────────────────────
@@ -4647,7 +4759,7 @@ function buildPlayerMatchHistory(p){
         const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
         const teamColor=inOrange?'var(--orange)':'#4caf50';
-        const teamIcon=inOrange?'🟠':'🟢';
+        const teamIcon=inOrange?'●':'●';
         return `<div class="tl-item">
             <div class="tl-dot ${won?'W':'L'}"></div>
             <div class="tl-date">${h.date||'—'}</div>
@@ -5233,7 +5345,7 @@ let _pendingWinner = null;
 let _goalMap = {};  // {playerName: {count, team}}
 
 function openGoalModal(winner, oP, gP){
-    const winLabel = winner==='orange' ? '🟠 Portocaliu câștigă' : '🟢 Verde câștigă';
+    const winLabel = winner==='orange' ? teamNames.orange+' câștigă' : teamNames.green+' câștigă';
     document.getElementById('goalModalTitle').textContent = '⚽ ' + winLabel;
     document.getElementById('goalScoreO').textContent = '0';
     document.getElementById('goalScoreG').textContent = '0';
@@ -5571,6 +5683,61 @@ function moveTeamsToBench() {
 let currentScenario = 1;
 let threeTeamMode = localStorage.getItem('idx_3team')==='1';
 let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde', bench: localStorage.getItem('team_name_bench')||'Echipa 3' };
+let teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#7c4dff' };
+
+const TEAM_COLOR_PALETTE = ['#ffffff','#111111','#ff8c00','#e53935','#28a745','#1e88e5'];
+
+function applyTeamColors() {
+    document.documentElement.style.setProperty('--orange', teamColors.orange);
+    document.documentElement.style.setProperty('--green',  teamColors.green);
+    // Column headers (hardcoded gradient in CSS — override via inline style)
+    const oHd = document.querySelector('#col-orange .col-header');
+    const gHd = document.querySelector('#col-green  .col-header');
+    if (oHd) oHd.style.background = teamColors.orange;
+    if (gHd) gHd.style.background = teamColors.green;
+    // Title text colors
+    const tO = document.getElementById('titleOrange');
+    const tG = document.getElementById('titleGreen');
+    if (tO) tO.style.color = '#000';
+    if (tG) gHd && (tG.style.color = '#fff');
+}
+
+async function loadTeamConfigs() {
+    try {
+        const { data } = await sb.from('live_state').select('team_registry').eq('id', 1).single();
+        const cfg = data?.team_registry?._configs || {};
+        ['orange','green','bench'].forEach(slot => {
+            if (cfg[slot]?.name)  teamNames[slot] = cfg[slot].name;
+            if (cfg[slot]?.hex)   teamColors[slot] = cfg[slot].hex;
+        });
+        // Also try teamA/B/C if present (from 3-team sessions)
+        ['teamA','teamB','teamC'].forEach((tid, i) => {
+            const slot = ['orange','green','bench'][i];
+            if (cfg[tid]?.name)  teamNames[slot] = cfg[tid].name;
+            if (cfg[tid]?.hex)   teamColors[slot] = cfg[tid].hex;
+        });
+        applyTeamColors();
+        renderTeamTitles();
+    } catch(e) { console.warn('loadTeamConfigs:', e.message); }
+}
+
+async function saveTeamConfigs() {
+    try {
+        const { data } = await sb.from('live_state').select('team_registry').eq('id', 1).single();
+        const reg = { ...(data?.team_registry || {}) };
+        reg._configs = {
+            ...(reg._configs || {}),
+            orange: { name: teamNames.orange, hex: teamColors.orange },
+            green:  { name: teamNames.green,  hex: teamColors.green  },
+            bench:  { name: teamNames.bench,   hex: teamColors.bench  },
+            // Mirror to teamA/B/C keys so live.html picks them up
+            teamA:  { name: teamNames.orange, hex: teamColors.orange },
+            teamB:  { name: teamNames.green,  hex: teamColors.green  },
+            teamC:  { name: teamNames.bench,   hex: teamColors.bench  },
+        };
+        await sb.from('live_state').update({ team_registry: reg }).eq('id', 1);
+    } catch(e) { console.warn('saveTeamConfigs:', e.message); }
+}
 let scenarios = {1:null, 2:null, 3:null};
 
 // ── Jucătorii eligibili = confirmați pentru meciul activ ──────────
@@ -5925,9 +6092,9 @@ function openStartMatch(){
     document.getElementById('startMatchBody').innerHTML =
         `<div style="font-size:.72rem;color:#555;margin-bottom:12px;">Mod: <strong style="color:${has3?'#ce93d8':'#82b1ff'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong></div>`
         + (warnings.length ? `<div style="background:rgba(198,40,40,.1);border:1px solid #c6282855;border-radius:8px;padding:8px 12px;margin-bottom:12px;">${warnings.map(w=>`<div style="font-size:.75rem;color:#ef9a9a;">${w}</div>`).join('')}</div>` : '')
-        + teamBlock('🟠 '+teamNames.orange, '#ff8c00', oP)
-        + teamBlock('🟢 '+teamNames.green, '#28a745', gP)
-        + (has3 ? teamBlock('⏳ '+(teamNames.bench||'Echipa 3'), '#9c27b0', bP) : '');
+        + teamBlock(teamNames.orange, teamColors.orange, oP)
+        + teamBlock(teamNames.green,  teamColors.green,  gP)
+        + (has3 ? teamBlock(teamNames.bench||'Echipa 3', teamColors.bench||'#7c4dff', bP) : '');
 
     const canStart = oP.length > 0 && gP.length > 0;
     document.getElementById('startMatchActions').innerHTML =
@@ -5964,13 +6131,30 @@ async function launchLive(){
         };
 
         if(has3){
-            // 3-team mode: assign permanent IDs
+            // 3-team mode: assign permanent IDs, preserve team configs
             patch.team_registry = {
-                teamA: { players: oP.map(p=>p.name), color:'orange' },
-                teamB: { players: gP.map(p=>p.name), color:'green'  },
-                teamC: { players: bP.map(p=>p.name), color:'bench'  },
+                _configs: {
+                    orange: { name: teamNames.orange, hex: teamColors.orange },
+                    green:  { name: teamNames.green,  hex: teamColors.green  },
+                    bench:  { name: teamNames.bench,   hex: teamColors.bench  },
+                    teamA:  { name: teamNames.orange, hex: teamColors.orange },
+                    teamB:  { name: teamNames.green,  hex: teamColors.green  },
+                    teamC:  { name: teamNames.bench,   hex: teamColors.bench  },
+                },
+                teamA: { players: oP.map(p=>p.name), color:'orange', name: teamNames.orange },
+                teamB: { players: gP.map(p=>p.name), color:'green',  name: teamNames.green  },
+                teamC: { players: bP.map(p=>p.name), color:'bench',  name: teamNames.bench  },
             };
             patch.color_map = { orange:'teamA', green:'teamB', bench:'teamC' };
+        } else {
+            // 2-team: still preserve _configs so live.html knows names/colors
+            patch.team_registry = {
+                _configs: {
+                    orange: { name: teamNames.orange, hex: teamColors.orange },
+                    green:  { name: teamNames.green,  hex: teamColors.green  },
+                    bench:  { name: teamNames.bench,   hex: teamColors.bench  },
+                },
+            };
         }
 
         // Reset live goals and rounds for fresh start
@@ -6054,7 +6238,7 @@ function doRotation() {
 
     if (!bench.length) { showToast('⚠️ Nu sunt jucători pe bancă pentru rotație!'); return; }
 
-    const winLabel  = winTeam === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+    const winLabel  = winTeam === 'orange' ? teamNames.orange : teamNames.green;
     const loseLabel = loseTeam === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
 
     showConfirm('🔄', 'Rotație Echipe',
