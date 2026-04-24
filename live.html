@@ -10,7 +10,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior:none;overflow-x:hidden;max-width:100vw;}
 :root{--o:#ff8c00;--g:#28a745;--b:#1e2130;--accent:#3d5afe;}
 
 .hd{background:#080a12;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
@@ -316,17 +316,17 @@ main, body{padding-bottom:80px;}
 
 <div class="three-mode-bar" id="threeBar">
   <!-- Settings row: always visible, compact -->
-  <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid #1e2130;flex-wrap:wrap;">
-    <span style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;">⚙</span>
-    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:120px;">
-      <span style="font-size:.58rem;color:#555;white-space:nowrap;">🎯 Schimb</span>
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid #1e2130;overflow:hidden;">
+    <span style="font-size:.58rem;color:#444;flex-shrink:0;">⚙</span>
+    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;">
+      <span style="font-size:.58rem;color:#555;white-space:nowrap;flex-shrink:0;">🎯</span>
       <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
       <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--star);min-width:20px;text-align:center;">2</span>
       <button class="thr-btn" onclick="changeThreshold(1)">+</button>
     </div>
-    <div style="width:1px;height:16px;background:#1e2130;"></div>
-    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:120px;">
-      <span style="font-size:.58rem;color:#555;white-space:nowrap;">⏱ Max min</span>
+    <div style="width:1px;height:16px;background:#1e2130;flex-shrink:0;"></div>
+    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;">
+      <span style="font-size:.58rem;color:#555;white-space:nowrap;flex-shrink:0;">⏱</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
       <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#82b1ff;min-width:24px;text-align:center;">10</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
