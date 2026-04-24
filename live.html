@@ -281,16 +281,16 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 </div>
 
 <div class="timer-bar">
-  <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start Meci</button>
+  <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
-  <div id="roundTimerWidget" style="display:none;align-items:center;gap:6px;flex-shrink:0;">
-    <div style="width:1px;height:20px;background:#1e2130;"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
-      <span style="font-size:.48rem;color:#555;text-transform:uppercase;letter-spacing:.5px;">TUR</span>
-      <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;line-height:1;">0:00</span>
+  <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
+    <div style="width:1px;height:18px;background:#1e2130;margin:0 2px;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;">
+      <span style="font-size:.42rem;color:#444;text-transform:uppercase;letter-spacing:.5px;">TUR</span>
+      <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#ce93d8;line-height:1;">0:00</span>
     </div>
-    <button onclick="openPenalty()" style="padding:5px 8px;border-radius:6px;font-size:.6rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;">⚽ Pen</button>
+    <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
 </div>
 
@@ -308,11 +308,25 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <button class="undo-btn" id="undoBtn" onclick="undoLast()">↩ Anulează</button>
 </div>
 
-<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
-
-<div class="rotation-toast" id="rotationToast"></div>
-
 <div class="three-mode-bar" id="threeBar">
+  <!-- Settings row: always visible, compact -->
+  <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-bottom:1px solid #1e2130;flex-wrap:wrap;">
+    <span style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;">⚙</span>
+    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:120px;">
+      <span style="font-size:.58rem;color:#555;white-space:nowrap;">🎯 Schimb</span>
+      <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
+      <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--star);min-width:20px;text-align:center;">2</span>
+      <button class="thr-btn" onclick="changeThreshold(1)">+</button>
+    </div>
+    <div style="width:1px;height:16px;background:#1e2130;"></div>
+    <div style="display:flex;align-items:center;gap:4px;flex:1;min-width:120px;">
+      <span style="font-size:.58rem;color:#555;white-space:nowrap;">⏱ Max min</span>
+      <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
+      <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#82b1ff;min-width:24px;text-align:center;">10</span>
+      <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
+    </div>
+  </div>
+  <!-- Waiting team row -->
   <div class="waiting-team">
     <div class="waiting-hd">
       <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
@@ -323,27 +337,11 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
     <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
   </div>
-
-  <!-- Row 2: config inline -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 14px;border-top:1px solid #1e2130;">
-    <div style="background:#0d0f18;border-radius:8px;padding:7px 10px;border:1px solid #1e2130;">
-      <div style="font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">🎯 Goluri schimb</div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
-        <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--star);flex:1;text-align:center;">2</span>
-        <button class="thr-btn" onclick="changeThreshold(1)">+</button>
-      </div>
-    </div>
-    <div style="background:#0d0f18;border-radius:8px;padding:7px 10px;border:1px solid #1e2130;">
-      <div style="font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">⏱ Max min / tur</div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
-        <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#82b1ff;flex:1;text-align:center;">10</span>
-        <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
-      </div>
-    </div>
-  </div>
 </div>
+
+<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
+
+<div class="rotation-toast" id="rotationToast"></div>
 
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
@@ -739,14 +737,15 @@ function cancelRoundTimeout() {
 function updateRoundTimerBar() {
     const widget = document.getElementById('roundTimerWidget');
     if (!widget) return;
-    const active = liveState?.three_team_mode && liveState?.timer_status === 'running';
-    widget.style.display = active ? 'flex' : 'none';
-    if (!active) return;
+    const in3team = !!liveState?.three_team_mode;
+    widget.style.display = in3team ? 'flex' : 'none';
+    if (!in3team) return;
+    const lbl = document.getElementById('roundTimeLeft');
+    if (liveState?.timer_status !== 'running') { if (lbl) lbl.textContent = '—'; return; }
     const totalSec  = (liveState.time_limit_min || 10) * 60;
     const elapsed   = calcRoundElapsedSec(liveState);
     const remaining = Math.max(0, totalSec - elapsed);
-    const pct       = Math.min(100, elapsed / totalSec);
-    const lbl = document.getElementById('roundTimeLeft');
+    const pct       = Math.min(1, elapsed / totalSec);
     if (lbl) {
         const m = Math.floor(remaining/60), s = remaining%60;
         lbl.textContent = m+':'+(s<10?'0':'')+s;
