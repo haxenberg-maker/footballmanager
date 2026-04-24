@@ -6228,8 +6228,6 @@ async function launchLive(){
     const has3 = threeTeamMode && bP.length > 0;
 
     try{
-        // Build live_state patch — write team config before opening live
-        const sessionId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
         const patch = {
             timer_status: 'idle',
             timer_elapsed_ms: 0,
@@ -6239,7 +6237,6 @@ async function launchLive(){
             team_registry: {},
             color_map: {},
             match_started_at: null,
-            session_id: sessionId,
         };
 
         if(has3){
@@ -6282,7 +6279,7 @@ async function launchLive(){
 
         closeStartMatch();
         showToast('✅ Meci pregătit! Deschidere Live...');
-        setTimeout(()=> window.open('live.html?match='+matchId+'&admin=1', '_blank'), 400);
+        setTimeout(()=> window.open('live.html?match='+matchId, '_blank'), 400);
     }catch(e){
         showToast('⚠️ Eroare: '+e.message);
         if(btn){ btn.disabled=false; btn.textContent='▶ Start Meci — Deschide Live'; }

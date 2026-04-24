@@ -187,7 +187,12 @@ main, body{padding-bottom:80px;}
 .ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .ture-body{max-height:220px;overflow-y:auto;display:none;}
 .ture-body.open{display:block;}
-/* ── Round Detail Modal ─────────────────────────────────── */
+/* ── Code Auth ───────────────────────────── */
+.code-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
+.code-auth-overlay.show{display:flex;}
+.code-auth-box{background:#141720;width:100%;max-width:320px;border-radius:16px;border:1px solid #2a2d40;padding:20px;}
+.admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#82b1ff;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.hd-key-btn{background:none;border:1px solid #252836;color:#444;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
 .round-detail-box{background:#141720;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
@@ -275,6 +280,8 @@ main, body{padding-bottom:80px;}
   <div class="hd-logo">⚽ Arena FC</div>
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
+    <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
+    <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
     <button class="all-teams-btn" onclick="openAllTeamsEdit()" title="Configurează echipele">✎ Echipe</button>
     <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
@@ -381,7 +388,63 @@ main, body{padding-bottom:80px;}
 const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
-const isLiveAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
+// ── Admin auth via secret code ────────────────────────────────────
+let isLiveAdmin = false;
+let _allPlayerCodes = []; // loaded on init: [{name, secret_code, role}]
+
+async function loadPlayerCodes() {
+    const { data } = await sb.from('players').select('id,name,secret_code,role').order('name');
+    _allPlayerCodes = data || [];
+}
+
+function verifyAdminCode(code) {
+    if (!code) return null;
+    const c = code.trim().toUpperCase();
+    return _allPlayerCodes.find(p => p.secret_code && p.secret_code.toUpperCase() === c) || null;
+}
+
+function openCodeAuth() {
+    document.getElementById('codeAuthOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('codeAuthInput').focus(), 100);
+}
+
+function closeCodeAuth() {
+    document.getElementById('codeAuthOverlay').classList.remove('show');
+}
+
+async function submitCode() {
+    const code = document.getElementById('codeAuthInput').value.trim();
+    const player = verifyAdminCode(code);
+    if (!player) {
+        document.getElementById('codeAuthErr').textContent = 'Cod incorect';
+        return;
+    }
+    // Admin = role is 'admin' (set in setari.html)
+    isLiveAdmin = player.role === 'admin';
+    localStorage.setItem('liveAuthCode', code);
+    localStorage.setItem('liveAuthName', player.name);
+    closeCodeAuth();
+    document.getElementById('adminBadge').textContent = player.name;
+    document.getElementById('adminBadge').style.display = 'inline-block';
+    if (!isLiveAdmin) {
+        showToast(`👋 Bun venit, ${player.name}!`);
+    } else {
+        showToast(`🔑 Admin: ${player.name}`);
+    }
+    render();
+}
+
+function tryAutoAuth() {
+    const saved = localStorage.getItem('liveAuthCode');
+    if (!saved) return;
+    const player = verifyAdminCode(saved);
+    if (player) {
+        isLiveAdmin = player.role === 'admin';
+        document.getElementById('adminBadge').textContent = player.name;
+        document.getElementById('adminBadge').style.display = 'inline-block';
+    }
+}
 
 // ── Local state (derived from DB, never source of truth) ──────────
 let players    = [];
@@ -900,7 +963,6 @@ async function saveRoundToDB(loserColor, reason) {
 
     const roundData = {
         num,
-        session_id: liveState?.session_id || null,
         team_a_id:      oTid || 'teamA',
         team_b_id:      gTid || 'teamB',
         score_a:        oG,
@@ -1002,12 +1064,8 @@ async function loadAll() {
     liveState = st;
     players   = pl || [];
     goals     = gl || [];
-    // Fetch rounds - filter by session_id if available, otherwise fetch all
-    const sessionId = st?.session_id;
-    const roundsQuery = sessionId
-        ? sb.from('live_rounds').select('*').eq('session_id', sessionId).order('num', { ascending: true })
-        : sb.from('live_rounds').select('*').order('num', { ascending: true });
-    const { data: rd } = await roundsQuery;
+    // Fetch rounds (all current - cleared on each new match start)
+    const { data: rd } = await sb.from('live_rounds').select('*').order('num', { ascending: true });
     rounds = rd || [];
     render();
     applyTimerUI(liveState);
@@ -1794,11 +1852,7 @@ function subscribe() {
             renderTureHistory();
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            const sid = liveState?.session_id;
-            const q = sid
-                ? sb.from('live_rounds').select('*').eq('session_id', sid).order('num',{ascending:true})
-                : sb.from('live_rounds').select('*').order('num',{ascending:true});
-            q.then(({data})=>{ rounds=data||[]; renderTureHistory(); });
+            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
         })
         .subscribe();
 
@@ -2081,6 +2135,8 @@ async function init() {
     const urlParams = new URLSearchParams(window.location.search);
     const matchParam = urlParams.get('match') || urlParams.get('id');
 
+    await loadPlayerCodes();
+    tryAutoAuth();
     await loadAll();
 
     // If live_state has a team_registry (set from index Start Meci), apply 3-team UI
@@ -2259,5 +2315,22 @@ init();
 </div>
 
 <div class="rotation-toast" id="rotationToast"></div>
+<!-- Code Auth Modal -->
+<div class="code-auth-overlay" id="codeAuthOverlay" onclick="if(event.target===this)closeCodeAuth()">
+  <div class="code-auth-box">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;margin-bottom:4px;">🔑 Cod Jucător</div>
+    <div style="font-size:.65rem;color:#444;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
+    <input id="codeAuthInput" type="text" maxlength="10" placeholder="Cod secret..."
+      style="width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
+      oninput="this.value=this.value.toUpperCase();document.getElementById('codeAuthErr').textContent=''"
+      onkeydown="if(event.key==='Enter')submitCode()">
+    <div id="codeAuthErr" style="font-size:.68rem;color:#ef9a9a;min-height:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;">Anulează</button>
+      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
