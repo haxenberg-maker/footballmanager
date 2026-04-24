@@ -39,7 +39,19 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .sc-side{display:flex;flex-direction:column;}
 .sc-side.right{align-items:flex-end;}
-.sc-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:2px;}
+/* ── Team Name Edit ─────────────────────────────────────── */
+.sc-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:2px;cursor:pointer;display:flex;align-items:center;gap:4px;touch-action:manipulation;}
+.sc-lbl-edit{font-size:.55rem;opacity:.4;}
+.name-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:600;display:none;align-items:center;justify-content:center;padding:20px;}
+.name-edit-overlay.show{display:flex;}
+.name-edit-box{background:#141720;width:100%;max-width:340px;border-radius:14px;border:1px solid #2a2d40;padding:20px;}
+.name-edit-title{font-size:.65rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:10px;}
+.name-edit-color{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;margin-bottom:12px;}
+.name-edit-input{width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;margin-bottom:12px;}
+.name-edit-input:focus{border-color:#82b1ff;box-shadow:0 0 0 2px rgba(61,90,254,.2);}
+.name-edit-actions{display:flex;gap:8px;}
+.name-edit-cancel{flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
+.name-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;touch-action:manipulation;}
 .sc-lbl.o{color:var(--o);}
 .sc-lbl.g{color:var(--g);}
 .sc-n{font-family:'Bebas Neue',sans-serif;font-size:5rem;line-height:.9;transition:transform .15s,text-shadow .15s;}
@@ -422,6 +434,68 @@ function getColorMap()      { return liveState?.color_map || {}; }
 function getTeamRegistry()  { return liveState?.team_registry || {}; }
 function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] || null; }
 
+// ── Team name helpers ─────────────────────────────────────────────
+function getTeamName(color) {
+    if (liveState?.three_team_mode) {
+        const teamId = getTeamIdByColor(color);
+        if (teamId) {
+            const name = getTeamRegistry()[teamId]?.name;
+            if (name) return name;
+        }
+    }
+    const names = liveState?.team_names || {};
+    const defaults = { orange: 'Portocaliu', green: 'Verde', bench: 'Mov' };
+    return names[color] || defaults[color] || color;
+}
+function getTeamNameById(teamId) {
+    if (!teamId) return teamId;
+    const reg = getTeamRegistry();
+    if (reg[teamId]?.name) return reg[teamId].name;
+    // fallback: look up via color_map
+    const colorMap = getColorMap();
+    for (const [color, tid] of Object.entries(colorMap)) {
+        if (tid === teamId) return getTeamName(color);
+    }
+    return teamId;
+}
+async function setTeamName(color, name) {
+    if (liveState?.three_team_mode) {
+        const teamId = getTeamIdByColor(color);
+        if (teamId) {
+            const reg = { ...getTeamRegistry() };
+            reg[teamId] = { ...reg[teamId], name };
+            await patchState({ team_registry: reg });
+            return;
+        }
+    }
+    const names = { ...(liveState?.team_names || {}), [color]: name };
+    await patchState({ team_names: names });
+}
+
+// ── Team name edit modal ──────────────────────────────────────────
+let _editingColor = null;
+function openNameEdit(color) {
+    _editingColor = color;
+    const current = getTeamName(color);
+    const colorLabel = color === 'orange' ? '🟠 Echipa Portocalie' : color === 'green' ? '🟢 Echipa Verde' : '🟣 Echipa în Așteptare';
+    document.getElementById('nameEditColorLbl').textContent = colorLabel;
+    document.getElementById('nameEditInput').value = current;
+    document.getElementById('nameEditOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('nameEditInput').select(), 80);
+}
+function closeNameEdit() {
+    document.getElementById('nameEditOverlay').classList.remove('show');
+    _editingColor = null;
+}
+async function saveTeamName() {
+    if (!_editingColor) return;
+    const name = document.getElementById('nameEditInput').value.trim();
+    if (!name) { showToast('⚠️ Introdu un nume!'); return; }
+    await setTeamName(_editingColor, name);
+    closeNameEdit();
+    render();
+}
+
 async function patchState(patch) {
     // Apply locally immediately — no waiting for Realtime roundtrip
     liveState = { ...liveState, ...patch };
@@ -597,10 +671,11 @@ async function toggleThreeTeam() {
         if (!orange.length && !green.length) {
             showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
         }
+        const existingNames = liveState.team_names || {};
         const teamRegistry = {
-            teamA: { players: orange.map(p => p.name), color: 'orange' },
-            teamB: { players: green.map(p => p.name),  color: 'green'  },
-            teamC: { players: bench.map(p => p.name),  color: 'bench'  },
+            teamA: { players: orange.map(p => p.name), color: 'orange', name: existingNames.orange || 'Portocaliu' },
+            teamB: { players: green.map(p => p.name),  color: 'green',  name: existingNames.green  || 'Verde'      },
+            teamC: { players: bench.map(p => p.name),  color: 'bench',  name: existingNames.bench  || 'Mov'        },
         };
         const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
         await patchState({
@@ -784,10 +859,17 @@ function render() {
     const oScore = mode ? roundG.filter(g => g.team==='orange').length : goals.filter(g=>g.team==='orange').length;
     const gScore = mode ? roundG.filter(g => g.team==='green').length  : goals.filter(g=>g.team==='green').length;
 
+    const oName = getTeamName('orange');
+    const gName = getTeamName('green');
+
     document.getElementById('scoreO').textContent = oScore;
     document.getElementById('scoreG').textContent = gScore;
-    document.getElementById('lblO').innerHTML = '🟠 Portocaliu' + (oTid ? ' '+tidBadge(oTid) : '');
-    document.getElementById('lblG').innerHTML = 'Verde 🟢'      + (gTid ? ' '+tidBadge(gTid) : '');
+    document.getElementById('lblO').innerHTML =
+        `<span>${oName}</span>${oTid ? tidBadge(oTid) : ''}<span class="sc-lbl-edit">✎</span>`;
+    document.getElementById('lblO').onclick = () => openNameEdit('orange');
+    document.getElementById('lblG').innerHTML =
+        `<span>${gName}</span>${gTid ? tidBadge(gTid) : ''}<span class="sc-lbl-edit">✎</span>`;
+    document.getElementById('lblG').onclick = () => openNameEdit('green');
 
     // Score sub: cumulative same-pair total
     const subEl = document.getElementById('scoreSub');
@@ -834,7 +916,11 @@ function render() {
     if (!orange.length && !green.length) {
         wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
     } else {
-        const gpm = goalsMap();
+        // *** FIX: in 3-team mode, count only current-round goals per player ***
+        const goalsForCount = mode ? getRoundGoals() : goals;
+        const gpm = {};
+        goalsForCount.forEach(g => { gpm[g.player_name] = (gpm[g.player_name]||0)+1; });
+
         const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
@@ -851,11 +937,11 @@ function render() {
         const gTidH  = gTid ? tidBadge(gTid)+' ' : '';
         wrap.innerHTML =
             '<div class="team-col o-col">'
-            + '<div class="team-hd">'+oTidH+'<span class="team-hd-lbl o">🟠 Portocaliu</span>'+oBadge+' <span class="team-hd-cnt">'+oScore+'G</span></div>'
+            + `<div class="team-hd">${oTidH}<span class="team-hd-lbl o">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
             + makeRows(orange, 'orange')
             + '</div>'
             + '<div class="team-col g-col">'
-            + '<div class="team-hd">'+gTidH+'<span class="team-hd-lbl g">🟢 Verde</span>'+gBadge+' <span class="team-hd-cnt">'+gScore+'G</span></div>'
+            + `<div class="team-hd">${gTidH}<span class="team-hd-lbl g">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
             + makeRows(green, 'green')
             + '</div>';
     }
@@ -869,18 +955,18 @@ function render() {
             const tlEl  = document.getElementById('timeLimitVal'); if (tlEl) tlEl.textContent = st.time_limit_min || 10;
             const bench = players.filter(p => p.status === 'bench');
             const bTid  = getTeamIdByColor('bench');
+            const bName = getTeamName('bench');
             const wp    = document.getElementById('waitingPlayers');
-            const wLbl = document.getElementById('waitingLbl');
-        if (wLbl) {
-            if (!bTid) wLbl.textContent = '⏳ Echipa în Așteptare';
-            else if (bTid === 'teamC') wLbl.textContent = '🟣 Echipa Mov (teamC)';
-            else if (bTid === 'teamB') wLbl.textContent = '🟢 Echipa Verde (teamB)';
-            else wLbl.textContent = '🟠 Echipa Portocalie (teamA)';
-        }
-        if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
-                + (bench.length
-                    ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
-                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>');
+            const wLbl  = document.getElementById('waitingLbl');
+            if (wLbl) {
+                wLbl.textContent = '⏳ ' + bName;
+                wLbl.style.cursor = 'pointer';
+                wLbl.onclick = () => openNameEdit('bench');
+            }
+            if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
+                    + (bench.length
+                        ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+                        : '<span style="color:#333;font-size:.72rem;">Nimeni</span>');
         }
     }
 
@@ -911,9 +997,10 @@ function renderTureHistory() {
         const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final', penalty:'penalty' };
         const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
         const rId = r.id;
+        const nA = getTeamNameById(tA), nB = getTeamNameById(tB);
         return `<div class="tur-row" onclick="showRoundDetail('${rId}')">
             <span class="tur-num">Tur ${r.num}</span>
-            <span class="tur-teams">${tidBadge(tA)} ${tidBadge(tB)}</span>
+            <span class="tur-teams" style="flex:1;font-size:.7rem;color:#888;">${nA} vs ${nB}</span>
             <span class="tur-score">
                 <span style="color:${cA}">${sA}</span>
                 <span style="color:#333;font-size:.7rem;margin:0 2px">-</span>
@@ -973,14 +1060,17 @@ function showRoundDetail(roundId) {
         return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#69f0ae;">⚽'+cnt+'</span>' : ''}</div>`;
     }).join('') || '<div style="color:#333;font-size:.72rem;">—</div>';
 
+    const nA = getTeamNameById(tA) || tA;
+    const nB = getTeamNameById(tB) || tB;
+
     document.getElementById('rdTitle').textContent = `Tur ${r.num}`;
-    document.getElementById('rdSub').textContent = `${tA} vs ${tB}`;
+    document.getElementById('rdSub').textContent = `${nA} vs ${nB}`;
     document.getElementById('rdScoreA').style.color = cA;
     document.getElementById('rdScoreA').textContent = sA;
     document.getElementById('rdScoreB').style.color = cB;
     document.getElementById('rdScoreB').textContent = sB;
-    document.getElementById('rdTeamA').innerHTML = tidBadge(tA);
-    document.getElementById('rdTeamB').innerHTML = tidBadge(tB);
+    document.getElementById('rdTeamA').innerHTML = `${nA} ${tidBadge(tA)}`;
+    document.getElementById('rdTeamB').innerHTML = `${nB} ${tidBadge(tB)}`;
     document.getElementById('rdDur').textContent = durMin;
     document.getElementById('rdEnd').textContent = endLabel;
     document.getElementById('rdOPlayers').innerHTML = makePlayerList(oPlayers, oGoals);
@@ -1632,6 +1722,20 @@ init();
     </div>
   </div>
 </div>
+<!-- Team Name Edit Modal -->
+<div class="name-edit-overlay" id="nameEditOverlay" onclick="if(event.target===this)closeNameEdit()">
+  <div class="name-edit-box">
+    <div class="name-edit-title">Redenumește echipa</div>
+    <div class="name-edit-color" id="nameEditColorLbl">🟠 Echipa Portocalie</div>
+    <input class="name-edit-input" id="nameEditInput" type="text" maxlength="24" placeholder="Ex: Vulturii, Leii..."
+      onkeydown="if(event.key==='Enter')saveTeamName()">
+    <div class="name-edit-actions">
+      <button class="name-edit-cancel" onclick="closeNameEdit()">Anulează</button>
+      <button class="name-edit-save" onclick="saveTeamName()">✓ Salvează</button>
+    </div>
+  </div>
+</div>
+
 <!-- Round Detail Modal -->
 <div class="round-detail-overlay" id="roundDetailOverlay" onclick="if(event.target===this)closeRoundDetail()">
   <div class="round-detail-box">
