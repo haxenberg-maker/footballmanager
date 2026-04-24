@@ -5931,7 +5931,7 @@ function openStartMatch(){
 
     const canStart = oP.length > 0 && gP.length > 0;
     document.getElementById('startMatchActions').innerHTML =
-        `<button onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
+        `<button id="launchLiveBtn" onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
             style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;">
             ▶ Start Meci — Deschide Live
         </button>
@@ -5940,10 +5940,57 @@ function openStartMatch(){
     document.getElementById('startMatchOverlay').style.display='flex';
 }
 function closeStartMatch(){ document.getElementById('startMatchOverlay').style.display='none'; }
-function launchLive(){
-    closeStartMatch();
-    // Open live with no specific matchId (uses live_state)
-    window.open('live.html','_blank');
+
+async function launchLive(){
+    const btn = document.getElementById('launchLiveBtn');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Se pregătește...'; }
+
+    const oP = db.players.filter(p=>p.status==='orange');
+    const gP = db.players.filter(p=>p.status==='green');
+    const bP = db.players.filter(p=>p.status==='bench');
+    const has3 = threeTeamMode && bP.length > 0;
+
+    try{
+        // Build live_state patch — write team config before opening live
+        const patch = {
+            timer_status: 'idle',
+            timer_elapsed_ms: 0,
+            timer_started_at: null,
+            round_start_sec: 0,
+            three_team_mode: has3,
+            team_registry: {},
+            color_map: {},
+            match_started_at: null,
+        };
+
+        if(has3){
+            // 3-team mode: assign permanent IDs
+            patch.team_registry = {
+                teamA: { players: oP.map(p=>p.name), color:'orange' },
+                teamB: { players: gP.map(p=>p.name), color:'green'  },
+                teamC: { players: bP.map(p=>p.name), color:'bench'  },
+            };
+            patch.color_map = { orange:'teamA', green:'teamB', bench:'teamC' };
+        }
+
+        // Reset live goals and rounds for fresh start
+        await Promise.all([
+            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+        ]);
+        await sb.from('live_state').update(patch).eq('id',1);
+
+        // Generate pseudo match ID from timestamp
+        const matchTs = new Date().toISOString();
+        const matchId = btoa(matchTs).replace(/[^a-zA-Z0-9]/g,'').slice(0,10);
+
+        closeStartMatch();
+        showToast('✅ Meci pregătit! Deschidere Live...');
+        setTimeout(()=> window.open('live.html?match='+matchId, '_blank'), 400);
+    }catch(e){
+        showToast('⚠️ Eroare: '+e.message);
+        if(btn){ btn.disabled=false; btn.textContent='▶ Start Meci — Deschide Live'; }
+    }
 }
 
 // ── 3-team quick swap (index) ─────────────────────────────────────

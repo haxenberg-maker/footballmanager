@@ -1275,30 +1275,36 @@ document.getElementById('dialogOverlay').addEventListener('click', e => {
 });
 
 async function init() {
-    // Read optional match param from URL (for future match-specific routing)
+    // Read match param from URL
     const urlParams = new URLSearchParams(window.location.search);
     const matchParam = urlParams.get('match') || urlParams.get('id');
+
+    await loadAll();
+
+    // If live_state has a team_registry (set from index Start Meci), apply 3-team UI
+    if (liveState?.three_team_mode && liveState?.team_registry && Object.keys(liveState.team_registry).length > 0) {
+        const btn = document.getElementById('threeBtn');
+        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+    }
+
+    // Update URL/title with match ID
     if (matchParam) {
-        // Store for reference, displayed in header
-        document.title = 'Live · ' + matchParam.slice(0,8) + '… · Arena FC';
-        const pill = document.querySelector('.live-pill');
-        if (pill) pill.title = 'Match: ' + matchParam;
+        document.title = 'Live · Arena FC';
+        if (!window.location.search.includes('match=')) {
+            window.history.replaceState({}, '', window.location.pathname + '?match=' + matchParam);
+        }
+    } else if (liveState?.match_started_at) {
+        const pseudo = btoa(liveState.match_started_at).replace(/[^a-zA-Z0-9]/g,'').slice(0,10);
+        window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
     }
-    await loadAll(); 
+
     subscribe();
-    // Update URL to include live_state match_started_at as pseudo-ID (once started)
-    if (!matchParam && liveState?.match_started_at) {
-        const pseudo = btoa(liveState.match_started_at).replace(/=/g,'').slice(0,8);
-        const newUrl = window.location.pathname + '?match=' + pseudo;
-        window.history.replaceState({}, '', newUrl);
-    }
 }
 // Update URL when match starts
 function updateMatchUrl(st) {
-    if (st?.match_started_at) {
-        const pseudo = btoa(st.match_started_at).replace(/=/g,'').slice(0,8);
-        const existing = new URLSearchParams(window.location.search).get('match');
-        if (!existing) window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
+    if (st?.match_started_at && !window.location.search.includes('match=')) {
+        const pseudo = btoa(st.match_started_at).replace(/[^a-zA-Z0-9]/g,'').slice(0,10);
+        window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
     }
 }
 init();
