@@ -920,11 +920,9 @@ async function doRotation(loserColor, reason) {
 
         // *** Clear live_goals so score resets to 0-0 for new round ***
         goals = [];
-        render(); // show 0-0 immediately
         await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
         // 2. *** OPTIMISTIC LOCAL UPDATE *** — apply swap to local players immediately
-        //    This prevents Realtime intermediate-state refetches from corrupting the UI
         const loserIds = new Set(losers.map(p => p.id));
         const benchIds = new Set(bench.map(p => p.id));
         players = players.map(p => {
@@ -932,9 +930,8 @@ async function doRotation(loserColor, reason) {
             if (benchIds.has(p.id)) return { ...p, status: loserColor };
             return p;
         });
-        render(); // show new teams immediately
 
-        // 3. Persist swap to DB (fire-and-forget individual updates)
+        // 3. Persist swap to DB
         const swapOps = [
             ...losers.map(p => ({ id: p.id, status: 'bench' })),
             ...bench.map(p  => ({ id: p.id, status: loserColor })),
@@ -955,6 +952,10 @@ async function doRotation(loserColor, reason) {
 
         const newRoundStartSec = calcElapsedSec(liveState);
         await patchState({ color_map: newColorMap, team_registry: oldRegistry, round_start_sec: newRoundStartSec });
+
+        // *** render() DUPĂ patchState — acum liveState.color_map e actualizat ***
+        // Echipa care intră apare cu numele și culoarea ei corectă
+        render();
 
         showRotationToast(`${getTeamName(loserColor)} IESE · ${getTeamName('bench')} INTRĂ`);
         scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
