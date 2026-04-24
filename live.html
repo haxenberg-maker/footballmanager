@@ -241,37 +241,46 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="rotation-toast" id="rotationToast"></div>
 
 <div class="three-mode-bar" id="threeBar">
+  <!-- Row 1: waiting team identity + swap buttons -->
   <div class="waiting-team">
     <div class="waiting-hd">
       <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
-      <div style="display:flex;gap:5px;">
-        <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔ vs 🟠</button>
-        <button class="swap-btn swap-g" onclick="manualSwap('green')">↔ vs 🟢</button>
-        <button onclick="openPenalty()" style="padding:5px 10px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;">⚽ Pen.</button>
+      <div style="display:flex;gap:5px;align-items:center;">
+        <button onclick="openPenalty()" style="padding:4px 8px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;">⚽ Pen</button>
+        <button class="swap-btn swap-o" onclick="manualSwap('orange')">↔🟠</button>
+        <button class="swap-btn swap-g" onclick="manualSwap('green')">↔🟢</button>
       </div>
     </div>
-    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:5px;font-size:.75rem;align-items:center;"></div>
+    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
   </div>
-  <div class="threshold-row">
-    <span class="thr-lbl">🎯 Goluri pentru schimb:</span>
-    <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
-    <span class="thr-val" id="thrVal">2</span>
-    <button class="thr-btn" onclick="changeThreshold(1)">+</button>
-    <span style="font-size:.62rem;color:#444;">goluri</span>
-  </div>
-  <div class="threshold-row" style="border-top:1px solid #1e2130;padding-top:5px;">
-    <span class="thr-lbl">⏱ Timp maxim per tur:</span>
-    <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
-    <span class="thr-val" id="timeLimitVal">10</span>
-    <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
-    <span style="font-size:.62rem;color:#444;">min</span>
-  </div>
-  <div id="roundTimeBar" style="display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #1e2130;margin-top:4px;">
-    <span style="font-size:.6rem;color:#555;">Tur curent:</span>
-    <div style="flex:1;height:5px;background:#1e2130;border-radius:3px;overflow:hidden;">
-      <div id="roundTimeFill" style="width:0%;height:100%;background:linear-gradient(90deg,#7c4dff,#ce93d8);border-radius:3px;transition:width 1s linear;"></div>
+
+  <!-- Row 2: config inline -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 14px;border-top:1px solid #1e2130;">
+    <div style="background:#0d0f18;border-radius:8px;padding:7px 10px;border:1px solid #1e2130;">
+      <div style="font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">🎯 Goluri schimb</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
+        <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--star);flex:1;text-align:center;">2</span>
+        <button class="thr-btn" onclick="changeThreshold(1)">+</button>
+      </div>
     </div>
-    <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#ce93d8;min-width:36px;text-align:right;">0:00</span>
+    <div style="background:#0d0f18;border-radius:8px;padding:7px 10px;border:1px solid #1e2130;">
+      <div style="font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">⏱ Max min / tur</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
+        <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:#82b1ff;flex:1;text-align:center;">10</span>
+        <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3: Round timer bar (hidden until running) -->
+  <div id="roundTimeBar" style="display:none;align-items:center;gap:8px;padding:6px 14px;background:#080a12;border-top:1px solid #1e2130;">
+    <span style="font-size:.6rem;color:#555;white-space:nowrap;">Tur curent</span>
+    <div style="flex:1;height:6px;background:#1e2130;border-radius:3px;overflow:hidden;">
+      <div id="roundTimeFill" style="width:0%;height:100%;background:linear-gradient(90deg,#7c4dff,#ce93d8);border-radius:3px;transition:width .5s linear;"></div>
+    </div>
+    <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;min-width:40px;text-align:right;">0:00</span>
   </div>
 </div>
 
@@ -405,12 +414,13 @@ async function timerToggle() {
             timer_status: 'running',
             timer_started_at: new Date().toISOString(),
         };
-        if (!liveState.match_started_at) patch.match_started_at = new Date().toISOString();
+        if (!liveState.match_started_at) { patch.match_started_at = new Date().toISOString(); }
         // If 3-team and round not started yet, set round_start_sec
         if (getThreeTeamMode() && !liveState.round_start_sec) {
             patch.round_start_sec = calcElapsedSec(liveState);
         }
         await patchState(patch);
+        updateMatchUrl(liveState);
     } else {
         // Pause
         const elapsed = (liveState.timer_elapsed_ms || 0) +
@@ -598,14 +608,12 @@ async function checkGoalRotation() {
     const conc = getRoundConceded();
     if (conc.orange >= threshold) {
         cancelRoundTimeout();
-        showRotationToast(`🟠 ${conc.orange} goluri primite — IESE!`);
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
-        setTimeout(() => doRotation('orange', 'goals'), 600);
+        setTimeout(() => showRotationConfirm('orange','goals',`🟠 ${conc.orange} goluri primite — trebuie să schimbăm!`), 400);
     } else if (conc.green >= threshold) {
         cancelRoundTimeout();
-        showRotationToast(`🟢 ${conc.green} goluri primite — IESE!`);
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
-        setTimeout(() => doRotation('green', 'goals'), 600);
+        setTimeout(() => showRotationConfirm('green','goals',`🟢 ${conc.green} goluri primite — trebuie să schimbăm!`), 400);
     }
 }
 
@@ -1184,12 +1192,115 @@ function subscribe() {
 }
 
 
+
+// ── Rotation Confirmation Popup (instead of auto-swap) ────────────
+let pendingRotation = null; // {loserColor, reason}
+
+async function showRotationConfirm(loserColor, reason, triggerMsg) {
+    const loserPlayers = players.filter(p => p.status === loserColor);
+    const winnerColor  = loserColor === 'orange' ? 'green' : 'orange';
+    const winnerPlayers= players.filter(p => p.status === winnerColor);
+    const benchPlayers = players.filter(p => p.status === 'bench');
+    const loseLabel    = loserColor === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+    const winLabel     = winnerColor === 'orange' ? '🟠 Portocaliu' : '🟢 Verde';
+    const loserTid     = getTeamIdByColor(loserColor);
+    const winnerTid    = getTeamIdByColor(winnerColor);
+    const benchTid     = getTeamIdByColor('bench');
+
+    const roundG = getRoundGoals();
+    const oG = roundG.filter(g=>g.team==='orange').length;
+    const gG = roundG.filter(g=>g.team==='green').length;
+
+    // Build scorers list for this round
+    const scorers = {};
+    roundG.forEach(g => { scorers[g.player_name]=(scorers[g.player_name]||0)+1; });
+    const scorerHtml = Object.entries(scorers).length
+        ? Object.entries(scorers).sort((a,b)=>b[1]-a[1])
+            .map(([n,cnt])=>{
+                const team = roundG.find(g=>g.player_name===n)?.team||'orange';
+                const col  = team==='orange'?'var(--o)':'var(--g)';
+                return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #0a0c14;">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+                    <span style="flex:1;font-weight:700;font-size:.82rem;">${n}</span>
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#69f0ae;">⚽${cnt}</span>
+                </div>`;
+            }).join('')
+        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
+
+    document.getElementById('rotConfirmTitle').textContent = '🔄 ' + loseLabel + ' IESE';
+    document.getElementById('rotConfirmSub').textContent   = triggerMsg;
+    document.getElementById('rotConfirmBody').innerHTML    = `
+        <div style="text-align:center;margin-bottom:12px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:${loserColor==='orange'?'var(--o)':'var(--g)'};">${oG} : ${gG}</div>
+            <div style="font-size:.65rem;color:#555;">Scor tur curent</div>
+        </div>
+        <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcat în tur</div>
+        <div style="margin-bottom:12px;">${scorerHtml}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.72rem;">
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid #28a74533;">
+                <div style="color:#28a745;font-weight:700;margin-bottom:4px;">✅ ${winLabel} rămâne</div>
+                ${winnerPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+            </div>
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid #ff8c0033;">
+                <div style="color:#ff8c00;font-weight:700;margin-bottom:4px;">↩ ${loseLabel} iese</div>
+                ${loserPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+                ${benchPlayers.length?`<div style="color:#ce93d8;font-size:.65rem;margin-top:4px;">Intră: ${benchPlayers.map(p=>p.name).join(', ')}</div>`:''}
+            </div>
+        </div>`;
+
+    pendingRotation = { loserColor, reason };
+    document.getElementById('rotConfirmOverlay').style.display = 'flex';
+}
+
+function cancelRotConfirm() {
+    document.getElementById('rotConfirmOverlay').style.display = 'none';
+    pendingRotation = null;
+    // Restart round timer since we cancelled
+    if (liveState?.three_team_mode && liveState?.timer_status === 'running') {
+        scheduleRoundTimeout(liveState);
+    }
+}
+
+async function doConfirmedRotation() {
+    if (!pendingRotation) return;
+    document.getElementById('rotConfirmOverlay').style.display = 'none';
+    const { loserColor, reason } = pendingRotation;
+    pendingRotation = null;
+    await doRotation(loserColor, reason);
+}
+
 // ── Init ──────────────────────────────────────────────────────────
 document.getElementById('dialogOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeDialog();
 });
 
-async function init() { await loadAll(); subscribe(); }
+async function init() {
+    // Read optional match param from URL (for future match-specific routing)
+    const urlParams = new URLSearchParams(window.location.search);
+    const matchParam = urlParams.get('match') || urlParams.get('id');
+    if (matchParam) {
+        // Store for reference, displayed in header
+        document.title = 'Live · ' + matchParam.slice(0,8) + '… · Arena FC';
+        const pill = document.querySelector('.live-pill');
+        if (pill) pill.title = 'Match: ' + matchParam;
+    }
+    await loadAll(); 
+    subscribe();
+    // Update URL to include live_state match_started_at as pseudo-ID (once started)
+    if (!matchParam && liveState?.match_started_at) {
+        const pseudo = btoa(liveState.match_started_at).replace(/=/g,'').slice(0,8);
+        const newUrl = window.location.pathname + '?match=' + pseudo;
+        window.history.replaceState({}, '', newUrl);
+    }
+}
+// Update URL when match starts
+function updateMatchUrl(st) {
+    if (st?.match_started_at) {
+        const pseudo = btoa(st.match_started_at).replace(/=/g,'').slice(0,8);
+        const existing = new URLSearchParams(window.location.search).get('match');
+        if (!existing) window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
+    }
+}
 init();
 </script>
 
@@ -1207,5 +1318,20 @@ init();
   </div>
 </div>
 
+
+<!-- Rotation Confirm Overlay -->
+<div id="rotConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:350;align-items:flex-end;justify-content:center;">
+  <div style="background:#141720;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:1px solid #7c4dff;border-bottom:none;padding:0;max-height:80vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#1a0050,#4a0080);padding:14px 18px;border-radius:16px 16px 0 0;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
+    </div>
+    <div style="padding:14px 18px;" id="rotConfirmBody"></div>
+    <div style="display:flex;gap:8px;padding:0 18px 18px;">
+      <button onclick="cancelRotConfirm()" style="flex:1;padding:12px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;">✕ Nu acum</button>
+      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#fff;">🔄 Confirmă Schimbul</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

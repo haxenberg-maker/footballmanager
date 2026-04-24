@@ -905,7 +905,8 @@
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
-    <button onclick="window.open('live.html','_blank')" title="Pagina live meci" style="background:linear-gradient(135deg,#1a0a30,#3a0070);border:1px solid #7c4dff;color:#ce93d8;">📺 Live</button>
+    <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#1a3a1a,var(--green));border:1px solid #28a745;color:#fff;font-weight:700;">▶ Start Meci</button>
+    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#1a0a30,#3a0070);border:1px solid #7c4dff;color:#ce93d8;font-size:.78rem;">📺</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
 </div>
 
@@ -5899,6 +5900,52 @@ function applyThreeTeamUI(){
     if(barWrap) barWrap.style.display = threeTeamMode ? '' : 'none';
 }
 
+
+// ── Start Match Modal ─────────────────────────────────────────────
+function openStartMatch(){
+    if(!isAdmin()) return;
+    const oP = db.players.filter(p=>p.status==='orange');
+    const gP = db.players.filter(p=>p.status==='green');
+    const bP = db.players.filter(p=>p.status==='bench');
+    const has3 = threeTeamMode && bP.length > 0;
+
+    const teamBlock = (title, color, players) => {
+        if(!players.length) return '';
+        return `<div style="background:#0d0f18;border-radius:10px;border:1px solid ${color}33;padding:10px 12px;margin-bottom:8px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:${color};margin-bottom:6px;">${title} (${players.length})</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${players.map(p=>`<span style="background:${color}11;border:1px solid ${color}33;color:${color};padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;">${p.name}</span>`).join('')}</div>
+        </div>`;
+    };
+
+    const warnings = [];
+    if(!oP.length) warnings.push('⚠️ Echipa Portocalie e goală');
+    if(!gP.length) warnings.push('⚠️ Echipa Verde e goală');
+    if(has3 && !bP.length) warnings.push('⚠️ Nicio echipă pe bancă (mod 3 echipe activ)');
+
+    document.getElementById('startMatchBody').innerHTML =
+        `<div style="font-size:.72rem;color:#555;margin-bottom:12px;">Mod: <strong style="color:${has3?'#ce93d8':'#82b1ff'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong></div>`
+        + (warnings.length ? `<div style="background:rgba(198,40,40,.1);border:1px solid #c6282855;border-radius:8px;padding:8px 12px;margin-bottom:12px;">${warnings.map(w=>`<div style="font-size:.75rem;color:#ef9a9a;">${w}</div>`).join('')}</div>` : '')
+        + teamBlock('🟠 '+teamNames.orange, '#ff8c00', oP)
+        + teamBlock('🟢 '+teamNames.green, '#28a745', gP)
+        + (has3 ? teamBlock('⏳ '+(teamNames.bench||'Echipa 3'), '#9c27b0', bP) : '');
+
+    const canStart = oP.length > 0 && gP.length > 0;
+    document.getElementById('startMatchActions').innerHTML =
+        `<button onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
+            style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;">
+            ▶ Start Meci — Deschide Live
+        </button>
+        <button onclick="closeStartMatch()" style="padding:12px;border-radius:10px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;">✕ Anulează</button>`;
+
+    document.getElementById('startMatchOverlay').style.display='flex';
+}
+function closeStartMatch(){ document.getElementById('startMatchOverlay').style.display='none'; }
+function launchLive(){
+    closeStartMatch();
+    // Open live with no specific matchId (uses live_state)
+    window.open('live.html','_blank');
+}
+
 // ── 3-team quick swap (index) ─────────────────────────────────────
 function quickSwap(team){
     document.getElementById('balancePopup').classList.remove('show');
@@ -5926,15 +5973,22 @@ ${bench.length} jucători de pe Bancă intră.`,
 async function resetPrezenta(){
     if(!isAdmin()){showToast('⚠️ Doar adminul poate face asta!');return;}
     showConfirm('🔄','Reset Prezență?',
-        'Toți jucătorii vor fi marcați ca fără răspuns. Jucătorii de pe echipe NU se mișcă.',
+        'Toți jucătorii (inclusiv din echipe și bancă) vor fi mutați în lista Jucători și prezența se resetează.',
         'Da, Resetează','#c62828',
         async()=>{
             try{
+                // Move all players to 'active'
+                const moved = db.players.filter(p=>p.status!=='active');
+                moved.forEach(p=>p.status='active');
+                if(moved.length){
+                    await Promise.all(moved.map(p=>sb.from('players').update({status:'active'}).eq('id',p.id)));
+                }
+                // Reset presence
                 db.nextMatch.confirmedIds=[];
                 db.nextMatch.absentIds=[];
                 await dbSaveNextMatch();
-                renderLobby();
-                showToast('✅ Prezența a fost resetată!');
+                render();
+                showToast(`✅ ${moved.length} jucători mutați în Jucători. Prezența resetată!`);
             }catch(e){showToast('⚠️ '+e.message);}
         }
     );
@@ -6369,5 +6423,17 @@ async function init(){
 
 init();
 </script>
+
+<!-- START MECI MODAL -->
+<div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
+<div style="background:#141720;width:92%;max-width:520px;border-radius:16px;border:1px solid #2a2d40;box-shadow:0 20px 60px rgba(0,0,0,.8);max-height:88vh;overflow-y:auto;padding:0;">
+    <div style="background:linear-gradient(135deg,#1a3a1a,#1a4a2a);padding:16px 20px;border-radius:16px 16px 0 0;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#fff;margin-bottom:2px;">▶ START MECI</div>
+        <div style="font-size:.72rem;color:rgba(255,255,255,.5);">Confirmă configurația și pornește meciul</div>
+    </div>
+    <div style="padding:16px 20px;" id="startMatchBody"></div>
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px;" id="startMatchActions"></div>
+</div>
+</div>
 </body>
 </html>
