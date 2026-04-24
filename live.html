@@ -928,10 +928,8 @@ function render() {
     if (!orange.length && !green.length) {
         wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
     } else {
-        // *** FIX: in 3-team mode, count only current-round goals per player ***
-        const goalsForCount = mode ? getRoundGoals() : goals;
-        const gpm = {};
-        goalsForCount.forEach(g => { gpm[g.player_name] = (gpm[g.player_name]||0)+1; });
+        // Player goal counters = cumulative across whole match (not per round)
+        const gpm = goalsMap();
 
         const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const makeRows = (pls, team) => pls.map(p => {
