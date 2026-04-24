@@ -919,6 +919,12 @@
 </div>
 </div>
 
+<!-- LIVE BANNER -->
+<div id="liveBanner" style="display:none;background:linear-gradient(135deg,#c62828,#b71c1c);padding:8px 20px;align-items:center;justify-content:center;gap:10px;">
+    <span style="font-size:.8rem;color:#fff;font-weight:700;">🔴 MECI LIVE — Echipele sunt blocate</span>
+    <a href="live.html" target="_blank" style="font-size:.72rem;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.3);padding:2px 8px;border-radius:5px;text-decoration:none;">Deschide Live →</a>
+</div>
+
 <!-- DASHBOARD -->
 <div class="page" id="mainPage">
 
@@ -1066,6 +1072,7 @@
             <span class="lobby-title">📅 Meci Următor</span>
             <span class="lobby-datetime no-date" id="lobbyDatetime">Niciun meci programat</span>
             <button class="btn-edit-schedule admin-only" onclick="openScheduleModal()">✏️</button>
+            <button class="admin-only" onclick="resetPrezenta()" title="Resetează prezența tuturor" style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);color:#ef9a9a;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;">🔄 Reset Prezență</button>
             <button class="btn-form-teams admin-only" onclick="formTeamsFromLobby()">⚡ Echipe</button>
         </div>
         <div class="lobby-body">
@@ -2239,6 +2246,10 @@ function setupRealtime() {
         })
         .subscribe();
     setupScenariosRealtime();
+    // Subscribe to live state for live banner
+    sb.channel('live_state_idx')
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'},()=>checkLiveStatus())
+        .subscribe();
 }
 
 
@@ -2546,6 +2557,7 @@ function render(){
         });
     });
     updateTeamStats();renderLeaderboard();renderHistory();renderLobby();renderTeamTitles();applyThreeTeamUI();
+    checkLiveStatus();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
     // Keep mobile tab active after re-render
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
@@ -3137,6 +3149,7 @@ function copyTeams(){
 function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
 async function adminDrop(e){
     if(!isAdmin()) return;
+    if(window._isLive){showToast("⚠️ Meciul e live — echipele sunt blocate!");return;}
     e.preventDefault();
     const id=e.dataTransfer.getData("text");
     let target=e.target;
@@ -5843,6 +5856,24 @@ function computeTeamStreak(team) {
 
 
 
+
+// ── is_live flag ─────────────────────────────────────────────────
+window._isLive = false;
+async function checkLiveStatus(){
+    try{
+        const{data}=await sb.from('live_state').select('timer_status,match_started_at').eq('id',1).single();
+        const live = data?.timer_status==='running'||data?.timer_status==='paused';
+        window._isLive = live;
+        const banner=document.getElementById('liveBanner');
+        if(banner) banner.style.display=live?'flex':'none';
+        // Disable drag on player cards
+        document.querySelectorAll('.player-card').forEach(card=>{
+            card.draggable = isAdmin() && !live;
+            card.style.cursor = live?'pointer':'';
+        });
+    }catch(e){}
+}
+
 // ── 3-team toggle (index) ─────────────────────────────────────────
 function toggleThreeTeamIndex(){
     threeTeamMode = !threeTeamMode;
@@ -5886,6 +5917,25 @@ ${bench.length} jucători de pe Bancă intră.`,
             try{ await Promise.all([...teamPlayers,...bench].map(p=>dbUpdatePlayer(p))); }
             catch(e){ showToast('⚠️ '+e.message); }
             showToast(`✅ ${lbl} schimbată cu Banca!`);
+        }
+    );
+}
+
+
+// ── Reset Prezență ────────────────────────────────────────────────
+async function resetPrezenta(){
+    if(!isAdmin()){showToast('⚠️ Doar adminul poate face asta!');return;}
+    showConfirm('🔄','Reset Prezență?',
+        'Toți jucătorii vor fi marcați ca fără răspuns. Jucătorii de pe echipe NU se mișcă.',
+        'Da, Resetează','#c62828',
+        async()=>{
+            try{
+                db.nextMatch.confirmedIds=[];
+                db.nextMatch.absentIds=[];
+                await dbSaveNextMatch();
+                renderLobby();
+                showToast('✅ Prezența a fost resetată!');
+            }catch(e){showToast('⚠️ '+e.message);}
         }
     );
 }
