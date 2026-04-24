@@ -578,7 +578,10 @@ async function saveTeamEdit() {
     closeTeamEdit();
 }
 function openAllTeamsEdit() {
-    const teamIds = liveState?.three_team_mode ? ['teamA','teamB','teamC'] : ['orange','green'];
+    // Always show all 3 teams (bench included)
+    const teamIds = liveState?.three_team_mode
+        ? ['teamA','teamB','teamC']
+        : ['orange','green','bench'];
     openTeamEdit(teamIds[0]);
     setTimeout(() => renderTeamTabs(teamIds), 10);
 }

@@ -2916,20 +2916,27 @@ async function clearSchedule(){
 function formTeamsFromLobby(){
     const confirmed = db.players.filter(p => db.nextMatch.confirmedIds.includes(p.id));
     if(confirmed.length < 2){ showToast('⚠️ Minim 2 jucători confirmați!'); return; }
-    // Resetează echipele — cei care nu sunt confirmați rămân unde sunt
     db.players.forEach(p => {
         if(p.status === 'orange' || p.status === 'green') p.status = 'bench';
     });
+    // ── EGALITATE NUMĂR JUCĂTORI — prioritate maximă ───────────────
     const sorted = [...confirmed].sort((a,b) => getSmartRating(b) - getSmartRating(a));
+    const maxSize = Math.ceil(sorted.length / 2);
+    const oArr = [], gArr = [];
     let oSum = 0, gSum = 0;
     sorted.forEach(p => {
-        if(oSum <= gSum){ p.status='orange'; oSum+=getSmartRating(p); }
-        else { p.status='green'; gSum+=getSmartRating(p); }
+        const r = getSmartRating(p);
+        const oFull = oArr.length >= maxSize;
+        const gFull = gArr.length >= maxSize;
+        if      (oFull)        { p.status='green';  gArr.push(p); gSum+=r; }
+        else if (gFull)        { p.status='orange'; oArr.push(p); oSum+=r; }
+        else if (oSum <= gSum) { p.status='orange'; oArr.push(p); oSum+=r; }
+        else                   { p.status='green';  gArr.push(p); gSum+=r; }
     });
     render();
     Promise.all(db.players.filter(p=>['orange','green'].includes(p.status)).map(p=>dbUpdatePlayer(p)))
         .catch(e => showToast('⚠️ '+e.message));
-    showToast(`⚡ Echipe formate din ${confirmed.length} jucători confirmați!`);
+    showToast(`⚡ Echipe formate: ${oArr.length} vs ${gArr.length} jucători!`);
 }
 
 async function recordMatch(winner, goalMap={}, goalConcededMap={}){
@@ -3243,10 +3250,51 @@ function openTeamConfigEditor(side) {
     document.getElementById('tcmSide').value = side;
     document.getElementById('tcmCustomName').value = _tcmShowCustom ? (teamNames[side] || '') : '';
     document.getElementById('tcmTitle').textContent =
-        side === 'orange' ? 'Echipa 1' : side === 'green' ? 'Echipa 2' : 'Echipa 3';
+        side === 'orange' ? 'Echipa 1' : side === 'green' ? 'Echipa 2' : 'Echipa 3 (Bancă)';
     renderTcmPalette();
     renderTcmNameSection();
+    // Render tabs: always show all 3 teams
+    renderTcmTabs(['orange','green','bench']);
     document.getElementById('teamConfigModal').style.display = 'flex';
+}
+
+function renderTcmTabs(sides) {
+    const modal = document.getElementById('teamConfigModal');
+    if (!modal) return;
+    let tabs = document.getElementById('tcmTabs');
+    if (!tabs) {
+        tabs = document.createElement('div');
+        tabs.id = 'tcmTabs';
+        tabs.style.cssText = 'display:flex;gap:6px;padding:10px 18px 0;background:#0d0f18;border-bottom:1px solid #1e2130;';
+        const hd = modal.querySelector('[id="tcmTitle"]')?.closest('div');
+        if (hd) hd.insertAdjacentElement('afterend', tabs);
+        else modal.querySelector('div').prepend(tabs);
+    }
+    tabs.innerHTML = '';
+    sides.forEach(side => {
+        const hex = teamColors[side] || '#888';
+        const isActive = side === _tcmSide;
+        const btn = document.createElement('button');
+        btn.style.cssText = `flex:1;padding:6px 4px;border-radius:7px 7px 0 0;font-size:.68rem;font-weight:700;cursor:pointer;touch-action:manipulation;
+            background:${isActive ? hex+'22' : 'transparent'};border:1px solid ${isActive ? hex : '#252836'};
+            border-bottom:${isActive ? `1px solid #141720` : '1px solid #252836'};color:${isActive ? hex : '#444'};`;
+        btn.innerHTML = `<span style="display:block;width:8px;height:8px;border-radius:50%;background:${hex};margin:0 auto 2px;"></span>${teamNames[side]}`;
+        btn.onclick = () => {
+            // Save current hex before switching
+            const curCustom = _tcmShowCustom ? document.getElementById('tcmCustomName').value.trim() : null;
+            // Switch
+            _tcmSide = side;
+            _tcmHex = teamColors[side] || '#ff8c00';
+            _tcmShowCustom = !!(teamNames[side] !== colorToNameIdx(_tcmHex));
+            document.getElementById('tcmSide').value = side;
+            document.getElementById('tcmCustomName').value = _tcmShowCustom ? (teamNames[side] || '') : '';
+            document.getElementById('tcmTitle').textContent = side === 'orange' ? 'Echipa 1' : side === 'green' ? 'Echipa 2' : 'Echipa 3 (Bancă)';
+            renderTcmPalette();
+            renderTcmNameSection();
+            renderTcmTabs(sides);
+        };
+        tabs.appendChild(btn);
+    });
 }
 
 let _tcmSide = 'orange';
@@ -5928,24 +5976,23 @@ function doBalance(mode) {
 
     // ── 3-team mode: distribute into 3 equal teams ────────────────
     if(threeTeamMode){
-        const getRatingT = (p) => mode==='surprise' ? getSmartRating(p) : (mode==='smart'||mode==='roles'?getSmartRating(p):getGeneralAvg(p));
+        const getRatingT = (p) => mode==='smart'||mode==='roles'||mode==='surprise' ? getSmartRating(p) : getGeneralAvg(p);
         const sorted3 = mode==='surprise'
             ? [...active].sort(()=>Math.random()-.5)
             : [...active].sort((a,b)=>getRatingT(b)-getRatingT(a));
         const teams3 = ['orange','green','bench'];
         const sizes3 = [0,0,0];
-        const maxS3 = Math.ceil(active.length/3);
+        const sums3  = [0,0,0];  // track locally — nu din db.players (stale)
+        const maxS3  = Math.ceil(active.length/3);
         sorted3.forEach(p=>{
-            // Find team with lowest sum that isn't full
+            const r = getRatingT(p);
+            // Găsește echipa cu suma minimă care nu e plină — egalitate garantată
             let best=-1, bestSum=Infinity;
-            const sums=[
-                db.players.filter(x=>x.status==='orange').reduce((s,x)=>s+getRatingT(x),0),
-                db.players.filter(x=>x.status==='green').reduce((s,x)=>s+getRatingT(x),0),
-                db.players.filter(x=>x.status==='bench').reduce((s,x)=>s+getRatingT(x),0),
-            ];
-            teams3.forEach((t,i)=>{ if(sizes3[i]<maxS3 && sums[i]<bestSum){bestSum=sums[i];best=i;} });
+            for(let i=0;i<3;i++){
+                if(sizes3[i]<maxS3 && sums3[i]<bestSum){ bestSum=sums3[i]; best=i; }
+            }
             if(best===-1) best=sizes3.indexOf(Math.min(...sizes3));
-            p.status=teams3[best]; sizes3[best]++;
+            p.status=teams3[best]; sizes3[best]++; sums3[best]+=r;
         });
         render();
         Promise.all(active.map(p=>dbUpdatePlayer(p))).catch(e=>showToast('⚠️ '+e.message));
@@ -6109,10 +6156,25 @@ function applyThreeTeamUI(){
         btn.title = threeTeamMode ? '3 Echipe ACTIV — click pentru dezactivare' : 'Activează Mod 3 Echipe';
     }
     if(colBench) colBench.classList.toggle('team3-active', threeTeamMode);
-    teamNames.bench = localStorage.getItem('team_name_bench')||'Echipa 3';
-    if(titleBench) titleBench.textContent = threeTeamMode ? (teamNames.bench+' 🟣') : 'Pe Bancă';
+    if(titleBench){
+        titleBench.textContent = threeTeamMode ? teamNames.bench : 'Pe Bancă';
+        if(threeTeamMode){
+            titleBench.style.cursor = 'pointer';
+            titleBench.title = 'Click pentru editare';
+            titleBench.onclick = () => startEditTeamName('bench');
+        } else {
+            titleBench.style.cursor = '';
+            titleBench.onclick = null;
+        }
+    }
     if(avgBench) avgBench.style.display = threeTeamMode ? '' : 'none';
     if(barWrap) barWrap.style.display = threeTeamMode ? '' : 'none';
+    // Apply bench column header color in 3-team mode
+    const benchHd = document.querySelector('#col-bench .col-header');
+    if(benchHd && threeTeamMode){
+        benchHd.style.background = teamColors.bench || '#7c4dff';
+        benchHd.style.color = getContrastColorIdx(teamColors.bench || '#7c4dff');
+    }
 }
 
 
