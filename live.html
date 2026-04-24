@@ -287,9 +287,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 
 <div class="score-wrap">
   <div class="score-row">
-    <div class="sc-side"><div class="sc-lbl o" id="lblO">🟠 Portocaliu</div><div class="sc-n o" id="scoreO">0</div></div>
+    <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
     <div class="sc-sep">:</div>
-    <div class="sc-side right"><div class="sc-lbl g" id="lblG">Verde 🟢</div><div class="sc-n g" id="scoreG">0</div></div>
+    <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
   <div class="score-sub" id="scoreSub"></div>
 </div>
@@ -391,11 +391,7 @@ let roundTimerTO     = null;  // setTimeout for round timeout
 let roundTimerIV     = null;  // setInterval for round bar update
 
 // ── Helpers ───────────────────────────────────────────────────────
-function tidBadge(tid) {
-    if (!tid) return '';
-    const letter = tid.slice(-1).toLowerCase();
-    return `<span class="tid tid-${letter}">${tid}</span>`;
-}
+function tidBadge(tid) { return ''; } // ID-urile echipelor sunt invizibile, se folosesc doar intern
 
 function fmtTimer(s) {
     const m = Math.floor(s / 60), ss = s % 60;
@@ -1002,15 +998,23 @@ function render() {
 
     const oName = getTeamName('orange');
     const gName = getTeamName('green');
+    const oHex  = getTeamHex('orange');
+    const gHex  = getTeamHex('green');
 
     document.getElementById('scoreO').textContent = oScore;
     document.getElementById('scoreG').textContent = gScore;
-    document.getElementById('lblO').innerHTML =
-        `<span>${oName}</span>${oTid ? tidBadge(oTid) : ''}<span class="sc-lbl-edit">✎</span>`;
-    document.getElementById('lblO').onclick = () => openNameEdit('orange');
-    document.getElementById('lblG').innerHTML =
-        `<span>${gName}</span>${gTid ? tidBadge(gTid) : ''}<span class="sc-lbl-edit">✎</span>`;
-    document.getElementById('lblG').onclick = () => openNameEdit('green');
+    document.getElementById('scoreO').style.color = oHex;
+    document.getElementById('scoreG').style.color = gHex;
+
+    const lblO = document.getElementById('lblO');
+    lblO.innerHTML = `<span>${oName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblO.style.color = oHex;
+    lblO.onclick = () => openNameEdit('orange');
+
+    const lblG = document.getElementById('lblG');
+    lblG.innerHTML = `<span>${gName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblG.style.color = gHex;
+    lblG.onclick = () => openNameEdit('green');
 
     // Score sub: cumulative same-pair total
     const subEl = document.getElementById('scoreSub');
@@ -1076,11 +1080,11 @@ function render() {
         const gTidH  = gTid ? tidBadge(gTid)+' ' : '';
         wrap.innerHTML =
             '<div class="team-col o-col">'
-            + `<div class="team-hd">${oTidH}<span class="team-hd-lbl o">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
+            + `<div class="team-hd"><span class="team-hd-lbl" style="color:${oHex}">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
             + makeRows(orange, 'orange')
             + '</div>'
             + '<div class="team-col g-col">'
-            + `<div class="team-hd">${gTidH}<span class="team-hd-lbl g">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
+            + `<div class="team-hd"><span class="team-hd-lbl" style="color:${gHex}">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
             + makeRows(green, 'green')
             + '</div>';
     }
@@ -1095,17 +1099,18 @@ function render() {
             const bench = players.filter(p => p.status === 'bench');
             const bTid  = getTeamIdByColor('bench');
             const bName = getTeamName('bench');
+            const bHex2 = getTeamHex('bench');
             const wp    = document.getElementById('waitingPlayers');
             const wLbl  = document.getElementById('waitingLbl');
             if (wLbl) {
                 wLbl.textContent = '⏳ ' + bName;
+                wLbl.style.color = bHex2;
                 wLbl.style.cursor = 'pointer';
                 wLbl.onclick = () => openNameEdit('bench');
             }
-            if (wp) wp.innerHTML = (bTid ? tidBadge(bTid)+' ' : '')
-                    + (bench.length
-                        ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
-                        : '<span style="color:#333;font-size:.72rem;">Nimeni</span>');
+            if (wp) wp.innerHTML = bench.length
+                    ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>';
         }
     }
 
