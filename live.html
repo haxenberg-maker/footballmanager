@@ -452,17 +452,16 @@ function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] ||
 
 // ── Team name helpers ─────────────────────────────────────────────
 // ── Team config helpers (name + color per teamId, permanent) ──────
-const TEAM_COLORS = [
-    '#ff8c00','#28a745','#e53935','#1e88e5',
-    '#7c4dff','#fdd835','#00acc1','#e91e63','#ffffff','#78909c',
-];
+const TEAM_COLORS = ['#ffffff','#111111','#ff8c00','#e53935','#28a745','#1e88e5'];
 const TEAM_DEFAULTS = {
     teamA: { name: 'Echipa A', hex: '#ff8c00' },
     teamB: { name: 'Echipa B', hex: '#28a745' },
-    teamC: { name: 'Echipa C', hex: '#7c4dff' },
+    teamC: { name: 'Echipa C', hex: '#1e88e5' },
+    orange: { name: 'Portocaliu', hex: '#ff8c00' },
+    green:  { name: 'Verde',      hex: '#28a745' },
 };
 
-function getTeamConfigs() { return liveState?.team_configs || {}; }
+function getTeamConfigs() { return (liveState?.team_registry?._configs) || {}; }
 
 function getTeamConfig(teamId) {
     const cfg = getTeamConfigs()[teamId];
@@ -476,12 +475,7 @@ function getTeamConfigForColor(color) {
         const teamId = getTeamIdByColor(color);
         if (teamId) return getTeamConfig(teamId);
     }
-    // Non-3-team: use team_configs keyed by color slot
-    const cfg = getTeamConfigs()[color];
-    const def = color === 'orange' ? { name: 'Portocaliu', hex: '#ff8c00' }
-              : color === 'green'  ? { name: 'Verde',      hex: '#28a745' }
-              :                      { name: 'Mov',         hex: '#7c4dff' };
-    return { name: cfg?.name || def.name, hex: cfg?.hex || def.hex };
+    return getTeamConfig(color);
 }
 
 function getTeamName(color) { return getTeamConfigForColor(color).name; }
@@ -505,15 +499,12 @@ function applyTeamColors() {
 }
 
 async function saveTeamConfig(teamId, name, hex) {
-    const configs = { ...getTeamConfigs(), [teamId]: { name, hex } };
-    // Also update team_registry name if in 3-team mode
-    const patch = { team_configs: configs };
-    if (liveState?.three_team_mode) {
-        const reg = { ...getTeamRegistry() };
-        if (reg[teamId]) reg[teamId] = { ...reg[teamId], name };
-        patch.team_registry = reg;
-    }
-    await patchState(patch);
+    // Store in team_registry._configs (existing JSONB column)
+    const reg = { ...getTeamRegistry() };
+    reg._configs = { ...(reg._configs || {}), [teamId]: { name, hex } };
+    // Also update team_registry name for 3-team mode
+    if (reg[teamId]) reg[teamId] = { ...reg[teamId], name };
+    await patchState({ team_registry: reg });
     applyTeamColors();
     render();
 }
@@ -592,7 +583,6 @@ function openAllTeamsEdit() {
 function renderTeamTabs(teamIds) {
     const hd = document.getElementById('teamEditHd');
     if (!hd) return;
-    // Add tabs above title if not already there
     let tabs = document.getElementById('teamEditTabs');
     if (!tabs) {
         tabs = document.createElement('div');
@@ -600,26 +590,26 @@ function renderTeamTabs(teamIds) {
         tabs.style.cssText = 'display:flex;gap:6px;padding:12px 18px 0;';
         hd.insertAdjacentElement('beforebegin', tabs);
     }
-    tabs.innerHTML = teamIds.map(id => {
+    tabs.innerHTML = '';
+    teamIds.forEach(id => {
         const cfg = getTeamConfig(id);
         const isActive = id === _editingTeamId;
-        return `<button onclick="switchTeamTab('${id}',${JSON.stringify(teamIds)})"
-            style="flex:1;padding:6px 4px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;
-            background:${isActive ? cfg.hex+'33' : '#0d0f18'};border:1px solid ${isActive ? cfg.hex : '#252836'};
-            color:${isActive ? cfg.hex : '#555'};touch-action:manipulation;">
-            <span style="display:block;width:8px;height:8px;border-radius:50%;background:${cfg.hex};margin:0 auto 3px;"></span>
-            ${cfg.name}
-        </button>`;
-    }).join('');
+        const btn = document.createElement('button');
+        btn.style.cssText = `flex:1;padding:6px 4px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;touch-action:manipulation;
+            background:${isActive ? cfg.hex+'33' : '#0d0f18'};border:1px solid ${isActive ? cfg.hex : '#252836'};color:${isActive ? cfg.hex : '#555'};`;
+        btn.innerHTML = `<span style="display:block;width:8px;height:8px;border-radius:50%;background:${cfg.hex};margin:0 auto 3px;"></span>${cfg.name}`;
+        btn.onclick = () => switchTeamTab(id, teamIds);
+        tabs.appendChild(btn);
+    });
 }
 
 function switchTeamTab(teamId, teamIds) {
-    // Save current values before switching
     const curName = document.getElementById('teamEditName').value.trim();
     if (curName && _editingTeamId) {
-        // silently update local state
-        const configs = { ...getTeamConfigs(), [_editingTeamId]: { name: curName, hex: _editingHex || '#888' } };
-        liveState = { ...liveState, team_configs: configs };
+        // Silently update local registry._configs before switching tabs
+        const reg = { ...getTeamRegistry() };
+        reg._configs = { ...(reg._configs || {}), [_editingTeamId]: { name: curName, hex: _editingHex || '#888' } };
+        liveState = { ...liveState, team_registry: reg };
     }
     _editingTeamId = teamId;
     const cfg = getTeamConfig(teamId);
