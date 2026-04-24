@@ -229,31 +229,32 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #333;color:#555;}
 
 /* ── Penalty Shootout ─────────────────────────────────────────── */
-.penalty-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;}
+.penalty-overlay{position:fixed;inset:0;background:#080a12;z-index:400;display:none;flex-direction:column;}
 .penalty-overlay.show{display:flex;}
-.penalty-box{background:#141720;width:100%;max-width:520px;border-radius:18px;border:1px solid #c62828;padding:0;max-height:92vh;overflow-y:auto;}
-.penalty-hd{background:linear-gradient(135deg,#7b1010,#c62828);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
-.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#fff;}
-.penalty-hd-sub{font-size:.72rem;color:rgba(255,255,255,.6);margin-top:2px;}
-.penalty-score-row{display:flex;align-items:center;justify-content:center;gap:16px;padding:14px 20px;background:#0d0f18;border-bottom:1px solid #1e2130;}
-.pen-team-score{text-align:center;}
-.pen-team-lbl{font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
-.pen-score-num{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;line-height:1;transition:all .15s;}
-.pen-dots{display:flex;gap:4px;justify-content:center;margin-top:4px;min-height:14px;}
+.penalty-box{display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:#080a12;}
+.penalty-hd{background:linear-gradient(135deg,#7b1010,#c62828);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.penalty-hd-sub{font-size:.62rem;color:rgba(255,255,255,.6);margin-top:1px;}
+.penalty-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:#0d0f18;border-bottom:1px solid #1e2130;flex-shrink:0;}
+.pen-team-score{text-align:center;flex:1;}
+.pen-team-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.pen-score-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;transition:all .15s;}
+.pen-dots{display:flex;gap:4px;justify-content:center;margin-top:3px;min-height:14px;}
 .pen-dot{width:12px;height:12px;border-radius:50%;border:2px solid;flex-shrink:0;}
-.pen-dot.goal{background:var(--g);border-color:var(--g);box-shadow:0 0 6px var(--g);}
+.pen-dot.goal{background:#28a745;border-color:#28a745;box-shadow:0 0 6px #28a745;}
 .pen-dot.miss{background:transparent;border-color:#c62828;}
 .pen-dot.pending{background:#252836;border-color:#444;}
-.pen-vs{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#252836;}
-.penalty-current{padding:14px 20px;border-bottom:1px solid #1e2130;text-align:center;}
-.penalty-kicker-label{font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-.penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:2px;color:#fff;margin-bottom:2px;}
-.penalty-kicker-team{font-size:.7rem;font-weight:700;}
-.penalty-btns{display:flex;gap:8px;padding:14px 20px 8px;}
-.penalty-btn-goal{flex:1;padding:20px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,var(--g));border:1px solid var(--g);color:#fff;touch-action:manipulation;}
-.penalty-btn-miss{flex:1;padding:20px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;touch-action:manipulation;}
-.penalty-kicker-list{padding:0 20px 14px;}
-.pen-list-section{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:6px 0 4px;}
+.pen-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.penalty-current{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;min-height:0;}
+.penalty-kicker-label{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:3px;color:#fff;margin-bottom:8px;line-height:1.1;}
+.penalty-kicker-team{font-size:.78rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block;}
+.penalty-btns{display:flex;gap:10px;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
+.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#fff;touch-action:manipulation;}
+.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#fff;touch-action:manipulation;}
+.penalty-btn-goal:active,.penalty-btn-miss:active{opacity:.8;}
+.penalty-kicker-list{padding:0 16px 8px;flex-shrink:0;max-height:140px;overflow-y:auto;}
+.pen-list-section{font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:4px 0 3px;}
 .pen-list-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
 .pen-list-name{flex:1;font-size:.82rem;font-weight:700;}
 .pen-list-result{font-size:.82rem;}
@@ -283,6 +284,14 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
   <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start Meci</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
+  <div id="roundTimerWidget" style="display:none;align-items:center;gap:6px;flex-shrink:0;">
+    <div style="width:1px;height:20px;background:#1e2130;"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:1px;">
+      <span style="font-size:.48rem;color:#555;text-transform:uppercase;letter-spacing:.5px;">TUR</span>
+      <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;line-height:1;">0:00</span>
+    </div>
+    <button onclick="openPenalty()" style="padding:5px 8px;border-radius:6px;font-size:.6rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;">⚽ Pen</button>
+  </div>
 </div>
 
 <div class="score-wrap">
@@ -304,12 +313,10 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="rotation-toast" id="rotationToast"></div>
 
 <div class="three-mode-bar" id="threeBar">
-  <!-- Row 1: waiting team identity + swap buttons -->
   <div class="waiting-team">
     <div class="waiting-hd">
       <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
       <div style="display:flex;gap:5px;align-items:center;">
-        <button onclick="openPenalty()" style="padding:4px 8px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;">⚽ Pen</button>
         <button class="swap-btn swap-o" onclick="manualSwap('orange')" id="swapBtnO">↔ O</button>
         <button class="swap-btn swap-g" onclick="manualSwap('green')" id="swapBtnG">↔ G</button>
       </div>
@@ -335,15 +342,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
       </div>
     </div>
-  </div>
-
-  <!-- Row 3: Round timer bar (hidden until running) -->
-  <div id="roundTimeBar" style="display:none;align-items:center;gap:8px;padding:6px 14px;background:#080a12;border-top:1px solid #1e2130;">
-    <span style="font-size:.6rem;color:#555;white-space:nowrap;">Tur curent</span>
-    <div style="flex:1;height:6px;background:#1e2130;border-radius:3px;overflow:hidden;">
-      <div id="roundTimeFill" style="width:0%;height:100%;background:linear-gradient(90deg,#7c4dff,#ce93d8);border-radius:3px;transition:width .5s linear;"></div>
-    </div>
-    <span id="roundTimeLeft" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;min-width:40px;text-align:right;">0:00</span>
   </div>
 </div>
 
@@ -453,6 +451,7 @@ const COLOR_NAMES = {
     '#ffffff': 'ALB', '#111111': 'NEGRU',
     '#ff8c00': 'PORTOCALIU', '#e53935': 'ROȘU',
     '#28a745': 'VERDE', '#1e88e5': 'ALBASTRU',
+    '#7c4dff': 'MOV', '#9c27b0': 'MOV',
 };
 const DEFAULT_HEX = { teamA:'#ff8c00', teamB:'#28a745', teamC:'#1e88e5', orange:'#ff8c00', green:'#28a745', bench:'#1e88e5' };
 
@@ -461,7 +460,21 @@ function getContrastColor(hex) {
     const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
     return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.55 ? '#000000' : '#ffffff';
 }
-function colorToName(hex) { return COLOR_NAMES[hex] || 'ECHIPA'; }
+function colorToName(hex) {
+    if (!hex) return 'ECHIPA';
+    const direct = COLOR_NAMES[hex.toLowerCase()];
+    if (direct) return direct;
+    // Find closest palette color by hex distance
+    let best = null, bestD = Infinity;
+    Object.entries(COLOR_NAMES).forEach(([h, n]) => {
+        const dr=parseInt(h.slice(1,3),16)-parseInt(hex.slice(1,3),16);
+        const dg=parseInt(h.slice(3,5),16)-parseInt(hex.slice(3,5),16);
+        const db=parseInt(h.slice(5,7),16)-parseInt(hex.slice(5,7),16);
+        const d=dr*dr+dg*dg+db*db;
+        if(d<bestD){bestD=d;best=n;}
+    });
+    return best || 'ECHIPA';
+}
 
 function getTeamConfigs() { return (liveState?.team_registry?._configs) || {}; }
 
@@ -724,24 +737,21 @@ function cancelRoundTimeout() {
 }
 
 function updateRoundTimerBar() {
-    if (!liveState || !liveState.three_team_mode || liveState.timer_status === 'idle') return;
-    const totalSec    = (liveState.time_limit_min || 10) * 60;
-    const elapsed     = calcRoundElapsedSec(liveState);
-    const remaining   = Math.max(0, totalSec - elapsed);
-    const pct         = Math.min(100, Math.round((elapsed / totalSec) * 100));
-    const fill = document.getElementById('roundTimeFill');
-    const left = document.getElementById('roundTimeLeft');
-    const bar  = document.getElementById('roundTimeBar');
-    if (bar) bar.style.display = liveState.timer_status === 'running' ? 'flex' : 'none';
-    if (fill) {
-        fill.style.width = pct + '%';
-        fill.style.background = pct > 80
-            ? 'linear-gradient(90deg,#e53935,#ef9a9a)'
-            : pct > 60
-            ? 'linear-gradient(90deg,#ff8c00,#ffcc00)'
-            : 'linear-gradient(90deg,#7c4dff,#ce93d8)';
+    const widget = document.getElementById('roundTimerWidget');
+    if (!widget) return;
+    const active = liveState?.three_team_mode && liveState?.timer_status === 'running';
+    widget.style.display = active ? 'flex' : 'none';
+    if (!active) return;
+    const totalSec  = (liveState.time_limit_min || 10) * 60;
+    const elapsed   = calcRoundElapsedSec(liveState);
+    const remaining = Math.max(0, totalSec - elapsed);
+    const pct       = Math.min(100, elapsed / totalSec);
+    const lbl = document.getElementById('roundTimeLeft');
+    if (lbl) {
+        const m = Math.floor(remaining/60), s = remaining%60;
+        lbl.textContent = m+':'+(s<10?'0':'')+s;
+        lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
     }
-    if (left) { const m = Math.floor(remaining/60), s = remaining%60; left.textContent = m+':'+(s<10?'0':'')+s; }
 }
 
 async function onRoundTimeout() {
@@ -882,6 +892,7 @@ async function saveRoundToDB(loserColor, reason) {
 
     const roundData = {
         num,
+        session_id: liveState?.session_id || null,
         team_a_id:      oTid || 'teamA',
         team_b_id:      gTid || 'teamB',
         score_a:        oG,
@@ -979,7 +990,7 @@ async function loadAll() {
         sb.from('live_state').select('*').eq('id', 1).single(),
         sb.from('players').select('id,name,status').order('name'),
         sb.from('live_goals').select('*').order('created_at', { ascending: true }),
-        sb.from('live_rounds').select('*').order('num', { ascending: true }),
+        sb.from('live_rounds').select('*').eq('session_id', st.session_id || '').order('num', { ascending: true }),
     ]);
     liveState = st;
     players   = pl || [];
@@ -1186,18 +1197,21 @@ function showRoundDetail(roundId) {
     const tA = r.team_a_id, tB = r.team_b_id;
     const sA = r.score_a || 0, sB = r.score_b || 0;
     const winA = sA > sB, winB = sB > sA;
-    const cA = winA ? 'var(--g)' : winB ? '#ef9a9a' : '#aaa';
-    const cB = winB ? 'var(--g)' : winA ? '#ef9a9a' : '#aaa';
+    const hA = getTeamHexById(tA), hB = getTeamHexById(tB);
+    const nA = getTeamNameById(tA) || tA;
+    const nB = getTeamNameById(tB) || tB;
+    const cA = winA ? hA : winB ? '#ef9a9a' : '#aaa';
+    const cB = winB ? hB : winA ? '#ef9a9a' : '#aaa';
 
     const rLabels = { goals:'⚽ Goluri', time:'⏱ Timp', manual:'✋ Manual', final:'🏁 Final', penalty:'⚽ Penalty' };
     const endLabel = rLabels[r.end_reason] || r.end_reason || '—';
     const durMin = r.duration_sec ? Math.floor(r.duration_sec/60)+"'"+String(r.duration_sec%60).padStart(2,'0')+"\"" : '—';
 
-    // Goals from this round
     const rGoals = Array.isArray(r.goals) ? r.goals : [];
     const scorersHtml = rGoals.length
         ? rGoals.map(g => {
-            const col = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
+            // Use team_a_id hex for orange slot, team_b_id hex for green slot
+            const col = g.team === 'orange' ? hA : hB;
             const min = g.minute != null ? g.minute+"'" : '';
             return `<div class="rd-goal-row">
                 <div class="rd-goal-dot" style="background:${col};"></div>
@@ -1207,7 +1221,6 @@ function showRoundDetail(roundId) {
         }).join('')
         : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat</div>';
 
-    // Players columns
     const oPlayers = Array.isArray(r.orange_players) ? r.orange_players : [];
     const gPlayers = Array.isArray(r.green_players)  ? r.green_players  : [];
     const oGoals = rGoals.filter(g => g.team === 'orange');
@@ -1218,22 +1231,24 @@ function showRoundDetail(roundId) {
         return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#69f0ae;">⚽'+cnt+'</span>' : ''}</div>`;
     }).join('') || '<div style="color:#333;font-size:.72rem;">—</div>';
 
-    const nA = getTeamNameById(tA) || tA;
-    const nB = getTeamNameById(tB) || tB;
-
     document.getElementById('rdTitle').textContent = `Tur ${r.num}`;
     document.getElementById('rdSub').textContent = `${nA} vs ${nB}`;
     document.getElementById('rdScoreA').style.color = cA;
     document.getElementById('rdScoreA').textContent = sA;
     document.getElementById('rdScoreB').style.color = cB;
     document.getElementById('rdScoreB').textContent = sB;
-    document.getElementById('rdTeamA').innerHTML = `${nA} ${tidBadge(tA)}`;
-    document.getElementById('rdTeamB').innerHTML = `${nB} ${tidBadge(tB)}`;
+    document.getElementById('rdTeamA').innerHTML = `<span style="color:${hA}">${nA}</span>`;
+    document.getElementById('rdTeamB').innerHTML = `<span style="color:${hB}">${nB}</span>`;
     document.getElementById('rdDur').textContent = durMin;
     document.getElementById('rdEnd').textContent = endLabel;
     document.getElementById('rdOPlayers').innerHTML = makePlayerList(oPlayers, oGoals);
     document.getElementById('rdGPlayers').innerHTML = makePlayerList(gPlayers, gGoals);
     document.getElementById('rdScorers').innerHTML = scorersHtml;
+    // Fix column headers
+    document.getElementById('rdOHd').style.color = hA;
+    document.getElementById('rdGHd').style.color = hB;
+    document.getElementById('rdOHd').textContent = nA;
+    document.getElementById('rdGHd').textContent = nB;
 
     document.getElementById('roundDetailOverlay').classList.add('show');
 }
@@ -1692,7 +1707,7 @@ function subscribe() {
             renderTureHistory();
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
+            sb.from('live_rounds').select('*').eq('session_id', liveState?.session_id || '').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
         })
         .subscribe();
 
