@@ -780,45 +780,57 @@ async function saveRoundToDB(loserColor, reason) {
 async function doRotation(loserColor, reason) {
     if (isSaving) return;
     isSaving = true;
-    const bench   = players.filter(p => p.status === 'bench');
-    const losers  = players.filter(p => p.status === loserColor);
-    if (!bench.length || !losers.length) { isSaving=false; return; }
 
-    // 1. Save completed round to DB FIRST
-    await saveRoundToDB(loserColor, reason);
+    const bench  = players.filter(p => p.status === 'bench');
+    const losers = players.filter(p => p.status === loserColor);
+    if (!bench.length || !losers.length) { isSaving = false; return; }
 
-    // 2. Swap players in DB
-    const swapOps = [...losers.map(p => ({ id: p.id, status: 'bench' })),
-                     ...bench.map(p  => ({ id: p.id, status: loserColor }))];
-    await Promise.all(swapOps.map(({ id, status }) =>
-        sb.from('players').update({ status }).eq('id', id)
-    )).catch(e => console.warn('swap:', e.message));
+    try {
+        // 1. Save round FIRST (before any swap)
+        await saveRoundToDB(loserColor, reason);
 
-    // 3. Update colorMap in live_state (direct swap, no player lookup)
-    const oldColorMap = { ...getColorMap() };
-    const loserTeamId = oldColorMap[loserColor];
-    const benchTeamId = oldColorMap['bench'];
-    const newColorMap = { ...oldColorMap };
-    newColorMap[loserColor] = benchTeamId;
-    newColorMap['bench']    = loserTeamId;
+        // 2. *** OPTIMISTIC LOCAL UPDATE *** — apply swap to local players immediately
+        //    This prevents Realtime intermediate-state refetches from corrupting the UI
+        const loserIds = new Set(losers.map(p => p.id));
+        const benchIds = new Set(bench.map(p => p.id));
+        players = players.map(p => {
+            if (loserIds.has(p.id)) return { ...p, status: 'bench' };
+            if (benchIds.has(p.id)) return { ...p, status: loserColor };
+            return p;
+        });
+        render(); // show new teams immediately
 
-    // Update team_registry colors too
-    const oldRegistry = { ...getTeamRegistry() };
-    if (loserTeamId && oldRegistry[loserTeamId]) oldRegistry[loserTeamId] = { ...oldRegistry[loserTeamId], color: 'bench' };
-    if (benchTeamId && oldRegistry[benchTeamId]) oldRegistry[benchTeamId] = { ...oldRegistry[benchTeamId], color: loserColor };
+        // 3. Persist swap to DB (fire-and-forget individual updates)
+        const swapOps = [
+            ...losers.map(p => ({ id: p.id, status: 'bench' })),
+            ...bench.map(p  => ({ id: p.id, status: loserColor })),
+        ];
+        await Promise.all(swapOps.map(({ id, status }) =>
+            sb.from('players').update({ status }).eq('id', id)
+        ));
 
-    // 4. Update round_start_sec in live_state
-    const newRoundStartSec = calcElapsedSec(liveState);
-    await patchState({
-        color_map:      newColorMap,
-        team_registry:  oldRegistry,
-        round_start_sec: newRoundStartSec,
-    });
+        // 4. Update colorMap + team_registry + round_start_sec in live_state
+        const oldColorMap  = { ...getColorMap() };
+        const loserTeamId  = oldColorMap[loserColor];
+        const benchTeamId  = oldColorMap['bench'];
+        const newColorMap  = { ...oldColorMap, [loserColor]: benchTeamId, bench: loserTeamId };
 
-    showRotationToast(`${loserColor==='orange'?'🟠 PORTOCALIU':'🟢 VERDE'} IESE · Echipa nouă INTRĂ`);
-    isSaving = false;
-    // Re-schedule round timer for new round
-    scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
+        const oldRegistry = { ...getTeamRegistry() };
+        if (loserTeamId && oldRegistry[loserTeamId]) oldRegistry[loserTeamId] = { ...oldRegistry[loserTeamId], color: 'bench' };
+        if (benchTeamId && oldRegistry[benchTeamId]) oldRegistry[benchTeamId] = { ...oldRegistry[benchTeamId], color: loserColor };
+
+        const newRoundStartSec = calcElapsedSec(liveState);
+        await patchState({ color_map: newColorMap, team_registry: oldRegistry, round_start_sec: newRoundStartSec });
+
+        showRotationToast(`${loserColor === 'orange' ? '🟠 PORTOCALIU' : '🟢 VERDE'} IESE · Echipa nouă INTRĂ`);
+        scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
+
+    } catch(e) {
+        console.error('doRotation error:', e);
+        showToast('⚠️ Eroare la schimb: ' + e.message);
+    } finally {
+        isSaving = false;
+    }
 }
 
 async function manualSwap(loserColor) {
@@ -1397,10 +1409,22 @@ function subscribe() {
         })
         .subscribe();
 
-    // players changes
+    // players changes — debounced to avoid intermediate states during bulk updates
+    let _playersRefetchTimer = null;
     sb.channel('players_rt')
-        .on('postgres_changes',{event:'*',schema:'public',table:'players'}, () => {
-            sb.from('players').select('id,name,status').order('name').then(({data})=>{ players=data||[]; render(); });
+        .on('postgres_changes', {event:'*', schema:'public', table:'players'}, (payload) => {
+            // If we have a single row update and it matches a known player, apply it optimistically
+            if (payload.eventType === 'UPDATE' && payload.new) {
+                const idx = players.findIndex(p => p.id === payload.new.id);
+                if (idx !== -1) players[idx] = { ...players[idx], ...payload.new };
+            }
+            // Debounce full refetch — wait for all parallel updates to settle
+            if (_playersRefetchTimer) clearTimeout(_playersRefetchTimer);
+            _playersRefetchTimer = setTimeout(() => {
+                sb.from('players').select('id,name,status').order('name')
+                    .then(({ data }) => { players = data || []; render(); });
+                _playersRefetchTimer = null;
+            }, 400);
         })
         .subscribe();
 }
