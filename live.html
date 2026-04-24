@@ -306,7 +306,7 @@ main, body{padding-bottom:80px;}
     <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
     <div class="sc-sep">
       <div>:</div>
-      <div id="roundElapsedLbl" style="font-family:'Bebas Neue',sans-serif;font-size:.7rem;color:#333;letter-spacing:1px;text-align:center;margin-top:2px;display:none;">0:00</div>
+      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;letter-spacing:1px;text-align:center;margin-top:3px;display:none;line-height:1;">0:00</div>
     </div>
     <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
@@ -824,6 +824,13 @@ function updateRoundTimerBar() {
         lbl.textContent = m+':'+(s<10?'0':'')+s;
         lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
     }
+    // Also update the score-area label
+    const scLbl = document.getElementById('roundTimeLbl');
+    if (scLbl && scLbl.style.display !== 'none') {
+        const m2 = Math.floor(remaining/60), s2 = remaining%60;
+        scLbl.textContent = m2+':'+(s2<10?'0':'')+s2;
+        scLbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
+    }
 }
 
 async function onRoundTimeout() {
@@ -1217,15 +1224,18 @@ function render() {
     renderTureHistory();
     updateRoundTimerBar();
 
-    // Round elapsed under colon
-    const elLbl = document.getElementById('roundElapsedLbl');
-    if (elLbl) {
-        if (mode && liveState.timer_status === 'running') {
-            const e = calcRoundElapsedSec(liveState);
-            const m = Math.floor(e/60), s = e%60;
-            elLbl.textContent = m+':'+(s<10?'0':'')+s;
-            elLbl.style.display = 'block';
-        } else { elLbl.style.display = 'none'; }
+    // Round time LEFT under colon — shown in 3-team mode when timer running
+    const rtLbl = document.getElementById('roundTimeLbl');
+    if (rtLbl) {
+        if (mode && liveState.timer_status === 'running' && liveState.time_limit_min) {
+            const totalSec = (liveState.time_limit_min || 10) * 60;
+            const elapsed  = calcRoundElapsedSec(liveState);
+            const left     = Math.max(0, totalSec - elapsed);
+            const m = Math.floor(left/60), s = left%60;
+            rtLbl.textContent = m+':'+(s<10?'0':'')+s;
+            rtLbl.style.color = left < 60 ? '#ef9a9a' : left < 120 ? '#ffd54f' : '#ce93d8';
+            rtLbl.style.display = 'block';
+        } else { rtLbl.style.display = 'none'; }
     }
 
     // Transfer button: admin only
