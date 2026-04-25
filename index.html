@@ -1133,6 +1133,7 @@
 
     <!-- Tab: Stats -->
     <div class="modal-tab-panel active" id="tabStats">
+        <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#555;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
@@ -4157,6 +4158,27 @@ async function clearAdminRating(id){
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
+async function saveStatsEdit(id) {
+    const p = db.players.find(x => x.id == id); if (!p) return;
+    const goals = parseInt(document.getElementById('editGoals')?.value) || 0;
+    const wins  = parseInt(document.getElementById('editWins')?.value)  || 0;
+    const games = parseInt(document.getElementById('editGames')?.value) || 0;
+    if (wins > games) { showToast('⚠️ Victorii nu pot depăși meciurile!'); return; }
+    p.totalGoals = goals;
+    p.wins  = wins;
+    p.games = games;
+    try {
+        await sb.from('players').update({
+            total_goals: goals,
+            wins,
+            games,
+        }).eq('id', id);
+        render();
+        buildModalStats(p);
+        showToast(`✅ Statistici actualizate pentru ${p.name}`);
+    } catch(e) { showToast('⚠️ ' + e.message); }
+}
+
 async function buildAccountsList(){
     const container=document.getElementById('accountsList');
     container.innerHTML='<div style="color:#444;font-size:0.85rem;text-align:center;padding:16px;">Se încarcă...</div>';
@@ -4336,6 +4358,41 @@ function switchModalTab(tab){
 // ── buildModalStats — with Live Preview Editor ───────────────────
 function buildModalStats(p){
     const admin = isAdmin();
+
+    // ── Stats Edit Panel (admin only) ─────────────────────────────
+    const statsEditPanel = document.getElementById('statsEditPanel');
+    if (statsEditPanel) {
+        if (admin) {
+            statsEditPanel.style.display = 'block';
+            statsEditPanel.innerHTML = `
+                <div style="background:#0a0f1a;border:1px solid #1e2130;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+                    <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Editare statistici</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+                        <div>
+                            <div style="font-size:.6rem;color:#444;margin-bottom:4px;">⚽ Goluri</div>
+                            <input type="number" min="0" id="editGoals" value="${p.totalGoals||0}"
+                                style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#69f0ae;padding:6px;border-radius:7px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;">
+                        </div>
+                        <div>
+                            <div style="font-size:.6rem;color:#444;margin-bottom:4px;">🏆 Victorii</div>
+                            <input type="number" min="0" id="editWins" value="${p.wins||0}"
+                                style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#69f0ae;padding:6px;border-radius:7px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;">
+                        </div>
+                        <div>
+                            <div style="font-size:.6rem;color:#444;margin-bottom:4px;">🎮 Meciuri</div>
+                            <input type="number" min="0" id="editGames" value="${p.games||0}"
+                                style="width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:#aaa;padding:6px;border-radius:7px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;">
+                        </div>
+                    </div>
+                    <button onclick="saveStatsEdit(${p.id})"
+                        style="margin-top:10px;width:100%;background:rgba(61,90,254,.15);border:1px solid #3d5afe;color:#82b1ff;padding:8px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;">
+                        💾 Salvează statistici
+                    </button>
+                </div>`;
+        } else {
+            statsEditPanel.style.display = 'none';
+        }
+    }
 
     // ── Admin Rating Override ─────────────────────────────────────
     const arPanel = document.getElementById('adminRatingPanel');

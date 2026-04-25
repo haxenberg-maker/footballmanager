@@ -95,7 +95,8 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .pr-minus.show{display:flex;}
 .pr-minus:active{background:#1c1f2b;color:#ef9a9a;}
 .pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
-.pr-plus:active{transform:scale(.88);}
+.pr-plus:active,.pr-plus.busy{transform:scale(.88);}
+.pr-plus.busy{opacity:.4;pointer-events:none;}
 .o-col .pr-plus{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.2);color:var(--o);}
 .o-col .pr-plus:active{background:rgba(255,140,0,.22);}
 .g-col .pr-plus{background:rgba(40,167,69,.08);border-color:rgba(40,167,69,.2);color:var(--g);}
@@ -1159,7 +1160,7 @@ function render() {
                 + '<div class="pr-name">'+p.name+'</div>'
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
-                + '<button class="pr-plus" onclick="addGoal(\''+p.name+'\',\''+team+'\')">+</button>'
+                + '<button class="pr-plus" onclick="this.classList.add(\'busy\');addGoal(\''+p.name+'\',\''+team+'\').finally(()=>setTimeout(()=>this.classList.remove(\'busy\'),100))">+</button>'
                 + '</div>';
         }).join('');
         const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
@@ -1365,7 +1366,12 @@ function toggleLog() {
 }
 
 // ── Goal actions ──────────────────────────────────────────────────
+let _goalBusy = false;
 async function addGoal(name, team) {
+    if (_goalBusy) return;
+    _goalBusy = true;
+    setTimeout(() => { _goalBusy = false; }, 900); // 900ms debounce
+
     if (navigator.vibrate) navigator.vibrate(40);
     const minute = liveState?.timer_status !== 'idle'
         ? Math.floor(calcElapsedSec(liveState) / 60) : null;
