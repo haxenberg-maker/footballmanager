@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Votează Jucători · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
+:root{--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;--green:#28a745;--orange:#ff8c00;}
+
+/* Header */
+.hd{background:#080a12;border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.hd-logo{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;}
+.hd-sub{font-size:.65rem;color:#555;margin-top:1px;}
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:7px 16px;display:none;align-items:center;gap:8px;}
+.id-name{font-weight:700;color:var(--star);font-size:.85rem;}
+.id-change{font-size:.6rem;color:#333;cursor:pointer;text-decoration:underline;}
+.id-change:hover{color:#82b1ff;}
+
+/* Screens */
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* Identity */
+.id-screen{max-width:360px;margin:44px auto;padding:0 16px;}
+.id-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;margin-bottom:3px;}
+.id-hint{font-size:.76rem;color:#555;margin-bottom:14px;line-height:1.5;}
+.id-code-input{
+    width:100%;background:#141720;border:2px solid var(--border);color:#fff;
+    padding:14px;border-radius:10px;
+    font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:10px;
+    text-align:center;outline:none;margin-bottom:10px;transition:border-color .15s;
+}
+.id-code-input:focus{border-color:var(--accent);}
+.id-code-input::placeholder{color:#252836;letter-spacing:4px;}
+.id-btn{width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;}
+
+/* Status screens */
+.status-screen{max-width:360px;margin:60px auto;padding:0 16px;text-align:center;}
+.status-icon{font-size:2.8rem;margin-bottom:12px;}
+.status-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;margin-bottom:6px;}
+.status-sub{font-size:.8rem;color:#555;line-height:1.6;}
+
+/* Vote screen */
+.vote-wrap{max-width:480px;margin:0 auto;padding:12px 12px 100px;}
+
+.poll-banner{background:#0d0f18;border:1px solid var(--border);border-radius:11px;padding:11px 14px;margin-bottom:12px;}
+.poll-label{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
+.poll-meta{font-size:.68rem;color:#555;margin-top:2px;}
+
+/* Progress indicator */
+.progress-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.progress-text{font-size:.75rem;color:#555;flex:1;}
+.progress-text span{color:#fff;font-weight:700;}
+.reset-order-btn{background:none;border:1px solid var(--border);color:#555;padding:4px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;}
+.reset-order-btn:hover{border-color:#ef9a9a;color:#ef9a9a;}
+
+/* Instructions */
+.instruction{font-size:.7rem;color:#444;text-align:center;padding:2px 0 10px;line-height:1.5;}
+.instruction strong{color:#888;}
+
+/* Player cards — click to rank */
+.players-grid{display:flex;flex-direction:column;gap:6px;}
+
+.player-card{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 14px;
+    background:#0d0f18;border-radius:11px;
+    border:2px solid var(--border);
+    cursor:pointer;
+    transition:background .1s, border-color .12s, transform .08s;
+    -webkit-tap-highlight-color:transparent;
+    position:relative;
+}
+.player-card:active{transform:scale(.97);}
+.player-card.ranked{border-color:var(--accent);background:rgba(61,90,254,.06);}
+.player-card.ranked-1{border-color:var(--star);background:rgba(255,204,0,.06);}
+.player-card.ranked-2{border-color:#aaa;background:rgba(200,200,200,.04);}
+.player-card.ranked-3{border-color:#cd7f32;background:rgba(205,127,50,.04);}
+
+.pc-rank{
+    font-family:'Bebas Neue',sans-serif;font-size:1.5rem;
+    min-width:32px;text-align:center;
+    color:#252836;transition:color .1s;
+    line-height:1;
+}
+.pc-rank.set{color:var(--accent);}
+.pc-rank.set-1{color:var(--star);}
+.pc-rank.set-2{color:#aaa;}
+.pc-rank.set-3{color:#cd7f32;}
+
+.pc-info{flex:1;min-width:0;}
+.pc-name{font-weight:700;font-size:.95rem;}
+.pc-hint{font-size:.62rem;color:#555;margin-top:1px;}
+.pc-hint.ranked-hint{color:var(--accent);}
+.pc-hint.ranked-hint-1{color:var(--star);}
+
+/* Deselect X */
+.pc-desel{
+    width:28px;height:28px;border-radius:6px;
+    background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.25);
+    color:#ef9a9a;font-size:.75rem;
+    display:none;align-items:center;justify-content:center;
+    flex-shrink:0;cursor:pointer;
+}
+.player-card.ranked .pc-desel{display:flex;}
+
+/* Confirm dialog */
+.confirm-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.85);
+    z-index:100;display:none;align-items:flex-end;justify-content:center;
+}
+.confirm-overlay.show{display:flex;}
+.confirm-box{
+    background:#141720;width:100%;max-width:480px;
+    border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;
+    padding:20px;max-height:88vh;overflow-y:auto;
+}
+.confirm-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:14px;}
+.confirm-item{
+    display:flex;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid #0f1118;
+}
+.confirm-item:last-of-type{border-bottom:none;}
+.ci-rank{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:28px;text-align:center;}
+.ci-name{flex:1;font-weight:700;font-size:.9rem;}
+.confirm-actions{display:flex;gap:8px;margin-top:14px;}
+.btn-back{padding:12px 16px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;cursor:pointer;flex-shrink:0;}
+.btn-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;}
+
+/* Submit bar */
+.submit-bar{
+    position:fixed;bottom:0;left:0;right:0;
+    background:#080a12;border-top:1px solid var(--border);
+    padding:10px 14px;display:flex;align-items:center;gap:8px;z-index:40;
+}
+.submit-hint{font-size:.7rem;color:#555;flex:1;}
+.submit-btn{
+    padding:11px 18px;border-radius:9px;
+    font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;
+    cursor:pointer;white-space:nowrap;
+    background:linear-gradient(135deg,#1a3a2a,var(--green));
+    border:1px solid var(--green);color:#fff;
+}
+.submit-btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* Already voted — results */
+.results-wrap{max-width:480px;margin:0 auto;padding:12px 12px 30px;}
+.results-card{border-radius:10px;overflow:hidden;border:1px solid var(--border);}
+.res-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#0d0f18;border-bottom:1px solid #0a0c14;}
+.res-row:last-child{border-bottom:none;}
+.rr-rank{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:24px;text-align:center;color:#333;}
+.rr-rank.gold{color:var(--star);}
+.rr-rank.silver{color:#aaa;}
+.rr-rank.bronze{color:#cd7f32;}
+.rr-name{flex:1;font-weight:700;font-size:.88rem;}
+.mvp-badge{font-size:.55rem;padding:1px 5px;border-radius:4px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.35);color:var(--star);margin-left:4px;}
+.rr-bar-wrap{width:60px;height:3px;background:#1e2130;border-radius:2px;overflow:hidden;}
+.rr-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#a78bfa);}
+.rr-bar.top{background:linear-gradient(90deg,var(--star),var(--orange));}
+
+/* My vote badge on results */
+.my-pos{font-size:.6rem;color:#555;min-width:20px;text-align:right;}
+
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div><div class="hd-logo">⚽ Arena Friends FC</div><div class="hd-sub">Clasament Jucători</div></div>
+</div>
+
+<div class="id-bar" id="idBar">
+  <span style="font-size:.6rem;color:#555;">Votezi ca:</span>
+  <span class="id-name" id="idBarName"></span>
+  <span class="id-change" onclick="logout()">· schimbă</span>
+</div>
+
+<!-- Identity -->
+<div class="screen active" id="screenIdentity">
+  <div class="id-screen">
+    <div class="id-title">🔑 Cod Secret</div>
+    <div class="id-hint">Introdu codul secret primit de la administrator.</div>
+    <input class="id-code-input" id="codeInput" type="text" maxlength="5"
+        placeholder="·····" autocomplete="off" autocorrect="off"
+        autocapitalize="characters" spellcheck="false"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')confirmCode()">
+    <button class="id-btn" onclick="confirmCode()">⚡ Intră</button>
+    <div id="codeError" style="color:#ef9a9a;font-size:.75rem;text-align:center;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="screen" id="screenLoading">
+  <div class="status-screen"><div class="status-icon">⏳</div><div class="status-title">Se încarcă</div></div>
+</div>
+
+<!-- Closed -->
+<div class="screen" id="screenClosed">
+  <div class="status-screen">
+    <div class="status-icon">🔒</div>
+    <div class="status-title">Niciun Vot Activ</div>
+    <div class="status-sub">Administratorul nu a pornit niciun sondaj.<br>Revino mai târziu.</div>
+  </div>
+</div>
+
+<!-- Already voted -->
+<div class="screen" id="screenVoted">
+  <div class="results-wrap">
+    <div class="poll-banner" style="display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;">
+        <div class="poll-label" id="votedPollLabel"></div>
+        <div class="poll-meta">✅ Ai votat · clasament live</div>
+      </div>
+      <button onclick="editVote()" style="background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.25);color:var(--star);padding:6px 12px;border-radius:8px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;">✏️ Editează</button>
+    </div>
+    <div class="results-card" id="liveResults"></div>
+    <div id="liveVoterCount" style="font-size:.62rem;color:#252836;padding:6px 0 2px;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- Vote screen -->
+<div class="screen" id="screenVote">
+  <div class="vote-wrap">
+    <div class="poll-banner">
+      <div class="poll-label" id="votePollLabel"></div>
+      <div class="poll-meta" id="votePollMeta"></div>
+    </div>
+
+    <div class="progress-row">
+      <div class="progress-text" id="progressText">Apasă pe jucători în ordine</div>
+      <button class="reset-order-btn" onclick="resetOrder()">↺ Resetează</button>
+    </div>
+
+    <div class="instruction">
+      <strong>Apasă cel mai bun jucător primul.</strong><br>
+      Apasă din nou pe un jucător selectat ca să-l deselectezi.
+    </div>
+
+    <div class="players-grid" id="playersGrid"></div>
+  </div>
+
+  <div class="submit-bar">
+    <span class="submit-hint" id="submitHint">0 / 0 jucători selectați</span>
+    <button class="submit-btn" id="submitBtn" disabled onclick="openConfirm()">✅ Confirmă</button>
+  </div>
+</div>
+
+<!-- Confirm overlay -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Confirmă Votul</div>
+    <div id="confirmList"></div>
+    <div class="confirm-actions">
+      <button class="btn-back" onclick="closeConfirm()">← Înapoi</button>
+      <button class="btn-confirm" id="btnConfirmSubmit" onclick="submitVote()">✅ Trimite Votul</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const LS_KEY='vj_identity';
+
+let myName=null, allPlayers=[], activePoll=null, liveChannel=null;
+let pollPlayers=[];    // names from poll config
+let selected=[];       // ordered array of names user has tapped
+let myVoteId=null;     // id of existing vote row (for editing)
+let isEditing=false;
+
+// ── Utilities ─────────────────────────────────────────────────────
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+
+// ── Identity via secret code ──────────────────────────────────────
+async function loadPlayers(){
+    const{data}=await sb.from('players').select('id,name,secret_code').order('name');
+    allPlayers=data||[];
+}
+
+async function confirmCode(){
+    const code=document.getElementById('codeInput').value.trim().toUpperCase();
+    const errEl=document.getElementById('codeError');
+    if(code.length<4){errEl.textContent='⚠️ Introdu codul complet.';errEl.style.display='block';return;}
+    const player=allPlayers.find(p=>p.secret_code&&p.secret_code.toUpperCase()===code);
+    if(!player){
+        errEl.textContent='❌ Cod incorect. Verifică codul primit.';errEl.style.display='block';
+        document.getElementById('codeInput').style.borderColor='#c62828';
+        setTimeout(()=>{document.getElementById('codeInput').style.borderColor='';},1500);
+        return;
+    }
+    errEl.style.display='none';
+    myName=player.name;
+    localStorage.setItem(LS_KEY,JSON.stringify({name:player.name,code}));
+    enterApp();
+}
+
+function logout(){
+    myName=null;localStorage.removeItem(LS_KEY);
+    document.getElementById('codeInput').value='';
+    document.getElementById('idBar').style.display='none';
+    if(liveChannel){sb.removeChannel(liveChannel);liveChannel=null;}
+    showScreen('screenIdentity');
+}
+
+async function enterApp(){
+    document.getElementById('idBarName').textContent=myName;
+    document.getElementById('idBar').style.display='flex';
+    showScreen('screenLoading');
+    await loadActivePoll();
+}
+
+// ── Poll ──────────────────────────────────────────────────────────
+async function loadActivePoll(){
+    const{data}=await sb.from('player_poll').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
+    activePoll=data||null;
+    if(!activePoll){showScreen('screenClosed');subscribePollStatus();return;}
+    // Already voted?
+    const{data:myVote}=await sb.from('player_poll_votes').select('id,ranking').eq('poll_id',activePoll.id).eq('voter_name',myName).maybeSingle();
+    if(myVote){
+        myVoteId=myVote.id;
+        document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
+        showScreen('screenVoted');
+        await loadLiveResults(myVote.ranking||[]);
+        subscribeResults();
+        return;
+    }
+    // Setup vote screen
+    pollPlayers=[...(activePoll.players||[])];
+    selected=[];
+    document.getElementById('votePollLabel').textContent=activePoll.label||'Sondaj';
+    document.getElementById('votePollMeta').textContent=pollPlayers.length+' jucători · apasă în ordinea preferinței';
+    renderGrid();
+    showScreen('screenVote');
+    subscribePollStatus();
+}
+
+// ── Vote grid ─────────────────────────────────────────────────────
+function renderGrid(){
+    const medals=['🥇','🥈','🥉'];
+    const N=pollPlayers.length;
+    const grid=document.getElementById('playersGrid');
+    grid.innerHTML=pollPlayers.map(name=>{
+        const pos=selected.indexOf(name); // -1 if not selected
+        const isRanked=pos>=0;
+        const rankLabel=isRanked?(medals[pos]||(pos+1)+'°'):'—';
+        const posClass=pos===0?'set-1':pos===1?'set-2':pos===2?'set-3':isRanked?'set':'';
+        const cardClass=pos===0?'ranked-1':pos===1?'ranked-2':pos===2?'ranked-3':isRanked?'ranked':'';
+        const hint=isRanked
+            ? (pos===0?'Cel mai bun ales':'Locul '+(pos+1)+' ales')
+            : 'Apasă pentru a selecta';
+        const hintClass=pos===0?'ranked-hint-1':isRanked?'ranked-hint':'';
+        return `<div class="player-card ${cardClass}" onclick="tapPlayer('${name.replace(/'/g,"\\'")}')">
+            <div class="pc-rank ${posClass}">${rankLabel}</div>
+            <div class="pc-info">
+                <div class="pc-name">${name}${name===myName?' <span style="font-size:.55rem;color:var(--accent);">tu</span>':''}</div>
+                <div class="pc-hint ${hintClass}">${hint}</div>
+            </div>
+            <div class="pc-desel" onclick="deselectPlayer(event,'${name.replace(/'/g,"\\'")}')">✕</div>
+        </div>`;
+    }).join('');
+    updateProgress();
+}
+
+function tapPlayer(name){
+    if(selected.includes(name)) return; // already ranked — use ✕ to deselect
+    selected.push(name);
+    if(navigator.vibrate) navigator.vibrate(15);
+    renderGrid();
+}
+
+function deselectPlayer(e,name){
+    e.stopPropagation();
+    selected=selected.filter(n=>n!==name);
+    renderGrid();
+}
+
+function resetOrder(){
+    selected=[];
+    renderGrid();
+}
+
+function updateProgress(){
+    const done=selected.length, total=pollPlayers.length;
+    const hint=document.getElementById('submitHint');
+    const btn=document.getElementById('submitBtn');
+    const txt=document.getElementById('progressText');
+    txt.innerHTML=`<span>${done}</span> / ${total} jucători selectați`;
+    hint.textContent=done<total?`Mai selectează ${total-done} jucători`:'Toți selectați — confirmă!';
+    btn.disabled=done<total;
+}
+
+// ── Confirm dialog ────────────────────────────────────────────────
+function openConfirm(){
+    const medals=['🥇','🥈','🥉'];
+    document.getElementById('confirmList').innerHTML=selected.map((name,i)=>`
+        <div class="confirm-item">
+            <div class="ci-rank" style="color:${i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#555'}">${medals[i]||(i+1)}</div>
+            <div class="ci-name">${name}</div>
+        </div>`).join('');
+    document.getElementById('confirmOverlay').classList.add('show');
+}
+function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('show');}
+
+// ── Submit ────────────────────────────────────────────────────────
+async function submitVote(){
+    closeConfirm();
+    document.getElementById('submitBtn').disabled=true;
+    try{
+        const{error}=await sb.from('player_poll_votes').upsert({
+            ...(myVoteId?{id:myVoteId}:{}),
+            poll_id:activePoll.id,
+            voter_name:myName,
+            ranking:selected
+        },{onConflict:'poll_id,voter_name'});
+        if(error) throw error;
+        // On upsert we get the row back
+        const{data:saved}=await sb.from('player_poll_votes').select('id').eq('poll_id',activePoll.id).eq('voter_name',myName).single();
+        if(saved) myVoteId=saved.id;
+        isEditing=false;
+        showToast(isEditing?'✅ Vot actualizat!':'✅ Vot trimis! Mulțumim!');
+        document.getElementById('votedPollLabel').textContent=activePoll.label||'Sondaj';
+        showScreen('screenVoted');
+        await loadLiveResults(selected);
+        subscribeResults();
+    }catch(e){
+        document.getElementById('submitBtn').disabled=false;
+        if(e.code==='23505') showToast('⚠️ Ai votat deja!');
+        else showToast('⚠️ '+e.message);
+    }
+}
+
+// ── Live results (no percentages) ────────────────────────────────
+async function loadLiveResults(myRanking=[]){
+    if(!activePoll) return;
+    const{data:votes}=await sb.from('player_poll_votes').select('ranking,voter_name').eq('poll_id',activePoll.id);
+    const totals={},voters=new Set();
+    (votes||[]).forEach(v=>{
+        const rank=v.ranking||[];const N=rank.length;
+        rank.forEach((name,i)=>{totals[name]=(totals[name]||0)+(N-i);});
+        voters.add(v.voter_name);
+    });
+    const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+    const maxPts=sorted[0]?.[1]||1;
+    const medals=['🥇','🥈','🥉'];
+    const el=document.getElementById('liveResults');
+    if(!sorted.length){el.innerHTML='<div style="padding:14px;text-align:center;color:#333;font-size:.8rem;">Așteptăm voturi...</div>';return;}
+    el.innerHTML=sorted.map(([name,pts],i)=>{
+        const rc=i===0?'gold':i===1?'silver':i===2?'bronze':'';
+        const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'';
+        const pct=Math.round((pts/maxPts)*100);
+        // My vote position for this player
+        const myPos=myRanking.indexOf(name);
+        const myPosStr=myPos>=0?`(tu: ${medals[myPos]||(myPos+1)+'°'})`:'';
+        return `<div class="res-row">
+            <div class="rr-rank ${rc}">${medal}</div>
+            <div class="rr-name">${name}${i===0?'<span class="mvp-badge">MVP</span>':''}</div>
+            <div class="rr-bar-wrap"><div class="rr-bar${i===0?' top':''}" style="width:${pct}%;"></div></div>
+            <div class="my-pos">${myPosStr}</div>
+        </div>`;
+    }).join('');
+    document.getElementById('liveVoterCount').textContent=voters.size+' vot'+(voters.size!==1?'uri':'');
+}
+
+// ── Realtime ──────────────────────────────────────────────────────
+function subscribeResults(){
+    if(liveChannel) sb.removeChannel(liveChannel);
+    liveChannel=sb.channel('poll_votes_rt_'+activePoll.id)
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'player_poll_votes',filter:'poll_id=eq.'+activePoll.id},
+            ()=>loadLiveResults())
+        .subscribe();
+}
+function subscribePollStatus(){
+    sb.channel('poll_status_rt')
+        .on('postgres_changes',{event:'*',schema:'public',table:'player_poll'},
+            ()=>{if(myName) loadActivePoll();})
+        .subscribe();
+}
+
+
+// ── Edit existing vote ────────────────────────────────────────────
+function editVote(){
+    if(!activePoll) return;
+    isEditing=true;
+    pollPlayers=[...(activePoll.players||[])];
+    // Pre-populate selected with existing ranking if available
+    // myRanking is stored as last known — re-fetch to be safe
+    sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id).eq('voter_name',myName).single().then(({data})=>{
+        selected=data?.ranking||[];
+        // Make sure all pollPlayers are in selected (in case poll changed)
+        // Add any missing at end
+        pollPlayers.forEach(name=>{if(!selected.includes(name))selected.push(name);});
+        // Remove any that are no longer in poll
+        selected=selected.filter(n=>pollPlayers.includes(n));
+        document.getElementById('votePollLabel').textContent=activePoll.label||'Sondaj';
+        document.getElementById('votePollMeta').textContent='Editezi votul · '+pollPlayers.length+' jucători';
+        document.getElementById('btnConfirmSubmit').textContent='✅ Salvează Modificările';
+        renderGrid();
+        showScreen('screenVote');
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+document.getElementById('confirmOverlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeConfirm();});
+
+async function init(){
+    await loadPlayers();
+    const saved=localStorage.getItem(LS_KEY);
+    if(saved){
+        try{
+            const{name,code}=JSON.parse(saved);
+            const player=allPlayers.find(p=>p.name===name&&p.secret_code&&p.secret_code.toUpperCase()===code.toUpperCase());
+            if(player){myName=name;enterApp();return;}
+        }catch(_){}
+        localStorage.removeItem(LS_KEY);
+    }
+    showScreen('screenIdentity');
+}
+init();
+</script>
+</body>
+</html>

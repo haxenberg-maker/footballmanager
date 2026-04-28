@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Votează Jucătorul · Arena Friends FC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root{--orange:#ff8c00;--green:#28a745;--dark:#0a0c10;--card:#141720;--star:#ffcc00;--accent:#3d5afe;--border:#252836;}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;}
+        .spinner{width:40px;height:40px;border:3px solid #252836;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading{position:fixed;inset:0;background:#0a0c10;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+        .loading.hidden{display:none;}
+        .loading-text{font-size:.82rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
+
+        .header{background:linear-gradient(135deg,#0d0f18,#141720);border-bottom:1px solid var(--border);padding:14px 20px;text-align:center;}
+        .header h1{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#fff;}
+        .header-sub{font-size:.7rem;color:#444;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+
+        .page{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px;max-width:480px;margin:0 auto;width:100%;}
+
+        /* Target player hero */
+        .player-hero{width:100%;background:linear-gradient(135deg,#0a0f1a,#141d2e);border:1px solid #2a3a5a;border-radius:16px;padding:24px 20px;margin-bottom:20px;text-align:center;}
+        .hero-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#1a2a4a,#2a3a6a);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#82b1ff;margin:0 auto 12px;border:2px solid #2a4a80;}
+        .hero-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#fff;margin-bottom:4px;}
+        .hero-avg{font-size:.9rem;color:var(--star);font-weight:700;margin-bottom:6px;}
+        .hero-stats{display:flex;justify-content:center;gap:16px;margin-top:8px;}
+        .hero-stat{text-align:center;}
+        .hero-stat-val{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#82b1ff;}
+        .hero-stat-lbl{font-size:.62rem;color:#444;text-transform:uppercase;letter-spacing:1px;}
+        .team-badge{font-size:.72rem;padding:3px 10px;border-radius:8px;font-weight:700;}
+        .to{background:rgba(255,140,0,.15);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
+        .tg{background:rgba(40,167,69,.15);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+
+        /* Voter select */
+        .sec-title{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;color:#fff;margin-bottom:5px;width:100%;}
+        .sec-sub{font-size:.76rem;color:#555;margin-bottom:12px;width:100%;}
+        .voter-item{width:100%;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:12px 15px;cursor:pointer;display:flex;align-items:center;gap:11px;transition:all .15s;margin-bottom:6px;}
+        .voter-item:hover{border-color:var(--accent);transform:translateX(3px);}
+        .v-avatar{width:34px;height:34px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#555;flex-shrink:0;}
+        .v-name{font-weight:700;color:#fff;font-size:.9rem;flex:1;}
+        .v-avg{font-size:.7rem;color:var(--star);}
+
+        /* Rating slides */
+        .vote-box{width:100%;background:#141720;border-radius:20px;border:1px solid #2a2d40;overflow:hidden;}
+        .vtop{background:linear-gradient(135deg,#0d0f18,#1a1d30);padding:14px 18px 12px;border-bottom:1px solid #1e2130;}
+        .vtop-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+        .vtop-who{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;color:#fff;}
+        .vtop-for{font-size:.7rem;color:#444;margin-top:2px;}
+
+        .slide-body{padding:20px 18px 16px;}
+        .slbl{font-size:.63rem;color:#444;text-transform:uppercase;letter-spacing:2px;margin-bottom:2px;}
+        .sname{font-family:'Bebas Neue',sans-serif;font-size:1.9rem;letter-spacing:2px;color:#fff;line-height:1;margin-bottom:14px;}
+        .glbl{font-size:.63rem;color:#555;text-transform:uppercase;letter-spacing:2px;display:flex;justify-content:space-between;margin-bottom:6px;}
+        .gval{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;}
+        .gval.empty{color:#252836;}
+        .gval.filled{color:var(--star);}
+        .grow{display:flex;gap:3px;margin-bottom:12px;}
+        .gbtn{flex:1;height:46px;border-radius:8px;background:#1c1f2b;border:1px solid #252836;color:#555;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .12s;padding:0;font-family:'Bebas Neue',sans-serif;}
+        .gbtn.sel{transform:translateY(-2px);}
+        .gbtn[data-v="1"].sel,.gbtn[data-v="2"].sel{background:#e53935;border-color:#e53935;color:#fff;}
+        .gbtn[data-v="3"].sel,.gbtn[data-v="4"].sel{background:#ff8c00;border-color:#ff8c00;color:#000;}
+        .gbtn[data-v="5"].sel,.gbtn[data-v="6"].sel{background:#ffd600;border-color:#ffd600;color:#000;}
+        .gbtn[data-v="7"].sel,.gbtn[data-v="8"].sel{background:#69f0ae;border-color:#69f0ae;color:#000;}
+        .gbtn[data-v="9"].sel,.gbtn[data-v="10"].sel{background:#00e5ff;border-color:#00e5ff;color:#000;}
+
+        .dbtn{width:100%;background:transparent;border:1px dashed #252836;color:#444;border-radius:10px;padding:8px;font-size:.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-bottom:5px;}
+        .dbtn.open{border-color:#3d2bbf;color:#a78bfa;border-style:solid;}
+        .dwrap{max-height:0;overflow:hidden;transition:max-height .35s ease;}
+        .dwrap.open{max-height:260px;}
+        .dinner{background:#0a0d18;border-radius:10px;padding:10px;border:1px solid #1a1d30;margin-bottom:6px;}
+        .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+        .sg label{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+        .sv{font-weight:700;font-size:.68rem;}
+        .sv.set{color:var(--star);}
+        .sv.unset{color:#2a2d40;}
+        .srow{display:flex;gap:2px;}
+        .sbtn{flex:1;height:22px;border-radius:4px;background:#1c1f2b;border:1px solid #252836;color:#444;font-size:.6rem;cursor:pointer;padding:0;font-family:'Rajdhani',sans-serif;font-weight:700;transition:all .08s;}
+        .sbtn.sel{background:var(--star);color:#000;border-color:var(--star);}
+
+        .vfooter{padding:12px 16px;border-top:1px solid #1e2130;display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+        .save-btn{padding:12px 24px;border-radius:12px;background:var(--accent);color:#fff;font-size:.9rem;font-weight:700;letter-spacing:1px;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all .15s;}
+        .save-btn:hover{filter:brightness(1.15);}
+        .save-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+        .back-btn{background:none;border:1px solid var(--border);color:#555;padding:8px 16px;border-radius:10px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;margin-top:10px;}
+        .back-btn:hover{border-color:#555;color:#aaa;}
+
+        /* Done */
+        .done-wrap{text-align:center;padding:24px 0;width:100%;}
+        .done-icon{font-size:3.5rem;margin-bottom:14px;}
+        .done-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:#fff;margin-bottom:8px;}
+        .done-sub{font-size:.88rem;color:#555;line-height:1.5;}
+
+        .screen{display:none;width:100%;}
+        .screen.active{display:block;}
+
+        .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+
+        .id-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#0a0f1a;border-bottom:1px solid #1a2a4a;font-size:.74rem;}
+        .id-bar-left{display:flex;align-items:center;gap:7px;color:#5c8aff;font-weight:700;}
+        .id-bar-av{width:22px;height:22px;border-radius:50%;background:rgba(41,121,255,.2);border:1px solid #2979ff;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.62rem;color:#82b1ff;flex-shrink:0;}
+        .id-bar-nm{color:#fff;}
+        .id-bar-chg{color:#333;cursor:pointer;text-decoration:underline;margin-left:4px;}
+        .id-bar-chg:hover{color:#555;}
+        .id-bar-login{font-size:.7rem;color:#3d5afe;text-decoration:none;padding:3px 10px;border:1px solid rgba(61,90,254,.5);border-radius:6px;font-weight:700;}
+        .id-bar-login:hover{background:rgba(61,90,254,.1);}
+        @media(max-width:400px){.grow{flex-wrap:wrap;}.gbtn{min-width:calc(20% - 3px);}.sgrid{grid-template-columns:1fr;}}
+    
+        .not-found-btn{width:100%;margin-top:6px;background:none;border:1px dashed #252836;color:#444;padding:11px;border-radius:11px;font-size:.82rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+        .not-found-btn:hover{border-color:#555;color:#888;}
+        .name-input-wrap{display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:13px;padding:16px;margin-top:8px;}
+        .name-input-wrap.show{display:block;}
+        .name-input-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;margin-bottom:3px;}
+        .name-input-sub{font-size:.72rem;color:#555;margin-bottom:12px;}
+        .name-field{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+        .name-field:focus{border-color:var(--accent);}
+        .name-submit{width:100%;padding:11px;border-radius:10px;background:var(--accent);color:#fff;font-size:.9rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;}
+        .name-submit:hover{filter:brightness(1.15);}
+    </style>
+</head>
+<body>
+<div class="id-bar" id="idBar" style="display:none;">
+    <div class="id-bar-left"><div class="id-bar-av" id="idBarAv"></div>Votezi ca: <span class="id-bar-nm" id="idBarNm"></span><span class="id-bar-chg" onclick="clearIdentity()">· schimbă</span></div>
+    <a class="id-bar-login" href="https://dezmembrarufootball.netlify.app">🔑 Login</a>
+</div>
+<div class="loading" id="loading"><div class="spinner"></div><div class="loading-text">Se încarcă...</div></div>
+<div class="toast" id="toast"></div>
+
+<div class="header">
+    <h1 id="headerTitle">Votează Jucătorul</h1>
+    <div class="header-sub">Arena Friends FC</div>
+</div>
+
+<div class="page">
+    <!-- S1: Who are you -->
+    <div class="screen active" id="s1">
+        <div id="playerHero"></div>
+        <div class="sec-title">Cine ești tu?</div>
+        <div class="sec-sub">Selectează-te pentru a vota</div>
+        <div id="voterList"></div>
+        <button class="not-found-btn" id="nfBtn" onclick="showNameInput('nfInput','nfWrap','nfBtn')">👤 Nu mă regăsesc în listă →</button>
+        <div class="name-input-wrap" id="nfWrap">
+            <div class="name-input-title">Introdu numele tău</div>
+            <div class="name-input-sub">Poți vota și fără să fii în lista de jucători</div>
+            <input class="name-field" id="nfInput" type="text" placeholder="ex: Ion Popescu" onkeydown="if(event.key==='Enter')useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">
+            <button class="name-submit" onclick="useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">Continuă →</button>
+        </div>
+    </div>
+
+    <!-- S2: Rate the player -->
+    <div class="screen" id="s2">
+        <div class="vote-box">
+            <div class="vtop">
+                <div class="vtop-row">
+                    <span class="vtop-who" id="vWho"></span>
+                </div>
+                <div class="vtop-for" id="vFor"></div>
+            </div>
+            <div class="slide-body">
+                <div class="slbl">Votează jucătorul</div>
+                <div class="sname" id="vTarget"></div>
+                <div class="glbl"><span>⚽ NOTĂ GENERALĂ</span><span class="gval empty" id="gv">—</span></div>
+                <div class="grow" id="genRow"></div>
+                <button class="dbtn" id="detBtn" onclick="togDet()">➕ Adaugă detalii</button>
+                <div class="dwrap" id="detWrap">
+                    <div class="dinner">
+                        <div style="font-size:.65rem;color:#333;margin-bottom:7px;font-style:italic;">Opțional — restul = nota generală</div>
+                        <div class="sgrid" id="subGrid"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="vfooter">
+                <button class="save-btn" id="saveBtn" onclick="submitVote()" disabled>💾 Salvează Nota</button>
+            </div>
+        </div>
+        <button class="back-btn" onclick="show('s1')">← Înapoi</button>
+    </div>
+
+    <!-- S3: Done -->
+    <div class="screen" id="s3">
+        <div class="done-wrap">
+            <div class="done-icon">✅</div>
+            <div class="done-title" id="doneTitle">Mulțumim!</div>
+            <div class="done-sub" id="doneSub"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const CATS={viteza:'⚡ Viteză',tehnica:'🎯 Tehnică',strategie:'🧠 Strategie',aparare:'🛡️ Apărare'};
+const today=new Date().toLocaleDateString('ro-RO');
+
+// Get player name from URL: /vote-jucator.html?jucator=Gabi+Balan
+// or path: /vote/jucator/gabi-balan (handled via Netlify redirects)
+const params=new URLSearchParams(location.search);
+let targetName=params.get('jucator')||params.get('player')||params.get('name')||'';
+
+// Also check path: /vote/jucator/Gabi-Balan → last segment
+if(!targetName){
+    const segments=location.pathname.split('/').filter(Boolean);
+    const jIdx=segments.indexOf('jucator');
+    if(jIdx!==-1&&segments[jIdx+1]) targetName=decodeURIComponent(segments[jIdx+1]).replace(/-/g,' ');
+}
+
+let targetPlayer=null, allPlayers=[], myName=null, votes={general:null,viteza:null,tehnica:null,strategie:null,aparare:null}, detOpen=false;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id)?.classList.add('active');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;requestAnimationFrame(()=>{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);});}
+function ini(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+async function init(){
+    const{data:pRaw}=await sb.from('players').select('id,name,wins,games').select('*,ratings(general,viteza,tehnica,strategie,aparare,date)');
+    allPlayers=(pRaw||[]).map(p=>({
+        id:p.id, name:p.name, wins:p.wins||0, games:p.games||0,
+        avg:p.ratings?.length?(p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length).toFixed(1):'5.0'
+    }));
+
+    if(!targetName){
+        document.querySelector('.page').innerHTML='<div style="text-align:center;padding:40px;color:#e57373;">Niciun jucător specificat în URL.<br><br><span style="color:#444;font-size:.85rem;">Folosiți: /vote-jucator.html?jucator=Nume+Jucator</span></div>';
+        document.getElementById('loading').classList.add('hidden');
+        return;
+    }
+
+    targetPlayer=allPlayers.find(p=>p.name.toLowerCase()===targetName.toLowerCase())
+        ||allPlayers.find(p=>p.name.toLowerCase().includes(targetName.toLowerCase()));
+
+    if(!targetPlayer){
+        document.querySelector('.page').innerHTML=`<div style="text-align:center;padding:40px;color:#e57373;">Jucătorul <strong style="color:#fff;">"${targetName}"</strong> nu a fost găsit.</div>`;
+        document.getElementById('loading').classList.add('hidden');
+        return;
+    }
+
+    document.getElementById('headerTitle').textContent='Votează '+targetPlayer.name.split(' ')[0];
+    renderHero();
+    buildRateUI(); // always build rating UI regardless of flow path
+    const savedId = localStorage.getItem(LS_PLAYER);
+    if (savedId) {
+        const alreadyVoted = localStorage.getItem(`vote_${savedId}_${targetPlayer.id}_${today}`);
+        if (!alreadyVoted) {
+            await selectVoter(savedId);
+            showIdBar(savedId);
+            document.getElementById('loading').classList.add('hidden');
+            return;
+        }
+    }
+    await renderVoterList();
+    document.getElementById('loading').classList.add('hidden');
+}
+
+function renderHero(){
+    const wr=targetPlayer.games>0?((targetPlayer.wins/targetPlayer.games)*100).toFixed(0)+'%':'—';
+    document.getElementById('playerHero').innerHTML=`
+        <div class="player-hero">
+            <div class="hero-avatar">${ini(targetPlayer.name)}</div>
+            <div class="hero-name">${targetPlayer.name}</div>
+            <div class="hero-avg">⭐ ${targetPlayer.avg} rating general</div>
+            <div class="hero-stats">
+                <div class="hero-stat"><div class="hero-stat-val">${targetPlayer.games}</div><div class="hero-stat-lbl">Meciuri</div></div>
+                <div class="hero-stat"><div class="hero-stat-val">${targetPlayer.wins}</div><div class="hero-stat-lbl">Victorii</div></div>
+                <div class="hero-stat"><div class="hero-stat-val">${wr}</div><div class="hero-stat-lbl">Win %</div></div>
+            </div>
+        </div>`;
+}
+
+async function renderVoterList(){
+    // Check DB — who rated targetPlayer today
+    const { data: todayVotes } = await sb.from('ratings').select('rater')
+        .eq('player_id', targetPlayer.id)
+        .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
+    const dbVoted = new Set((todayVotes||[]).map(v=>v.rater));
+
+    const others = allPlayers.filter(p => p.id !== targetPlayer.id)
+        .filter(p => {
+            const key = `vote_${p.name}_${targetPlayer.id}_${today}`;
+            return !dbVoted.has(p.name) && !localStorage.getItem(key);
+        })
+        .sort((a,b) => a.name.localeCompare(b.name));
+
+    if (!others.length) {
+        document.getElementById('voterList').innerHTML = '<div style="text-align:center;padding:20px;color:#444;font-size:.9rem;">✅ Toată lumea a votat deja pentru ' + targetPlayer.name + ' astăzi!</div>';
+        return;
+    }
+
+    document.getElementById('voterList').innerHTML = others.map(p => `
+        <div class="voter-item" onclick="selectVoter('${p.name}')">
+            <div class="v-avatar">${ini(p.name)}</div>
+            <div class="v-name">${p.name}</div>
+        </div>`).join('');
+}
+
+async function selectVoter(name){
+    myName=name;
+    saveIdentity(name);
+    const key=`vote_${name}_${targetPlayer.id}_${today}`;
+    if(localStorage.getItem(key)){toast('✅ Ai votat deja astăzi pentru '+targetPlayer.name+'!');return;}
+
+    document.getElementById('vWho').textContent=name;
+    document.getElementById('vFor').textContent='Notă pentru: '+targetPlayer.name;
+    document.getElementById('vTarget').textContent=targetPlayer.name;
+
+    // Reset votes
+    votes={general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
+    detOpen=false;
+    document.getElementById('gv').textContent='—';document.getElementById('gv').className='gval empty';
+    document.querySelectorAll('.gbtn').forEach(b=>b.classList.remove('sel'));
+    document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('sel'));
+    document.querySelectorAll('.sv').forEach(s=>{s.textContent='—';s.className='sv unset';});
+    document.getElementById('detWrap').classList.remove('open');
+    document.getElementById('detBtn').classList.remove('open');
+    document.getElementById('detBtn').innerHTML='➕ Adaugă detalii';
+    document.getElementById('saveBtn').disabled=true;
+    show('s2');
+}
+
+function buildRateUI(){
+    // General buttons
+    let gb='';for(let i=1;i<=10;i++)gb+=`<button class="gbtn" data-v="${i}" id="gb${i}" onclick="pickG(${i})">${i}</button>`;
+    document.getElementById('genRow').innerHTML=gb;
+    // Sub cats
+    document.getElementById('subGrid').innerHTML=Object.entries(CATS).map(([cat,lbl])=>`
+        <div class="sg">
+            <label>${lbl}<span class="sv unset" id="sv-${cat}">—</span></label>
+            <div class="srow" id="sr-${cat}">${Array.from({length:10},(_,i)=>`<button class="sbtn" onclick="pickS('${cat}',${i+1})">${i+1}</button>`).join('')}</div>
+        </div>`).join('');
+}
+
+function pickG(v){
+    votes.general=v;
+    document.querySelectorAll('.gbtn').forEach((b,i)=>b.classList.toggle('sel',i+1===v));
+    const el=document.getElementById('gv');el.textContent=v;el.className='gval filled';
+    document.getElementById('saveBtn').disabled=false;
+    if(navigator.vibrate)navigator.vibrate(30);
+}
+function pickS(cat,v){
+    votes[cat]=v;
+    const l=document.getElementById(`sv-${cat}`);if(l){l.textContent=v;l.className='sv set';}
+    document.querySelectorAll(`#sr-${cat} .sbtn`).forEach((b,i)=>b.classList.toggle('sel',i+1===v));
+}
+function togDet(){
+    detOpen=!detOpen;
+    document.getElementById('detWrap').classList.toggle('open',detOpen);
+    document.getElementById('detBtn').classList.toggle('open',detOpen);
+    document.getElementById('detBtn').innerHTML=detOpen?'➖ Ascunde detalii':'➕ Adaugă detalii';
+}
+
+async function submitVote(){
+    if(votes.general===null){toast('⚠️ Selectează nota generală!');return;}
+    const g=votes.general;
+    try{
+        const{error}=await sb.from('ratings').insert({
+            player_id:targetPlayer.id, rater:myName, date:today,
+            general:g, viteza:votes.viteza??g, tehnica:votes.tehnica??g,
+            strategie:votes.strategie??g, aparare:votes.aparare??g
+        });
+        if(error)throw error;
+    }catch(e){toast('⚠️ '+e.message);return;}
+
+    localStorage.setItem(`vote_${myName}_${targetPlayer.id}_${today}`,'1');
+    if(navigator.vibrate)navigator.vibrate([100,50,100]);
+
+    document.getElementById('doneTitle').textContent='Nota salvată!';
+    document.getElementById('doneSub').textContent=`${myName} a dat nota ${g}/10 lui ${targetPlayer.name}. Mulțumim!`;
+    show('s3');
+}
+
+
+function showNameInput(inputId, wrapId, btnId) {
+    document.getElementById(wrapId).classList.add('show');
+    document.getElementById(btnId).style.display = 'none';
+    setTimeout(() => document.getElementById(inputId)?.focus(), 100);
+}
+function useCustomName(inputId, wrapId, btnId, callback) {
+    const val = document.getElementById(inputId)?.value.trim();
+    if (!val || val.length < 2) { toast('⚠️ Introdu prenume și nume (minim 2 caractere)!'); return; }
+    document.getElementById(wrapId).classList.remove('show');
+    document.getElementById(btnId).style.display = '';
+    callback(val);
+}
+
+
+const LS_PLAYER='vote_identity';
+function ini2(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function showIdBar(name){const b=document.getElementById('idBar');if(!b)return;b.style.display='flex';document.getElementById('idBarAv').textContent=ini2(name);document.getElementById('idBarNm').textContent=name;}
+function clearIdentity(){localStorage.removeItem(LS_PLAYER);location.reload();}
+function saveIdentity(name){localStorage.setItem(LS_PLAYER,name);showIdBar(name);}
+
+init();
+</script>
+</body>
+</html>
