@@ -94,7 +94,7 @@
         .header-green .col-header{background:linear-gradient(135deg,#1a7a30,#28a745);}
         .header-bench .col-header{background:linear-gradient(135deg,#0d2040,#1a3060);}
         .header-bench.team3-active .col-header{background:var(--bench-col, #4a0080);}
-        .team3-active .col-header-title{color:#ce93d8!important;}
+        .team3-active .col-header-title{color:var(--bench-text, #ce93d8)!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
         .btn-3team:hover{background:rgba(124,77,255,.4);}
         .btn-3team.active{background:rgba(124,77,255,.5);color:#fff;box-shadow:0 0 12px rgba(124,77,255,.5);}
@@ -971,40 +971,60 @@
         <button class="btn-3team" id="btn3team" onclick="toggleThreeTeamIndex()" title="Mod 3 Echipe (bancă = Echipa 3)">3️⃣</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#69f0ae;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
-            <div class="balance-popup-title">⚖️ Fă Echipele</div>
-            <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Smart Rating<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">nr. egal · rating + pozitii + coechipieri</span></span></div>
-            <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">nr. egal garantat · medie simplă</span></span></div>
-            <div class="balance-opt" onclick="doBalance('roles')"><span class="balance-opt-icon">🎭</span><span>Echilibrare Pozitii<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">portar · fundaș · mijlocaș · atacant</span></span></div>
-            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="openDraftMode()" style="color:#ce93d8;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
-            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#ffcc00;"><span class="balance-opt-icon">🎰</span><span>Surprise!<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">random echilibrat</span></span></div>
-            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="doRotation()" style="color:#4caf50;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
-            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;">
-                <span class="balance-opt-icon">🔵</span><span>Mută pe Bancă</span>
+            <div class="balance-popup-title">⚖️ Echilibrare Echipe</div>
+
+            <div style="font-size:.55rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🧠 Algoritm</div>
+            <div class="balance-opt" onclick="doBalance('smart')">
+                <span class="balance-opt-icon">★</span>
+                <span>Smart Balans
+                    <span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">rating + sinergie + anti-sinergie · nr. egal garantat</span>
+                </span>
             </div>
+            <div class="balance-opt" onclick="doBalance('roles')">
+                <span class="balance-opt-icon">🎭</span>
+                <span>Balans Pozitii
+                    <span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">portar · fundaș · mijlocaș · atacant echilibrat</span>
+                </span>
+            </div>
+            <div class="balance-opt" onclick="doBalance('general')">
+                <span class="balance-opt-icon">⭐</span>
+                <span>Rating General
+                    <span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">medie simplă · nr. egal garantat</span>
+                </span>
+            </div>
+            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#ffcc00;">
+                <span class="balance-opt-icon">🎰</span>
+                <span>Aleatoriu
+                    <span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">random · evită perechi cu chimie proastă</span>
+                </span>
+            </div>
+
+            <div id="balanceReportWrap" style="display:none;padding:6px 8px;background:#080a12;border-radius:7px;margin:4px 6px;border:1px solid #1e2130;">
+                <div style="color:#555;font-size:.55rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">📋 Raport ultimul echilibru</div>
+                <div id="balanceReport" style="font-size:.7rem;"></div>
+            </div>
+
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:2px 8px;">3️⃣ Mod 3 Echipe</div>
+            <div style="font-size:.55rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🔧 Gestionare</div>
+            <div class="balance-opt" onclick="openDraftMode()" style="color:#ce93d8;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
+            <div class="balance-opt" onclick="doRotation()" style="color:#4caf50;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
+            <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#82b1ff;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
+
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div style="font-size:.55rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">3️⃣ Rotații 3 Echipe</div>
             <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);" id="swapOptOrange">
-                <span class="balance-opt-icon">↔</span><span id="swapLblOrange">Portocaliu ↔ Bancă</span>
+                <span class="balance-opt-icon">↔</span><span id="swapLblOrange">Echipa 1 ↔ Bancă</span>
             </div>
             <div class="balance-opt" onclick="quickSwap('green')" style="color:var(--green);" id="swapOptGreen">
-                <span class="balance-opt-icon">↔</span><span id="swapLblGreen">Verde ↔ Bancă</span>
+                <span class="balance-opt-icon">↔</span><span id="swapLblGreen">Echipa 2 ↔ Bancă</span>
             </div>
+
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="exportTeamsTable()" style="color:#69f0ae;">
-                <span class="balance-opt-icon">📊</span><span>Export Tabelă<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">vizualizare 3 coloane copiabilă</span></span>
-            </div>
-            <div class="balance-opt" onclick="exportTeamsText()" style="color:#82b1ff;">
-                <span class="balance-opt-icon">📋</span><span>Export Text WhatsApp</span>
-            </div>
-            <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
-                <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
-            </div>
+            <div class="balance-opt" onclick="exportTeamsTable()" style="color:#69f0ae;"><span class="balance-opt-icon">📊</span><span>Export Tabelă</span></div>
+            <div class="balance-opt" onclick="exportTeamsText()" style="color:#82b1ff;"><span class="balance-opt-icon">📋</span><span>Export Text WhatsApp</span></div>
+
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
-            <!-- Scenario slots -->
-            <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:4px 8px 2px;">💾 Draftare Scenarii</div>
+            <div style="font-size:.55rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:4px 8px 2px;">💾 Scenarii</div>
             <div class="scenario-bar">
                 <button class="sc-btn active" id="scBtn1" onclick="switchScenario(1)">S1</button>
                 <button class="sc-btn" id="scBtn2" onclick="switchScenario(2)">S2</button>
@@ -1028,7 +1048,7 @@
     </div>
     <div class="column column-bench header-bench" id="col-bench" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
-            <div class="col-header-title" id="titleBench">Pe Bancă</div>
+            <div class="col-header-title" id="titleBench">Bancă</div>
             <div class="team-balance-indicator" id="balance-bench"></div>
             <div class="team-rating-info"><span class="team-avg-badge" id="avg-bench" style="display:none;">★ —</span><span class="team-count-badge" id="count-bench">0 jucători</span></div>
             <div class="rating-bar-wrap" id="bar-bench-wrap" style="display:none;"><div class="rating-bar-fill" id="bar-bench" style="width:0%;background:rgba(206,147,216,0.6);"></div></div>
@@ -3338,15 +3358,15 @@ function renderTeamTitles(){
     const tB=document.getElementById('titleBench');
     if(tO) tO.textContent=teamNames.orange;
     if(tG) tG.textContent=teamNames.green;
-    if(tB&&threeTeamMode) tB.textContent=teamNames.bench;
+    if(tB) tB.textContent=threeTeamMode ? teamNames.bench : 'Bancă'; // always update
     document.querySelectorAll('.me-team-header').forEach((el,i)=>{
         if(i===0){ el.textContent=teamNames.orange; el.style.color=teamColors.orange; }
         if(i===1){ el.textContent=teamNames.green;  el.style.color=teamColors.green;  }
     });
     const swapLblO = document.getElementById('swapLblOrange');
     const swapLblG = document.getElementById('swapLblGreen');
-    if (swapLblO) swapLblO.textContent = teamNames.orange + ' ↔ Bancă';
-    if (swapLblG) swapLblG.textContent = teamNames.green  + ' ↔ Bancă';
+    if (swapLblO) swapLblO.textContent = teamNames.orange + ' ↔ ' + (teamNames.bench||'Bancă');
+    if (swapLblG) swapLblG.textContent = teamNames.green  + ' ↔ ' + (teamNames.bench||'Bancă');
     applyTeamColors();
     updateAllTeamLabels();
 }
@@ -6304,7 +6324,8 @@ function doBalance(mode) {
         Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
         const [a3,b3,c3] = [0,1,2].map(i => arrs3[i].length);
         showToast(`⚖️ ${teamNames.orange}:${a3} · ${teamNames.green}:${b3} · ${teamNames.bench||'E3'}:${c3}`);
-        _showImbalanceAlert();
+        const report3 = buildBalanceReport(arrs3[0], arrs3[1], mode, arrs3[2]);
+        _showImbalanceAlert(report3);
         return;
     }
 
@@ -6329,7 +6350,8 @@ function doBalance(mode) {
         render();
         Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
         showToast('🎰 Surprise! Echipe random echilibrate!');
-        _showImbalanceAlert();
+        const reportS = buildBalanceReport(oT, gT, 'surprise');
+        _showImbalanceAlert(reportS);
         return;
     }
 
@@ -6366,8 +6388,9 @@ function doBalance(mode) {
         noRole.forEach(p => assignR(p));
         render();
         Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
-        showToast(`🎭 Role Balance: ${oArr.length} vs ${gArr.length}`);
-        _showImbalanceAlert();
+        showToast(`🎭 Balans Pozitii: ${oArr.length} vs ${gArr.length}`);
+        const reportR = buildBalanceReport(oArr, gArr, 'roles');
+        _showImbalanceAlert(reportR);
         return;
     }
 
@@ -6400,15 +6423,23 @@ function doBalance(mode) {
     Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
     const oAvg = (oSum/oArr.length).toFixed(1), gAvg = (gSum/gArr.length).toFixed(1);
     showToast(`⚖️ ${teamNames.orange}:${oArr.length} (★${oAvg}) vs ${teamNames.green}:${gArr.length} (★${gAvg})`);
-    _showImbalanceAlert();
+    const reportSG = buildBalanceReport(oArr, gArr, mode);
+    _showImbalanceAlert(reportSG);
 }
 
-function _showImbalanceAlert() {
+function _showImbalanceAlert(report) {
+    // Show detailed balance report in popup
+    if (report) {
+        const wrap = document.getElementById('balanceReportWrap');
+        const el   = document.getElementById('balanceReport');
+        if (wrap && el) { el.innerHTML = report; wrap.style.display = 'block'; }
+    }
+
     // #5 Detectare dezechilibru — alertă dacă cineva are streak W≥3
     const imb = detectImbalancedPlayers();
     if (imb.length) {
         const names = imb.map(x => `${x.p.name} (${x.streak}W)`).join(', ');
-        setTimeout(() => showToast(`⚠️ Jucători dominanți: ${names} — consideră rebalansare!`, 'warn'), 1200);
+        setTimeout(() => showToast(`⚠️ Jucători dominanți: ${names} — consideră rebalansare!`), 1200);
     }
     // Anti-synergy info
     if (_antiSynergyPairs.length) {
@@ -6417,9 +6448,54 @@ function _showImbalanceAlert() {
         const oBadPairs = countAntiSynergyInTeam(oPlayers);
         const gBadPairs = countAntiSynergyInTeam(gPlayers);
         if (oBadPairs + gBadPairs > 0) {
-            setTimeout(() => showToast(`🔴 ${oBadPairs+gBadPairs} pereche(i) cu anti-sinergie în aceeași echipă`, 'warn'), 2400);
+            setTimeout(() => showToast(`🔴 ${oBadPairs+gBadPairs} pereche(i) cu anti-sinergie în aceeași echipă`), 2400);
         }
     }
+}
+
+function buildBalanceReport(oArr, gArr, mode, bArr) {
+    const fmtTeam = (arr, name, hex) => {
+        if (!arr.length) return '';
+        const avg = (arr.reduce((s,p)=>s+getSmartRating(p),0)/arr.length).toFixed(2);
+        const actMults = arr.map(p => getActivityMultiplier(p));
+        const lowestAct = actMults.some(m => m < 0.95);
+        const synPairs = [];
+        for(let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++) {
+            const sc = getSynergyScore(arr[i].name, arr[j].name);
+            if (sc !== 0.5) synPairs.push({a:arr[i].name,b:arr[j].name,sc});
+        }
+        const goodSyn = synPairs.filter(p=>p.sc>0.6).length;
+        const badSyn  = synPairs.filter(p=>p.sc<0.4).length;
+        const antiPairs = countAntiSynergyInTeam(arr);
+
+        let html = `<div style="margin-bottom:6px;padding:5px 7px;background:#0d0f18;border-radius:6px;border-left:3px solid ${hex};">
+            <div style="color:${hex};font-weight:700;font-size:.7rem;">${name} (${arr.length} juc.)</div>
+            <div style="color:#888;margin-top:2px;">★ Avg: <b style="color:#fff;">${avg}</b>`;
+        if (lowestAct) html += ` · ⚠️ <span style="color:#ffd54f;">activitate scăzută</span>`;
+        if (goodSyn > 0) html += ` · 💚 ${goodSyn} pereche(i) cu sinergie bună`;
+        if (badSyn > 0)  html += ` · 🔴 ${badSyn} anti-sinergie`;
+        if (antiPairs > 0) html += ` · <span style="color:#ef9a9a;">⚠️ ${antiPairs} pereche(i) problematice</span>`;
+        html += `</div>`;
+        const imb = arr.filter(p=>getStreak(p).type==='W'&&getStreak(p).count>=3);
+        if (imb.length) html += `<div style="color:#ffd54f;font-size:.62rem;">⚡ ${imb.map(p=>p.name+'('+getStreak(p).count+'W)').join(', ')} dominant(i)</div>`;
+        html += `</div>`;
+        return html;
+    };
+
+    const oAvg = oArr.length ? oArr.reduce((s,p)=>s+getSmartRating(p),0)/oArr.length : 0;
+    const gAvg = gArr.length ? gArr.reduce((s,p)=>s+getSmartRating(p),0)/gArr.length : 0;
+    const diff = Math.abs(oAvg - gAvg);
+    const modeLabels = {smart:'★ Smart Balans', general:'⭐ Rating General', roles:'🎭 Pozitii', surprise:'🎰 Aleatoriu'};
+
+    let html = `<div style="color:#555;margin-bottom:5px;">Mod: <b style="color:#aaa;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#69f0ae':diff<0.7?'#ffd54f':'#ef9a9a'};">${diff.toFixed(2)}★</b></div>`;
+    html += fmtTeam(oArr, teamNames.orange, teamColors.orange);
+    html += fmtTeam(gArr, teamNames.green,  teamColors.green);
+    if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Bancă', teamColors.bench||'#7c4dff');
+
+    if (_antiSynergyPairs.length) {
+        html += `<div style="color:#555;font-size:.6rem;margin-top:3px;">🔴 Anti-sinergie globală: ${_antiSynergyPairs.map(p=>`${p.a}+${p.b} (${(p.wr*100).toFixed(0)}%WR)`).join(', ')}</div>`;
+    }
+    return html;
 }
 // ── Compute consecutive wins for a team from history ─────────────
 function computeTeamStreak(team) {
