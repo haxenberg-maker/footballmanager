@@ -93,12 +93,12 @@
         .header-orange .col-header{background:linear-gradient(135deg,#ff6a00,#ee8a00);}
         .header-green .col-header{background:linear-gradient(135deg,#1a7a30,#28a745);}
         .header-bench .col-header{background:linear-gradient(135deg,#0d2040,#1a3060);}
-        .header-bench.team3-active .col-header{background:linear-gradient(135deg,#1a0050,#4a0080);}
+        .header-bench.team3-active .col-header{background:var(--bench-col, #4a0080);}
         .team3-active .col-header-title{color:#ce93d8!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
         .btn-3team:hover{background:rgba(124,77,255,.4);}
         .btn-3team.active{background:rgba(124,77,255,.5);color:#fff;box-shadow:0 0 12px rgba(124,77,255,.5);}
-        .header-bench .col-header-title{color:#82b1ff;}
+        .header-bench .col-header-title{color:var(--bench-text, #82b1ff);}
         .header-active .col-header{background:#1c1f2b;}
         .header-active .col-header-title{color:#888;}
         .team-rating-info{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:700;flex-wrap:wrap;}
@@ -972,12 +972,12 @@
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#69f0ae;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">⚖️ Fă Echipele</div>
-            <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Rating Smart</span></div>
-            <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General</span></div>
-            <div class="balance-opt" onclick="doBalance('roles')"><span class="balance-opt-icon">🎭</span><span>Role Balance</span></div>
+            <div class="balance-opt" onclick="doBalance('smart')"><span class="balance-opt-icon">★</span><span>Smart Rating<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">nr. egal · rating + pozitii + coechipieri</span></span></div>
+            <div class="balance-opt" onclick="doBalance('general')"><span class="balance-opt-icon">⭐</span><span>Rating General<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">nr. egal garantat · medie simplă</span></span></div>
+            <div class="balance-opt" onclick="doBalance('roles')"><span class="balance-opt-icon">🎭</span><span>Echilibrare Pozitii<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">portar · fundaș · mijlocaș · atacant</span></span></div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
             <div class="balance-opt" onclick="openDraftMode()" style="color:#ce93d8;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
-            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#ffcc00;"><span class="balance-opt-icon">🎰</span><span>Surprise Me!</span></div>
+            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#ffcc00;"><span class="balance-opt-icon">🎰</span><span>Surprise!<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">random echilibrat</span></span></div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
             <div class="balance-opt" onclick="doRotation()" style="color:#4caf50;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
@@ -986,14 +986,18 @@
             </div>
             <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
             <div style="font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.8px;padding:2px 8px;">3️⃣ Mod 3 Echipe</div>
-            <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);">
-                <span class="balance-opt-icon">↔</span><span>🟠 Portocaliu ↔ Bancă</span>
+            <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);" id="swapOptOrange">
+                <span class="balance-opt-icon">↔</span><span id="swapLblOrange">Portocaliu ↔ Bancă</span>
             </div>
-            <div class="balance-opt" onclick="quickSwap('green')" style="color:#4caf50;">
-                <span class="balance-opt-icon">↔</span><span>🟢 Verde ↔ Bancă</span>
+            <div class="balance-opt" onclick="quickSwap('green')" style="color:var(--green);" id="swapOptGreen">
+                <span class="balance-opt-icon">↔</span><span id="swapLblGreen">Verde ↔ Bancă</span>
             </div>
-            <div class="balance-opt" onclick="exportTeamsText()" style="color:#69f0ae;">
-                <span class="balance-opt-icon">📋</span><span>Exportă Echipe</span>
+            <div style="height:1px;background:#1e2130;margin:4px 0;"></div>
+            <div class="balance-opt" onclick="exportTeamsTable()" style="color:#69f0ae;">
+                <span class="balance-opt-icon">📊</span><span>Export Tabelă<span style="display:block;font-size:.6rem;color:#555;margin-top:1px;">vizualizare 3 coloane copiabilă</span></span>
+            </div>
+            <div class="balance-opt" onclick="exportTeamsText()" style="color:#82b1ff;">
+                <span class="balance-opt-icon">📋</span><span>Export Text WhatsApp</span>
             </div>
             <div class="balance-opt" onclick="openTableView()" style="color:#ce93d8;">
                 <span class="balance-opt-icon">🗂️</span><span>Vizualizare Tabela</span>
@@ -3188,6 +3192,10 @@ function renderTeamTitles(){
         if(i===0){ el.textContent=teamNames.orange; el.style.color=teamColors.orange; }
         if(i===1){ el.textContent=teamNames.green;  el.style.color=teamColors.green;  }
     });
+    const swapLblO = document.getElementById('swapLblOrange');
+    const swapLblG = document.getElementById('swapLblGreen');
+    if (swapLblO) swapLblO.textContent = teamNames.orange + ' ↔ Bancă';
+    if (swapLblG) swapLblG.textContent = teamNames.green  + ' ↔ Bancă';
     applyTeamColors();
     updateAllTeamLabels();
 }
@@ -3457,6 +3465,75 @@ function exportTeamsText(){
     overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
 }
 
+function exportTeamsTable() {
+    document.getElementById('balancePopup').classList.remove('show');
+    const orange = db.players.filter(p => p.status === 'orange').sort((a,b) => getSmartRating(b)-getSmartRating(a));
+    const green  = db.players.filter(p => p.status === 'green').sort((a,b)  => getSmartRating(b)-getSmartRating(a));
+    const bench3 = threeTeamMode ? db.players.filter(p => p.status === 'bench').sort((a,b) => getSmartRating(b)-getSmartRating(a)) : [];
+    if (!orange.length && !green.length) { showToast('⚠️ Nicio echipă formată!'); return; }
+
+    const fmtPlayer = (p) => {
+        const role = p.role && ROLES[p.role] ? ROLES[p.role].emoji : '·';
+        const rating = getSmartRating(p).toFixed(1);
+        return `<tr>
+            <td style="padding:5px 8px;font-weight:700;">${role} ${p.name}</td>
+            <td style="padding:5px 8px;text-align:right;font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#888;">${rating}★</td>
+        </tr>`;
+    };
+
+    const colStyle = (hex) => `background:${hex}22;border-radius:10px;overflow:hidden;border:1px solid ${hex}44;`;
+    const hdStyle  = (hex) => `background:${hex};color:${getContrastColorIdx(hex)};padding:8px 12px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;`;
+    const avgO = orange.reduce((s,p)=>s+getSmartRating(p),0)/Math.max(orange.length,1);
+    const avgG = green.reduce((s,p)=>s+getSmartRating(p),0)/Math.max(green.length,1);
+    const avgB = bench3.length ? bench3.reduce((s,p)=>s+getSmartRating(p),0)/bench3.length : 0;
+
+    const cols = threeTeamMode
+        ? [`<td style="width:33%;vertical-align:top;padding:6px;">
+               <div style="${colStyle(teamColors.orange)}">
+                   <div style="${hdStyle(teamColors.orange)}">${teamNames.orange} (${orange.length})</div>
+                   <table style="width:100%;border-collapse:collapse;">${orange.map(fmtPlayer).join('')}</table>
+                   <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgO.toFixed(2)}</div>
+               </div></td>`,
+           `<td style="width:33%;vertical-align:top;padding:6px;">
+               <div style="${colStyle(teamColors.green)}">
+                   <div style="${hdStyle(teamColors.green)}">${teamNames.green} (${green.length})</div>
+                   <table style="width:100%;border-collapse:collapse;">${green.map(fmtPlayer).join('')}</table>
+                   <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgG.toFixed(2)}</div>
+               </div></td>`,
+           `<td style="width:33%;vertical-align:top;padding:6px;">
+               <div style="${colStyle(teamColors.bench||'#7c4dff')}">
+                   <div style="${hdStyle(teamColors.bench||'#7c4dff')}">${teamNames.bench||'Echipa 3'} (${bench3.length})</div>
+                   <table style="width:100%;border-collapse:collapse;">${bench3.map(fmtPlayer).join('')}</table>
+                   <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgB.toFixed(2)}</div>
+               </div></td>`].join('')
+        : [`<td style="width:50%;vertical-align:top;padding:6px;">
+               <div style="${colStyle(teamColors.orange)}">
+                   <div style="${hdStyle(teamColors.orange)}">${teamNames.orange} (${orange.length})</div>
+                   <table style="width:100%;border-collapse:collapse;">${orange.map(fmtPlayer).join('')}</table>
+                   <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgO.toFixed(2)}</div>
+               </div></td>`,
+           `<td style="width:50%;vertical-align:top;padding:6px;">
+               <div style="${colStyle(teamColors.green)}">
+                   <div style="${hdStyle(teamColors.green)}">${teamNames.green} (${green.length})</div>
+                   <table style="width:100%;border-collapse:collapse;">${green.map(fmtPlayer).join('')}</table>
+                   <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgG.toFixed(2)}</div>
+               </div></td>`].join('');
+
+    const tableHtml = `<table style="width:100%;border-collapse:collapse;font-family:'Rajdhani',sans-serif;font-size:.82rem;color:#ccc;"><tr>${cols}</tr></table>`;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:300;display:flex;align-items:center;justify-content:center;padding:12px;';
+    overlay.innerHTML = `
+        <div style="background:#0d0f18;width:100%;max-width:640px;border-radius:14px;border:1px solid #1e2130;overflow:hidden;max-height:90vh;display:flex;flex-direction:column;">
+            <div style="padding:12px 16px;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;">📊 Tabelă Echipe</span>
+                <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:1px solid #252836;color:#555;padding:4px 10px;border-radius:6px;cursor:pointer;">✕</button>
+            </div>
+            <div style="overflow-y:auto;padding:4px;">${tableHtml}</div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
 function openSettings(){
     buildPlayerEditList();
     if (isAdmin()) buildAccountsList();
@@ -5843,16 +5920,23 @@ function colorToNameIdx(hex) { return COLOR_NAMES_IDX[hex] || hex; }
 function applyTeamColors() {
     document.documentElement.style.setProperty('--orange', teamColors.orange);
     document.documentElement.style.setProperty('--green',  teamColors.green);
+    const bHex = teamColors.bench || '#4a0080';
+    document.documentElement.style.setProperty('--bench-col', bHex);
+    document.documentElement.style.setProperty('--bench-text', getContrastColorIdx(bHex));
     // Column headers — override hardcoded gradient with team color + contrast text
     const oHd = document.querySelector('#col-orange .col-header');
     const gHd = document.querySelector('#col-green  .col-header');
+    const bHd = document.querySelector('#col-bench  .col-header');
     if (oHd) { oHd.style.background = teamColors.orange; oHd.style.color = getContrastColorIdx(teamColors.orange); }
     if (gHd) { gHd.style.background = teamColors.green;  gHd.style.color = getContrastColorIdx(teamColors.green); }
+    if (bHd && threeTeamMode) { bHd.style.background = bHex; bHd.style.color = getContrastColorIdx(bHex); }
     // Title contrast
     const tO = document.getElementById('titleOrange');
     const tG = document.getElementById('titleGreen');
+    const tB = document.getElementById('titleBench');
     if (tO) tO.style.color = getContrastColorIdx(teamColors.orange);
     if (tG) tG.style.color = getContrastColorIdx(teamColors.green);
+    if (tB && threeTeamMode) tB.style.color = getContrastColorIdx(bHex);
 }
 
 async function loadTeamConfigs() {
@@ -6056,7 +6140,7 @@ function doBalance(mode) {
         const a3=db.players.filter(p=>p.status==='orange').length;
         const b3=db.players.filter(p=>p.status==='green').length;
         const c3=db.players.filter(p=>p.status==='bench').length;
-        showToast(`⚖️ 3 Echipe: 🟠${a3} · 🟢${b3} · 🟣${c3} jucători!`);
+        showToast(`⚖️ ${teamNames.orange}:${a3} · ${teamNames.green}:${b3} · ${teamNames.bench||'Echipa 3'}:${c3} jucători!`);
         return;
     }
 
