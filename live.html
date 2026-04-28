@@ -1607,6 +1607,10 @@ function confirmFinalize() {
 function closeDialog() { document.getElementById('dialogOverlay').classList.remove('show'); }
 
 // ── Finalize 3-team: 3 meciuri per pereche ───────────────────────
+function getDurationWeight(durationSec) {
+    if (!durationSec || durationSec <= 0) return 1.0;
+    return Math.min(1.0, Math.max(0.5, durationSec / (15 * 60)));
+}
 async function finalizeMatch3Team(pairs) {
     if (isSaving) return;
     isSaving = true;
@@ -1657,13 +1661,28 @@ async function finalizeMatch3Team(pairs) {
                 const inA = pair.a_players.includes(name);
                 const won = inA ? aWon : bWon;
                 const pGoals = pair.all_goals.filter(g=>g.player_name===name).length;
+                const pConceded = inA ? sB : sA; // #4: goluri primite = golurile adversarilor
+                // #9: ponderare durată per rundă
+                const pairDurSec = pair.rounds.reduce((s,r)=>s+(r.duration_sec||0), 0);
+                const durW = getDurationWeight ? getDurationWeight(pairDurSec) : 1.0;
                 try {
-                    const {data:cur} = await sb.from('players').select('wins,games,match_history,total_goals').eq('id',p.id).single();
-                    if(cur) await sb.from('players').update({
-                        wins:(cur.wins||0)+(won?1:0), games:(cur.games||0)+1,
-                        match_history:[...(cur.match_history||[]),won?'W':'L'].slice(-20),
-                        total_goals:(cur.total_goals||0)+pGoals,
-                    }).eq('id',p.id);
+                    const {data:cur} = await sb.from('players').select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss').eq('id',p.id).single();
+                    if(cur) {
+                        const newWins  = (cur.wins||0) + (won?1:0);
+                        const newGames = (cur.games||0) + 1;
+                        const isImbalanced = Math.abs(sA-sB) >= 3;
+                        const newImb = (!won && isImbalanced)
+                            ? (cur.last_imbalance_loss||0)+1
+                            : won ? 0 : (cur.last_imbalance_loss||0);
+                        await sb.from('players').update({
+                            wins: newWins,
+                            games: newGames,
+                            match_history: [...(cur.match_history||[]), won?'W':'L'].slice(-20),
+                            total_goals: (cur.total_goals||0) + pGoals,
+                            total_goals_conceded: (cur.total_goals_conceded||0) + pConceded,
+                            last_imbalance_loss: newImb,
+                        }).eq('id', p.id);
+                    }
                 } catch(e){}
             }
             savedCount++;
@@ -1711,7 +1730,23 @@ async function finalizeMatch2Team(finalRounds) {
             const won=(inO&&winner==='orange')||(!inO&&winner==='green');
             const lost=(inO&&winner==='green')||(!inO&&winner==='orange');
             const pGoals=goalMap[name]?.count||0;
-            try{const{data:cur}=await sb.from('players').select('wins,games,match_history,total_goals,last_imbalance_loss').eq('id',p.id).single();if(cur)await sb.from('players').update({wins:(cur.wins||0)+(won?1:0),games:(cur.games||0)+1,match_history:[...(cur.match_history||[]),won?'W':'L'],total_goals:(cur.total_goals||0)+pGoals,last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)}).eq('id',p.id);}catch(e){}
+            // #4: goluri concedute = golurile echipei adverse
+            const pConceded = inO ? gScore : oScore;
+            // #9: durată meci
+            const durSec = liveState?.match_started_at
+                ? Math.round((new Date(endedAt).getTime() - new Date(liveState.match_started_at).getTime())/1000)
+                : 0;
+            try{
+                const{data:cur}=await sb.from('players').select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss').eq('id',p.id).single();
+                if(cur)await sb.from('players').update({
+                    wins:(cur.wins||0)+(won?1:0),
+                    games:(cur.games||0)+1,
+                    match_history:[...(cur.match_history||[]),won?'W':'L'],
+                    total_goals:(cur.total_goals||0)+pGoals,
+                    total_goals_conceded:(cur.total_goals_conceded||0)+pConceded,
+                    last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)
+                }).eq('id',p.id);
+            }catch(e){}
         }
         await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
         try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
