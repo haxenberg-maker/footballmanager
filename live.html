@@ -687,19 +687,26 @@ function renderTeamTabs(teamIds) {
 }
 
 function switchTeamTab(teamId, teamIds) {
-    const curName = document.getElementById('teamEditName').value.trim();
-    if (curName && _editingTeamId) {
-        // Silently update local registry._configs before switching tabs
-        const reg = { ...getTeamRegistry() };
-        reg._configs = { ...(reg._configs || {}), [_editingTeamId]: { name: curName, hex: _editingHex || '#888' } };
-        liveState = { ...liveState, team_registry: reg };
+    // Save current custom name before switching
+    if (_editingTeamId && _showCustomName) {
+        const curInput = document.getElementById('teamEditCustomName');
+        const curName = curInput ? curInput.value.trim() : '';
+        if (curName) {
+            const reg = { ...getTeamRegistry() };
+            reg._configs = { ...(reg._configs || {}), [_editingTeamId]: { hex: _editingHex || '#888', customName: curName } };
+            liveState = { ...liveState, team_registry: reg };
+        }
     }
     _editingTeamId = teamId;
     const cfg = getTeamConfig(teamId);
     _editingHex = cfg.hex;
-    document.getElementById('teamEditTitle').textContent = cfg.name;
-    document.getElementById('teamEditName').value = cfg.name;
+    _showCustomName = !!cfg.customName;
+    const titleEl = document.getElementById('teamEditTitle');
+    if (titleEl) titleEl.textContent = cfg.name;
+    const custInput = document.getElementById('teamEditCustomName');
+    if (custInput) custInput.value = cfg.customName || '';
     renderColorPalette(cfg.hex);
+    renderCustomNameSection();
     renderTeamTabs(teamIds);
 }
 

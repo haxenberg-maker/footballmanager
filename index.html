@@ -5674,7 +5674,14 @@ function toggleBalancePopup(e) {
     e.stopPropagation();
     const popup = document.getElementById('balancePopup');
     popup.classList.toggle('show');
-    if(popup.classList.contains('show')) updateScenarioBadge();
+    if (popup.classList.contains('show')) {
+        updateScenarioBadge();
+        // Update team name labels every time popup opens
+        const lblO = document.getElementById('swapLblOrange');
+        const lblG = document.getElementById('swapLblGreen');
+        if (lblO) lblO.textContent = teamNames.orange + ' ↔ Bancă';
+        if (lblG) lblG.textContent = teamNames.green  + ' ↔ Bancă';
+    }
 }
 document.addEventListener('click', () => {
     document.getElementById('balancePopup')?.classList.remove('show');
