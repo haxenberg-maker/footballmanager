@@ -2581,6 +2581,7 @@ function getDurationWeight(durationSec) {
 }
 
 // ── END SMART ALGORITHMS v2.0 ──────────────────────────────────────
+function getCatAvg(p,cat){return p.ratings?.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
 function getGeneralAvg(p){return getCatAvg(p,'general');}
 function getStreak(p){
     if(!p.matchHistory?.length)return{count:0,type:null};
