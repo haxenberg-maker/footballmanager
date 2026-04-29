@@ -1194,8 +1194,8 @@ function render() {
             </div>`;
         };
 
-        const oAddBtn = isLiveAdmin && bench.length ? makeAddBtn('orange', oHex) : '';
-        const gAddBtn = isLiveAdmin && bench.length ? makeAddBtn('green', gHex) : '';
+        const oAddBtn = isLiveAdmin && bench.length && orange.length < green.length ? makeAddBtn('orange', oHex) : '';
+        const gAddBtn = isLiveAdmin && bench.length && green.length < orange.length ? makeAddBtn('green', gHex) : '';
 
         const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
         const gBadge = mode ? `<span class="round-badge">${conc.green}/${st.goal_threshold||2} prim.</span>`  : '';
@@ -1203,12 +1203,12 @@ function render() {
             '<div class="team-col o-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${oHex}">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
             + makeRows(orange, 'orange')
-            + (orange.length < green.length || (bench.length && isLiveAdmin) ? oAddBtn : '')
+            + oAddBtn
             + '</div>'
             + '<div class="team-col g-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${gHex}">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
             + makeRows(green, 'green')
-            + (green.length < orange.length || (bench.length && isLiveAdmin) ? gAddBtn : '')
+            + gAddBtn
             + '</div>';
     }
 
