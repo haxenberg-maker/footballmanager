@@ -194,6 +194,12 @@ main, body{padding-bottom:80px;}
 .code-auth-box{background:#141720;width:100%;max-width:320px;border-radius:16px;border:1px solid #2a2d40;padding:20px;}
 .admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#82b1ff;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .hd-key-btn{background:none;border:1px solid #252836;color:#444;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
+/* ── Add Temp Player Modal ──────────────────────────────── */
+.add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
+.add-temp-overlay.show{display:flex;}
+.add-temp-box{background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;max-height:72vh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+.add-temp-hd{padding:12px 16px;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.add-temp-body{overflow-y:auto;padding:10px 12px;}
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
 .round-detail-box{background:#141720;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
@@ -1158,30 +1164,54 @@ function render() {
         wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
     } else {
         // Player goal counters = cumulative across whole match (not per round)
-        const gpm = goalsMap();
+        const bench = players.filter(p => p.status === 'bench');
+        const tempPlayers = players.filter(p => p._temp);
 
-        const conc = mode ? getRoundConceded() : { orange:0, green:0 };
+        // Mark temp players in rows
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
+            const isTemp = !!p._temp;
+            const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#ffd54f;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
+            const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#444;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
             return '<div class="pr">'
-                + '<div class="pr-name">'+p.name+'</div>'
+                + `<div class="pr-name" style="${isTemp?'color:#ffd54f;':''}">${p.name}${tempBadge}</div>`
+                + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
                 + '<button class="pr-plus" onclick="this.classList.add(\'busy\');addGoal(\''+p.name+'\',\''+team+'\').finally(()=>setTimeout(()=>this.classList.remove(\'busy\'),100))">+</button>'
                 + '</div>';
         }).join('');
+
+        // "Add temp player" button — shown under team with fewer players (or both if equal and bench has players)
+        const makeAddBtn = (team, hex) => {
+            const available = bench.filter(b => !players.some(p => p._temp && p._sourceName === b.name && p.status === team));
+            if (!available.length) return '';
+            return `<div style="padding:4px 2px 2px;">
+                <button onclick="openAddTempPlayer('${team}')"
+                    style="width:100%;padding:7px 4px;border-radius:8px;border:1px dashed ${hex}44;background:${hex}0a;color:${hex};font-size:.68rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:5px;">
+                    <span style="font-size:.9rem;">+</span> Adaugă jucător temporar
+                </button>
+            </div>`;
+        };
+
+        const showAddO = orange.length < green.length || (orange.length === green.length && bench.length > 0 && isLiveAdmin);
+        const showAddG = green.length < orange.length || (orange.length === green.length && bench.length > 0 && isLiveAdmin);
+
+        const oAddBtn = isLiveAdmin && bench.length ? makeAddBtn('orange', oHex) : '';
+        const gAddBtn = isLiveAdmin && bench.length ? makeAddBtn('green', gHex) : '';
+
         const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
         const gBadge = mode ? `<span class="round-badge">${conc.green}/${st.goal_threshold||2} prim.</span>`  : '';
-        const oTidH  = oTid ? tidBadge(oTid)+' ' : '';
-        const gTidH  = gTid ? tidBadge(gTid)+' ' : '';
         wrap.innerHTML =
             '<div class="team-col o-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${oHex}">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
             + makeRows(orange, 'orange')
+            + (orange.length < green.length || bench.length ? oAddBtn : '')
             + '</div>'
             + '<div class="team-col g-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${gHex}">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
             + makeRows(green, 'green')
+            + (green.length < orange.length || bench.length ? gAddBtn : '')
             + '</div>';
     }
 
@@ -1757,7 +1787,72 @@ async function finalizeMatch2Team(finalRounds) {
         isSaving=false;
     } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
 }
-// ── Transfer jucător ──────────────────────────────────────────────
+// ── Jucători temporari ────────────────────────────────────────────
+let _addTempTeam = null;
+
+function openAddTempPlayer(team) {
+    _addTempTeam = team;
+    const bench = players.filter(p => p.status === 'bench');
+    const already = players.filter(p => p._temp && p.status === team).map(p => p._sourceName);
+    const available = bench.filter(b => !already.includes(b.name));
+
+    if (!available.length) { showToast('⚠️ Nu sunt jucători disponibili pe bancă!'); return; }
+
+    const teamHex  = getTeamHex(team);
+    const teamName = getTeamName(team);
+
+    document.getElementById('addTempBody').innerHTML = available.map(p => {
+        const cnt = goalsMap()[p.name] || 0;
+        const cntLbl = cnt ? ` <span style="color:#69f0ae;font-size:.65rem;">⚽${cnt}</span>` : '';
+        return `<div onclick="addTempPlayer('${p.id}','${p.name}')"
+            style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid #1e2130;background:#0d0f18;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;"
+            onmousedown="this.style.background='${teamHex}15';this.style.borderColor='${teamHex}'"
+            onmouseup="this.style.background='#0d0f18';this.style.borderColor='#1e2130'">
+            <div style="width:32px;height:32px;border-radius:50%;background:${teamHex}22;border:1px solid ${teamHex}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:${teamHex};">${p.name[0]}</div>
+            <div style="flex:1;">
+                <div style="font-weight:700;font-size:.85rem;">${p.name}${cntLbl}</div>
+                <div style="font-size:.6rem;color:#555;">Copiat temporar → ${teamName}</div>
+            </div>
+            <span style="color:#333;font-size:.8rem;">›</span>
+        </div>`;
+    }).join('');
+
+    document.getElementById('addTempTitle').style.color = teamHex;
+    document.getElementById('addTempTitle').textContent = '+ Adaugă în ' + teamName;
+    document.getElementById('addTempOverlay').classList.add('show');
+}
+
+function closeAddTemp() {
+    document.getElementById('addTempOverlay').classList.remove('show');
+    _addTempTeam = null;
+}
+
+function addTempPlayer(sourceId, sourceName) {
+    if (!_addTempTeam) return;
+    // Check not already added
+    if (players.some(p => p._temp && p._sourceName === sourceName && p.status === _addTempTeam)) {
+        showToast('⚠️ Jucătorul e deja adăugat temporar!');
+        closeAddTemp(); return;
+    }
+    const tempId = 'temp_' + Date.now() + '_' + sourceId;
+    players.push({
+        id: tempId,
+        name: sourceName,
+        status: _addTempTeam,
+        _temp: true,
+        _sourceName: sourceName,
+    });
+    showToast(`✓ ${sourceName} adăugat temporar în ${getTeamName(_addTempTeam)}`);
+    closeAddTemp();
+    render();
+}
+
+function removeTempPlayer(tempId) {
+    const p = players.find(x => x.id === tempId);
+    if (p) showToast(`✓ ${p.name} eliminat din echipă`);
+    players = players.filter(x => x.id !== tempId);
+    render();
+}
 let _transferPlayer = null;
 let _transferTarget = null;
 
@@ -2371,6 +2466,20 @@ init();
       <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;">Anulează</button>
       <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
     </div>
+  </div>
+</div>
+
+<!-- Add Temp Player Modal -->
+<div class="add-temp-overlay" id="addTempOverlay" onclick="if(event.target===this)closeAddTemp()">
+  <div class="add-temp-box">
+    <div class="add-temp-hd">
+      <div>
+        <div class="add-temp-title" id="addTempTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;">+ Adaugă jucător temporar</div>
+        <div style="font-size:.62rem;color:#444;margin-top:2px;">Jucătorul va fi copiat temporar în acest meci · golurile se vor salva</div>
+      </div>
+      <button onclick="closeAddTemp()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div class="add-temp-body" id="addTempBody"></div>
   </div>
 </div>
 
