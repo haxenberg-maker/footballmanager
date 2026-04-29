@@ -1163,9 +1163,10 @@ function render() {
     if (!orange.length && !green.length) {
         wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
     } else {
-        // Player goal counters = cumulative across whole match (not per round)
+        // Define gpm and conc FIRST before makeRows uses them
+        const gpm  = goalsMap();
+        const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const bench = players.filter(p => p.status === 'bench');
-        const tempPlayers = players.filter(p => p._temp);
 
         // Mark temp players in rows
         const makeRows = (pls, team) => pls.map(p => {
@@ -1182,7 +1183,6 @@ function render() {
                 + '</div>';
         }).join('');
 
-        // "Add temp player" button — shown under team with fewer players (or both if equal and bench has players)
         const makeAddBtn = (team, hex) => {
             const available = bench.filter(b => !players.some(p => p._temp && p._sourceName === b.name && p.status === team));
             if (!available.length) return '';
@@ -1194,9 +1194,6 @@ function render() {
             </div>`;
         };
 
-        const showAddO = orange.length < green.length || (orange.length === green.length && bench.length > 0 && isLiveAdmin);
-        const showAddG = green.length < orange.length || (orange.length === green.length && bench.length > 0 && isLiveAdmin);
-
         const oAddBtn = isLiveAdmin && bench.length ? makeAddBtn('orange', oHex) : '';
         const gAddBtn = isLiveAdmin && bench.length ? makeAddBtn('green', gHex) : '';
 
@@ -1206,12 +1203,12 @@ function render() {
             '<div class="team-col o-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${oHex}">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
             + makeRows(orange, 'orange')
-            + (orange.length < green.length || bench.length ? oAddBtn : '')
+            + (orange.length < green.length || (bench.length && isLiveAdmin) ? oAddBtn : '')
             + '</div>'
             + '<div class="team-col g-col">'
             + `<div class="team-hd"><span class="team-hd-lbl" style="color:${gHex}">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
             + makeRows(green, 'green')
-            + (green.length < orange.length || bench.length ? gAddBtn : '')
+            + (green.length < orange.length || (bench.length && isLiveAdmin) ? gAddBtn : '')
             + '</div>';
     }
 
