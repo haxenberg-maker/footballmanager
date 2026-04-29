@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Live · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html{overflow-x:clip;max-width:100vw;}
+html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior-y:contain;}
+:root{--o:#ff8c00;--g:#28a745;--b:#1e2130;--accent:#3d5afe;}
+
+.hd{background:#080a12;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+.hd-logo{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:3px;}
+.hd-right{display:flex;align-items:center;gap:8px;}
+.live-pill{display:flex;align-items:center;gap:4px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);padding:2px 7px;border-radius:12px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+.live-lbl{font-size:.58rem;font-weight:700;color:#69f0ae;text-transform:uppercase;letter-spacing:1px;}
+.icon-btn{background:none;border:1px solid var(--b);color:#444;padding:7px 11px;border-radius:7px;font-size:.75rem;cursor:pointer;white-space:nowrap;min-height:36px;touch-action:manipulation;}
+.icon-btn:hover{border-color:#555;color:#aaa;}
+.icon-btn.danger{border-color:#c6282833;color:#ef9a9a44;}
+.icon-btn.danger:hover{border-color:#c62828;color:#ef9a9a;}
+
+.timer-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:10px;}
+.timer-btn{padding:10px 20px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .12s;flex-shrink:0;touch-action:manipulation;min-height:44px;}
+.timer-btn.start{background:rgba(40,167,69,.1);border-color:var(--g);color:#69f0ae;}
+.timer-btn.pause{background:rgba(255,204,0,.1);border-color:#ffcc00;color:#ffcc00;}
+.timer-btn.resume{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
+.timer-display{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff;letter-spacing:3px;min-width:60px;}
+.timer-display.running{color:#69f0ae;}
+.timer-display.paused{color:#ffcc00;}
+.half-badge{font-size:.62rem;color:#555;flex:1;}
+
+.score-wrap{background:#080a12;border-bottom:2px solid var(--b);padding:10px 12px 4px;}
+.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
+.sc-side{display:flex;flex-direction:column;}
+.sc-side.right{align-items:flex-end;}
+/* ── Team Config Edit ───────────────────────────────────── */
+.sc-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:2px;cursor:pointer;display:flex;align-items:center;gap:4px;touch-action:manipulation;}
+.sc-lbl-edit{font-size:.55rem;opacity:.4;}
+.team-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;}
+.team-edit-overlay.show{display:flex;}
+.team-edit-box{background:#141720;width:100%;max-width:360px;border-radius:16px;border:1px solid #2a2d40;overflow:hidden;}
+.team-edit-hd{padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;}
+.team-edit-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;}
+.team-edit-close{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.team-edit-body{padding:14px 18px 18px;display:flex;flex-direction:column;gap:12px;}
+.team-edit-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;}
+.team-edit-input{width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;}
+.team-edit-input:focus{border-color:#82b1ff;box-shadow:0 0 0 2px rgba(61,90,254,.2);}
+.color-palette{display:flex;flex-wrap:wrap;gap:8px;}
+.color-swatch{width:34px;height:34px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-color .1s;touch-action:manipulation;}
+.color-swatch:active{transform:scale(.88);}
+.color-swatch.sel{border-color:#fff !important;transform:scale(1.1);box-shadow:0 0 0 2px rgba(255,255,255,.3);}
+.color-preview-bar{height:4px;border-radius:2px;margin-top:4px;transition:background .2s;}
+.team-edit-actions{display:flex;gap:8px;margin-top:4px;}
+.team-edit-cancel{flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
+.team-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;touch-action:manipulation;}
+/* All teams manager */
+.all-teams-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#888;touch-action:manipulation;}
+.sc-lbl.o{color:var(--o);}
+.sc-lbl.g{color:var(--g);}
+.sc-n{font-family:'Bebas Neue',sans-serif;font-size:5rem;line-height:.9;transition:transform .15s,text-shadow .15s;}
+.sc-n.o{color:var(--o);}
+.sc-n.g{color:var(--g);}
+.sc-n.bump{transform:scale(1.25);text-shadow:0 0 30px currentColor;}
+.sc-sep{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#1e2130;padding:0 4px;}
+.score-sub{text-align:center;font-size:.62rem;color:#555;padding:3px 0 7px;min-height:18px;}
+.score-sub b{color:#888;}
+
+.undo-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:8px;min-height:42px;}
+.undo-lbl{flex:1;font-size:.75rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.undo-lbl span{color:#fff;}
+.undo-btn{background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;padding:8px 14px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;flex-shrink:0;touch-action:manipulation;}
+.undo-btn.show{display:block;}
+
+.teams-wrap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+.team-col{padding:4px 3px 6px;}
+.team-col.o-col{border-right:1px solid var(--b);}
+.team-hd{display:flex;align-items:baseline;justify-content:space-between;padding:3px 3px 5px;border-bottom:1px solid #0f1118;margin-bottom:3px;}
+.team-hd-lbl{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1.5px;}
+.team-hd-lbl.o{color:var(--o);}
+.team-hd-lbl.g{color:var(--g);}
+.team-hd-cnt{font-size:.58rem;color:#333;}
+.pr{display:flex;align-items:center;padding:2px 2px;gap:3px;min-height:46px;}
+.pr-name{flex:1;font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.pr-cnt{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:18px;text-align:center;color:#252836;transition:color .15s;flex-shrink:0;}
+.pr-cnt.has{color:#fff;}
+.pr-minus{width:24px;height:42px;background:none;border:none;color:#333;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;}
+.pr-minus.show{display:flex;}
+.pr-minus:active{background:#1c1f2b;color:#ef9a9a;}
+.pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.pr-plus:active,.pr-plus.busy{transform:scale(.88);}
+.pr-plus.busy{opacity:.4;pointer-events:none;}
+.o-col .pr-plus{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.2);color:var(--o);}
+.o-col .pr-plus:active{background:rgba(255,140,0,.22);}
+.g-col .pr-plus{background:rgba(40,167,69,.08);border-color:rgba(40,167,69,.2);color:var(--g);}
+.g-col .pr-plus:active{background:rgba(40,167,69,.22);}
+
+.log-toggle{background:#0a0c10;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.log-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
+.log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #2a2d40;color:#82b1ff;font-size:.6rem;padding:1px 6px;border-radius:10px;}
+.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
+.log-panel.open{display:block;}
+.log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #0a0c14;font-size:.78rem;}
+.log-entry:last-child{border-bottom:none;}
+.log-min{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#555;min-width:28px;}
+.log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.log-name{flex:1;font-weight:700;}
+.log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#69f0ae;}
+.log-empty{padding:16px 14px;color:#333;font-size:.78rem;text-align:center;}
+
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
+.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
+.btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
+/* Extra padding so last player row is never hidden by bottom-bar */
+main, body{padding-bottom:80px;}
+
+.dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
+.dialog-overlay.show{display:flex;}
+.dialog-box{background:#141720;width:100%;max-width:520px;border-radius:16px;border:1px solid #2a2d40;padding:20px;max-height:88vh;overflow-y:auto;}
+.dialog-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:4px;}
+.dialog-score{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;margin:8px 0;}
+.dialog-section{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin:12px 0 6px;}
+.scorer-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0f1118;font-size:.82rem;}
+.scorer-row:last-child{border-bottom:none;}
+.scorer-dot{width:8px;height:8px;border-radius:50%;}
+.scorer-name{flex:1;font-weight:700;}
+.scorer-goals{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#fff;}
+.scorer-mins{font-size:.68rem;color:#555;}
+.mvp-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,204,0,.06);border:1px solid rgba(255,204,0,.2);border-radius:9px;margin:8px 0;}
+.mvp-icon{font-size:1.4rem;}
+.mvp-info-lbl{font-size:.6rem;color:#888;text-transform:uppercase;letter-spacing:1px;}
+.mvp-info-name{font-weight:700;font-size:.95rem;color:#ffcc00;}
+.dialog-actions{display:flex;gap:8px;margin-top:14px;}
+.dia-cancel{flex:0 0 auto;padding:12px 16px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;cursor:pointer;}
+.dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#fff;background:linear-gradient(135deg,#1a3a2a,var(--g));}
+
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+.empty-teams{text-align:center;padding:40px 16px;color:#333;grid-column:span 2;font-size:.85rem;}
+
+/* 3-team */
+.three-mode-bar{background:#0d0f18;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
+.three-mode-bar.show{display:block;}
+.waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
+.waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#ce93d8;}
+.swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
+.swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
+.threshold-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
+.thr-lbl{font-size:.7rem;color:#555;flex:1;}
+.thr-btn{width:32px;height:32px;border-radius:7px;background:#1c1f2b;border:1px solid #252836;color:#888;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+
+/* Reset confirm modal */
+.reset-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.reset-overlay.show{display:flex;}
+.reset-box{background:#141720;width:100%;max-width:360px;border-radius:16px;border:1px solid #c62828;padding:24px;text-align:center;}
+.reset-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#ef9a9a;margin-bottom:8px;}
+.reset-sub{font-size:.8rem;color:#666;margin-bottom:20px;line-height:1.5;}
+.reset-actions{display:flex;gap:8px;}
+.reset-cancel{flex:1;padding:13px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#888;cursor:pointer;font-size:.88rem;touch-action:manipulation;}
+.reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
+.thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;min-width:20px;text-align:center;}
+.round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;margin-left:4px;}
+.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#fff;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+.rotation-toast.show{display:block;animation:rotPop .3s ease;}
+@keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+#roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #1e2130;margin-top:4px;}
+
+/* Team ID badges */
+.tid{font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;font-family:'Rajdhani',sans-serif;vertical-align:middle;}
+.tid-a{background:rgba(255,140,0,.18);color:#ff8c00;border:1px solid rgba(255,140,0,.35);}
+.tid-b{background:rgba(40,167,69,.18);color:#28a745;border:1px solid rgba(40,167,69,.35);}
+.tid-c{background:rgba(124,77,255,.18);color:#ce93d8;border:1px solid rgba(124,77,255,.35);}
+
+/* Ture history */
+.ture-section{display:none;background:#080a12;border-top:1px solid #1e2130;}
+.ture-section.show{display:block;}
+.ture-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;border-bottom:1px solid #0f1118;}
+.ture-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
+.ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;font-size:.6rem;padding:1px 6px;border-radius:10px;}
+.ture-body{max-height:220px;overflow-y:auto;display:none;}
+.ture-body.open{display:block;}
+/* ── Code Auth ───────────────────────────── */
+.code-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
+.code-auth-overlay.show{display:flex;}
+.code-auth-box{background:#141720;width:100%;max-width:320px;border-radius:16px;border:1px solid #2a2d40;padding:20px;}
+.admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#82b1ff;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.hd-key-btn{background:none;border:1px solid #252836;color:#444;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
+/* ── Add Temp Player Modal ──────────────────────────────── */
+.add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
+.add-temp-overlay.show{display:flex;}
+.add-temp-box{background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;max-height:72vh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+.add-temp-hd{padding:12px 16px;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.add-temp-body{overflow-y:auto;padding:10px 12px;}
+.round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
+.round-detail-overlay.show{display:flex;}
+.round-detail-box{background:#141720;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
+.rd-hd{background:linear-gradient(135deg,#1a0050,#3d006a);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
+.rd-hd-left{flex:1;}
+.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.rd-sub{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px;}
+.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.rd-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;background:#0d0f18;border-bottom:1px solid #1e2130;}
+.rd-team{text-align:center;flex:1;}
+.rd-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:4px;}
+.rd-team-score{font-family:'Bebas Neue',sans-serif;font-size:3rem;line-height:1;}
+.rd-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.rd-body{overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
+.rd-section{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;}
+.rd-players{display:flex;gap:8px;}
+.rd-pl-col{flex:1;background:#0d0f18;border-radius:8px;padding:8px 10px;border:1px solid #1e2130;}
+.rd-pl-col-hd{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
+.rd-pl-name{font-size:.78rem;color:#888;padding:2px 0;display:flex;align-items:center;gap:5px;}
+.rd-goal-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #0a0c14;font-size:.8rem;}
+.rd-goal-row:last-child{border-bottom:none;}
+.rd-goal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.rd-goal-name{flex:1;font-weight:700;}
+.rd-goal-min{font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;}
+.rd-meta-row{display:flex;gap:8px;}
+.rd-meta-chip{flex:1;background:#0d0f18;border:1px solid #1e2130;border-radius:8px;padding:8px 10px;text-align:center;}
+.rd-meta-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ce93d8;}
+.rd-meta-lbl{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #0a0c14;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
+.tur-row:last-child{border-bottom:none;}
+.tur-row:active{background:#0f1118;}
+.tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#444;min-width:34px;}
+.tur-teams{display:flex;align-items:center;gap:4px;flex:1;}
+.tur-score{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:28px;text-align:center;}
+.tur-meta{font-size:.6rem;color:#444;white-space:nowrap;}
+.tur-reason{font-size:.58rem;padding:1px 5px;border-radius:4px;margin-left:3px;}
+.tur-reason.goals{background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#69f0ae;}
+.tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#ce93d8;}
+.tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#ffcc00;}
+.tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #333;color:#555;}
+
+/* ── Penalty Shootout ─────────────────────────────────────────── */
+.penalty-overlay{position:fixed;inset:0;background:#080a12;z-index:400;display:none;flex-direction:column;}
+.penalty-overlay.show{display:flex;}
+.penalty-box{display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:#080a12;}
+.penalty-hd{background:linear-gradient(135deg,#7b1010,#c62828);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
+.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.penalty-hd-sub{font-size:.62rem;color:rgba(255,255,255,.6);margin-top:1px;}
+.penalty-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:#0d0f18;border-bottom:1px solid #1e2130;flex-shrink:0;}
+.pen-team-score{text-align:center;flex:1;}
+.pen-team-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.pen-score-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;transition:all .15s;}
+.pen-dots{display:flex;gap:4px;justify-content:center;margin-top:3px;min-height:14px;}
+.pen-dot{width:12px;height:12px;border-radius:50%;border:2px solid;flex-shrink:0;}
+.pen-dot.goal{background:#28a745;border-color:#28a745;box-shadow:0 0 6px #28a745;}
+.pen-dot.miss{background:transparent;border-color:#c62828;}
+.pen-dot.pending{background:#252836;border-color:#444;}
+.pen-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.penalty-current{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;min-height:0;}
+.penalty-kicker-label{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:3px;color:#fff;margin-bottom:8px;line-height:1.1;}
+.penalty-kicker-team{font-size:.78rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block;}
+.penalty-btns{display:flex;gap:10px;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
+.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#fff;touch-action:manipulation;}
+.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#fff;touch-action:manipulation;}
+.penalty-btn-goal:active,.penalty-btn-miss:active{opacity:.8;}
+.penalty-kicker-list{padding:0 16px 8px;flex-shrink:0;max-height:140px;overflow-y:auto;}
+.pen-list-section{font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:4px 0 3px;}
+.pen-list-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
+.pen-list-name{flex:1;font-size:.82rem;font-weight:700;}
+.pen-list-result{font-size:.82rem;}
+.pen-select-area{padding:0 20px 20px;}
+.pen-select-title{font-size:.68rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.pen-player-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:#0d0f18;cursor:pointer;margin:3px;font-size:.78rem;font-weight:700;color:#555;transition:all .1s;}
+.pen-player-chip.sel-o{border-color:var(--o);background:rgba(255,140,0,.1);color:var(--o);}
+.pen-player-chip.sel-g{border-color:var(--g);background:rgba(40,167,69,.1);color:var(--g);}
+.pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#fff;margin-top:8px;}
+.pen-result-banner{text-align:center;padding:20px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
+
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="hd-logo">⚽ Arena FC</div>
+  <div class="hd-right">
+    <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
+    <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
+    <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
+    <button class="all-teams-btn" onclick="openAllTeamsEdit()" title="Configurează echipele">✎ Echipe</button>
+    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
+    <button class="icon-btn danger" onclick="confirmReset()">↺</button>
+  </div>
+</div>
+
+<div class="timer-bar">
+  <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start</button>
+  <div class="timer-display" id="timerDisplay">00:00</div>
+  <div class="half-badge" id="halfBadge"></div>
+  <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
+    <div style="width:1px;height:18px;background:#1e2130;margin:0 2px;"></div>
+    <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
+  </div>
+</div>
+
+<div class="score-wrap">
+  <div class="score-row">
+    <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
+    <div class="sc-sep">
+      <div>:</div>
+      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#ce93d8;letter-spacing:2px;text-align:center;margin-top:2px;display:none;line-height:1;"></div>
+    </div>
+    <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
+  </div>
+  <div class="score-sub" id="scoreSub"></div>
+</div>
+
+<div class="undo-bar">
+  <div class="undo-lbl" id="undoLbl">Niciun gol înregistrat</div>
+  <button class="undo-btn" id="undoBtn" onclick="undoLast()">↩ Anulează</button>
+</div>
+
+<div class="three-mode-bar" id="threeBar">
+  <!-- Waiting team row -->
+  <div class="waiting-team">
+    <div class="waiting-hd">
+      <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
+      <div style="display:flex;gap:5px;align-items:center;">
+        <button class="swap-btn swap-o" onclick="manualSwap('orange')" id="swapBtnO">↔ O</button>
+        <button class="swap-btn swap-g" onclick="manualSwap('green')" id="swapBtnG">↔ G</button>
+      </div>
+    </div>
+    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
+  </div>
+</div>
+
+<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
+
+<!-- Settings + Transfer: shown in 3-team mode, below teams -->
+<div id="belowTeamsBar" style="display:none;border-top:1px solid var(--b);">
+  <!-- Threshold/Time settings -->
+  <div style="display:flex;align-items:center;gap:0;background:#0a0c10;">
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-right:1px solid var(--b);">
+      <span style="font-size:.6rem;color:#555;white-space:nowrap;">🎯 Schimb</span>
+      <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
+      <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--star);min-width:22px;text-align:center;">2</span>
+      <button class="thr-btn" onclick="changeThreshold(1)">+</button>
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;">
+      <span style="font-size:.6rem;color:#555;white-space:nowrap;">⏱ Max min</span>
+      <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
+      <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#82b1ff;min-width:26px;text-align:center;">10</span>
+      <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
+    </div>
+  </div>
+  <!-- Transfer button -->
+  <div id="transferBtnWrap" style="display:none;padding:5px 12px 6px;background:#0a0c10;border-top:1px solid var(--b);">
+    <button onclick="openTransfer()" style="width:100%;padding:10px;border-radius:9px;background:#0d0f18;border:1px dashed #2a2d40;color:#666;font-size:.78rem;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;">
+      ⇄ Transfer jucător între echipe
+    </button>
+  </div>
+</div>
+
+<div class="ture-section" id="tureSection">
+  <div class="ture-toggle" onclick="toggleTure()">
+    <span class="ture-toggle-lbl">📊 Istoric Ture <span class="ture-cnt" id="tureCnt">0</span></span>
+    <span style="font-size:.7rem;color:#333;" id="tureChevron">▲</span>
+  </div>
+  <div class="ture-body" id="tureBody"></div>
+</div>
+
+<div class="log-toggle" onclick="toggleLog()">
+  <span class="log-toggle-lbl">📋 Log goluri <span class="log-toggle-cnt" id="logCnt">0</span></span>
+  <span style="font-size:.7rem;color:#333;" id="logChevron">▲</span>
+</div>
+<div class="log-panel" id="logPanel">
+  <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
+</div>
+
+<div class="dialog-overlay" id="dialogOverlay">
+  <div class="dialog-box" id="dialogBox"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+// ── Admin auth via secret code ────────────────────────────────────
+let isLiveAdmin = false; // true = authenticated player (has secret code)
+let _allPlayerCodes = []; // loaded on init: [{name, secret_code, role}]
+
+async function loadPlayerCodes() {
+    const { data } = await sb.from('players').select('id,name,secret_code,role').order('name');
+    _allPlayerCodes = data || [];
+}
+
+function verifyAdminCode(code) {
+    if (!code) return null;
+    const c = code.trim().toUpperCase();
+    return _allPlayerCodes.find(p => p.secret_code && p.secret_code.toUpperCase() === c) || null;
+}
+
+function openCodeAuth() {
+    document.getElementById('codeAuthOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('codeAuthInput').focus(), 100);
+}
+
+function closeCodeAuth() {
+    document.getElementById('codeAuthOverlay').classList.remove('show');
+}
+
+async function submitCode() {
+    const code = document.getElementById('codeAuthInput').value.trim();
+    const player = verifyAdminCode(code);
+    if (!player) {
+        document.getElementById('codeAuthErr').textContent = 'Cod incorect';
+        return;
+    }
+    isLiveAdmin = true; // orice player autentificat cu cod propriu
+    localStorage.setItem('liveAuthCode', code);
+    localStorage.setItem('liveAuthName', player.name);
+    closeCodeAuth();
+    document.getElementById('adminBadge').textContent = player.name;
+    document.getElementById('adminBadge').style.display = 'inline-block';
+    showToast(`👋 ${player.name} autentificat!`);
+    render();
+}
+
+function tryAutoAuth() {
+    const saved = localStorage.getItem('liveAuthCode');
+    if (!saved) return;
+    const player = verifyAdminCode(saved);
+    if (player) {
+        isLiveAdmin = true;
+        document.getElementById('adminBadge').textContent = player.name;
+        document.getElementById('adminBadge').style.display = 'inline-block';
+        render();
+    }
+}
+
+// ── Local state (derived from DB, never source of truth) ──────────
+let players    = [];
+let goals      = [];
+let rounds     = [];   // live_rounds rows
+let liveState  = null; // live_state row
+let isSaving   = false;
+
+// Local timer tick interval
+let timerInterval    = null;
+let roundTimerTO     = null;  // setTimeout for round timeout
+let roundTimerIV     = null;  // setInterval for round bar update
+
+// ── Helpers ───────────────────────────────────────────────────────
+function tidBadge(tid) { return ''; } // ID-urile echipelor sunt invizibile, se folosesc doar intern
+
+function fmtTimer(s) {
+    const m = Math.floor(s / 60), ss = s % 60;
+    return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
+
+// Calculate elapsed seconds from live_state
+function calcElapsedSec(st) {
+    if (!st) return 0;
+    let ms = parseInt(st.timer_elapsed_ms) || 0;
+    if (st.timer_status === 'running' && st.timer_started_at) {
+        ms += Date.now() - new Date(st.timer_started_at).getTime();
+    }
+    return Math.floor(ms / 1000);
+}
+
+function calcRoundElapsedSec(st) {
+    if (!st) return 0;
+    const totalSec = calcElapsedSec(st);
+    return Math.max(0, totalSec - (st.round_start_sec || 0));
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+}
+function showRotationToast(msg) {
+    const el = document.getElementById('rotationToast');
+    if (!el) return;
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+function bump(team) {
+    const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
+    el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
+}
+function goalsMap() {
+    // In 3-team mode: count goals across ALL rounds + current round
+    // In 2-team mode: live_goals is never cleared, so goals = all match goals
+    const src = liveState?.three_team_mode ? allMatchGoals() : goals;
+    const m = {};
+    src.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; });
+    return m;
+}
+
+// ── live_state helpers ────────────────────────────────────────────
+function getThreeTeamMode() { return liveState?.three_team_mode || false; }
+function getGoalThreshold() { return liveState?.goal_threshold || 2; }
+function getTimeLimitMin()  { return liveState?.time_limit_min || 10; }
+function getColorMap()      { return liveState?.color_map || {}; }
+function getTeamRegistry()  { return liveState?.team_registry || {}; }
+function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] || null; }
+
+// ── Team name helpers ─────────────────────────────────────────────
+// ── Team config helpers (name + color per teamId, permanent) ──────
+const TEAM_COLORS = ['#ffffff','#111111','#ff8c00','#e53935','#28a745','#1e88e5'];
+const COLOR_NAMES = {
+    '#ffffff': 'ALB', '#111111': 'NEGRU',
+    '#ff8c00': 'PORTOCALIU', '#e53935': 'ROȘU',
+    '#28a745': 'VERDE', '#1e88e5': 'ALBASTRU',
+    '#7c4dff': 'MOV', '#9c27b0': 'MOV',
+};
+const DEFAULT_HEX = { teamA:'#ff8c00', teamB:'#28a745', teamC:'#1e88e5', orange:'#ff8c00', green:'#28a745', bench:'#1e88e5' };
+
+function getContrastColor(hex) {
+    if (!hex || hex.length < 7) return '#fff';
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return (0.299*r + 0.587*g + 0.114*b) / 255 > 0.55 ? '#000000' : '#ffffff';
+}
+function colorToName(hex) {
+    if (!hex) return 'ECHIPA';
+    const direct = COLOR_NAMES[hex.toLowerCase()];
+    if (direct) return direct;
+    // Find closest palette color by hex distance
+    let best = null, bestD = Infinity;
+    Object.entries(COLOR_NAMES).forEach(([h, n]) => {
+        const dr=parseInt(h.slice(1,3),16)-parseInt(hex.slice(1,3),16);
+        const dg=parseInt(h.slice(3,5),16)-parseInt(hex.slice(3,5),16);
+        const db=parseInt(h.slice(5,7),16)-parseInt(hex.slice(5,7),16);
+        const d=dr*dr+dg*dg+db*db;
+        if(d<bestD){bestD=d;best=n;}
+    });
+    return best || 'ECHIPA';
+}
+
+function getTeamConfigs() { return (liveState?.team_registry?._configs) || {}; }
+
+function getTeamConfig(teamId) {
+    const cfg = getTeamConfigs()[teamId] || {};
+    const hex = cfg.hex || DEFAULT_HEX[teamId] || '#888';
+    const name = cfg.customName || colorToName(hex);
+    return { hex, name, customName: cfg.customName || null };
+}
+function getTeamConfigForColor(color) {
+    if (liveState?.three_team_mode) {
+        const teamId = getTeamIdByColor(color);
+        if (teamId) return getTeamConfig(teamId);
+    }
+    return getTeamConfig(color);
+}
+function getTeamName(color) { return getTeamConfigForColor(color).name; }
+function getTeamHex(color)  { return getTeamConfigForColor(color).hex; }
+function getTeamNameById(teamId) { return getTeamConfig(teamId).name; }
+function getTeamHexById(teamId)  { return getTeamConfig(teamId).hex; }
+
+function applyTeamColors() {
+    const oHex = getTeamHex('orange'), gHex = getTeamHex('green');
+    document.documentElement.style.setProperty('--o', oHex);
+    document.documentElement.style.setProperty('--g', gHex);
+}
+
+async function saveTeamConfig(teamId, customName, hex) {
+    const reg = { ...getTeamRegistry() };
+    reg._configs = { ...(reg._configs || {}), [teamId]: { hex, customName: customName || null } };
+    if (reg[teamId]) reg[teamId] = { ...reg[teamId], name: customName || colorToName(hex) };
+    await patchState({ team_registry: reg });
+    applyTeamColors();
+    render();
+}
+
+// ── Team config edit modal ────────────────────────────────────────
+let _editingTeamId = null;
+let _editingHex = null;
+let _showCustomName = false;
+
+function openTeamEdit(teamId) {
+    _editingTeamId = teamId;
+    const cfg = getTeamConfig(teamId);
+    _editingHex = cfg.hex;
+    _showCustomName = !!cfg.customName;
+    const label = teamId.startsWith('team')
+        ? 'Echipa ' + teamId.slice(-1).toUpperCase()
+        : teamId === 'orange' ? 'Echipa 1' : teamId === 'green' ? 'Echipa 2' : 'Echipa 3';
+    document.getElementById('teamEditTitle').textContent = label;
+    document.getElementById('teamEditCustomName').value = cfg.customName || '';
+    renderColorPalette(cfg.hex);
+    renderCustomNameSection();
+    document.getElementById('teamEditOverlay').classList.add('show');
+}
+function openNameEdit(color) {
+    if (liveState?.three_team_mode) {
+        const teamId = getTeamIdByColor(color);
+        if (teamId) { openTeamEdit(teamId); return; }
+    }
+    openTeamEdit(color);
+}
+function closeTeamEdit() {
+    document.getElementById('teamEditOverlay').classList.remove('show');
+    _editingTeamId = null; _editingHex = null;
+}
+function renderCustomNameSection() {
+    const autoDiv  = document.getElementById('teamEditAutoName');
+    const custDiv  = document.getElementById('teamEditCustomDiv');
+    const forcBtn  = document.getElementById('teamEditForceBtn');
+    const clearBtn = document.getElementById('teamEditClearBtn');
+    if (!autoDiv) return;
+    autoDiv.textContent = colorToName(_editingHex || '#888');
+    if (_showCustomName) {
+        custDiv.style.display = 'block';
+        forcBtn.style.display = 'none';
+        clearBtn.style.display = 'inline-flex';
+        setTimeout(() => document.getElementById('teamEditCustomName')?.focus(), 80);
+    } else {
+        custDiv.style.display = 'none';
+        forcBtn.style.display = 'flex';
+        clearBtn.style.display = 'none';
+    }
+}
+function renderColorPalette(selectedHex) {
+    const container = document.getElementById('teamEditPalette');
+    const preview   = document.getElementById('colorPreviewBar');
+    if (!container) return;
+    container.innerHTML = '';
+    TEAM_COLORS.forEach(hex => {
+        const d = document.createElement('div');
+        d.className = 'color-swatch' + (hex === selectedHex ? ' sel' : '');
+        d.style.cssText = `background:${hex};${hex==='#ffffff'?'border:1px solid #333;':''}`;
+        d.onclick = () => { _editingHex = hex; renderColorPalette(hex); renderCustomNameSection(); };
+        container.appendChild(d);
+    });
+    if (preview) {
+        const contrast = getContrastColor(selectedHex);
+        preview.textContent = colorToName(selectedHex);
+        preview.style.cssText = `background:${selectedHex};color:${contrast};text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;padding:6px 0;border-radius:6px;margin-top:6px;`;
+    }
+}
+function selectColor(hex) { _editingHex = hex; renderColorPalette(hex); renderCustomNameSection(); }
+
+async function saveTeamEdit() {
+    if (!_editingTeamId) return;
+    const hex = _editingHex || '#888';
+    let customName = null;
+    if (_showCustomName) {
+        const val = document.getElementById('teamEditCustomName').value.trim();
+        customName = val || null;
+    }
+    await saveTeamConfig(_editingTeamId, customName, hex);
+    closeTeamEdit();
+}
+function openAllTeamsEdit() {
+    // Always show all 3 teams (bench included)
+    const teamIds = liveState?.three_team_mode
+        ? ['teamA','teamB','teamC']
+        : ['orange','green','bench'];
+    openTeamEdit(teamIds[0]);
+    setTimeout(() => renderTeamTabs(teamIds), 10);
+}
+
+function renderTeamTabs(teamIds) {
+    const hd = document.getElementById('teamEditHd');
+    if (!hd) return;
+    let tabs = document.getElementById('teamEditTabs');
+    if (!tabs) {
+        tabs = document.createElement('div');
+        tabs.id = 'teamEditTabs';
+        tabs.style.cssText = 'display:flex;gap:6px;padding:12px 18px 0;';
+        hd.insertAdjacentElement('beforebegin', tabs);
+    }
+    tabs.innerHTML = '';
+    teamIds.forEach(id => {
+        const cfg = getTeamConfig(id);
+        const isActive = id === _editingTeamId;
+        const btn = document.createElement('button');
+        btn.style.cssText = `flex:1;padding:6px 4px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;touch-action:manipulation;
+            background:${isActive ? cfg.hex+'33' : '#0d0f18'};border:1px solid ${isActive ? cfg.hex : '#252836'};color:${isActive ? cfg.hex : '#555'};`;
+        btn.innerHTML = `<span style="display:block;width:8px;height:8px;border-radius:50%;background:${cfg.hex};margin:0 auto 3px;"></span>${cfg.name}`;
+        btn.onclick = () => switchTeamTab(id, teamIds);
+        tabs.appendChild(btn);
+    });
+}
+
+function switchTeamTab(teamId, teamIds) {
+    // Save current custom name before switching
+    if (_editingTeamId && _showCustomName) {
+        const curInput = document.getElementById('teamEditCustomName');
+        const curName = curInput ? curInput.value.trim() : '';
+        if (curName) {
+            const reg = { ...getTeamRegistry() };
+            reg._configs = { ...(reg._configs || {}), [_editingTeamId]: { hex: _editingHex || '#888', customName: curName } };
+            liveState = { ...liveState, team_registry: reg };
+        }
+    }
+    _editingTeamId = teamId;
+    const cfg = getTeamConfig(teamId);
+    _editingHex = cfg.hex;
+    _showCustomName = !!cfg.customName;
+    const titleEl = document.getElementById('teamEditTitle');
+    if (titleEl) titleEl.textContent = cfg.name;
+    const custInput = document.getElementById('teamEditCustomName');
+    if (custInput) custInput.value = cfg.customName || '';
+    renderColorPalette(cfg.hex);
+    renderCustomNameSection();
+    renderTeamTabs(teamIds);
+}
+
+async function patchState(patch) {
+    // Apply locally immediately — no waiting for Realtime roundtrip
+    liveState = { ...liveState, ...patch };
+    const { error } = await sb.from('live_state').update(patch).eq('id', 1);
+    if (error) console.error('patchState:', error.message);
+}
+
+// ── Timer ─────────────────────────────────────────────────────────
+function startLocalTimerTick() {
+    stopLocalTimerTick();
+    timerInterval = setInterval(() => {
+        if (!liveState) return;
+        const s = calcElapsedSec(liveState);
+        document.getElementById('timerDisplay').textContent = fmtTimer(s);
+        const min = Math.floor(s / 60);
+        document.getElementById('halfBadge').textContent = min >= 1 ? min+"'" : '';
+        updateRoundTimerBar();
+    }, 500);
+}
+function stopLocalTimerTick() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+async function timerToggle() {
+    if (!liveState) return;
+    const st = liveState.timer_status;
+    if (st === 'idle' || st === 'paused') {
+        // Start / resume
+        const patch = {
+            timer_status: 'running',
+            timer_started_at: new Date().toISOString(),
+        };
+        if (!liveState.match_started_at) { patch.match_started_at = new Date().toISOString(); }
+        // If 3-team and round not started yet, set round_start_sec
+        if (getThreeTeamMode() && !liveState.round_start_sec) {
+            patch.round_start_sec = calcElapsedSec(liveState);
+        }
+        await patchState(patch);
+        updateMatchUrl(liveState);
+        applyTimerUI(liveState); // immediate local update
+    } else {
+        // Pause
+        const elapsed = (liveState.timer_elapsed_ms || 0) +
+            (Date.now() - new Date(liveState.timer_started_at).getTime());
+        await patchState({
+            timer_status: 'paused',
+            timer_elapsed_ms: elapsed,
+            timer_started_at: null,
+        });
+    }
+}
+
+function applyTimerUI(st) {
+    const btn  = document.getElementById('timerBtn');
+    const disp = document.getElementById('timerDisplay');
+    if (!st) return;
+    const s   = calcElapsedSec(st);
+    disp.textContent = fmtTimer(s);
+    document.getElementById('halfBadge').textContent = Math.floor(s/60) >= 1 ? Math.floor(s/60)+"'" : '';
+
+    if (st.timer_status === 'running') {
+        btn.textContent = '⏸ Pauză'; btn.className = 'timer-btn pause';
+        disp.className = 'timer-display running';
+        startLocalTimerTick();
+        scheduleRoundTimeout(st);
+    } else if (st.timer_status === 'paused') {
+        btn.textContent = '▶ Continuă'; btn.className = 'timer-btn resume';
+        disp.className = 'timer-display paused';
+        stopLocalTimerTick();
+        cancelRoundTimeout();
+    } else {
+        btn.textContent = '▶ Start Meci'; btn.className = 'timer-btn start';
+        disp.className = 'timer-display';
+        stopLocalTimerTick();
+        cancelRoundTimeout();
+    }
+}
+
+// ── Round timeout scheduling ──────────────────────────────────────
+function scheduleRoundTimeout(st) {
+    cancelRoundTimeout();
+    if (!st.three_team_mode || st.timer_status !== 'running') return;
+    if (!players.filter(p => p.status === 'bench').length) return;
+
+    const timeLimitMs = (st.time_limit_min || 10) * 60 * 1000;
+    const roundElapsedMs = calcRoundElapsedSec(st) * 1000;
+    const remaining = Math.max(0, timeLimitMs - roundElapsedMs);
+
+    if (remaining <= 0) { onRoundTimeout(); return; }
+    roundTimerTO = setTimeout(() => onRoundTimeout(), remaining);
+    roundTimerIV = setInterval(() => updateRoundTimerBar(), 500);
+}
+function cancelRoundTimeout() {
+    if (roundTimerTO) { clearTimeout(roundTimerTO); roundTimerTO = null; }
+    if (roundTimerIV) { clearInterval(roundTimerIV); roundTimerIV = null; }
+}
+
+function updateRoundTimerBar() {
+    const widget = document.getElementById('roundTimerWidget');
+    if (!widget) return;
+    const in3team = !!liveState?.three_team_mode;
+    widget.style.display = in3team ? 'flex' : 'none';
+    const lbl = document.getElementById('roundTimeLbl');
+    if (!lbl) return;
+    if (!in3team || liveState?.timer_status !== 'running' || !liveState?.time_limit_min) {
+        lbl.style.display = 'none'; return;
+    }
+    const totalSec  = (liveState.time_limit_min || 10) * 60;
+    const elapsed   = calcRoundElapsedSec(liveState);
+    const remaining = Math.max(0, totalSec - elapsed);
+    const pct       = Math.min(1, elapsed / totalSec);
+    const m = Math.floor(remaining/60), s = remaining%60;
+    lbl.textContent = m+':'+(s<10?'0':'')+s;
+    lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
+    lbl.style.display = 'block';
+}
+
+async function onRoundTimeout() {
+    cancelRoundTimeout();
+    if (!liveState?.three_team_mode) return;
+    const bench = players.filter(p => p.status === 'bench');
+    if (!bench.length) return;
+
+    const roundGoals = getRoundGoals();
+    const oG = roundGoals.filter(g => g.team === 'orange').length;
+    const gG = roundGoals.filter(g => g.team === 'green').length;
+
+    if (navigator.vibrate) navigator.vibrate([300,100,300]);
+
+    if (oG === gG) {
+        // Tied (including 0-0) → PENALTY SHOOTOUT
+        showRotationToast(`⏱️ TIMP! ${oG}-${gG} — PENALTYURI!`);
+        setTimeout(() => openPenaltyModal(), 800);
+    } else {
+        const loser = oG > gG ? 'green' : 'orange';
+        showRotationToast(`⏱️ TIMP! ${getTeamName(loser)} — goluri mai puține, IESE!`);
+        setTimeout(() => doRotation(loser, 'time'), 700);
+    }
+}
+
+// ── Round goals = live_goals (cleared after each rotation) ───────
+function getRoundGoals() {
+    return goals.filter(g => !String(g.id).startsWith('tmp_'));
+}
+
+// ── All match goals = past rounds + current round ─────────────────
+function allMatchGoals() {
+    const past = rounds.flatMap(r =>
+        (Array.isArray(r.goals) ? r.goals : []).map(g => ({ ...g, _roundNum: r.num }))
+    );
+    return [...past, ...goals.filter(g => !String(g.id).startsWith('tmp_'))];
+}
+
+function getRoundConceded() {
+    const rg = getRoundGoals();
+    return {
+        orange: rg.filter(g => g.team === 'green').length,  // green scored = orange conceded
+        green:  rg.filter(g => g.team === 'orange').length, // orange scored = green conceded
+    };
+}
+
+// ── 3-team toggle ─────────────────────────────────────────────────
+async function toggleThreeTeam() {
+    if (!liveState) return;
+    const newMode = !liveState.three_team_mode;
+    const btn = document.getElementById('threeBtn');
+
+    if (newMode) {
+        const orange = players.filter(p => p.status === 'orange');
+        const green  = players.filter(p => p.status === 'green');
+        const bench  = players.filter(p => p.status === 'bench');
+        if (!orange.length && !green.length) {
+            showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
+        }
+        const existingNames = liveState.team_names || {};
+        const configs = getTeamConfigs();
+        const teamRegistry = {
+            teamA: { players: orange.map(p => p.name), color: 'orange', name: (configs.teamA?.name || existingNames.orange || 'Echipa A') },
+            teamB: { players: green.map(p => p.name),  color: 'green',  name: (configs.teamB?.name || existingNames.green  || 'Echipa B') },
+            teamC: { players: bench.map(p => p.name),  color: 'bench',  name: (configs.teamC?.name || existingNames.bench  || 'Echipa C') },
+        };
+        const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
+        await patchState({
+            three_team_mode: true,
+            team_registry: teamRegistry,
+            color_map: colorMap,
+            round_start_sec: calcElapsedSec(liveState),
+        });
+        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+        scheduleRoundTimeout(liveState);
+    } else {
+        await patchState({
+            three_team_mode: false,
+            team_registry: {},
+            color_map: {},
+            round_start_sec: 0,
+        });
+        await sb.from('live_rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        rounds = [];
+        if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#ce93d8'; }
+        cancelRoundTimeout();
+    }
+    render();
+    applyTimerUI(liveState);
+}
+
+async function changeThreshold(d) {
+    if (!liveState) return;
+    const v = Math.max(1, Math.min(20, (liveState.goal_threshold||2) + d));
+    // Update UI immediately — don't wait for Realtime roundtrip
+    liveState.goal_threshold = v;
+    const el = document.getElementById('thrVal'); if(el) el.textContent = v;
+    render(); // refresh round-badge
+    await sb.from('live_state').update({ goal_threshold: v }).eq('id',1);
+}
+async function changeTimeLimitMin(d) {
+    if (!liveState) return;
+    const v = Math.max(1, Math.min(90, (liveState.time_limit_min||10) + d));
+    // Update UI immediately
+    liveState.time_limit_min = v;
+    const el = document.getElementById('timeLimitVal'); if(el) el.textContent = v;
+    await sb.from('live_state').update({ time_limit_min: v }).eq('id',1);
+    if (liveState.three_team_mode && liveState.timer_status === 'running') {
+        scheduleRoundTimeout(liveState);
+    }
+}
+
+// ── Goal rotation check ───────────────────────────────────────────
+async function checkGoalRotation() {
+    if (!liveState?.three_team_mode) return;
+    if (!players.filter(p => p.status === 'bench').length) return;
+    const threshold = liveState.goal_threshold || 2;
+    const conc = getRoundConceded();
+    if (conc.orange >= threshold) {
+        cancelRoundTimeout();
+        if (navigator.vibrate) navigator.vibrate([200,100,200]);
+        setTimeout(() => showRotationConfirm('orange','goals',`${getTeamName('orange')}: ${conc.orange} goluri primite — schimb!`), 400);
+    } else if (conc.green >= threshold) {
+        cancelRoundTimeout();
+        if (navigator.vibrate) navigator.vibrate([200,100,200]);
+        setTimeout(() => showRotationConfirm('green','goals',`${getTeamName('green')}: ${conc.green} goluri primite — schimb!`), 400);
+    }
+}
+
+// ── Save round to DB (call BEFORE swapping) ───────────────────────
+async function saveRoundToDB(loserColor, reason) {
+    const colorMap = getColorMap();
+    const oTid = colorMap['orange'];
+    const gTid = colorMap['green'];
+    const roundGoals = getRoundGoals();
+    const oG = roundGoals.filter(g => g.team === 'orange').length;
+    const gG = roundGoals.filter(g => g.team === 'green').length;
+    const durationSec = Math.max(0, calcRoundElapsedSec(liveState));
+    const num = rounds.length + 1;
+
+    const roundData = {
+        num,
+        team_a_id:      oTid || 'teamA',
+        team_b_id:      gTid || 'teamB',
+        score_a:        oG,
+        score_b:        gG,
+        orange_players: players.filter(p => p.status === 'orange').map(p => p.name),
+        green_players:  players.filter(p => p.status === 'green').map(p => p.name),
+        goals:          roundGoals,
+        duration_sec:   durationSec,
+        end_reason:     reason,
+    };
+
+    const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
+    if (error) {
+        console.error('saveRound:', error.message);
+        // Push with temp id so UI updates even if DB fails
+        rounds.push({ ...roundData, id: 'tmp_' + Date.now() });
+    } else if (data) {
+        // Update locally immediately — don't wait for Realtime roundtrip
+        if (!rounds.some(r => r.id === data.id)) rounds.push(data);
+    }
+    renderTureHistory();
+}
+
+// ── Rotation ──────────────────────────────────────────────────────
+async function doRotation(loserColor, reason) {
+    if (isSaving) return;
+    isSaving = true;
+
+    const bench  = players.filter(p => p.status === 'bench');
+    const losers = players.filter(p => p.status === loserColor);
+    if (!bench.length || !losers.length) { isSaving = false; return; }
+
+    try {
+        // 1. Save round FIRST (before any swap)
+        await saveRoundToDB(loserColor, reason);
+
+        // *** Clear live_goals so score resets to 0-0 for new round ***
+        goals = [];
+        await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+        // 2. *** OPTIMISTIC LOCAL UPDATE *** — apply swap to local players immediately
+        const loserIds = new Set(losers.map(p => p.id));
+        const benchIds = new Set(bench.map(p => p.id));
+        players = players.map(p => {
+            if (loserIds.has(p.id)) return { ...p, status: 'bench' };
+            if (benchIds.has(p.id)) return { ...p, status: loserColor };
+            return p;
+        });
+
+        // 3. Persist swap to DB
+        const swapOps = [
+            ...losers.map(p => ({ id: p.id, status: 'bench' })),
+            ...bench.map(p  => ({ id: p.id, status: loserColor })),
+        ];
+        await Promise.all(swapOps.map(({ id, status }) =>
+            sb.from('players').update({ status }).eq('id', id)
+        ));
+
+        // 4. Update colorMap + team_registry + round_start_sec in live_state
+        const oldColorMap  = { ...getColorMap() };
+        const loserTeamId  = oldColorMap[loserColor];
+        const benchTeamId  = oldColorMap['bench'];
+        const newColorMap  = { ...oldColorMap, [loserColor]: benchTeamId, bench: loserTeamId };
+
+        const oldRegistry = { ...getTeamRegistry() };
+        if (loserTeamId && oldRegistry[loserTeamId]) oldRegistry[loserTeamId] = { ...oldRegistry[loserTeamId], color: 'bench' };
+        if (benchTeamId && oldRegistry[benchTeamId]) oldRegistry[benchTeamId] = { ...oldRegistry[benchTeamId], color: loserColor };
+
+        const newRoundStartSec = calcElapsedSec(liveState);
+        await patchState({ color_map: newColorMap, team_registry: oldRegistry, round_start_sec: newRoundStartSec });
+
+        // *** render() DUPĂ patchState — acum liveState.color_map e actualizat ***
+        // Echipa care intră apare cu numele și culoarea ei corectă
+        render();
+
+        showRotationToast(`${getTeamName(loserColor)} IESE · ${getTeamName('bench')} INTRĂ`);
+        scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
+
+    } catch(e) {
+        console.error('doRotation error:', e);
+        showToast('⚠️ Eroare la schimb: ' + e.message);
+    } finally {
+        isSaving = false;
+    }
+}
+
+async function manualSwap(loserColor) {
+    cancelRoundTimeout();
+    await doRotation(loserColor, 'manual');
+}
+
+// ── Load all data ─────────────────────────────────────────────────
+async function loadAll() {
+    const [{ data: st }, { data: pl }, { data: gl }] = await Promise.all([
+        sb.from('live_state').select('*').eq('id', 1).single(),
+        sb.from('players').select('id,name,status').order('name'),
+        sb.from('live_goals').select('*').order('created_at', { ascending: true }),
+    ]);
+    liveState = st;
+    players   = pl || [];
+    goals     = gl || [];
+    // Fetch rounds (all current - cleared on each new match start)
+    const { data: rd } = await sb.from('live_rounds').select('*').order('num', { ascending: true });
+    rounds = rd || [];
+    render();
+    applyTimerUI(liveState);
+}
+
+// ── Render ────────────────────────────────────────────────────────
+function render() {
+    if (!liveState) return;
+    applyTeamColors(); // set --o, --g CSS vars from team configs
+    const st   = liveState;
+    const mode = st.three_team_mode;
+    const orange = players.filter(p => p.status === 'orange');
+    const green  = players.filter(p => p.status === 'green');
+    const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
+
+    const oTid = mode ? getTeamIdByColor('orange') : null;
+    const gTid = mode ? getTeamIdByColor('green')  : null;
+
+    // Score = all current live_goals (cleared after each rotation in 3-team mode)
+    const oScore = goals.filter(g => g.team === 'orange').length;
+    const gScore = goals.filter(g => g.team === 'green').length;
+
+    const oName = getTeamName('orange');
+    const gName = getTeamName('green');
+    const oHex  = getTeamHex('orange');
+    const gHex  = getTeamHex('green');
+
+    document.getElementById('scoreO').textContent = oScore;
+    document.getElementById('scoreG').textContent = gScore;
+    document.getElementById('scoreO').style.color = oHex;
+    document.getElementById('scoreG').style.color = gHex;
+
+    const lblO = document.getElementById('lblO');
+    lblO.innerHTML = `<span>${oName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblO.style.color = oHex;
+    lblO.onclick = () => openNameEdit('orange');
+
+    const lblG = document.getElementById('lblG');
+    lblG.innerHTML = `<span>${gName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblG.style.color = gHex;
+    lblG.onclick = () => openNameEdit('green');
+
+    // Score sub: cumulative same-pair total
+    const subEl = document.getElementById('scoreSub');
+    if (subEl) {
+        if (mode && oTid && gTid && rounds.length) {
+            let sA=0, sB=0, cnt=0;
+            rounds.forEach(r => {
+                const [rA, rB] = [r.team_a_id, r.team_b_id];
+                if ((rA===oTid&&rB===gTid)||(rA===gTid&&rB===oTid)) {
+                    sA += rA===oTid ? r.score_a : r.score_b;
+                    sB += rB===gTid ? r.score_b : r.score_a;
+                    cnt++;
+                }
+            });
+            subEl.innerHTML = cnt > 0
+                ? `Total ${tidBadge(oTid)} vs ${tidBadge(gTid)}: <b>${sA} - ${sB}</b> (${cnt} tur${cnt!==1?'e':''})`
+                : '';
+        } else subEl.innerHTML = '';
+    }
+
+    // Undo bar
+    const lastG = realGoals[realGoals.length-1] || null;
+    if (lastG) {
+        const min = lastG.minute != null ? lastG.minute+"' · " : '';
+        document.getElementById('undoLbl').innerHTML = 'Ultimul gol: <span>'+min+lastG.player_name+'</span>';
+        document.getElementById('undoBtn').classList.add('show');
+    } else {
+        document.getElementById('undoLbl').textContent = 'Niciun gol înregistrat';
+        document.getElementById('undoBtn').classList.remove('show');
+    }
+
+    // Finalize button
+    document.getElementById('btnFinalize').disabled = realGoals.length === 0 && rounds.length === 0;
+
+    // 3-team button visual
+    const threeBtnEl = document.getElementById('threeBtn');
+    if (threeBtnEl) {
+        threeBtnEl.style.background = mode ? 'rgba(124,77,255,.4)' : 'rgba(124,77,255,.15)';
+        threeBtnEl.style.color      = mode ? '#fff' : '#ce93d8';
+    }
+
+    // Teams grid
+    const wrap = document.getElementById('teamsWrap');
+    if (!orange.length && !green.length) {
+        wrap.innerHTML = '<div class="empty-teams">Nicio echipă activă.<br><small>Setează jucătorii în aplicație.</small></div>';
+    } else {
+        // Define gpm and conc FIRST before makeRows uses them
+        const gpm  = goalsMap();
+        const conc = mode ? getRoundConceded() : { orange:0, green:0 };
+        const bench = players.filter(p => p.status === 'bench');
+
+        // Mark temp players in rows
+        const makeRows = (pls, team) => pls.map(p => {
+            const cnt = gpm[p.name] || 0;
+            const isTemp = !!p._temp;
+            const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#ffd54f;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
+            const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#444;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
+            return '<div class="pr">'
+                + `<div class="pr-name" style="${isTemp?'color:#ffd54f;':''}">${p.name}${tempBadge}</div>`
+                + removeTempBtn
+                + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
+                + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
+                + '<button class="pr-plus" onclick="this.classList.add(\'busy\');addGoal(\''+p.name+'\',\''+team+'\').finally(()=>setTimeout(()=>this.classList.remove(\'busy\'),100))">+</button>'
+                + '</div>';
+        }).join('');
+
+        const makeAddBtn = (team, hex) => {
+            const available = bench.filter(b => !players.some(p => p._temp && p._sourceName === b.name && p.status === team));
+            if (!available.length) return '';
+            return `<div style="padding:4px 2px 2px;">
+                <button onclick="openAddTempPlayer('${team}')"
+                    style="width:100%;padding:7px 4px;border-radius:8px;border:1px dashed ${hex}44;background:${hex}0a;color:${hex};font-size:.68rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:5px;">
+                    <span style="font-size:.9rem;">+</span> Adaugă jucător temporar
+                </button>
+            </div>`;
+        };
+
+        const oAddBtn = isLiveAdmin && bench.length && orange.length < green.length ? makeAddBtn('orange', oHex) : '';
+        const gAddBtn = isLiveAdmin && bench.length && green.length < orange.length ? makeAddBtn('green', gHex) : '';
+
+        const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
+        const gBadge = mode ? `<span class="round-badge">${conc.green}/${st.goal_threshold||2} prim.</span>`  : '';
+        wrap.innerHTML =
+            '<div class="team-col o-col">'
+            + `<div class="team-hd"><span class="team-hd-lbl" style="color:${oHex}">${oName}</span>${oBadge} <span class="team-hd-cnt">${oScore}G</span></div>`
+            + makeRows(orange, 'orange')
+            + oAddBtn
+            + '</div>'
+            + '<div class="team-col g-col">'
+            + `<div class="team-hd"><span class="team-hd-lbl" style="color:${gHex}">${gName}</span>${gBadge} <span class="team-hd-cnt">${gScore}G</span></div>`
+            + makeRows(green, 'green')
+            + gAddBtn
+            + '</div>';
+    }
+
+    // 3-team bar
+    const bar = document.getElementById('threeBar');
+    if (bar) {
+        bar.classList.toggle('show', mode);
+        if (mode) {
+            const thrEl = document.getElementById('thrVal'); if (thrEl) thrEl.textContent = st.goal_threshold || 2;
+            const tlEl  = document.getElementById('timeLimitVal'); if (tlEl) tlEl.textContent = st.time_limit_min || 10;
+            const bench = players.filter(p => p.status === 'bench');
+            const bTid  = getTeamIdByColor('bench');
+            const bName = getTeamName('bench');
+            const bHex2 = getTeamHex('bench');
+            const wp    = document.getElementById('waitingPlayers');
+            const wLbl  = document.getElementById('waitingLbl');
+            if (wLbl) {
+                wLbl.textContent = '⏳ ' + bName;
+                wLbl.style.color = bHex2;
+                wLbl.style.cursor = 'pointer';
+                wLbl.onclick = () => openNameEdit('bench');
+            }
+            const swapO = document.getElementById('swapBtnO');
+            const swapG = document.getElementById('swapBtnG');
+            if (swapO) { swapO.textContent = '↔ ' + oName; swapO.style.borderColor = oHex; swapO.style.color = oHex; }
+            if (swapG) { swapG.textContent = '↔ ' + gName; swapG.style.borderColor = gHex; swapG.style.color = gHex; }
+            if (wp) wp.innerHTML = bench.length
+                    ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
+                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>';
+        }
+    }
+
+    renderLog();
+    renderTureHistory();
+    updateRoundTimerBar();
+
+    // Below teams bar: settings in 3-team mode
+    const btb = document.getElementById('belowTeamsBar');
+    if (btb) btb.style.display = mode ? 'block' : 'none';
+
+    // Transfer button: any authenticated player
+    const tbw = document.getElementById('transferBtnWrap');
+    if (tbw) tbw.style.display = isLiveAdmin ? 'block' : 'none';
+}
+
+// ── Ture history ──────────────────────────────────────────────────
+function renderTureHistory() {
+    const section = document.getElementById('tureSection');
+    const body    = document.getElementById('tureBody');
+    const cnt     = document.getElementById('tureCnt');
+    if (!section || !body) return;
+    const mode = getThreeTeamMode();
+    const show = mode && rounds.length > 0;
+    section.classList.toggle('show', show);
+    if (cnt) cnt.textContent = rounds.length;
+    if (!show) return;
+
+    body.innerHTML = [...rounds].reverse().map(r => {
+        const tA = r.team_a_id, tB = r.team_b_id;
+        const sA = r.score_a || 0, sB = r.score_b || 0;
+        const winA = sA > sB, winB = sB > sA;
+        const cA = winA ? '#69f0ae' : winB ? '#ef9a9a' : '#aaa';
+        const cB = winB ? '#69f0ae' : winA ? '#ef9a9a' : '#aaa';
+        const min = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
+        const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final', penalty:'penalty' };
+        const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
+        const rId = r.id;
+        const nA = getTeamNameById(tA), nB = getTeamNameById(tB);
+        return `<div class="tur-row" onclick="showRoundDetail('${rId}')">
+            <span class="tur-num">Tur ${r.num}</span>
+            <span class="tur-teams" style="flex:1;font-size:.7rem;color:#888;">${nA} vs ${nB}</span>
+            <span class="tur-score">
+                <span style="color:${cA}">${sA}</span>
+                <span style="color:#333;font-size:.7rem;margin:0 2px">-</span>
+                <span style="color:${cB}">${sB}</span>
+            </span>
+            <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
+            <span style="color:#333;font-size:.7rem;">›</span>
+        </div>`;
+    }).join('');
+}
+
+function toggleTure() {
+    const body    = document.getElementById('tureBody');
+    const chevron = document.getElementById('tureChevron');
+    if (!body) return;
+    const open = body.classList.toggle('open');
+    if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+// ── Round Detail Modal ────────────────────────────────────────────
+function showRoundDetail(roundId) {
+    const r = rounds.find(x => String(x.id) === String(roundId));
+    if (!r) return;
+
+    const tA = r.team_a_id, tB = r.team_b_id;
+    const sA = r.score_a || 0, sB = r.score_b || 0;
+    const winA = sA > sB, winB = sB > sA;
+    const hA = getTeamHexById(tA), hB = getTeamHexById(tB);
+    const nA = getTeamNameById(tA) || tA;
+    const nB = getTeamNameById(tB) || tB;
+    const cA = winA ? hA : winB ? '#ef9a9a' : '#aaa';
+    const cB = winB ? hB : winA ? '#ef9a9a' : '#aaa';
+
+    const rLabels = { goals:'⚽ Goluri', time:'⏱ Timp', manual:'✋ Manual', final:'🏁 Final', penalty:'⚽ Penalty' };
+    const endLabel = rLabels[r.end_reason] || r.end_reason || '—';
+    const durMin = r.duration_sec ? Math.floor(r.duration_sec/60)+"'"+String(r.duration_sec%60).padStart(2,'0')+"\"" : '—';
+
+    const rGoals = Array.isArray(r.goals) ? r.goals : [];
+    const scorersHtml = rGoals.length
+        ? rGoals.map(g => {
+            // Use team_a_id hex for orange slot, team_b_id hex for green slot
+            const col = g.team === 'orange' ? hA : hB;
+            const min = g.minute != null ? g.minute+"'" : '';
+            return `<div class="rd-goal-row">
+                <div class="rd-goal-dot" style="background:${col};"></div>
+                <span class="rd-goal-name">${g.player_name}</span>
+                <span class="rd-goal-min">${min}</span>
+            </div>`;
+        }).join('')
+        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat</div>';
+
+    const oPlayers = Array.isArray(r.orange_players) ? r.orange_players : [];
+    const gPlayers = Array.isArray(r.green_players)  ? r.green_players  : [];
+    const oGoals = rGoals.filter(g => g.team === 'orange');
+    const gGoals = rGoals.filter(g => g.team === 'green');
+
+    const makePlayerList = (pls, teamGoals) => pls.map(name => {
+        const cnt = teamGoals.filter(g => g.player_name === name).length;
+        return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#69f0ae;">⚽'+cnt+'</span>' : ''}</div>`;
+    }).join('') || '<div style="color:#333;font-size:.72rem;">—</div>';
+
+    document.getElementById('rdTitle').textContent = `Tur ${r.num}`;
+    document.getElementById('rdSub').textContent = `${nA} vs ${nB}`;
+    document.getElementById('rdScoreA').style.color = cA;
+    document.getElementById('rdScoreA').textContent = sA;
+    document.getElementById('rdScoreB').style.color = cB;
+    document.getElementById('rdScoreB').textContent = sB;
+    document.getElementById('rdTeamA').innerHTML = `<span style="color:${hA}">${nA}</span>`;
+    document.getElementById('rdTeamB').innerHTML = `<span style="color:${hB}">${nB}</span>`;
+    document.getElementById('rdDur').textContent = durMin;
+    document.getElementById('rdEnd').textContent = endLabel;
+    document.getElementById('rdOPlayers').innerHTML = makePlayerList(oPlayers, oGoals);
+    document.getElementById('rdGPlayers').innerHTML = makePlayerList(gPlayers, gGoals);
+    document.getElementById('rdScorers').innerHTML = scorersHtml;
+    // Fix column headers
+    document.getElementById('rdOHd').style.color = hA;
+    document.getElementById('rdGHd').style.color = hB;
+    document.getElementById('rdOHd').textContent = nA;
+    document.getElementById('rdGHd').textContent = nB;
+
+    document.getElementById('roundDetailOverlay').classList.add('show');
+}
+function closeRoundDetail() {
+    document.getElementById('roundDetailOverlay').classList.remove('show');
+}
+
+// ── Log ───────────────────────────────────────────────────────────
+function renderLog() {
+    // Show ALL goals across entire match (past rounds + current round)
+    const allGoals = allMatchGoals();
+    document.getElementById('logCnt').textContent = allGoals.length;
+    const panel = document.getElementById('logPanel');
+    const empty = document.getElementById('logEmpty');
+    panel.querySelectorAll('.log-entry').forEach(e => e.remove());
+    if (!allGoals.length) { if (empty) empty.style.display='block'; return; }
+    if (empty) empty.style.display = 'none';
+    const frag = document.createDocumentFragment();
+    [...allGoals].reverse().forEach(g => {
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        // In past rounds, team slot may have rotated — use team field as stored
+        const dot = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
+        const min = g.minute != null ? g.minute+"'" : "—'";
+        const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#333;">T${g._roundNum}</span> ` : '';
+        div.innerHTML = roundLbl
+            + '<span class="log-min">'+min+'</span>'
+            + '<div class="log-dot" style="background:'+dot+';"></div>'
+            + '<span class="log-name">'+g.player_name+'</span>'
+            + '<span class="log-badge">⚽</span>';
+        frag.appendChild(div);
+    });
+    panel.insertBefore(frag, panel.firstChild);
+}
+function toggleLog() {
+    const panel   = document.getElementById('logPanel');
+    const chevron = document.getElementById('logChevron');
+    chevron.textContent = panel.classList.toggle('open') ? '▼' : '▲';
+}
+
+// ── Goal actions ──────────────────────────────────────────────────
+let _goalBusy = false;
+async function addGoal(name, team) {
+    if (_goalBusy) return;
+    _goalBusy = true;
+    setTimeout(() => { _goalBusy = false; }, 900); // 900ms debounce
+
+    if (navigator.vibrate) navigator.vibrate(40);
+    const minute = liveState?.timer_status !== 'idle'
+        ? Math.floor(calcElapsedSec(liveState) / 60) : null;
+    const tmpId  = 'tmp_' + Date.now();
+    goals.push({ id: tmpId, player_name: name, team, minute, created_at: new Date().toISOString() });
+    render(); bump(team);
+
+    try {
+        const { data, error } = await sb.from('live_goals')
+            .insert({ player_name: name, team, minute }).select().single();
+        if (error) throw error;
+        goals = goals.map(g => g.id === tmpId ? data : g);
+        render();
+        if (liveState?.three_team_mode) await checkGoalRotation();
+    } catch(e) {
+        goals = goals.filter(g => g.id !== tmpId);
+        render(); showToast('⚠️ ' + e.message);
+    }
+}
+
+async function removeGoal(name, team) {
+    const arr = [...goals].map((g,i)=>({g,i})).filter(({g})=>g.player_name===name&&g.team===team&&!String(g.id).startsWith('tmp_'));
+    if (!arr.length) return;
+    const { g, i } = arr[arr.length-1];
+    goals.splice(i, 1); render();
+    try { await sb.from('live_goals').delete().eq('id', g.id); }
+    catch(e) { goals.splice(i,0,g); render(); showToast('⚠️ '+e.message); }
+}
+
+async function undoLast() {
+    const realGoals = goals.filter(g => !String(g.id).startsWith('tmp_'));
+    const lastG = realGoals[realGoals.length-1];
+    if (!lastG) return;
+    goals = goals.filter(x => x.id !== lastG.id); render();
+    try { await sb.from('live_goals').delete().eq('id', lastG.id); }
+    catch(e) { showToast('⚠️ ' + e.message); }
+}
+
+// ── Finalize ──────────────────────────────────────────────────────
+let editRounds = [];
+let editPairs  = []; // 3-team mode: grouped by team pair
+
+function buildPairs(allRounds) {
+    const pairMap = {};
+    allRounds.forEach(r => {
+        const [canonA, canonB] = [r.team_a_id, r.team_b_id].sort();
+        const key = canonA + '-' + canonB;
+        if (!pairMap[key]) {
+            pairMap[key] = { key, team_a_id: canonA, team_b_id: canonB,
+                score_a: 0, score_b: 0,
+                a_players: new Set(), b_players: new Set(),
+                all_goals: [], rounds: [] };
+        }
+        const pair = pairMap[key];
+        const aIsOrange = (r.team_a_id === canonA); // canonical A was in orange slot
+        pair.score_a += aIsOrange ? (r.score_a||0) : (r.score_b||0);
+        pair.score_b += aIsOrange ? (r.score_b||0) : (r.score_a||0);
+        (aIsOrange ? r.orange_players : r.green_players  || []).forEach(n => pair.a_players.add(n));
+        (aIsOrange ? r.green_players  : r.orange_players || []).forEach(n => pair.b_players.add(n));
+        (Array.isArray(r.goals) ? r.goals : []).forEach(g => {
+            const canonTeam = (g.team === 'orange') === aIsOrange ? 'a' : 'b';
+            pair.all_goals.push({ ...g, canon_team: canonTeam });
+        });
+        pair.rounds.push(r);
+    });
+    return Object.values(pairMap).map(p => ({
+        ...p, a_players: [...p.a_players], b_players: [...p.b_players]
+    }));
+}
+
+function openFinalize() {
+    const mode = getThreeTeamMode();
+    const allRounds = rounds.map(r => ({...r}));
+    const roundG = mode ? getRoundGoals() : [];
+    const oG = roundG.filter(g=>g.team==='orange').length;
+    const gG = roundG.filter(g=>g.team==='green').length;
+    if (mode && (oG>0||gG>0)) {
+        allRounds.push({
+            id: '__current__',
+            num: allRounds.length+1,
+            team_a_id: getTeamIdByColor('orange')||'teamA',
+            team_b_id: getTeamIdByColor('green')||'teamB',
+            score_a: oG, score_b: gG,
+            orange_players: players.filter(p=>p.status==='orange').map(p=>p.name),
+            green_players:  players.filter(p=>p.status==='green').map(p=>p.name),
+            goals: roundG,
+            duration_sec: calcRoundElapsedSec(liveState),
+            end_reason: 'final',
+        });
+    }
+    if (mode) {
+        editPairs  = buildPairs(allRounds);
+        editRounds = allRounds; // keep for reference
+    } else {
+        editRounds = allRounds;
+        editPairs  = [];
+    }
+    renderFinalizeDialog();
+    document.getElementById('dialogOverlay').classList.add('show');
+}
+
+function renderFinalizeDialog() {
+    if (getThreeTeamMode() && editPairs.length > 0) {
+        renderFinalize3Team(); return;
+    }
+    // ── 2-team mode ───────────────────────────────────────────────
+    const allGoals = goals.filter(g=>!String(g.id).startsWith('tmp_'));
+    const scorerMap = {};
+    allGoals.forEach(g => {
+        if (!scorerMap[g.player_name]) scorerMap[g.player_name]={count:0,team:g.team,mins:[]};
+        scorerMap[g.player_name].count++;
+        if (g.minute!=null) scorerMap[g.player_name].mins.push(g.minute+"'");
+    });
+    const sorted = Object.entries(scorerMap).sort((a,b)=>b[1].count-a[1].count);
+    const mvp = sorted[0];
+    const mvpHtml = mvp
+        ? '<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">'+mvp[0]+' · '+mvp[1].count+' gol'+(mvp[1].count!==1?'uri':'')+'</div></div></div>'
+        : '';
+    const scorersHtml = sorted.length
+        ? sorted.map(([name,d])=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+d.count+'⚽</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>').join('')
+        : '<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
+    document.getElementById('dialogBox').innerHTML =
+        '<div class="dialog-title">🏁 Finalizează Meciul</div>'
+        +mvpHtml
+        +'<div class="dialog-section">Marcatori</div>'
+        +'<div>'+scorersHtml+'</div>'
+        +'<div class="dialog-actions">'
+        +'<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
+        +'<button class="dia-confirm" onclick="confirmFinalize()">✅ Salvează & Finalizează</button>'
+        +'</div>';
+}
+
+function renderFinalize3Team() {
+    // MVP overall
+    const allGoals3 = editPairs.flatMap(p => p.all_goals);
+    const sc3 = {}; allGoals3.forEach(g => { sc3[g.player_name]=(sc3[g.player_name]||0)+1; });
+    const topScorer = Object.entries(sc3).sort((a,b)=>b[1]-a[1])[0];
+    const mvpHtml = topScorer
+        ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${topScorer[0]} · ${topScorer[1]} goluri</div></div></div>`
+        : '';
+
+    const pairsHtml = editPairs.map((pair, idx) => {
+        const nA = getTeamNameById(pair.team_a_id);
+        const nB = getTeamNameById(pair.team_b_id);
+        const hA = getTeamHexById(pair.team_a_id);
+        const hB = getTeamHexById(pair.team_b_id);
+        const sA = pair.score_a, sB = pair.score_b;
+        const winA = sA > sB, winB = sB > sA;
+
+        // Scorers for this pair
+        const pairSc = {};
+        pair.all_goals.forEach(g => { pairSc[g.player_name]=(pairSc[g.player_name]||0)+1; });
+        const scorersList = Object.entries(pairSc).sort((a,b)=>b[1]-a[1])
+            .map(([n,c]) => {
+                const isA = pair.a_players.includes(n);
+                return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n} ⚽${c}</span>`;
+            }).join('<span style="color:#333;margin:0 4px;">·</span>');
+
+        // Rounds summary
+        const roundsSummary = pair.rounds.map(r => {
+            const dur = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
+            const icon = {goals:'⚽',time:'⏱',manual:'✋',final:'🏁',penalty:'🥅'}[r.end_reason]||'';
+            const rA = r.team_a_id===pair.team_a_id ? r.score_a : r.score_b;
+            const rB = r.team_a_id===pair.team_a_id ? r.score_b : r.score_a;
+            return `<span style="font-size:.62rem;color:#444;white-space:nowrap;">Tur ${r.num}: ${rA}-${rB} ${icon} ${dur}</span>`;
+        }).join('<span style="color:#252836;margin:0 4px;">|</span>');
+
+        return `<div style="background:#0d0f18;border-radius:10px;border:1px solid ${winA||winB?'#2a2d40':'#1e2130'};padding:10px 12px;margin-bottom:10px;">
+            <!-- Score row -->
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:${hA};flex:1;">${nA}</span>
+                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+                    <input type="number" min="0" max="99" value="${sA}"
+                        style="width:40px;background:#0a0c10;border:2px solid ${winA?hA:'#252836'};color:${winA?hA:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
+                        onchange="editPairScore(${idx},'a',this.value)">
+                    <span style="color:#333;font-family:'Bebas Neue',sans-serif;font-size:1rem;">:</span>
+                    <input type="number" min="0" max="99" value="${sB}"
+                        style="width:40px;background:#0a0c10;border:2px solid ${winB?hB:'#252836'};color:${winB?hB:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
+                        onchange="editPairScore(${idx},'b',this.value)">
+                </div>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:${hB};flex:1;text-align:right;">${nB}</span>
+            </div>
+            <!-- Players row -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px;">
+                <div style="font-size:.65rem;color:#666;line-height:1.5;">${pair.a_players.join(', ')||'—'}</div>
+                <div style="font-size:.65rem;color:#666;text-align:right;line-height:1.5;">${pair.b_players.join(', ')||'—'}</div>
+            </div>
+            <!-- Scorers -->
+            ${scorersList ? `<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:4px;">${scorersList}</div>` : ''}
+            <!-- Rounds -->
+            <div style="border-top:1px solid #1a1d28;padding-top:5px;display:flex;flex-wrap:wrap;gap:4px;">${roundsSummary||'<span style="color:#333;font-size:.62rem;">—</span>'}</div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('dialogBox').innerHTML =
+        '<div class="dialog-title">🏁 Finalizează Meciul</div>'
+        + mvpHtml
+        + `<div class="dialog-section">${editPairs.length} meciuri (câte un meci per pereche de echipe)</div>`
+        + pairsHtml
+        + '<div class="dialog-actions">'
+        + '<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
+        + '<button class="dia-confirm" onclick="confirmFinalize()">✅ Salvează & Finalizează</button>'
+        + '</div>';
+}
+
+function editPairScore(idx, side, val) {
+    const v = Math.max(0, parseInt(val)||0);
+    if (side === 'a') editPairs[idx].score_a = v;
+    else              editPairs[idx].score_b = v;
+}
+function editRoundScore(idx, side, val) {
+    const v = Math.max(0, parseInt(val)||0);
+    if (side === 'a') editRounds[idx].score_a = v;
+    else              editRounds[idx].score_b = v;
+}
+function deleteEditRound(idx) {
+    editRounds.splice(idx, 1);
+    editRounds.forEach((r,i) => r.num = i+1);
+    if (getThreeTeamMode()) { editPairs = buildPairs(editRounds); renderFinalize3Team(); }
+    else renderFinalizeDialog();
+}
+function confirmFinalize() {
+    if (getThreeTeamMode()) finalizeMatch3Team(editPairs);
+    else finalizeMatch2Team(editRounds);
+}
+function closeDialog() { document.getElementById('dialogOverlay').classList.remove('show'); }
+
+// ── Finalize 3-team: 3 meciuri per pereche ───────────────────────
+function getDurationWeight(durationSec) {
+    if (!durationSec || durationSec <= 0) return 1.0;
+    return Math.min(1.0, Math.max(0.5, durationSec / (15 * 60)));
+}
+async function finalizeMatch3Team(pairs) {
+    if (isSaving) return;
+    isSaving = true;
+    document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
+    closeDialog();
+    const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+    try {
+        let savedCount = 0;
+        for (const pair of pairs) {
+            if (!pair.a_players.length || !pair.b_players.length) continue;
+            const nA = getTeamNameById(pair.team_a_id);
+            const nB = getTeamNameById(pair.team_b_id);
+            const sA = pair.score_a, sB = pair.score_b;
+            const winner = sA > sB ? nA : sB > sA ? nB : 'Egal';
+            const aWon = sA > sB, bWon = sB > sA;
+
+            const { data: mh, error: mhErr } = await sb.from('match_history').insert({
+                date: today,
+                winner,
+                score: sA + ':' + sB,
+                imbalanced: Math.abs(sA - sB) >= 3,
+                orange_players: pair.a_players,
+                green_players:  pair.b_players,
+                started_at: liveState?.match_started_at || null,
+                ended_at: new Date().toISOString(),
+            }).select().single();
+            if (mhErr) { console.warn('pair save err:', mhErr.message); savedCount++; continue; }
+
+            if (mh?.id && pair.all_goals.length) {
+                try {
+                    await sb.from('match_goals').insert(pair.all_goals.map(g => ({
+                        match_id: mh.id,
+                        player_name: g.player_name,
+                        team: g.canon_team === 'a' ? 'orange' : 'green',
+                        goals: 1, goals_conceded: 0,
+                        minute: g.minute ?? null,
+                    })));
+                } catch(e) {}
+                // MVP for this pair
+                const sc = {}; pair.all_goals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
+                const mvpE = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
+                if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
+            }
+
+            // Update player stats
+            for (const name of [...pair.a_players, ...pair.b_players]) {
+                const p = players.find(x=>x.name===name); if(!p) continue;
+                const inA = pair.a_players.includes(name);
+                const won = inA ? aWon : bWon;
+                const pGoals = pair.all_goals.filter(g=>g.player_name===name).length;
+                const pConceded = inA ? sB : sA; // #4: goluri primite = golurile adversarilor
+                // #9: ponderare durată per rundă
+                const pairDurSec = pair.rounds.reduce((s,r)=>s+(r.duration_sec||0), 0);
+                const durW = getDurationWeight ? getDurationWeight(pairDurSec) : 1.0;
+                try {
+                    const {data:cur} = await sb.from('players').select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss').eq('id',p.id).single();
+                    if(cur) {
+                        const newWins  = (cur.wins||0) + (won?1:0);
+                        const newGames = (cur.games||0) + 1;
+                        const isImbalanced = Math.abs(sA-sB) >= 3;
+                        const newImb = (!won && isImbalanced)
+                            ? (cur.last_imbalance_loss||0)+1
+                            : won ? 0 : (cur.last_imbalance_loss||0);
+                        await sb.from('players').update({
+                            wins: newWins,
+                            games: newGames,
+                            match_history: [...(cur.match_history||[]), won?'W':'L'].slice(-20),
+                            total_goals: (cur.total_goals||0) + pGoals,
+                            total_goals_conceded: (cur.total_goals_conceded||0) + pConceded,
+                            last_imbalance_loss: newImb,
+                        }).eq('id', p.id);
+                    }
+                } catch(e){}
+            }
+            savedCount++;
+        }
+        await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null});
+        rounds=[]; goals=[]; editPairs=[]; editRounds=[];
+        render(); applyTimerUI(liveState);
+        showToast(`✅ ${savedCount} meciuri salvate (${savedCount} perechi)!`);
+        isSaving = false;
+    } catch(e){ isSaving=false; showToast('⚠️ '+e.message); console.error(e); }
+}
+
+// ── Finalize 2-team: 1 meci ───────────────────────────────────────
+async function finalizeMatch2Team(finalRounds) {
+    if (isSaving) return;
+    isSaving = true;
+    document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
+    closeDialog();
+    const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
+    try {
+        const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
+        const green=players.filter(p=>p.status==='green').map(p=>p.name);
+        const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
+        const goalMap={};realGoals.forEach(g=>{if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};goalMap[g.player_name].count++;});
+        const oScore=realGoals.filter(g=>g.team==='orange').length;
+        const gScore=realGoals.filter(g=>g.team==='green').length;
+        const winner=oScore>gScore?'orange':gScore>oScore?'green':'draw';
+        const winnerLabel=winner==='orange'?getTeamName('orange'):winner==='green'?getTeamName('green'):'Egal';
+        const imbalanced=Math.abs(oScore-gScore)>=3;
+        let endedAt=new Date().toISOString();
+        if(liveState?.match_started_at) endedAt=new Date(new Date(liveState.match_started_at).getTime()+calcElapsedSec(liveState)*1000).toISOString();
+        const{data:mh,error:mhErr}=await sb.from('match_history').insert({date:today,winner:winnerLabel,score:oScore+':'+gScore,imbalanced,orange_players:orange,green_players:green,started_at:liveState?.match_started_at||null,ended_at:endedAt}).select().single();
+        if(mhErr) throw mhErr;
+        if(mh?.id){
+            const mvpRows=[];
+            ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
+            if(mvpRows.length){try{await sb.from('mvp_votes').insert(mvpRows);}catch(e){}}
+            if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null})));
+        }
+        for(const name of [...orange,...green]){
+            const p=players.find(x=>x.name===name);if(!p)continue;
+            const inO=orange.includes(name);
+            const won=(inO&&winner==='orange')||(!inO&&winner==='green');
+            const lost=(inO&&winner==='green')||(!inO&&winner==='orange');
+            const pGoals=goalMap[name]?.count||0;
+            // #4: goluri concedute = golurile echipei adverse
+            const pConceded = inO ? gScore : oScore;
+            // #9: durată meci
+            const durSec = liveState?.match_started_at
+                ? Math.round((new Date(endedAt).getTime() - new Date(liveState.match_started_at).getTime())/1000)
+                : 0;
+            try{
+                const{data:cur}=await sb.from('players').select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss').eq('id',p.id).single();
+                if(cur)await sb.from('players').update({
+                    wins:(cur.wins||0)+(won?1:0),
+                    games:(cur.games||0)+1,
+                    match_history:[...(cur.match_history||[]),won?'W':'L'],
+                    total_goals:(cur.total_goals||0)+pGoals,
+                    total_goals_conceded:(cur.total_goals_conceded||0)+pConceded,
+                    last_imbalance_loss:(lost&&imbalanced)?(cur.last_imbalance_loss||0)+1:won?0:(cur.last_imbalance_loss||0)
+                }).eq('id',p.id);
+            }catch(e){}
+        }
+        await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
+        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
+        goals=[];render();applyTimerUI(liveState);
+        const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
+        showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
+        isSaving=false;
+    } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
+}
+// ── Jucători temporari ────────────────────────────────────────────
+let _addTempTeam = null;
+
+function openAddTempPlayer(team) {
+    _addTempTeam = team;
+    const bench = players.filter(p => p.status === 'bench');
+    const already = players.filter(p => p._temp && p.status === team).map(p => p._sourceName);
+    const available = bench.filter(b => !already.includes(b.name));
+
+    if (!available.length) { showToast('⚠️ Nu sunt jucători disponibili pe bancă!'); return; }
+
+    const teamHex  = getTeamHex(team);
+    const teamName = getTeamName(team);
+
+    document.getElementById('addTempBody').innerHTML = available.map(p => {
+        const cnt = goalsMap()[p.name] || 0;
+        const cntLbl = cnt ? ` <span style="color:#69f0ae;font-size:.65rem;">⚽${cnt}</span>` : '';
+        return `<div onclick="addTempPlayer('${p.id}','${p.name}')"
+            style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid #1e2130;background:#0d0f18;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;"
+            onmousedown="this.style.background='${teamHex}15';this.style.borderColor='${teamHex}'"
+            onmouseup="this.style.background='#0d0f18';this.style.borderColor='#1e2130'">
+            <div style="width:32px;height:32px;border-radius:50%;background:${teamHex}22;border:1px solid ${teamHex}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:${teamHex};">${p.name[0]}</div>
+            <div style="flex:1;">
+                <div style="font-weight:700;font-size:.85rem;">${p.name}${cntLbl}</div>
+                <div style="font-size:.6rem;color:#555;">Copiat temporar → ${teamName}</div>
+            </div>
+            <span style="color:#333;font-size:.8rem;">›</span>
+        </div>`;
+    }).join('');
+
+    document.getElementById('addTempTitle').style.color = teamHex;
+    document.getElementById('addTempTitle').textContent = '+ Adaugă în ' + teamName;
+    document.getElementById('addTempOverlay').classList.add('show');
+}
+
+function closeAddTemp() {
+    document.getElementById('addTempOverlay').classList.remove('show');
+    _addTempTeam = null;
+}
+
+function addTempPlayer(sourceId, sourceName) {
+    if (!_addTempTeam) return;
+    // Check not already added
+    if (players.some(p => p._temp && p._sourceName === sourceName && p.status === _addTempTeam)) {
+        showToast('⚠️ Jucătorul e deja adăugat temporar!');
+        closeAddTemp(); return;
+    }
+    const tempId = 'temp_' + Date.now() + '_' + sourceId;
+    players.push({
+        id: tempId,
+        name: sourceName,
+        status: _addTempTeam,
+        _temp: true,
+        _sourceName: sourceName,
+    });
+    showToast(`✓ ${sourceName} adăugat temporar în ${getTeamName(_addTempTeam)}`);
+    closeAddTemp();
+    render();
+}
+
+function removeTempPlayer(tempId) {
+    const p = players.find(x => x.id === tempId);
+    if (p) showToast(`✓ ${p.name} eliminat din echipă`);
+    players = players.filter(x => x.id !== tempId);
+    render();
+}
+let _transferPlayer = null;
+let _transferTarget = null;
+
+function openTransfer() {
+    _transferPlayer = null; _transferTarget = null;
+    renderTransferBody();
+    document.getElementById('transferOverlay').classList.add('show');
+}
+function closeTransfer() {
+    document.getElementById('transferOverlay').classList.remove('show');
+}
+function renderTransferBody() {
+    const all = players.filter(p => ['orange','green','bench'].includes(p.status));
+    const slots = ['orange','green','bench'];
+    const slotLabel = s => getTeamName(s);
+    const slotHex   = s => getTeamHex(s);
+
+    const playersList = slots.map(slot => {
+        const grp = all.filter(p => p.status === slot);
+        if (!grp.length) return '';
+        return `<div style="margin-bottom:8px;">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:${slotHex(slot)};font-weight:700;margin-bottom:4px;">${slotLabel(slot)}</div>
+            ${grp.map(p => `
+                <div onclick="selectTransferPlayer('${p.id}')" id="tp_${p.id}"
+                    style="padding:8px 10px;border-radius:8px;border:1px solid ${_transferPlayer===p.id?slotHex(slot):'#1e2130'};
+                    background:${_transferPlayer===p.id?slotHex(slot)+'22':'#0d0f18'};
+                    color:${_transferPlayer===p.id?'#fff':'#888'};font-size:.82rem;font-weight:700;
+                    margin-bottom:3px;cursor:pointer;touch-action:manipulation;">
+                    ${p.name} <span style="font-size:.65rem;color:${slotHex(slot)};opacity:.6;">(${slotLabel(slot)})</span>
+                </div>`).join('')}
+        </div>`;
+    }).join('');
+
+    const targetHtml = _transferPlayer ? (() => {
+        const cur = players.find(p=>p.id===_transferPlayer);
+        return `<div style="margin-top:10px;border-top:1px solid #1e2130;padding-top:10px;">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:6px;">Mută la echipa:</div>
+            ${slots.filter(s=>s!==cur?.status).map(s=>`
+                <div onclick="selectTransferTarget('${s}')" 
+                    style="padding:9px 12px;border-radius:8px;border:1px solid ${_transferTarget===s?slotHex(s):'#1e2130'};
+                    background:${_transferTarget===s?slotHex(s)+'22':'#0d0f18'};
+                    color:${_transferTarget===s?'#fff':'#666'};font-size:.85rem;font-weight:700;
+                    margin-bottom:4px;cursor:pointer;touch-action:manipulation;">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${slotHex(s)};margin-right:6px;vertical-align:middle;"></span>
+                    ${slotLabel(s)}
+                </div>`).join('')}
+        </div>`;
+    })() : '';
+
+    document.getElementById('transferBody').innerHTML = playersList + targetHtml;
+    const btn = document.getElementById('transferConfirmBtn');
+    if (btn) btn.disabled = !(_transferPlayer && _transferTarget);
+}
+function selectTransferPlayer(id) {
+    _transferPlayer = id; _transferTarget = null;
+    renderTransferBody();
+}
+function selectTransferTarget(slot) {
+    _transferTarget = slot;
+    renderTransferBody();
+}
+async function confirmTransfer() {
+    if (!_transferPlayer || !_transferTarget) return;
+    const p = players.find(x=>x.id===_transferPlayer);
+    if (!p) return;
+    players = players.map(x=>x.id===_transferPlayer ? {...x,status:_transferTarget} : x);
+    render();
+    closeTransfer();
+    try { await sb.from('players').update({status:_transferTarget}).eq('id',_transferPlayer); }
+    catch(e) { showToast('⚠️ '+e.message); }
+    showToast(`✓ ${p.name} → ${getTeamName(_transferTarget)}`);
+}
+// ── Reset ─────────────────────────────────────────────────────────
+function confirmReset() {
+    document.getElementById('resetOverlay').classList.add('show');
+}
+async function doReset() {
+    document.getElementById('resetOverlay').classList.remove('show');
+    stopLocalTimerTick(); cancelRoundTimeout();
+    try {
+        await Promise.all([
+            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null}),
+        ]);
+        rounds=[]; goals=[];
+        render(); applyTimerUI(liveState);
+    } catch(e) { showToast('⚠️ '+e.message); }
+}
+
+// ── Realtime subscriptions ────────────────────────────────────────
+function subscribe() {
+    // live_state changes
+    sb.channel('live_state_rt')
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'}, payload => {
+            const prev = liveState ? { ...liveState } : null;
+            liveState = payload.new;
+            render();
+            // Only restart timer UI if status changed
+            if (!prev || prev.timer_status !== liveState.timer_status
+                || prev.timer_started_at !== liveState.timer_started_at) {
+                applyTimerUI(liveState);
+            }
+            if (liveState.timer_status === 'running' && liveState.three_team_mode) {
+                scheduleRoundTimeout(liveState);
+            }
+        })
+        .subscribe();
+
+    // live_goals changes
+    sb.channel('live_goals_rt')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'}, p => {
+            if (!goals.some(g => g.id === p.new.id)) {
+                const ti = goals.findIndex(g => String(g.id).startsWith('tmp_') && g.player_name===p.new.player_name);
+                if (ti !== -1) goals[ti] = p.new; else goals.push(p.new);
+                render(); bump(p.new.team);
+            }
+        })
+        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'}, () => {
+            // Re-fetch only — local array is already updated optimistically in doRotation/undoLast
+            // This handler mainly helps spectators / other devices
+            sb.from('live_goals').select('*').order('created_at',{ascending:true})
+                .then(({data})=>{ goals=data||[]; render(); });
+        })
+        .subscribe();
+
+    // live_rounds changes
+    sb.channel('live_rounds_rt')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_rounds'}, p => {
+            // Replace any tmp_ placeholder with real DB row
+            const tmpIdx = rounds.findIndex(r => String(r.id).startsWith('tmp_') && r.num === p.new.num);
+            if (tmpIdx !== -1) rounds[tmpIdx] = p.new;
+            else if (!rounds.some(r => r.id === p.new.id)) rounds.push(p.new);
+            renderTureHistory();
+        })
+        .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
+            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
+        })
+        .subscribe();
+
+    // players changes — debounced to avoid intermediate states during bulk updates
+    let _playersRefetchTimer = null;
+    sb.channel('players_rt')
+        .on('postgres_changes', {event:'*', schema:'public', table:'players'}, (payload) => {
+            // If we have a single row update and it matches a known player, apply it optimistically
+            if (payload.eventType === 'UPDATE' && payload.new) {
+                const idx = players.findIndex(p => p.id === payload.new.id);
+                if (idx !== -1) players[idx] = { ...players[idx], ...payload.new };
+            }
+            // Debounce full refetch — wait for all parallel updates to settle
+            if (_playersRefetchTimer) clearTimeout(_playersRefetchTimer);
+            _playersRefetchTimer = setTimeout(() => {
+                sb.from('players').select('id,name,status').order('name')
+                    .then(({ data }) => { players = data || []; render(); });
+                _playersRefetchTimer = null;
+            }, 400);
+        })
+        .subscribe();
+}
+
+
+
+
+// ════════════════════════════════════════════════════════════════
+// PENALTY SHOOTOUT
+// ════════════════════════════════════════════════════════════════
+let penState = null;
+
+function openPenalty() {
+    const oPlayers = players.filter(p => p.status === 'orange');
+    const gPlayers = players.filter(p => p.status === 'green');
+    if (!oPlayers.length || !gPlayers.length) { showToast('⚠️ Ambele echipe trebuie să aibă jucători!'); return; }
+    penState = { phase:'select', kickersO:[], kickersG:[], shots:[], shotIdx:0, shotsPerRound:3, loser:null };
+    renderPenalty();
+    document.getElementById('penaltyOverlay').classList.add('show');
+}
+// alias for old calls
+function openPenaltyModal() { openPenalty(); }
+
+function closePenalty() {
+    document.getElementById('penaltyOverlay').classList.remove('show');
+    penState = null;
+}
+
+function renderPenalty() {
+    if (!penState) return;
+    const content = document.getElementById('penaltyContent');
+    const sub = document.getElementById('penSubtitle');
+    if (penState.phase === 'select')    { sub.textContent='Alege câte '+penState.shotsPerRound+' lovitori per echipă'; content.innerHTML=renderPenaltySelect(); }
+    else if (penState.phase==='shooting'){ sub.textContent='Lovituri de departajare'; content.innerHTML=renderPenaltyShooting(); }
+    else                                { sub.textContent='Rezultat final'; content.innerHTML=renderPenaltyDone(); }
+}
+
+function renderPenaltySelect() {
+    const oP=players.filter(p=>p.status==='orange'), gP=players.filter(p=>p.status==='green');
+    const N=penState.shotsPerRound;
+    const chips=(pls,team,sel)=>pls.map(p=>{
+        const i=sel.indexOf(p.name); const s=i>=0;
+        const cls=s?(team==='orange'?'sel-o':'sel-g'):'';
+        return `<span class="pen-player-chip ${cls}" onclick="penToggleKicker('${p.name.replace(/'/g,"\'")}','${team}')">${p.name}${s?' <b>'+(i+1)+'</b>':''}</span>`;
+    }).join('');
+    const ready=penState.kickersO.length===N&&penState.kickersG.length===N;
+    return `<div class="pen-select-area">
+        <div class="pen-select-title" style="color:${getTeamHex('orange')}">${getTeamName('orange')} — selectează ${N} lovitori (în ordine)</div>
+        <div>${chips(oP,'orange',penState.kickersO)}</div>
+        <div class="pen-select-title" style="margin-top:12px;color:${getTeamHex('green')}">${getTeamName('green')} — selectează ${N} lovitori</div>
+        <div>${chips(gP,'green',penState.kickersG)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+            <span style="font-size:.7rem;color:#555;">Lovituri:</span>
+            <button onclick="penChangeN(-1)" style="background:#1c1f2b;border:1px solid #252836;color:#888;width:26px;height:26px;border-radius:5px;cursor:pointer;">−</button>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--star);min-width:16px;text-align:center;">${N}</span>
+            <button onclick="penChangeN(1)"  style="background:#1c1f2b;border:1px solid #252836;color:#888;width:26px;height:26px;border-radius:5px;cursor:pointer;">+</button>
+        </div>
+        <button class="pen-start-btn" onclick="${ready?'startPenaltyShooting()':''}" ${ready?'':'disabled style="opacity:.4;cursor:not-allowed;"'}>⚡ Start Penaltyuri</button>
+    </div>`;
+}
+
+function penToggleKicker(name,team) {
+    const a=team==='orange'?penState.kickersO:penState.kickersG;
+    const i=a.indexOf(name);
+    if(i>=0) a.splice(i,1); else if(a.length<penState.shotsPerRound) a.push(name);
+    renderPenalty();
+}
+function penChangeN(d) {
+    penState.shotsPerRound=Math.max(1,Math.min(5,penState.shotsPerRound+d));
+    while(penState.kickersO.length>penState.shotsPerRound) penState.kickersO.pop();
+    while(penState.kickersG.length>penState.shotsPerRound) penState.kickersG.pop();
+    renderPenalty();
+}
+
+function startPenaltyShooting() {
+    const N=penState.shotsPerRound;
+    penState.shots=[];
+    for(let i=0;i<N;i++){
+        penState.shots.push({team:'orange',name:penState.kickersO[i],result:null});
+        penState.shots.push({team:'green', name:penState.kickersG[i],result:null});
+    }
+    penState.shotIdx=0; penState.phase='shooting'; renderPenalty();
+}
+
+function renderPenaltyShooting() {
+    const shots=penState.shots, idx=penState.shotIdx;
+    if(idx>=shots.length){ checkPenaltyRoundEnd(); return renderPenalty()||''; }
+    const cur=shots[idx];
+    const teamColor=cur.team==='orange'?'var(--o)':'var(--g)';
+    const teamLabel=cur.team==='orange'?getTeamName('orange'):getTeamName('green');
+    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
+    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
+    const makeDots=team=>penState[team==='orange'?'kickersO':'kickersG'].map((_,i)=>{
+        const si=team==='orange'?i*2:i*2+1; const s=shots[si];
+        const cls=s?.result==='goal'?'goal':s?.result==='miss'?'miss':'pending';
+        return `<div class="pen-dot ${cls}"></div>`;
+    }).join('');
+    return `<div class="penalty-score-row">
+        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('orange')}">${getTeamName('orange')}</div><div class="pen-score-num" style="color:var(--o);">${oG}</div><div class="pen-dots">${makeDots('orange')}</div></div>
+        <div class="pen-vs">vs</div>
+        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('green')}">${getTeamName('green')}</div><div class="pen-score-num" style="color:var(--g);">${gG}</div><div class="pen-dots">${makeDots('green')}</div></div>
+    </div>
+    <div class="penalty-current">
+        <div class="penalty-kicker-label">Lovitură ${Math.floor(idx/2)+1} — ${teamLabel}</div>
+        <div class="penalty-kicker-name">${cur.name}</div>
+        <div class="penalty-kicker-team" style="color:${teamColor};">${teamLabel}</div>
+    </div>
+    <div class="penalty-btns">
+        <button class="penalty-btn-goal" onclick="recordPenaltyShot('goal')">✅ GOL</button>
+        <button class="penalty-btn-miss" onclick="recordPenaltyShot('miss')">❌ RATAT</button>
+    </div>
+    <div class="penalty-kicker-list">
+        <div class="pen-list-section" style="color:${getTeamHex('orange')}">${getTeamName('orange')}</div>
+        ${penState.kickersO.map((n,i)=>{const s=shots[i*2];return '<div class="pen-list-row"><span class="pen-list-name">'+n+'</span><span class="pen-list-result">'+(s?.result==='goal'?'✅':s?.result==='miss'?'❌':'○')+'</span></div>';}).join('')}
+        <div class="pen-list-section" style="margin-top:6px;color:${getTeamHex('green')}">${getTeamName('green')}</div>
+        ${penState.kickersG.map((n,i)=>{const s=shots[i*2+1];return '<div class="pen-list-row"><span class="pen-list-name">'+n+'</span><span class="pen-list-result">'+(s?.result==='goal'?'✅':s?.result==='miss'?'❌':'○')+'</span></div>';}).join('')}
+    </div>`;
+}
+
+function recordPenaltyShot(result) {
+    if(penState.shotIdx>=penState.shots.length) return;
+    penState.shots[penState.shotIdx].result=result;
+    penState.shotIdx++;
+    checkEarlyPenaltyWin(); renderPenalty();
+}
+
+function checkEarlyPenaltyWin() {
+    const shots=penState.shots, N=penState.shotIdx;
+    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
+    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
+    const oR=shots.filter((s,i)=>s.team==='orange'&&i>=N&&s.result===null).length;
+    const gR=shots.filter((s,i)=>s.team==='green' &&i>=N&&s.result===null).length;
+    if(oG>gG+gR){penState.phase='done';penState.loser='green';return;}
+    if(gG>oG+oR){penState.phase='done';penState.loser='orange';return;}
+    if(N>=shots.length) checkPenaltyRoundEnd();
+}
+
+function checkPenaltyRoundEnd() {
+    const shots=penState.shots;
+    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
+    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
+    if(oG===gG){
+        // sudden death — add one more pair, cycle kickers
+        penState.shots.push({team:'orange',name:penState.kickersO[0],result:null});
+        penState.shots.push({team:'green', name:penState.kickersG[0],result:null});
+        penState.shotsPerRound++;
+        penState.kickersO.push(penState.kickersO.shift());
+        penState.kickersG.push(penState.kickersG.shift());
+    } else {
+        penState.loser=oG>gG?'green':'orange'; penState.phase='done';
+    }
+}
+
+function renderPenaltyDone() {
+    const loser=penState.loser, winner=loser==='orange'?'green':'orange';
+    const winLabel=winner==='orange'?getTeamName('orange'):getTeamName('green');
+    const loseLabel=loser==='orange'?getTeamName('orange'):getTeamName('green');
+    const oG=penState.shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
+    const gG=penState.shots.filter(s=>s.team==='green' &&s.result==='goal').length;
+    const winColor=winner==='orange'?'var(--o)':'var(--g)';
+    return `<div class="pen-result-banner" style="color:${winColor};">🏆 ${winLabel} câștigă!<br><span style="font-size:1rem;color:#fff;">${oG} - ${gG} (pen.)</span></div>
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px;">
+        <button onclick="applyPenaltyResult('${loser}')" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;">
+            🔄 Aplică — ${loseLabel} iese
+        </button>
+        <button onclick="closePenalty()" style="width:100%;padding:12px;border-radius:10px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.88rem;">✕ Anulează</button>
+    </div>`;
+}
+
+async function applyPenaltyResult(loser) {
+    closePenalty();
+    cancelRoundTimeout();
+    await doRotation(loser, 'penalty');
+}
+
+// ── Rotation Confirmation Popup (instead of auto-swap) ────────────
+let pendingRotation = null; // {loserColor, reason}
+
+async function showRotationConfirm(loserColor, reason, triggerMsg) {
+    const loserPlayers = players.filter(p => p.status === loserColor);
+    const winnerColor  = loserColor === 'orange' ? 'green' : 'orange';
+    const winnerPlayers= players.filter(p => p.status === winnerColor);
+    const benchPlayers = players.filter(p => p.status === 'bench');
+
+    const loseName  = getTeamName(loserColor);
+    const winName   = getTeamName(winnerColor);
+    const benchName = getTeamName('bench');
+    const loseHex   = getTeamHex(loserColor);
+    const winHex    = getTeamHex(winnerColor);
+    const benchHex  = getTeamHex('bench');
+
+    const roundG = getRoundGoals();
+    const oG = roundG.filter(g=>g.team==='orange').length;
+    const gG = roundG.filter(g=>g.team==='green').length;
+
+    const scorers = {};
+    roundG.forEach(g => { scorers[g.player_name]=(scorers[g.player_name]||0)+1; });
+    const scorerHtml = Object.entries(scorers).length
+        ? Object.entries(scorers).sort((a,b)=>b[1]-a[1])
+            .map(([n,cnt])=>{
+                const team = roundG.find(g=>g.player_name===n)?.team||'orange';
+                const col  = getTeamHex(team);
+                return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #0a0c14;">
+                    <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+                    <span style="flex:1;font-weight:700;font-size:.82rem;">${n}</span>
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#69f0ae;">⚽${cnt}</span>
+                </div>`;
+            }).join('')
+        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
+
+    document.getElementById('rotConfirmTitle').innerHTML =
+        `🔄 <span style="color:${loseHex}">${loseName}</span> IESE`;
+    document.getElementById('rotConfirmSub').textContent = triggerMsg;
+    document.getElementById('rotConfirmBody').innerHTML = `
+        <div style="text-align:center;margin-bottom:12px;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:${getTeamHex(loserColor)};">${oG} : ${gG}</div>
+            <div style="font-size:.65rem;color:#555;">Scor tur curent</div>
+        </div>
+        <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcate în tur</div>
+        <div style="margin-bottom:12px;">${scorerHtml}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.72rem;">
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${winHex}44;">
+                <div style="color:${winHex};font-weight:700;margin-bottom:4px;">✅ ${winName} rămâne</div>
+                ${winnerPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+            </div>
+            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${loseHex}44;">
+                <div style="color:${loseHex};font-weight:700;margin-bottom:4px;">↩ ${loseName} iese</div>
+                ${loserPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+                ${benchPlayers.length?`<div style="color:${benchHex};font-size:.65rem;margin-top:4px;">Intră: ${benchName} (${benchPlayers.map(p=>p.name).join(', ')})</div>`:''}
+            </div>
+        </div>`;
+
+    pendingRotation = { loserColor, reason };
+    document.getElementById('rotConfirmOverlay').style.display = 'flex';
+}
+
+function cancelRotConfirm() {
+    document.getElementById('rotConfirmOverlay').style.display = 'none';
+    pendingRotation = null;
+    // Restart round timer since we cancelled
+    if (liveState?.three_team_mode && liveState?.timer_status === 'running') {
+        scheduleRoundTimeout(liveState);
+    }
+}
+
+async function doConfirmedRotation() {
+    if (!pendingRotation) return;
+    document.getElementById('rotConfirmOverlay').style.display = 'none';
+    const { loserColor, reason } = pendingRotation;
+    pendingRotation = null;
+    await doRotation(loserColor, reason);
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+document.getElementById('dialogOverlay').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeDialog();
+});
+
+async function init() {
+    // Read match param from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const matchParam = urlParams.get('match') || urlParams.get('id');
+
+    await loadPlayerCodes();
+    tryAutoAuth();
+    await loadAll();
+
+    // If live_state has a team_registry (set from index Start Meci), apply 3-team UI
+    if (liveState?.three_team_mode && liveState?.team_registry && Object.keys(liveState.team_registry).length > 0) {
+        const btn = document.getElementById('threeBtn');
+        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+    }
+
+    // Update URL/title with match ID
+    if (matchParam) {
+        document.title = 'Live · Arena FC';
+        if (!window.location.search.includes('match=')) {
+            window.history.replaceState({}, '', window.location.pathname + '?match=' + matchParam);
+        }
+    } else if (liveState?.match_started_at) {
+        const pseudo = btoa(liveState.match_started_at).replace(/[^a-zA-Z0-9]/g,'').slice(0,10);
+        window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
+    }
+
+    subscribe();
+}
+// Update URL when match starts
+function updateMatchUrl(st) {
+    if (st?.match_started_at && !window.location.search.includes('match=')) {
+        const pseudo = btoa(st.match_started_at).replace(/[^a-zA-Z0-9]/g,'').slice(0,10);
+        window.history.replaceState({}, '', window.location.pathname + '?match=' + pseudo);
+    }
+}
+init();
+</script>
+
+<!-- ── Penalty Shootout Overlay ────────────────────────────────── -->
+<div class="penalty-overlay" id="penaltyOverlay">
+  <div class="penalty-box">
+    <div class="penalty-hd">
+      <div>
+        <div class="penalty-hd-title">⚽ Penaltyuri</div>
+        <div class="penalty-hd-sub" id="penSubtitle">Selecție lovitori</div>
+      </div>
+      <button onclick="closePenalty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.85rem;">✕</button>
+    </div>
+    <div id="penaltyContent"></div>
+  </div>
+</div>
+
+
+<!-- Rotation Confirm Overlay -->
+<div id="rotConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:350;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#141720;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;overflow-y:auto;">
+    <div style="background:linear-gradient(135deg,#1a0050,#4a0080);padding:14px 18px;border-radius:16px 16px 0 0;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
+    </div>
+    <div style="padding:14px 18px;" id="rotConfirmBody"></div>
+    <div style="display:flex;gap:8px;padding:0 18px 18px;">
+      <button onclick="cancelRotConfirm()" style="flex:1;padding:13px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;">✕ Nu acum</button>
+      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#fff;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
+    </div>
+  </div>
+</div>
+<!-- Team Config Edit Modal -->
+<div class="team-edit-overlay" id="teamEditOverlay" onclick="if(event.target===this)closeTeamEdit()">
+  <div class="team-edit-box">
+    <div id="teamEditHd" class="team-edit-hd">
+      <div class="team-edit-title" id="teamEditTitle">Echipa A</div>
+      <button class="rd-close" onclick="closeTeamEdit()">✕</button>
+    </div>
+    <div class="team-edit-body">
+      <div>
+        <div class="team-edit-lbl">Culoare echipă</div>
+        <div class="color-palette" id="teamEditPalette"></div>
+        <div id="colorPreviewBar" style="border-radius:6px;margin-top:6px;padding:6px 0;text-align:center;"></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div class="team-edit-lbl" style="margin:0;">Nume echipă</div>
+          <button id="teamEditClearBtn" onclick="_showCustomName=false;renderCustomNameSection();"
+            style="display:none;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#1c1f2b;border:1px solid #2a2d40;color:#666;font-size:.65rem;cursor:pointer;touch-action:manipulation;">
+            ✕ Resetează la culoare
+          </button>
+        </div>
+        <div id="teamEditAutoName"
+          style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#555;padding:8px 0 4px;"></div>
+        <div id="teamEditCustomDiv" style="display:none;margin-top:4px;">
+          <input class="team-edit-input" id="teamEditCustomName" type="text" maxlength="20"
+            placeholder="Nume personalizat..."
+            onkeydown="if(event.key==='Enter')saveTeamEdit()">
+        </div>
+        <button id="teamEditForceBtn" onclick="_showCustomName=true;renderCustomNameSection();"
+          style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;border-radius:8px;background:#1c1f2b;border:1px dashed #3a3d50;color:#666;font-size:.75rem;cursor:pointer;touch-action:manipulation;width:100%;">
+          ✎ Forțează alt nume
+        </button>
+      </div>
+      <div class="team-edit-actions">
+        <button class="team-edit-cancel" onclick="closeTeamEdit()">Anulează</button>
+        <button class="team-edit-save" onclick="saveTeamEdit()">✓ Salvează</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Round Detail Modal -->
+<div class="round-detail-overlay" id="roundDetailOverlay" onclick="if(event.target===this)closeRoundDetail()">
+  <div class="round-detail-box">
+    <div class="rd-hd">
+      <div class="rd-hd-left">
+        <div class="rd-title" id="rdTitle">Tur 1</div>
+        <div class="rd-sub" id="rdSub"></div>
+      </div>
+      <button class="rd-close" onclick="closeRoundDetail()">✕</button>
+    </div>
+    <div class="rd-score-row">
+      <div class="rd-team">
+        <div class="rd-team-lbl" id="rdTeamA">teamA</div>
+        <div class="rd-team-score" id="rdScoreA" style="color:var(--o)">0</div>
+      </div>
+      <div class="rd-vs">:</div>
+      <div class="rd-team">
+        <div class="rd-team-lbl" id="rdTeamB">teamB</div>
+        <div class="rd-team-score" id="rdScoreB" style="color:var(--g)">0</div>
+      </div>
+    </div>
+    <div class="rd-body">
+      <div>
+        <div class="rd-section">Jucători</div>
+        <div class="rd-players">
+          <div class="rd-pl-col">
+            <div class="rd-pl-col-hd" style="color:var(--o)" id="rdOHd">Portocaliu</div>
+            <div id="rdOPlayers"></div>
+          </div>
+          <div class="rd-pl-col">
+            <div class="rd-pl-col-hd" style="color:var(--g)" id="rdGHd">Verde</div>
+            <div id="rdGPlayers"></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="rd-section">Goluri marcate</div>
+        <div id="rdScorers"></div>
+      </div>
+      <div class="rd-meta-row">
+        <div class="rd-meta-chip">
+          <div class="rd-meta-val" id="rdDur">—</div>
+          <div class="rd-meta-lbl">Durată</div>
+        </div>
+        <div class="rd-meta-chip">
+          <div class="rd-meta-val" id="rdEnd">—</div>
+          <div class="rd-meta-lbl">Motiv schimb</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Confirm Modal -->
+<div class="reset-overlay" id="resetOverlay">
+  <div class="reset-box">
+    <div class="reset-title">↺ Reset Meci</div>
+    <div class="reset-sub">Ești sigur? Se vor șterge toate golurile, turele și cronometrul.</div>
+    <div class="reset-actions">
+      <button class="reset-cancel" onclick="document.getElementById('resetOverlay').classList.remove('show')">Anulează</button>
+      <button class="reset-confirm" onclick="doReset()">✓ Resetează</button>
+    </div>
+  </div>
+</div>
+<!-- Transfer Modal -->
+<div class="dialog-overlay" id="transferOverlay" onclick="if(event.target===this)closeTransfer()">
+  <div class="dialog-box" style="max-width:380px;">
+    <div class="dialog-title" style="font-size:1rem;">⇄ Transfer Jucător</div>
+    <div id="transferBody"></div>
+    <div class="dialog-actions" style="margin-top:12px;">
+      <button class="dia-cancel" onclick="closeTransfer()">✕ Anulează</button>
+      <button class="dia-confirm" id="transferConfirmBtn" onclick="confirmTransfer()" disabled>✓ Transferă</button>
+    </div>
+  </div>
+</div>
+
+<div class="rotation-toast" id="rotationToast"></div>
+<!-- Code Auth Modal -->
+<div class="code-auth-overlay" id="codeAuthOverlay" onclick="if(event.target===this)closeCodeAuth()">
+  <div class="code-auth-box">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;margin-bottom:4px;">🔑 Cod Jucător</div>
+    <div style="font-size:.65rem;color:#444;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
+    <input id="codeAuthInput" type="text" maxlength="10" placeholder="Cod secret..."
+      style="width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
+      oninput="this.value=this.value.toUpperCase();document.getElementById('codeAuthErr').textContent=''"
+      onkeydown="if(event.key==='Enter')submitCode()">
+    <div id="codeAuthErr" style="font-size:.68rem;color:#ef9a9a;min-height:16px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;">Anulează</button>
+      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Temp Player Modal -->
+<div class="add-temp-overlay" id="addTempOverlay" onclick="if(event.target===this)closeAddTemp()">
+  <div class="add-temp-box">
+    <div class="add-temp-hd">
+      <div>
+        <div class="add-temp-title" id="addTempTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;">+ Adaugă jucător temporar</div>
+        <div style="font-size:.62rem;color:#444;margin-top:2px;">Jucătorul va fi copiat temporar în acest meci · golurile se vor salva</div>
+      </div>
+      <button onclick="closeAddTemp()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div class="add-temp-body" id="addTempBody"></div>
+  </div>
+</div>
+
+</body>
+</html>
