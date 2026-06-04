@@ -2479,10 +2479,8 @@ function getSynergyScore(pName, mateName) {
         if (!inOrange && !inGreen) return;
         together++;
         const pInOrange = h.orangePlayers.includes(pName);
-        const won = (pInOrange && h.winner === h.orangePlayers[0] && h.orangePlayers.includes(pName))
-                 || (h.orangePlayers.includes(pName)  && h.winner?.includes(teamNames?.orange || 'Portocaliu'))
-                 || (!h.orangePlayers.includes(pName) && h.winner?.includes(teamNames?.green  || 'Verde'));
-        if (won) wins++;
+        const won = playerWonMatch(h, pName);
+        if (won === true) wins++;
     });
     if (together < 2) return 0.5; // insuficient istoric → neutru
     return wins / together; // 0..1, 0.5 = neutru
@@ -2533,9 +2531,8 @@ function getAntiSynergyPairs() {
                 if (!inOrange && !inGreen) return;
                 together++;
                 const aInOrange = h.orangePlayers.includes(a);
-                const winnerIsOrange = h.winner?.toLowerCase().includes('portocaliu') ||
-                    h.winner === (teamNames?.orange || 'Portocaliu');
-                const won = aInOrange ? winnerIsOrange : !winnerIsOrange;
+                const wSide = getWinnerSideFromScore(h);
+                const won = wSide ? (aInOrange ? wSide==='orange' : wSide==='green') : false;
                 if (won) wins++;
             });
             if (together >= 3 && wins / together < 0.33) {
@@ -2948,8 +2945,9 @@ function renderHistory(){
     document.querySelector('#match-history tbody').innerHTML = sorted.length
         ? sorted.map((h,idx) => {
             const origIdx = db.history.indexOf(h);
-            const winColor = h.winner==='Portocaliu' ? 'var(--orange)' : 'var(--green)';
-            const winText  = h.winner==='Portocaliu' ? '#000' : '#fff';
+            const _ws = getWinnerSideFromScore(h);
+            const winColor = _ws==='orange' ? teamColors.orange : _ws==='green' ? teamColors.green : '#555';
+            const winText  = getContrastColorIdx(winColor);
             const scoreDisplay = h.score && h.score !== '—' ? ` <span style="font-size:.72rem;color:#666;">${h.score}</span>` : '';
             const imbalBadge = h.imbalanced ? ' <span style="font-size:.6rem;color:#ef9a9a;border:1px solid #ef9a9a33;border-radius:4px;padding:1px 4px;" title="Dezechilibru 3+ goluri">⚠️</span>' : '';
             const voteLink = h._dbId ? `<button class="match-edit-btn" onclick="event.stopPropagation();window.open('vote.html?match=${h._dbId}','_blank')" title="Votează jucătorii" style="color:#a78bfa;">🗳️</button>` : '';
@@ -5146,7 +5144,7 @@ function buildPlayerMatchHistory(p){
         const inOrange=(h.orangePlayers||[]).includes(p.name);
         const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
         const oppTeam=inOrange?h.greenPlayers:h.orangePlayers;
-        const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
+        const won = playerWonMatch(h, p.name) === true;
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
         const teamColor=inOrange?'var(--orange)':'#4caf50';
         const teamIcon=inOrange?'●':'●';
@@ -5170,7 +5168,7 @@ function buildChemistry(p){
     myMatches.forEach(h=>{
         const inOrange=(h.orangePlayers||[]).includes(p.name);
         const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
-        const won=(inOrange&&h.winner==='Portocaliu')||(!inOrange&&h.winner==='Verde');
+        const won = playerWonMatch(h, p.name) === true;
         (myTeam||[]).forEach(name=>{
             if(name===p.name)return;
             if(!chemMap[name])chemMap[name]={together:0,wins:0};
@@ -5321,8 +5319,9 @@ async function deleteRating(index){
 // ── Match Detail Modal ──
 async function openMatchModal(idx){
     const h=db.history[idx];
-    const isO=h.winner==='Portocaliu';
-    const isEq=!isO&&h.winner!=='Verde';
+    const _wSide=getWinnerSideFromScore(h);
+    const isO=_wSide==='orange';
+    const isEq=_wSide==='draw'||!_wSide;
 
     document.getElementById('matchModalDate').textContent=`📅 ${h.date||'—'}`;
     const banner=document.getElementById('matchWinnerBanner');
@@ -6080,20 +6079,54 @@ function moveTeamsToBench() {
 let currentScenario = 1;
 let threeTeamMode = localStorage.getItem('idx_3team')==='1';
 let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde', bench: localStorage.getItem('team_name_bench')||'Echipa 3' };
-let teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#7c4dff' };
+let teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#111111' };
 
-const TEAM_COLOR_PALETTE = ['#ffffff','#111111','#ff8c00','#e53935','#28a745','#1e88e5'];
+const TEAM_COLOR_PALETTE = ['#ff8c00', '#28a745', '#111111'];
 const COLOR_NAMES_IDX = {
-    '#ffffff': 'ALB', '#111111': 'NEGRU',
-    '#ff8c00': 'PORTOCALIU', '#e53935': 'ROȘU',
-    '#28a745': 'VERDE', '#1e88e5': 'ALBASTRU',
+    '#ff8c00': 'PORTOCALIU',
+    '#28a745': 'VERDE',
+    '#111111': 'NEGRU',
 };
 function getContrastColorIdx(hex) {
     if (!hex || hex.length < 7) return '#fff';
     const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
     return (0.299*r+0.587*g+0.114*b)/255 > 0.55 ? '#000000' : '#ffffff';
 }
-function colorToNameIdx(hex) { return COLOR_NAMES_IDX[hex] || hex; }
+function colorToNameIdx(hex) {
+    if (!hex) return 'ECHIPA';
+    const direct = COLOR_NAMES_IDX[hex.toLowerCase()];
+    if (direct) return direct;
+    let best = null, bestD = Infinity;
+    Object.entries(COLOR_NAMES_IDX).forEach(([h,n]) => {
+        const dr=parseInt(h.slice(1,3),16)-parseInt(hex.slice(1,3),16);
+        const dg=parseInt(h.slice(3,5),16)-parseInt(hex.slice(3,5),16);
+        const db=parseInt(h.slice(5,7),16)-parseInt(hex.slice(5,7),16);
+        const d=dr*dr+dg*dg+db*db;
+        if(d<bestD){bestD=d;best=n;}
+    });
+    return best||hex;
+}
+// ── Determină câștigătorul din scor (nu din string winner care se schimbă) ──
+function getWinnerSideFromScore(h) {
+    const parts = (h.score||'').split(':').map(s => parseInt(s.trim()));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        if (parts[0] > parts[1]) return 'orange';
+        if (parts[1] > parts[0]) return 'green';
+        return 'draw';
+    }
+    return null; // nu se poate determina
+}
+
+// Determină dacă un jucător a câștigat un meci din istoric
+function playerWonMatch(h, playerName) {
+    const inOrange = (h.orangePlayers||[]).includes(playerName);
+    const inGreen  = (h.greenPlayers||[]).includes(playerName);
+    if (!inOrange && !inGreen) return null; // nu a jucat
+    const side = getWinnerSideFromScore(h);
+    if (!side || side === 'draw') return false;
+    return (inOrange && side === 'orange') || (inGreen && side === 'green');
+}
+
 
 function applyTeamColors() {
     document.documentElement.style.setProperty('--orange', teamColors.orange);

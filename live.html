@@ -516,14 +516,16 @@ function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] ||
 
 // ── Team name helpers ─────────────────────────────────────────────
 // ── Team config helpers (name + color per teamId, permanent) ──────
-const TEAM_COLORS = ['#ffffff','#111111','#ff8c00','#e53935','#28a745','#1e88e5'];
+const TEAM_COLORS = ['#ff8c00', '#28a745', '#111111'];
 const COLOR_NAMES = {
-    '#ffffff': 'ALB', '#111111': 'NEGRU',
-    '#ff8c00': 'PORTOCALIU', '#e53935': 'ROȘU',
-    '#28a745': 'VERDE', '#1e88e5': 'ALBASTRU',
-    '#7c4dff': 'MOV', '#9c27b0': 'MOV',
+    '#ff8c00': 'PORTOCALIU',
+    '#28a745': 'VERDE',
+    '#111111': 'NEGRU',
 };
-const DEFAULT_HEX = { teamA:'#ff8c00', teamB:'#28a745', teamC:'#1e88e5', orange:'#ff8c00', green:'#28a745', bench:'#1e88e5' };
+const DEFAULT_HEX = {
+    teamA: '#ff8c00', teamB: '#28a745', teamC: '#111111',
+    orange: '#ff8c00', green: '#28a745', bench: '#111111'
+};
 
 function getContrastColor(hex) {
     if (!hex || hex.length < 7) return '#fff';
@@ -534,7 +536,7 @@ function colorToName(hex) {
     if (!hex) return 'ECHIPA';
     const direct = COLOR_NAMES[hex.toLowerCase()];
     if (direct) return direct;
-    // Find closest palette color by hex distance
+    // Closest by distance
     let best = null, bestD = Infinity;
     Object.entries(COLOR_NAMES).forEach(([h, n]) => {
         const dr=parseInt(h.slice(1,3),16)-parseInt(hex.slice(1,3),16);
@@ -1233,8 +1235,23 @@ function render() {
             }
             const swapO = document.getElementById('swapBtnO');
             const swapG = document.getElementById('swapBtnG');
-            if (swapO) { swapO.textContent = '↔ ' + oName; swapO.style.borderColor = oHex; swapO.style.color = oHex; }
-            if (swapG) { swapG.textContent = '↔ ' + gName; swapG.style.borderColor = gHex; swapG.style.color = gHex; }
+            const matchStarted = !!liveState?.match_started_at;
+            if (swapO) {
+                swapO.textContent = '↔ ' + oName;
+                swapO.style.borderColor = oHex;
+                swapO.style.color = oHex;
+                swapO.disabled = matchStarted;
+                swapO.title = matchStarted ? 'Meciul a început — schimb blocat' : '';
+                swapO.style.opacity = matchStarted ? '0.35' : '1';
+            }
+            if (swapG) {
+                swapG.textContent = '↔ ' + gName;
+                swapG.style.borderColor = gHex;
+                swapG.style.color = gHex;
+                swapG.disabled = matchStarted;
+                swapG.title = matchStarted ? 'Meciul a început — schimb blocat' : '';
+                swapG.style.opacity = matchStarted ? '0.35' : '1';
+            }
             if (wp) wp.innerHTML = bench.length
                     ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
                     : '<span style="color:#333;font-size:.72rem;">Nimeni</span>';
