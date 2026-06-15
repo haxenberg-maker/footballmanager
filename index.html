@@ -6609,7 +6609,7 @@ function openStartMatch(){
     const oP = db.players.filter(p=>p.status==='orange');
     const gP = db.players.filter(p=>p.status==='green');
     const bP = db.players.filter(p=>p.status==='bench');
-    const has3 = threeTeamMode && bP.length > 0;
+    const has3 = bP.length > 0; // auto-detect from bench players
 
     const teamBlock = (title, color, players) => {
         if(!players.length) return '';
@@ -6650,7 +6650,7 @@ async function launchLive(){
     const oP = db.players.filter(p=>p.status==='orange');
     const gP = db.players.filter(p=>p.status==='green');
     const bP = db.players.filter(p=>p.status==='bench');
-    const has3 = threeTeamMode && bP.length > 0;
+    const has3 = bP.length > 0; // auto-detect from bench players
 
     try{
         const patch = {
