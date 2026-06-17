@@ -77,7 +77,7 @@
         button{padding:9px 14px;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#252836;color:white;}
         button:hover{filter:brightness(1.2);transform:translateY(-1px);}
         button:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
-        .btn-win-o{background:var(--orange);color:#000;}
+        .btn-win-o{background:var(--orange);color:#fff;}
         .btn-win-g{background:var(--green);}
         .btn-new-match{background:linear-gradient(135deg,#004d40,#00796b);border:1px solid #00bcd4;color:#80deea;}
         .btn-settings{background:#1c1f2b;border:1px solid #2a2d40;color:#888;}
@@ -392,7 +392,7 @@
 
         /* Footer */
         .vote-footer{padding:14px 22px;border-top:1px solid #1e2130;display:flex;gap:10px;align-items:center;}
-        .vote-next-btn{flex:1;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;letter-spacing:1px;background:var(--orange);color:#000;transition:all 0.15s;}
+        .vote-next-btn{flex:1;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;letter-spacing:1px;background:var(--orange);color:#fff;transition:all 0.15s;}
         .vote-next-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
         .vote-next-btn.last{background:linear-gradient(135deg,#1a7a30,#28a745);color:#fff;}
         .vote-dot-nav{display:flex;gap:5px;align-items:center;}
@@ -1283,7 +1283,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;min-height:200px;">
         <!-- Orange -->
         <div style="border-right:1px solid #1e2130;">
-            <div style="background:var(--orange);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#000;" id="matchOrangeTitle">Portocaliu</div>
+            <div style="background:var(--orange);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#fff;" id="matchOrangeTitle">Portocaliu</div>
             <div id="tableOrangePlayers" style="padding:10px 16px;"></div>
         </div>
         <!-- Green -->
@@ -3415,170 +3415,8 @@ function updateAllTeamLabels() {
 }
 
 function startEditTeamName(side){
-    if(!isAdmin()) return;
-    openTeamConfigEditor(side);
-}
-
-function openTeamConfigEditor(side) {
-    if(!isAdmin()) return;
-    if (!document.getElementById('teamConfigModal')) buildTeamConfigModal();
-    _tcmSide = side;
-    _tcmHex = teamColors[side] || '#ff8c00';
-    _tcmShowCustom = !!(teamNames[side] !== colorToNameIdx(_tcmHex));
-    document.getElementById('tcmSide').value = side;
-    document.getElementById('tcmCustomName').value = _tcmShowCustom ? (teamNames[side] || '') : '';
-    document.getElementById('tcmTitle').textContent =
-        side === 'orange' ? 'Echipa 1' : side === 'green' ? 'Echipa 2' : 'Echipa 3 (Bancă)';
-    renderTcmPalette();
-    renderTcmNameSection();
-    // Render tabs: always show all 3 teams
-    renderTcmTabs(['orange','green','bench']);
-    document.getElementById('teamConfigModal').style.display = 'flex';
-}
-
-function renderTcmTabs(sides) {
-    const modal = document.getElementById('teamConfigModal');
-    if (!modal) return;
-    let tabs = document.getElementById('tcmTabs');
-    if (!tabs) {
-        tabs = document.createElement('div');
-        tabs.id = 'tcmTabs';
-        tabs.style.cssText = 'display:flex;gap:6px;padding:10px 18px 0;background:#0d0f18;border-bottom:1px solid #1e2130;';
-        const hd = modal.querySelector('[id="tcmTitle"]')?.closest('div');
-        if (hd) hd.insertAdjacentElement('afterend', tabs);
-        else modal.querySelector('div').prepend(tabs);
-    }
-    tabs.innerHTML = '';
-    sides.forEach(side => {
-        const hex = teamColors[side] || '#888';
-        const isActive = side === _tcmSide;
-        const btn = document.createElement('button');
-        btn.style.cssText = `flex:1;padding:6px 4px;border-radius:7px 7px 0 0;font-size:.68rem;font-weight:700;cursor:pointer;touch-action:manipulation;
-            background:${isActive ? hex+'22' : 'transparent'};border:1px solid ${isActive ? hex : '#252836'};
-            border-bottom:${isActive ? `1px solid #141720` : '1px solid #252836'};color:${isActive ? hex : '#444'};`;
-        btn.innerHTML = `<span style="display:block;width:8px;height:8px;border-radius:50%;background:${hex};margin:0 auto 2px;"></span>${teamNames[side]}`;
-        btn.onclick = () => {
-            // Save current hex before switching
-            const curCustom = _tcmShowCustom ? document.getElementById('tcmCustomName').value.trim() : null;
-            // Switch
-            _tcmSide = side;
-            _tcmHex = teamColors[side] || '#ff8c00';
-            _tcmShowCustom = !!(teamNames[side] !== colorToNameIdx(_tcmHex));
-            document.getElementById('tcmSide').value = side;
-            document.getElementById('tcmCustomName').value = _tcmShowCustom ? (teamNames[side] || '') : '';
-            document.getElementById('tcmTitle').textContent = side === 'orange' ? 'Echipa 1' : side === 'green' ? 'Echipa 2' : 'Echipa 3 (Bancă)';
-            renderTcmPalette();
-            renderTcmNameSection();
-            renderTcmTabs(sides);
-        };
-        tabs.appendChild(btn);
-    });
-}
-
-let _tcmSide = 'orange';
-let _tcmHex = '#ff8c00';
-let _tcmShowCustom = false;
-
-function buildTeamConfigModal() {
-    const el = document.createElement('div');
-    el.id = 'teamConfigModal';
-    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;';
-    el.onclick = e => { if(e.target===el) el.style.display='none'; };
-    el.innerHTML = `
-        <div style="background:#141720;width:100%;max-width:340px;border-radius:16px;border:1px solid #2a2d40;overflow:hidden;">
-            <div style="padding:14px 18px;display:flex;align-items:center;justify-content:space-between;background:#0d0f18;border-bottom:1px solid #1e2130;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;" id="tcmTitle">Echipa 1</div>
-                <button onclick="document.getElementById('teamConfigModal').style.display='none'"
-                    style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
-            </div>
-            <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
-                <input type="hidden" id="tcmSide" value="orange">
-                <div>
-                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:8px;">Culoare echipă</div>
-                    <div id="tcmPalette" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-                    <div id="tcmPreview" style="border-radius:6px;margin-top:8px;padding:6px 0;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;"></div>
-                </div>
-                <div>
-                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                        <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;">Nume echipă</div>
-                        <button id="tcmClearBtn" onclick="_tcmShowCustom=false;renderTcmNameSection();"
-                            style="display:none;padding:3px 8px;border-radius:5px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.62rem;cursor:pointer;">✕ Resetează</button>
-                    </div>
-                    <div id="tcmAutoName" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#555;padding:4px 0 2px;"></div>
-                    <div id="tcmCustomDiv" style="display:none;margin-top:6px;">
-                        <input id="tcmCustomName" type="text" maxlength="20" placeholder="Nume personalizat..."
-                            style="width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:10px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;"
-                            onkeydown="if(event.key==='Enter')saveTcm()">
-                    </div>
-                    <button id="tcmForceBtn" onclick="_tcmShowCustom=true;renderTcmNameSection();"
-                        style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;border-radius:8px;background:#1c1f2b;border:1px dashed #3a3d50;color:#555;font-size:.75rem;cursor:pointer;width:100%;">
-                        ✎ Forțează alt nume
-                    </button>
-                </div>
-                <div style="display:flex;gap:8px;margin-top:4px;">
-                    <button onclick="document.getElementById('teamConfigModal').style.display='none'"
-                        style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;">Anulează</button>
-                    <button onclick="saveTcm()"
-                        style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;">✓ Salvează</button>
-                </div>
-            </div>
-        </div>`;
-    document.body.appendChild(el);
-}
-
-function renderTcmPalette() {
-    const container = document.getElementById('tcmPalette');
-    const preview   = document.getElementById('tcmPreview');
-    if (!container) return;
-    container.innerHTML = '';
-    TEAM_COLOR_PALETTE.forEach(hex => {
-        const d = document.createElement('div');
-        d.style.cssText = `width:34px;height:34px;border-radius:8px;background:${hex};cursor:pointer;
-            border:2px solid ${hex===_tcmHex?'#fff':'transparent'};
-            transform:${hex===_tcmHex?'scale(1.1)':'scale(1)'};transition:all .1s;
-            ${hex==='#ffffff'?'border-color:'+(hex===_tcmHex?'#fff':'#333')+';':''}`;
-        d.onclick = () => { _tcmHex = hex; renderTcmPalette(); renderTcmNameSection(); };
-        container.appendChild(d);
-    });
-    if (preview) {
-        const contrast = getContrastColorIdx(_tcmHex);
-        preview.style.cssText = `border-radius:6px;margin-top:8px;padding:6px 0;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;background:${_tcmHex};color:${contrast};`;
-        preview.textContent = colorToNameIdx(_tcmHex);
-    }
-}
-
-function renderTcmNameSection() {
-    const autoDiv  = document.getElementById('tcmAutoName');
-    const custDiv  = document.getElementById('tcmCustomDiv');
-    const forcBtn  = document.getElementById('tcmForceBtn');
-    const clearBtn = document.getElementById('tcmClearBtn');
-    if (!autoDiv) return;
-    autoDiv.textContent = colorToNameIdx(_tcmHex);
-    if (_tcmShowCustom) {
-        custDiv.style.display = 'block';
-        forcBtn.style.display = 'none';
-        clearBtn.style.display = 'inline-block';
-        setTimeout(() => document.getElementById('tcmCustomName')?.focus(), 80);
-    } else {
-        custDiv.style.display = 'none';
-        forcBtn.style.display = 'flex';
-        clearBtn.style.display = 'none';
-    }
-}
-
-async function saveTcm() {
-    const side = document.getElementById('tcmSide').value;
-    let customName = null;
-    if (_tcmShowCustom) {
-        const val = document.getElementById('tcmCustomName').value.trim();
-        customName = val || null;
-    }
-    teamColors[side] = _tcmHex;
-    teamNames[side] = customName || colorToNameIdx(_tcmHex);
-    localStorage.setItem('team_name_' + side, teamNames[side]);
-    renderTeamTitles();
-    document.getElementById('teamConfigModal').style.display = 'none';
-    await saveTeamConfigs();
+    // Numele echipelor sunt FIXE — PORTOCALIU/VERDE/NEGRU — nu se editează
+    showToast('ℹ️ Numele echipelor sunt standardizate: ' + teamNames[side]);
 }
 
 // ── Export teams as copyable text ─────────────────────────────────
@@ -6078,13 +5916,15 @@ function moveTeamsToBench() {
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
 let threeTeamMode = localStorage.getItem('idx_3team')==='1';
-let teamNames = { orange: localStorage.getItem('team_name_orange')||'Echipa Portocalie', green: localStorage.getItem('team_name_green')||'Echipa Verde', bench: localStorage.getItem('team_name_bench')||'Echipa 3' };
-let teamColors = { orange: '#ff8c00', green: '#e53935', bench: '#111111' };
+let teamNames = { orange: 'PORTOCALIU', green: 'VERDE', bench: 'NEGRU' };
+// Curăță orice resturi vechi din localStorage care ar putea cauza inconsecvențe de culoare
+['team_name_orange','team_name_green','team_name_bench','team_color_orange','team_color_green','team_color_bench'].forEach(k => localStorage.removeItem(k));
+let teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#111111' };
 
-const TEAM_COLOR_PALETTE = ['#ff8c00', '#e53935', '#111111'];
+const TEAM_COLOR_PALETTE = ['#ff8c00', '#28a745', '#111111'];
 const COLOR_NAMES_IDX = {
     '#ff8c00': 'PORTOCALIU',
-    '#e53935': 'ROȘU',
+    '#28a745': 'VERDE',
     '#111111': 'NEGRU',
 };
 // Toate cele 3 culori standard sunt suficient de întunecate — text alb mereu
@@ -6148,40 +5988,15 @@ function applyTeamColors() {
 }
 
 async function loadTeamConfigs() {
-    try {
-        const { data } = await sb.from('live_state').select('team_registry').eq('id', 1).single();
-        const cfg = data?.team_registry?._configs || {};
-        ['orange','green','bench'].forEach(slot => {
-            if (cfg[slot]?.hex)        teamColors[slot] = cfg[slot].hex;
-            if (cfg[slot]?.customName) teamNames[slot]  = cfg[slot].customName;
-            else if (cfg[slot]?.hex)   teamNames[slot]  = colorToNameIdx(cfg[slot].hex);
-        });
-        ['teamA','teamB','teamC'].forEach((tid, i) => {
-            const slot = ['orange','green','bench'][i];
-            if (cfg[tid]?.hex)        teamColors[slot] = cfg[tid].hex;
-            if (cfg[tid]?.customName) teamNames[slot]  = cfg[tid].customName;
-            else if (cfg[tid]?.hex)   teamNames[slot]  = colorToNameIdx(cfg[tid].hex);
-        });
-        applyTeamColors();
-        renderTeamTitles();
-    } catch(e) { console.warn('loadTeamConfigs:', e.message); }
+    // Numele/culorile sunt FIXE — PORTOCALIU/VERDE/NEGRU. Nu se mai citesc din DB.
+    teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#111111' };
+    teamNames  = { orange: 'PORTOCALIU', green: 'VERDE', bench: 'NEGRU' };
+    applyTeamColors();
+    renderTeamTitles();
 }
 
 async function saveTeamConfigs() {
-    try {
-        const { data } = await sb.from('live_state').select('team_registry').eq('id', 1).single();
-        const reg = { ...(data?.team_registry || {}) };
-        const mkCfg = (slot) => ({
-            hex: teamColors[slot],
-            customName: teamNames[slot] !== colorToNameIdx(teamColors[slot]) ? teamNames[slot] : null,
-        });
-        reg._configs = {
-            ...(reg._configs || {}),
-            orange: mkCfg('orange'), green: mkCfg('green'), bench: mkCfg('bench'),
-            teamA: mkCfg('orange'),  teamB: mkCfg('green'), teamC: mkCfg('bench'),
-        };
-        await sb.from('live_state').update({ team_registry: reg }).eq('id', 1);
-    } catch(e) { console.warn('saveTeamConfigs:', e.message); }
+    // No-op: identitatea echipelor nu mai e editabilă/salvabilă.
 }
 let scenarios = {1:null, 2:null, 3:null};
 

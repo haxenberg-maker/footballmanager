@@ -306,7 +306,6 @@ main, body{padding-bottom:80px;}
     <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
     <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
     <button class="hd-key-btn" id="swapTeamsBtn" onclick="swapTeams()" title="Schimbă echipele între ele" style="display:none;">⇄</button>
-    <button class="all-teams-btn" onclick="openAllTeamsEdit()" title="Configurează echipele">✎</button>
     <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
@@ -562,174 +561,33 @@ function colorToName(hex) {
     return best || 'ECHIPA';
 }
 
-function getTeamConfigs() { return (liveState?.team_registry?._configs) || {}; }
+// ── IDENTITATE FIXĂ — 3 culori standard, NEEDITABILE ────────────
+// orange = PORTOCALIU, green = VERDE, bench = NEGRU. Mereu. Fără excepții.
+const FIXED_TEAMS = {
+    orange: { hex: '#ff8c00', name: 'PORTOCALIU' },
+    green:  { hex: '#28a745', name: 'VERDE' },
+    bench:  { hex: '#111111', name: 'NEGRU' },
+};
 
 function getTeamConfig(teamId) {
-    const cfg = getTeamConfigs()[teamId] || {};
-    const hex = cfg.hex || DEFAULT_HEX[teamId] || '#888';
-    const name = cfg.customName || colorToName(hex);
-    return { hex, name, customName: cfg.customName || null };
-}
-function getTeamConfigForColor(color) {
-    if (liveState?.three_team_mode) {
-        const teamId = getTeamIdByColor(color);
-        if (teamId) return getTeamConfig(teamId);
+    // teamId poate fi 'orange'/'green'/'bench' direct, sau 'teamA'/'teamB'/'teamC'
+    if (FIXED_TEAMS[teamId]) return FIXED_TEAMS[teamId];
+    // Pentru teamA/B/C: găsește slotul curent ocupat via color_map
+    const cm = getColorMap();
+    for (const slot of ['orange','green','bench']) {
+        if (cm[slot] === teamId) return FIXED_TEAMS[slot];
     }
-    return getTeamConfig(color);
+    return FIXED_TEAMS.orange; // fallback sigur
 }
-function getTeamName(color) { return getTeamConfigForColor(color).name; }
-function getTeamHex(color)  { return getTeamConfigForColor(color).hex; }
+function getTeamConfigForColor(slot) { return FIXED_TEAMS[slot] || FIXED_TEAMS.orange; }
+function getTeamName(slot) { return getTeamConfigForColor(slot).name; }
+function getTeamHex(slot)  { return getTeamConfigForColor(slot).hex; }
 function getTeamNameById(teamId) { return getTeamConfig(teamId).name; }
 function getTeamHexById(teamId)  { return getTeamConfig(teamId).hex; }
 
 function applyTeamColors() {
-    const oHex = getTeamHex('orange'), gHex = getTeamHex('green');
-    document.documentElement.style.setProperty('--o', oHex);
-    document.documentElement.style.setProperty('--g', gHex);
-}
-
-async function saveTeamConfig(teamId, customName, hex) {
-    const reg = { ...getTeamRegistry() };
-    reg._configs = { ...(reg._configs || {}), [teamId]: { hex, customName: customName || null } };
-    if (reg[teamId]) reg[teamId] = { ...reg[teamId], name: customName || colorToName(hex) };
-    await patchState({ team_registry: reg });
-    applyTeamColors();
-    render();
-}
-
-// ── Team config edit modal ────────────────────────────────────────
-let _editingTeamId = null;
-let _editingHex = null;
-let _showCustomName = false;
-
-function openTeamEdit(teamId) {
-    _editingTeamId = teamId;
-    const cfg = getTeamConfig(teamId);
-    _editingHex = cfg.hex;
-    _showCustomName = !!cfg.customName;
-    const label = teamId.startsWith('team')
-        ? 'Echipa ' + teamId.slice(-1).toUpperCase()
-        : teamId === 'orange' ? 'Echipa 1' : teamId === 'green' ? 'Echipa 2' : 'Echipa 3';
-    document.getElementById('teamEditTitle').textContent = label;
-    document.getElementById('teamEditCustomName').value = cfg.customName || '';
-    renderColorPalette(cfg.hex);
-    renderCustomNameSection();
-    document.getElementById('teamEditOverlay').classList.add('show');
-}
-function openNameEdit(color) {
-    if (liveState?.three_team_mode) {
-        const teamId = getTeamIdByColor(color);
-        if (teamId) { openTeamEdit(teamId); return; }
-    }
-    openTeamEdit(color);
-}
-function closeTeamEdit() {
-    document.getElementById('teamEditOverlay').classList.remove('show');
-    _editingTeamId = null; _editingHex = null;
-}
-function renderCustomNameSection() {
-    const autoDiv  = document.getElementById('teamEditAutoName');
-    const custDiv  = document.getElementById('teamEditCustomDiv');
-    const forcBtn  = document.getElementById('teamEditForceBtn');
-    const clearBtn = document.getElementById('teamEditClearBtn');
-    if (!autoDiv) return;
-    autoDiv.textContent = colorToName(_editingHex || '#888');
-    if (_showCustomName) {
-        custDiv.style.display = 'block';
-        forcBtn.style.display = 'none';
-        clearBtn.style.display = 'inline-flex';
-        setTimeout(() => document.getElementById('teamEditCustomName')?.focus(), 80);
-    } else {
-        custDiv.style.display = 'none';
-        forcBtn.style.display = 'flex';
-        clearBtn.style.display = 'none';
-    }
-}
-function renderColorPalette(selectedHex) {
-    const container = document.getElementById('teamEditPalette');
-    const preview   = document.getElementById('colorPreviewBar');
-    if (!container) return;
-    container.innerHTML = '';
-    TEAM_COLORS.forEach(hex => {
-        const d = document.createElement('div');
-        d.className = 'color-swatch' + (hex === selectedHex ? ' sel' : '');
-        d.style.cssText = `background:${hex};${hex==='#ffffff'?'border:1px solid #333;':''}`;
-        d.onclick = () => { _editingHex = hex; renderColorPalette(hex); renderCustomNameSection(); };
-        container.appendChild(d);
-    });
-    if (preview) {
-        const contrast = getContrastColor(selectedHex);
-        preview.textContent = colorToName(selectedHex);
-        preview.style.cssText = `background:${selectedHex};color:${contrast};text-align:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;padding:6px 0;border-radius:6px;margin-top:6px;`;
-    }
-}
-function selectColor(hex) { _editingHex = hex; renderColorPalette(hex); renderCustomNameSection(); }
-
-async function saveTeamEdit() {
-    if (!_editingTeamId) return;
-    const hex = _editingHex || '#888';
-    let customName = null;
-    if (_showCustomName) {
-        const val = document.getElementById('teamEditCustomName').value.trim();
-        customName = val || null;
-    }
-    await saveTeamConfig(_editingTeamId, customName, hex);
-    closeTeamEdit();
-}
-function openAllTeamsEdit() {
-    // Always show all 3 teams (bench included)
-    const teamIds = liveState?.three_team_mode
-        ? ['teamA','teamB','teamC']
-        : ['orange','green','bench'];
-    openTeamEdit(teamIds[0]);
-    setTimeout(() => renderTeamTabs(teamIds), 10);
-}
-
-function renderTeamTabs(teamIds) {
-    const hd = document.getElementById('teamEditHd');
-    if (!hd) return;
-    let tabs = document.getElementById('teamEditTabs');
-    if (!tabs) {
-        tabs = document.createElement('div');
-        tabs.id = 'teamEditTabs';
-        tabs.style.cssText = 'display:flex;gap:6px;padding:12px 18px 0;';
-        hd.insertAdjacentElement('beforebegin', tabs);
-    }
-    tabs.innerHTML = '';
-    teamIds.forEach(id => {
-        const cfg = getTeamConfig(id);
-        const isActive = id === _editingTeamId;
-        const btn = document.createElement('button');
-        btn.style.cssText = `flex:1;padding:6px 4px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;touch-action:manipulation;
-            background:${isActive ? cfg.hex+'33' : '#0d0f18'};border:1px solid ${isActive ? cfg.hex : '#252836'};color:${isActive ? cfg.hex : '#555'};`;
-        btn.innerHTML = `<span style="display:block;width:8px;height:8px;border-radius:50%;background:${cfg.hex};margin:0 auto 3px;"></span>${cfg.name}`;
-        btn.onclick = () => switchTeamTab(id, teamIds);
-        tabs.appendChild(btn);
-    });
-}
-
-function switchTeamTab(teamId, teamIds) {
-    // Save current custom name before switching
-    if (_editingTeamId && _showCustomName) {
-        const curInput = document.getElementById('teamEditCustomName');
-        const curName = curInput ? curInput.value.trim() : '';
-        if (curName) {
-            const reg = { ...getTeamRegistry() };
-            reg._configs = { ...(reg._configs || {}), [_editingTeamId]: { hex: _editingHex || '#888', customName: curName } };
-            liveState = { ...liveState, team_registry: reg };
-        }
-    }
-    _editingTeamId = teamId;
-    const cfg = getTeamConfig(teamId);
-    _editingHex = cfg.hex;
-    _showCustomName = !!cfg.customName;
-    const titleEl = document.getElementById('teamEditTitle');
-    if (titleEl) titleEl.textContent = cfg.name;
-    const custInput = document.getElementById('teamEditCustomName');
-    if (custInput) custInput.value = cfg.customName || '';
-    renderColorPalette(cfg.hex);
-    renderCustomNameSection();
-    renderTeamTabs(teamIds);
+    document.documentElement.style.setProperty('--o', FIXED_TEAMS.orange.hex);
+    document.documentElement.style.setProperty('--g', FIXED_TEAMS.green.hex);
 }
 
 async function patchState(patch) {
@@ -986,12 +844,10 @@ async function toggleThreeTeam() {
         if (!orange.length && !green.length) {
             showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
         }
-        const existingNames = liveState.team_names || {};
-        const configs = getTeamConfigs();
         const teamRegistry = {
-            teamA: { players: orange.map(p => p.name), color: 'orange', name: (configs.teamA?.name || existingNames.orange || 'Echipa A') },
-            teamB: { players: green.map(p => p.name),  color: 'green',  name: (configs.teamB?.name || existingNames.green  || 'Echipa B') },
-            teamC: { players: bench.map(p => p.name),  color: 'bench',  name: (configs.teamC?.name || existingNames.bench  || 'Echipa C') },
+            teamA: { players: orange.map(p => p.name), color: 'orange', name: 'PORTOCALIU' },
+            teamB: { players: green.map(p => p.name),  color: 'green',  name: 'VERDE' },
+            teamC: { players: bench.map(p => p.name),  color: 'bench',  name: 'NEGRU' },
         };
         const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
         await patchState({
@@ -1205,14 +1061,16 @@ function render() {
     document.getElementById('scoreG').style.color = gHex;
 
     const lblO = document.getElementById('lblO');
-    lblO.innerHTML = `<span>${oName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblO.innerHTML = `<span>${oName}</span>`;
     lblO.style.color = oHex;
-    lblO.onclick = () => openNameEdit('orange');
+    lblO.style.cursor = 'default';
+    lblO.onclick = null;
 
     const lblG = document.getElementById('lblG');
-    lblG.innerHTML = `<span>${gName}</span><span class="sc-lbl-edit">✎</span>`;
+    lblG.innerHTML = `<span>${gName}</span>`;
     lblG.style.color = gHex;
-    lblG.onclick = () => openNameEdit('green');
+    lblG.style.cursor = 'default';
+    lblG.onclick = null;
 
     // Score sub: cumulative same-pair total
     const subEl = document.getElementById('scoreSub');
@@ -1324,8 +1182,8 @@ function render() {
             if (wLbl) {
                 wLbl.textContent = '⏳ ' + bName;
                 wLbl.style.color = bHex2;
-                wLbl.style.cursor = 'pointer';
-                wLbl.onclick = () => openNameEdit('bench');
+                wLbl.style.cursor = 'default';
+                wLbl.onclick = null;
             }
             const swapO = document.getElementById('swapBtnO');
             const swapG = document.getElementById('swapBtnG');
@@ -2426,46 +2284,6 @@ init();
     <div style="display:flex;gap:8px;padding:0 18px 18px;">
       <button onclick="cancelRotConfirm()" style="flex:1;padding:13px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;">✕ Nu acum</button>
       <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#fff;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
-    </div>
-  </div>
-</div>
-<!-- Team Config Edit Modal -->
-<div class="team-edit-overlay" id="teamEditOverlay" onclick="if(event.target===this)closeTeamEdit()">
-  <div class="team-edit-box">
-    <div id="teamEditHd" class="team-edit-hd">
-      <div class="team-edit-title" id="teamEditTitle">Echipa A</div>
-      <button class="rd-close" onclick="closeTeamEdit()">✕</button>
-    </div>
-    <div class="team-edit-body">
-      <div>
-        <div class="team-edit-lbl">Culoare echipă</div>
-        <div class="color-palette" id="teamEditPalette"></div>
-        <div id="colorPreviewBar" style="border-radius:6px;margin-top:6px;padding:6px 0;text-align:center;"></div>
-      </div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <div class="team-edit-lbl" style="margin:0;">Nume echipă</div>
-          <button id="teamEditClearBtn" onclick="_showCustomName=false;renderCustomNameSection();"
-            style="display:none;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;background:#1c1f2b;border:1px solid #2a2d40;color:#666;font-size:.65rem;cursor:pointer;touch-action:manipulation;">
-            ✕ Resetează la culoare
-          </button>
-        </div>
-        <div id="teamEditAutoName"
-          style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#555;padding:8px 0 4px;"></div>
-        <div id="teamEditCustomDiv" style="display:none;margin-top:4px;">
-          <input class="team-edit-input" id="teamEditCustomName" type="text" maxlength="20"
-            placeholder="Nume personalizat..."
-            onkeydown="if(event.key==='Enter')saveTeamEdit()">
-        </div>
-        <button id="teamEditForceBtn" onclick="_showCustomName=true;renderCustomNameSection();"
-          style="display:flex;align-items:center;gap:6px;margin-top:8px;padding:8px 12px;border-radius:8px;background:#1c1f2b;border:1px dashed #3a3d50;color:#666;font-size:.75rem;cursor:pointer;touch-action:manipulation;width:100%;">
-          ✎ Forțează alt nume
-        </button>
-      </div>
-      <div class="team-edit-actions">
-        <button class="team-edit-cancel" onclick="closeTeamEdit()">Anulează</button>
-        <button class="team-edit-save" onclick="saveTeamEdit()">✓ Salvează</button>
-      </div>
     </div>
   </div>
 </div>
