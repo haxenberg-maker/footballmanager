@@ -857,46 +857,51 @@ async function onRoundTimeout() {
     if (!liveState?.three_team_mode) return;
     const bench = players.filter(p => p.status === 'bench');
     if (!bench.length) return;
-
-    const roundGoals = getRoundGoals();
-    const oG = roundGoals.filter(g => g.team === 'orange').length;
-    const gG = roundGoals.filter(g => g.team === 'green').length;
-
     if (navigator.vibrate) navigator.vibrate([300,100,300]);
-
-    if (oG === gG) {
-        // Egal (incl. 0-0) → direct penalty
-        showRotationToast(`⏱️ TIMP! ${oG}-${gG} — PENALTYURI!`);
-        setTimeout(() => openPenaltyModal(), 800);
-    } else {
-        // Scor ≠ egal → ULTIMA FAZĂ
-        const loser  = oG > gG ? 'green' : 'orange';
-        const winner = oG > gG ? 'orange' : 'green';
-        showUltimaFaza(loser, winner, oG, gG);
-    }
+    showUltimaFaza();
 }
 
-function showUltimaFaza(loserColor, winnerColor, oG, gG) {
-    const loseHex  = getTeamHex(loserColor);
-    const winHex   = getTeamHex(winnerColor);
-    const loseName = getTeamName(loserColor);
-    const winName  = getTeamName(winnerColor);
+function showUltimaFaza() {
+    const oHex = getTeamHex('orange'), gHex = getTeamHex('green');
+    const oName = getTeamName('orange'), gName = getTeamName('green');
+    const roundG = getRoundGoals();
+    const oG = roundG.filter(g => g.team === 'orange').length;
+    const gG = roundG.filter(g => g.team === 'green').length;
 
     document.getElementById('ufScore').textContent = `${oG} : ${gG}`;
-    document.getElementById('ufWinner').textContent = winName + ' conduce';
-    document.getElementById('ufWinner').style.color = winHex;
-    document.getElementById('ufLoser').textContent = loseName + ' este în urmă';
-    document.getElementById('ufLoser').style.color = loseHex;
 
-    document.getElementById('ufBtnConfirm').onclick = () => {
-        closeUltimaFaza();
-        doRotation(loserColor, 'time');
-    };
-    document.getElementById('ufBtnPenalty').onclick = () => {
-        closeUltimaFaza();
-        showRotationToast('⚽ Egalare în ultima fază — PENALTYURI!');
-        setTimeout(() => openPenaltyModal(), 600);
-    };
+    const btnO = document.getElementById('ufBtnTeamO');
+    const btnG = document.getElementById('ufBtnTeamG');
+    const btnP = document.getElementById('ufBtnPenalty');
+    const btnConfirm = document.getElementById('ufBtnConfirm');
+
+    btnO.textContent = '⚽ Gol ' + oName;
+    btnO.style.borderColor = oHex;
+    btnO.style.color = oHex;
+    btnO.style.background = oHex + '15';
+    btnO.onclick = () => { closeUltimaFaza(); confirmGoal('', 'orange'); };
+
+    btnG.textContent = '⚽ Gol ' + gName;
+    btnG.style.borderColor = gHex;
+    btnG.style.color = gHex;
+    btnG.style.background = gHex + '15';
+    btnG.onclick = () => { closeUltimaFaza(); confirmGoal('', 'green'); };
+
+    // Determine loser for confirm button
+    const loser = oG > gG ? 'green' : oG < gG ? 'orange' : null;
+    const btnConfirmWrap = document.getElementById('ufBtnConfirmWrap');
+    if (loser && btnConfirmWrap) {
+        const lName = getTeamName(loser);
+        const lHex  = getTeamHex(loser);
+        btnConfirm.textContent = '✕ ' + lName + ' iese';
+        btnConfirm.style.borderColor = lHex;
+        btnConfirmWrap.style.display = 'block';
+        btnConfirm.onclick = () => { closeUltimaFaza(); doRotation(loser, 'time'); };
+    } else if (btnConfirmWrap) {
+        btnConfirmWrap.style.display = 'none';
+    }
+
+    btnP.onclick = () => { closeUltimaFaza(); setTimeout(() => openPenaltyModal(), 300); };
 
     document.getElementById('ufOverlay').classList.add('show');
 }
@@ -1228,7 +1233,7 @@ function render() {
                 + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
-                + '<button class="pr-plus" onclick="this.classList.add(\'busy\');addGoal(\''+p.name+'\',\''+team+'\').finally(()=>setTimeout(()=>this.classList.remove(\'busy\'),100))">+</button>'
+                + `<button class="pr-plus" onclick="confirmGoal('${p.name}','${team}')">+</button>`
                 + '</div>';
         }).join('');
 
@@ -1466,11 +1471,37 @@ function toggleLog() {
 }
 
 // ── Goal actions ──────────────────────────────────────────────────
+// ── Goal confirm popup ────────────────────────────────────────────
+let _pendingGoal = null;
+
+function confirmGoal(name, team) {
+    if (_goalBusy) return;
+    _pendingGoal = { name, team };
+    const hex = getTeamHex(team);
+    const tName = getTeamName(team);
+    document.getElementById('gcName').textContent = name;
+    document.getElementById('gcTeam').textContent = tName;
+    document.getElementById('gcTeam').style.color = hex;
+    document.getElementById('gcDot').style.background = hex;
+    document.getElementById('goalConfirmOverlay').classList.add('show');
+}
+function cancelGoalConfirm() {
+    document.getElementById('goalConfirmOverlay').classList.remove('show');
+    _pendingGoal = null;
+    _goalBusy = false;
+}
+async function doConfirmGoal() {
+    document.getElementById('goalConfirmOverlay').classList.remove('show');
+    if (!_pendingGoal) return;
+    await addGoal(_pendingGoal.name, _pendingGoal.team);
+    _pendingGoal = null;
+}
+
 let _goalBusy = false;
 async function addGoal(name, team) {
     if (_goalBusy) return;
     _goalBusy = true;
-    setTimeout(() => { _goalBusy = false; }, 900); // 900ms debounce
+    setTimeout(() => { _goalBusy = false; }, 900);
 
     if (navigator.vibrate) navigator.vibrate(40);
     const minute = liveState?.timer_status !== 'idle'
@@ -2115,17 +2146,14 @@ function subscribe() {
 // ════════════════════════════════════════════════════════════════
 // PENALTY SHOOTOUT
 // ════════════════════════════════════════════════════════════════
+// ── Penalty – tap simplu ─────────────────────────────────────────
 let penState = null;
 
 function openPenalty() {
-    const oPlayers = players.filter(p => p.status === 'orange');
-    const gPlayers = players.filter(p => p.status === 'green');
-    if (!oPlayers.length || !gPlayers.length) { showToast('⚠️ Ambele echipe trebuie să aibă jucători!'); return; }
-    penState = { phase:'select', kickersO:[], kickersG:[], shots:[], shotIdx:0, shotsPerRound:3, loser:null };
-    renderPenalty();
+    penState = { shots: [] };
     document.getElementById('penaltyOverlay').classList.add('show');
+    renderPenalty();
 }
-// alias for old calls
 function openPenaltyModal() { openPenalty(); }
 
 function closePenalty() {
@@ -2135,203 +2163,79 @@ function closePenalty() {
 
 function renderPenalty() {
     if (!penState) return;
+    const oHex = getTeamHex('orange'), gHex = getTeamHex('green');
+    const oName = getTeamName('orange'), gName = getTeamName('green');
+    const shots = penState.shots;
+    const oGoals = shots.filter(s=>s.team==='orange'&&s.state!=='miss').length;
+    const gGoals = shots.filter(s=>s.team==='green' &&s.state!=='miss').length;
+    const oMiss  = shots.filter(s=>s.team==='orange'&&s.state==='miss').length;
+    const gMiss  = shots.filter(s=>s.team==='green' &&s.state==='miss').length;
+
+    const makeDots = (team) => shots.filter(s=>s.team===team).map(s=>{
+        if (s.state==='miss') return '<span style="font-size:1.4rem;">❌</span>';
+        return '<span style="font-size:1.4rem;">✅</span>';
+    }).join('');
+
     const content = document.getElementById('penaltyContent');
-    const sub = document.getElementById('penSubtitle');
-    if (penState.phase === 'select')    { sub.textContent='Alege câte '+penState.shotsPerRound+' lovitori per echipă'; content.innerHTML=renderPenaltySelect(); }
-    else if (penState.phase==='shooting'){ sub.textContent='Lovituri de departajare'; content.innerHTML=renderPenaltyShooting(); }
-    else                                { sub.textContent='Rezultat final'; content.innerHTML=renderPenaltyDone(); }
-}
-
-function renderPenaltySelect() {
-    const oP=players.filter(p=>p.status==='orange'), gP=players.filter(p=>p.status==='green');
-    const N=penState.shotsPerRound;
-    const chips=(pls,team,sel)=>pls.map(p=>{
-        const i=sel.indexOf(p.name); const s=i>=0;
-        const cls=s?(team==='orange'?'sel-o':'sel-g'):'';
-        return `<span class="pen-player-chip ${cls}" onclick="penToggleKicker('${p.name.replace(/'/g,"\'")}','${team}')">${p.name}${s?' <b>'+(i+1)+'</b>':''}</span>`;
-    }).join('');
-    const ready=penState.kickersO.length===N&&penState.kickersG.length===N;
-    return `<div class="pen-select-area">
-        <div class="pen-select-title" style="color:${getTeamHex('orange')}">${getTeamName('orange')} — selectează ${N} lovitori (în ordine)</div>
-        <div>${chips(oP,'orange',penState.kickersO)}</div>
-        <div class="pen-select-title" style="margin-top:12px;color:${getTeamHex('green')}">${getTeamName('green')} — selectează ${N} lovitori</div>
-        <div>${chips(gP,'green',penState.kickersG)}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-            <span style="font-size:.7rem;color:#555;">Lovituri:</span>
-            <button onclick="penChangeN(-1)" style="background:#1c1f2b;border:1px solid #252836;color:#888;width:26px;height:26px;border-radius:5px;cursor:pointer;">−</button>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--star);min-width:16px;text-align:center;">${N}</span>
-            <button onclick="penChangeN(1)"  style="background:#1c1f2b;border:1px solid #252836;color:#888;width:26px;height:26px;border-radius:5px;cursor:pointer;">+</button>
+    if (!content) return;
+    content.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px;">
+            <button onclick="penTap('orange')" style="padding:22px 10px;border-radius:12px;border:2px solid ${oHex};background:${oHex}15;color:${oHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <span>${oName}</span>
+                <span style="font-size:3rem;line-height:1;">${oGoals}</span>
+                <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('orange')}</div>
+            </button>
+            <button onclick="penTap('green')" style="padding:22px 10px;border-radius:12px;border:2px solid ${gHex};background:${gHex}15;color:${gHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <span>${gName}</span>
+                <span style="font-size:3rem;line-height:1;">${gGoals}</span>
+                <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('green')}</div>
+            </button>
         </div>
-        <button class="pen-start-btn" onclick="${ready?'startPenaltyShooting()':''}" ${ready?'':'disabled style="opacity:.4;cursor:not-allowed;"'}>⚡ Start Penaltyuri</button>
-    </div>`;
-}
-
-function penToggleKicker(name,team) {
-    const a=team==='orange'?penState.kickersO:penState.kickersG;
-    const i=a.indexOf(name);
-    if(i>=0) a.splice(i,1); else if(a.length<penState.shotsPerRound) a.push(name);
-    renderPenalty();
-}
-function penChangeN(d) {
-    penState.shotsPerRound=Math.max(1,Math.min(5,penState.shotsPerRound+d));
-    while(penState.kickersO.length>penState.shotsPerRound) penState.kickersO.pop();
-    while(penState.kickersG.length>penState.shotsPerRound) penState.kickersG.pop();
-    renderPenalty();
-}
-
-function startPenaltyShooting() {
-    const N=penState.shotsPerRound;
-    penState.shots=[];
-    for(let i=0;i<N;i++){
-        penState.shots.push({team:'orange',name:penState.kickersO[i],result:null});
-        penState.shots.push({team:'green', name:penState.kickersG[i],result:null});
-    }
-    penState.shotIdx=0; penState.phase='shooting'; renderPenalty();
-}
-
-function renderPenaltyShooting() {
-    const shots=penState.shots, idx=penState.shotIdx;
-    if(idx>=shots.length){ checkPenaltyRoundEnd(); return renderPenalty()||''; }
-    const cur=shots[idx];
-    const teamColor=cur.team==='orange'?getTeamHex('orange'):getTeamHex('green');
-    const teamLabel=cur.team==='orange'?getTeamName('orange'):getTeamName('green');
-    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
-    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
-    const makeDots=team=>penState[team==='orange'?'kickersO':'kickersG'].map((_,i)=>{
-        const si=team==='orange'?i*2:i*2+1; const s=shots[si];
-        const cls=s?.result==='goal'?'goal':s?.result==='miss'?'miss':'pending';
-        return `<div class="pen-dot ${cls}"></div>`;
-    }).join('');
-
-    // Build tap-based kicker list — all remaining shots shown as tappable
-    const makeKickerTaps = (team, kickers, startShotIdx) => kickers.map((name, i) => {
-        const si = startShotIdx + i * 2;
-        const shot = shots[si];
-        const isDone = shot?.result != null;
-        const isCurrent = si === idx;
-        const isGoal = shot?.result === 'goal';
-        const isMiss = shot?.result === 'miss';
-        let bg = '#0d0f18', border = '#1e2130', textColor = '#666', badge = '○';
-        if (isCurrent)   { bg = teamColor+'22'; border = teamColor; textColor = '#fff'; badge = '◉'; }
-        if (isGoal)      { bg = '#28a74522'; border = '#28a745'; textColor = '#69f0ae'; badge = '✅'; }
-        if (isMiss)      { bg = '#c6282822'; border = '#c62828'; textColor = '#ef9a9a'; badge = '❌'; }
-        const onclick = isCurrent ? `penTapShot()` : isDone ? `penRetapShot(${si})` : '';
-        return `<div onclick="${onclick}" style="display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:8px;border:1px solid ${border};background:${bg};margin-bottom:5px;cursor:${onclick?'pointer':'default'};touch-action:manipulation;-webkit-tap-highlight-color:transparent;">
-            <div style="width:28px;height:28px;border-radius:50%;background:${teamColor}22;border:1px solid ${teamColor}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;color:${teamColor};font-size:.85rem;flex-shrink:0;">${i+1}</div>
-            <div style="flex:1;font-weight:700;font-size:.85rem;color:${textColor};">${name}${isCurrent?'<span style="font-size:.6rem;color:'+teamColor+';margin-left:6px;">← ACUM</span>':''}</div>
-            <div style="font-size:1.1rem;">${badge}</div>
+        <div style="padding:2px 14px 6px;text-align:center;font-size:.62rem;color:#444;">
+            1 tap = ✅ GOL &nbsp;·&nbsp; 2 tap-uri rapide = ❌ RATAT
+        </div>
+        <div style="padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;">
+            <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;">✓ Confirmă rezultat</button>
+            <button onclick="closePenalty()" style="width:100%;padding:10px;border-radius:10px;background:#0d0f18;border:1px solid #1e2130;color:#555;font-size:.8rem;cursor:pointer;">Anulează</button>
         </div>`;
-    }).join('');
-
-    return `<div class="penalty-score-row">
-        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('orange')}">${getTeamName('orange')}</div><div class="pen-score-num" style="color:var(--o);">${oG}</div><div class="pen-dots">${makeDots('orange')}</div></div>
-        <div class="pen-vs">vs</div>
-        <div class="pen-team-score"><div class="pen-team-lbl" style="color:${getTeamHex('green')}">${getTeamName('green')}</div><div class="pen-score-num" style="color:var(--g);">${gG}</div><div class="pen-dots">${makeDots('green')}</div></div>
-    </div>
-    <div class="penalty-current" style="padding:8px 16px;flex:none;">
-        <div class="penalty-kicker-label">Lovitură ${Math.floor(idx/2)+1} — ${teamLabel}</div>
-        <div class="penalty-kicker-name">${cur.name}</div>
-        <div style="font-size:.7rem;color:#555;margin-top:4px;">1 tap = ✅ GOL · 2 tap-uri = ❌ RATAT</div>
-    </div>
-    <div style="overflow-y:auto;padding:0 14px 8px;flex:1;">
-        <div style="font-size:.6rem;color:${getTeamHex('orange')};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">${getTeamName('orange')}</div>
-        ${makeKickerTaps('orange', penState.kickersO, 0)}
-        <div style="font-size:.6rem;color:${getTeamHex('green')};font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:8px 0 5px;">${getTeamName('green')}</div>
-        ${makeKickerTaps('green', penState.kickersG, 1)}
-    </div>`;
 }
 
-// Tap logic: 1st tap on current shot = goal, 2nd tap = miss
-function penTapShot() {
-    if (penState.shotIdx >= penState.shots.length) return;
-    const shot = penState.shots[penState.shotIdx];
-    if (!shot._tapped) {
-        // First tap → gol (pendinte, asteapta confirm sau al 2-lea tap)
-        shot._tapped = true;
-        shot.result = 'goal';
+let _penTapTimer = null;
+function penTap(team) {
+    if (!penState) return;
+    if (_penTapTimer) {
+        clearTimeout(_penTapTimer);
+        _penTapTimer = null;
+        // 2nd tap → ratat
+        penState.shots.push({ team, state: 'miss' });
         renderPenalty();
-        // After 600ms advance automatically unless tapped again
-        shot._autoTimer = setTimeout(() => {
-            penState.shotIdx++;
-            shot._tapped = false;
-            delete shot._autoTimer;
-            checkEarlyPenaltyWin();
-            renderPenalty();
-        }, 700);
-    } else {
-        // Second tap within 700ms → ratat
-        if (shot._autoTimer) { clearTimeout(shot._autoTimer); delete shot._autoTimer; }
-        shot.result = 'miss';
-        shot._tapped = false;
-        penState.shotIdx++;
-        checkEarlyPenaltyWin();
+        return;
+    }
+    // 1st tap — wait 600ms for 2nd tap
+    _penTapTimer = setTimeout(() => {
+        _penTapTimer = null;
+        penState.shots.push({ team, state: 'goal' });
         renderPenalty();
+    }, 600);
+}
+
+async function confirmPenalty() {
+    if (!penState) return;
+    const oG = penState.shots.filter(s=>s.team==='orange'&&s.state==='goal').length;
+    const gG = penState.shots.filter(s=>s.team==='green' &&s.state==='goal').length;
+    if (oG === gG && penState.shots.length === 0) {
+        showToast('⚠️ Introdu cel puțin un rezultat!'); return;
     }
-}
-
-// Re-tap completed shot to toggle goal/miss
-function penRetapShot(si) {
-    const shot = penState.shots[si];
-    if (!shot || shot.result == null) return;
-    shot.result = shot.result === 'goal' ? 'miss' : 'goal';
-    renderPenalty();
-}
-
-function recordPenaltyShot(result) {
-    if(penState.shotIdx>=penState.shots.length) return;
-    penState.shots[penState.shotIdx].result=result;
-    penState.shotIdx++;
-    checkEarlyPenaltyWin(); renderPenalty();
-}
-
-function checkEarlyPenaltyWin() {
-    const shots=penState.shots, N=penState.shotIdx;
-    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
-    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
-    const oR=shots.filter((s,i)=>s.team==='orange'&&i>=N&&s.result===null).length;
-    const gR=shots.filter((s,i)=>s.team==='green' &&i>=N&&s.result===null).length;
-    if(oG>gG+gR){penState.phase='done';penState.loser='green';return;}
-    if(gG>oG+oR){penState.phase='done';penState.loser='orange';return;}
-    if(N>=shots.length) checkPenaltyRoundEnd();
-}
-
-function checkPenaltyRoundEnd() {
-    const shots=penState.shots;
-    const oG=shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
-    const gG=shots.filter(s=>s.team==='green' &&s.result==='goal').length;
-    if(oG===gG){
-        // sudden death — add one more pair, cycle kickers
-        penState.shots.push({team:'orange',name:penState.kickersO[0],result:null});
-        penState.shots.push({team:'green', name:penState.kickersG[0],result:null});
-        penState.shotsPerRound++;
-        penState.kickersO.push(penState.kickersO.shift());
-        penState.kickersG.push(penState.kickersG.shift());
-    } else {
-        penState.loser=oG>gG?'green':'orange'; penState.phase='done';
+    if (oG === gG) {
+        showToast(`⚽ Egal ${oG}-${gG}! Continuați!`); return;
     }
-}
-
-function renderPenaltyDone() {
-    const loser=penState.loser, winner=loser==='orange'?'green':'orange';
-    const winLabel=winner==='orange'?getTeamName('orange'):getTeamName('green');
-    const loseLabel=loser==='orange'?getTeamName('orange'):getTeamName('green');
-    const oG=penState.shots.filter(s=>s.team==='orange'&&s.result==='goal').length;
-    const gG=penState.shots.filter(s=>s.team==='green' &&s.result==='goal').length;
-    const winColor=winner==='orange'?'var(--o)':'var(--g)';
-    return `<div class="pen-result-banner" style="color:${winColor};">🏆 ${winLabel} câștigă!<br><span style="font-size:1rem;color:#fff;">${oG} - ${gG} (pen.)</span></div>
-    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:8px;">
-        <button onclick="applyPenaltyResult('${loser}')" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;">
-            🔄 Aplică — ${loseLabel} iese
-        </button>
-        <button onclick="closePenalty()" style="width:100%;padding:12px;border-radius:10px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.88rem;">✕ Anulează</button>
-    </div>`;
-}
-
-async function applyPenaltyResult(loser) {
+    const loser = oG > gG ? 'green' : 'orange';
+    const winner = loser === 'orange' ? 'green' : 'orange';
+    showToast(`🏆 ${getTeamName(winner)} câștigă penalty ${oG}-${gG}!`);
     closePenalty();
-    cancelRoundTimeout();
     await doRotation(loser, 'penalty');
 }
+
 
 // ── Rotation Confirmation Popup (instead of auto-swap) ────────────
 let pendingRotation = null; // {loserColor, reason}
@@ -2626,14 +2530,29 @@ init();
       <div class="uf-sub">Timpul s-a scurs — ce s-a întâmplat?</div>
     </div>
     <div class="uf-score" id="ufScore">0 : 0</div>
-    <div class="uf-teams">
-      <div class="uf-team"><div class="uf-team-lbl" id="ufWinner">—</div></div>
-      <div class="uf-team"><div class="uf-team-lbl" id="ufLoser">—</div></div>
-    </div>
-    <div class="uf-question">A dat gol echipa înfrântă în ultima secundă?</div>
     <div class="uf-actions">
-      <button class="uf-btn-penalty" id="ufBtnPenalty">⚽ DA — Egalare → Penaltyuri</button>
-      <button class="uf-btn-confirm" id="ufBtnConfirm">↩ NU — Echipa înfrântă iese</button>
+      <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #555;background:#0d0f18;color:#888;">⚽ Gol Echipa 1</button>
+      <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #555;background:#0d0f18;color:#888;">⚽ Gol Echipa 2</button>
+      <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #ffd54f33;color:#ffd54f;background:#1a1500;">🥅 Merg la Penaltyuri</button>
+      <div id="ufBtnConfirmWrap">
+        <button class="uf-btn-confirm" id="ufBtnConfirm">✕ Echipa înfrântă iese</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Goal Confirm Modal -->
+<div class="dialog-overlay" id="goalConfirmOverlay" onclick="if(event.target===this)cancelGoalConfirm()">
+  <div class="dialog-box" style="max-width:320px;text-align:center;">
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+      <div id="gcDot" style="width:12px;height:12px;border-radius:50%;flex-shrink:0;"></div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;">GOL!</div>
+    </div>
+    <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:3px;" id="gcName">—</div>
+    <div style="font-size:.75rem;margin-bottom:16px;" id="gcTeam">—</div>
+    <div class="dialog-actions">
+      <button class="dia-cancel" onclick="cancelGoalConfirm()">✕ Anulează</button>
+      <button class="dia-confirm" onclick="doConfirmGoal()">✅ Confirmă Golul</button>
     </div>
   </div>
 </div>
