@@ -354,9 +354,15 @@ main, body{padding-bottom:80px;}
 
 <div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
 
-<!-- Settings + Transfer: shown in 3-team mode, below teams -->
+<!-- Transfer button — vizibil mereu pentru admin, indiferent de mod (2 sau 3 echipe) -->
+<div id="transferBtnWrap" style="display:none;padding:8px 12px 4px;">
+  <button onclick="openTransfer()" style="width:100%;padding:12px;border-radius:9px;background:#0d0f18;border:1px dashed #2a2d40;color:#888;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;">
+    ⇄ Transfer jucător între echipe
+  </button>
+</div>
+
+<!-- Settings: doar în 3-team mode, sub butonul de transfer -->
 <div id="belowTeamsBar" style="display:none;border-top:1px solid var(--b);">
-  <!-- Threshold/Time settings -->
   <div style="display:flex;align-items:center;gap:0;background:#0a0c10;">
     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-right:1px solid var(--b);">
       <span style="font-size:.6rem;color:#555;white-space:nowrap;">🎯 Schimb</span>
@@ -370,12 +376,6 @@ main, body{padding-bottom:80px;}
       <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#82b1ff;min-width:26px;text-align:center;">10</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
     </div>
-  </div>
-  <!-- Transfer button -->
-  <div id="transferBtnWrap" style="display:none;padding:5px 12px 6px;background:#0a0c10;border-top:1px solid var(--b);">
-    <button onclick="openTransfer()" style="width:100%;padding:10px;border-radius:9px;background:#0d0f18;border:1px dashed #2a2d40;color:#666;font-size:.78rem;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;">
-      ⇄ Transfer jucător între echipe
-    </button>
   </div>
 </div>
 
