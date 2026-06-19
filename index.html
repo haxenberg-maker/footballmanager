@@ -3508,8 +3508,8 @@ function exportTeamsTable() {
                    <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgG.toFixed(2)}</div>
                </div></td>`,
            `<td style="width:33%;vertical-align:top;padding:6px;">
-               <div style="${colStyle(teamColors.bench||'#7c4dff')}">
-                   <div style="${hdStyle(teamColors.bench||'#7c4dff')}">${teamNames.bench||'Echipa 3'} (${bench3.length})</div>
+               <div style="${colStyle(teamColors.bench||'#111111')}">
+                   <div style="${hdStyle(teamColors.bench||'#111111')}">${teamNames.bench||'Echipa 3'} (${bench3.length})</div>
                    <table style="width:100%;border-collapse:collapse;">${bench3.map(fmtPlayer).join('')}</table>
                    <div style="padding:4px 8px 6px;font-size:.62rem;color:#666;text-align:right;">Avg ★${avgB.toFixed(2)}</div>
                </div></td>`].join('')
@@ -5916,7 +5916,7 @@ function moveTeamsToBench() {
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
 let threeTeamMode = localStorage.getItem('idx_3team')==='1';
-let teamNames = { orange: 'PORTOCALIU', green: 'VERDE', bench: 'NEGRU' };
+let teamNames = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru' };
 // Curăță orice resturi vechi din localStorage care ar putea cauza inconsecvențe de culoare
 ['team_name_orange','team_name_green','team_name_bench','team_color_orange','team_color_green','team_color_bench'].forEach(k => localStorage.removeItem(k));
 let teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#111111' };
@@ -5990,7 +5990,7 @@ function applyTeamColors() {
 async function loadTeamConfigs() {
     // Numele/culorile sunt FIXE — PORTOCALIU/VERDE/NEGRU. Nu se mai citesc din DB.
     teamColors = { orange: '#ff8c00', green: '#28a745', bench: '#111111' };
-    teamNames  = { orange: 'PORTOCALIU', green: 'VERDE', bench: 'NEGRU' };
+    teamNames  = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru' };
     applyTeamColors();
     renderTeamTitles();
 }
@@ -6335,7 +6335,7 @@ function buildBalanceReport(oArr, gArr, mode, bArr) {
     let html = `<div style="color:#555;margin-bottom:5px;">Mod: <b style="color:#aaa;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#69f0ae':diff<0.7?'#ffd54f':'#ef9a9a'};">${diff.toFixed(2)}★</b></div>`;
     html += fmtTeam(oArr, teamNames.orange, teamColors.orange);
     html += fmtTeam(gArr, teamNames.green,  teamColors.green);
-    if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Bancă', teamColors.bench||'#7c4dff');
+    if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Negru', teamColors.bench||'#111111');
 
     if (_antiSynergyPairs.length) {
         html += `<div style="color:#555;font-size:.6rem;margin-top:3px;">🔴 Anti-sinergie globală: ${_antiSynergyPairs.map(p=>`${p.a}+${p.b} (${(p.wr*100).toFixed(0)}%WR)`).join(', ')}</div>`;
@@ -6409,8 +6409,8 @@ function applyThreeTeamUI(){
     // Apply bench column header color in 3-team mode
     const benchHd = document.querySelector('#col-bench .col-header');
     if(benchHd && threeTeamMode){
-        benchHd.style.background = teamColors.bench || '#7c4dff';
-        benchHd.style.color = getContrastColorIdx(teamColors.bench || '#7c4dff');
+        benchHd.style.background = teamColors.bench || '#111111';
+        benchHd.style.color = getContrastColorIdx(teamColors.bench || '#111111');
     }
 }
 
@@ -6441,7 +6441,7 @@ function openStartMatch(){
         + (warnings.length ? `<div style="background:rgba(198,40,40,.1);border:1px solid #c6282855;border-radius:8px;padding:8px 12px;margin-bottom:12px;">${warnings.map(w=>`<div style="font-size:.75rem;color:#ef9a9a;">${w}</div>`).join('')}</div>` : '')
         + teamBlock(teamNames.orange, teamColors.orange, oP)
         + teamBlock(teamNames.green,  teamColors.green,  gP)
-        + (has3 ? teamBlock(teamNames.bench||'Echipa 3', teamColors.bench||'#7c4dff', bP) : '');
+        + (has3 ? teamBlock(teamNames.bench||'Echipa 3', teamColors.bench||'#111111', bP) : '');
 
     const canStart = oP.length > 0 && gP.length > 0;
     document.getElementById('startMatchActions').innerHTML =
@@ -6471,37 +6471,9 @@ async function launchLive(){
             timer_started_at: null,
             round_start_sec: 0,
             three_team_mode: has3,
-            team_registry: {},
-            color_map: {},
+            color_map: has3 ? { orange:'teamA', green:'teamB', bench:'teamC' } : {},
             match_started_at: null,
         };
-
-        if(has3){
-            // 3-team mode: assign permanent IDs, preserve team configs
-            patch.team_registry = {
-                _configs: {
-                    orange: { name: teamNames.orange, hex: teamColors.orange },
-                    green:  { name: teamNames.green,  hex: teamColors.green  },
-                    bench:  { name: teamNames.bench,   hex: teamColors.bench  },
-                    teamA:  { name: teamNames.orange, hex: teamColors.orange },
-                    teamB:  { name: teamNames.green,  hex: teamColors.green  },
-                    teamC:  { name: teamNames.bench,   hex: teamColors.bench  },
-                },
-                teamA: { players: oP.map(p=>p.name), color:'orange', name: teamNames.orange },
-                teamB: { players: gP.map(p=>p.name), color:'green',  name: teamNames.green  },
-                teamC: { players: bP.map(p=>p.name), color:'bench',  name: teamNames.bench  },
-            };
-            patch.color_map = { orange:'teamA', green:'teamB', bench:'teamC' };
-        } else {
-            // 2-team: still preserve _configs so live.html knows names/colors
-            patch.team_registry = {
-                _configs: {
-                    orange: { name: teamNames.orange, hex: teamColors.orange },
-                    green:  { name: teamNames.green,  hex: teamColors.green  },
-                    bench:  { name: teamNames.bench,   hex: teamColors.bench  },
-                },
-            };
-        }
 
         // Reset live goals and rounds for fresh start
         await Promise.all([
@@ -6529,7 +6501,7 @@ function quickSwap(team){
     const bench = db.players.filter(p=>p.status==='bench');
     const teamPlayers = db.players.filter(p=>p.status===team);
     if(!bench.length){ showToast('⚠️ Niciun jucător pe bancă!'); return; }
-    const lbl = team==='orange'?'🟠 Portocaliu':'🟢 Verde';
+    const lbl = team==='orange' ? ('🟠 '+teamNames.orange) : ('🟢 '+teamNames.green);
     showConfirm('🔄','Schimbă Echipa?',
         `${lbl} (${teamPlayers.length} jucători) iese pe Bancă.
 ${bench.length} jucători de pe Bancă intră.`,

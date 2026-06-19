@@ -527,67 +527,38 @@ function getThreeTeamMode() { return liveState?.three_team_mode || false; }
 function getGoalThreshold() { return liveState?.goal_threshold || 2; }
 function getTimeLimitMin()  { return liveState?.time_limit_min || 10; }
 function getColorMap()      { return liveState?.color_map || {}; }
-function getTeamRegistry()  { return liveState?.team_registry || {}; }
-function getTeamIdByColor(color) { return (liveState?.color_map || {})[color] || null; }
 
-// ── Team name helpers ─────────────────────────────────────────────
-// ── Team config helpers (name + color per teamId, permanent) ──────
-const TEAM_COLORS = ['#ff8c00', '#e53935', '#111111'];
-const COLOR_NAMES = {
-    '#ff8c00': 'PORTOCALIU',
-    '#e53935': 'ROȘU',
-    '#111111': 'NEGRU',
-};
-const DEFAULT_HEX = {
-    teamA: '#ff8c00', teamB: '#e53935', teamC: '#111111',
-    orange: '#ff8c00', green: '#e53935', bench: '#111111'
-};
-
-// Toate cele 3 culori standard sunt suficient de întunecate — text alb mereu, niciodată negru
-function getContrastColor(hex) { return '#ffffff'; }
-function colorToName(hex) {
-    if (!hex) return 'ECHIPA';
-    const direct = COLOR_NAMES[hex.toLowerCase()];
-    if (direct) return direct;
-    // Closest by distance
-    let best = null, bestD = Infinity;
-    Object.entries(COLOR_NAMES).forEach(([h, n]) => {
-        const dr=parseInt(h.slice(1,3),16)-parseInt(hex.slice(1,3),16);
-        const dg=parseInt(h.slice(3,5),16)-parseInt(hex.slice(3,5),16);
-        const db=parseInt(h.slice(5,7),16)-parseInt(hex.slice(5,7),16);
-        const d=dr*dr+dg*dg+db*db;
-        if(d<bestD){bestD=d;best=n;}
-    });
-    return best || 'ECHIPA';
-}
-
-// ── IDENTITATE FIXĂ — 3 culori standard, NEEDITABILE ────────────
-// orange = PORTOCALIU, green = VERDE, bench = NEGRU. Mereu. Fără excepții.
+// ── IDENTITATE FIXĂ — 3 echipe standard, NEEDITABILE, pentru totdeauna ──
+// teamA = PORTOCALIU, teamB = VERDE, teamC = NEGRU. Indiferent unde rotează.
 const FIXED_TEAMS = {
-    orange: { hex: '#ff8c00', name: 'PORTOCALIU' },
-    green:  { hex: '#28a745', name: 'VERDE' },
-    bench:  { hex: '#111111', name: 'NEGRU' },
+    teamA: { hex: '#ff8c00', name: 'Portocaliu' },
+    teamB: { hex: '#28a745', name: 'Verde' },
+    teamC: { hex: '#111111', name: 'Negru' },
 };
+const TEAM_COLORS = ['#ff8c00', '#28a745', '#111111'];
 
-function getTeamConfig(teamId) {
-    // teamId poate fi 'orange'/'green'/'bench' direct, sau 'teamA'/'teamB'/'teamC'
-    if (FIXED_TEAMS[teamId]) return FIXED_TEAMS[teamId];
-    // Pentru teamA/B/C: găsește slotul curent ocupat via color_map
-    const cm = getColorMap();
-    for (const slot of ['orange','green','bench']) {
-        if (cm[slot] === teamId) return FIXED_TEAMS[slot];
-    }
-    return FIXED_TEAMS.orange; // fallback sigur
-}
-function getTeamConfigForColor(slot) { return FIXED_TEAMS[slot] || FIXED_TEAMS.orange; }
-function getTeamName(slot) { return getTeamConfigForColor(slot).name; }
-function getTeamHex(slot)  { return getTeamConfigForColor(slot).hex; }
+// Toate cele 3 culori standard sunt suficient de întunecate — text alb mereu
+function getContrastColor(hex) { return '#ffffff'; }
+
+// teamId (teamA/B/C) → identitate FIXĂ, indiferent de slot/rotație
+function getTeamConfig(teamId) { return FIXED_TEAMS[teamId] || FIXED_TEAMS.teamA; }
 function getTeamNameById(teamId) { return getTeamConfig(teamId).name; }
 function getTeamHexById(teamId)  { return getTeamConfig(teamId).hex; }
 
+// slot ('orange'/'green'/'bench') → găsește CARE identitate e acolo ACUM via color_map
+function getTeamIdForSlot(slot) {
+    const cm = getColorMap();
+    if (cm[slot]) return cm[slot];
+    // Fallback (mod 2 echipe, fără color_map populat încă): mapping implicit
+    return slot === 'orange' ? 'teamA' : slot === 'green' ? 'teamB' : 'teamC';
+}
+function getTeamName(slot) { return getTeamNameById(getTeamIdForSlot(slot)); }
+function getTeamHex(slot)  { return getTeamHexById(getTeamIdForSlot(slot)); }
+function getTeamIdByColor(slot) { return getTeamIdForSlot(slot); }
+
 function applyTeamColors() {
-    document.documentElement.style.setProperty('--o', FIXED_TEAMS.orange.hex);
-    document.documentElement.style.setProperty('--g', FIXED_TEAMS.green.hex);
+    document.documentElement.style.setProperty('--o', getTeamHex('orange'));
+    document.documentElement.style.setProperty('--g', getTeamHex('green'));
 }
 
 async function patchState(patch) {
@@ -844,15 +815,9 @@ async function toggleThreeTeam() {
         if (!orange.length && !green.length) {
             showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
         }
-        const teamRegistry = {
-            teamA: { players: orange.map(p => p.name), color: 'orange', name: 'PORTOCALIU' },
-            teamB: { players: green.map(p => p.name),  color: 'green',  name: 'VERDE' },
-            teamC: { players: bench.map(p => p.name),  color: 'bench',  name: 'NEGRU' },
-        };
         const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
         await patchState({
             three_team_mode: true,
-            team_registry: teamRegistry,
             color_map: colorMap,
             round_start_sec: calcElapsedSec(liveState),
         });
@@ -861,7 +826,6 @@ async function toggleThreeTeam() {
     } else {
         await patchState({
             three_team_mode: false,
-            team_registry: {},
             color_map: {},
             round_start_sec: 0,
         });
@@ -983,24 +947,24 @@ async function doRotation(loserColor, reason) {
             sb.from('players').update({ status }).eq('id', id)
         ));
 
-        // 4. Update colorMap + team_registry + round_start_sec in live_state
+        // 4. Update colorMap + round_start_sec — identitatea (PORTOCALIU/VERDE/NEGRU) urmează jucătorii
         const oldColorMap  = { ...getColorMap() };
-        const loserTeamId  = oldColorMap[loserColor];
-        const benchTeamId  = oldColorMap['bench'];
+        const loserTeamId  = oldColorMap[loserColor] || (loserColor === 'orange' ? 'teamA' : 'teamB');
+        const benchTeamId  = oldColorMap['bench'] || 'teamC';
+
+        // Capturează numele ÎNAINTE de swap, pentru mesajul corect din toast
+        const exitingName  = getTeamNameById(loserTeamId);
+        const enteringName = getTeamNameById(benchTeamId);
+
         const newColorMap  = { ...oldColorMap, [loserColor]: benchTeamId, bench: loserTeamId };
-
-        const oldRegistry = { ...getTeamRegistry() };
-        if (loserTeamId && oldRegistry[loserTeamId]) oldRegistry[loserTeamId] = { ...oldRegistry[loserTeamId], color: 'bench' };
-        if (benchTeamId && oldRegistry[benchTeamId]) oldRegistry[benchTeamId] = { ...oldRegistry[benchTeamId], color: loserColor };
-
         const newRoundStartSec = calcElapsedSec(liveState);
-        await patchState({ color_map: newColorMap, team_registry: oldRegistry, round_start_sec: newRoundStartSec });
+        await patchState({ color_map: newColorMap, round_start_sec: newRoundStartSec });
 
         // *** render() DUPĂ patchState — acum liveState.color_map e actualizat ***
         // Echipa care intră apare cu numele și culoarea ei corectă
         render();
 
-        showRotationToast(`${getTeamName(loserColor)} IESE · ${getTeamName('bench')} INTRĂ`);
+        showRotationToast(`${exitingName} IESE · ${enteringName} INTRĂ`);
         scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
 
     } catch(e) {
@@ -1713,7 +1677,7 @@ async function finalizeMatch3Team(pairs) {
         }
         await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
         await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
-        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null});
+        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null});
         rounds=[]; goals=[]; editPairs=[]; editRounds=[];
         render(); applyTimerUI(liveState);
         showToast(`✅ ${savedCount} meciuri salvate (${savedCount} perechi)!`);
@@ -1963,7 +1927,7 @@ async function doReset() {
         await Promise.all([
             sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
             sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,team_registry:{},color_map:{},round_start_sec:0,match_started_at:null}),
+            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null}),
         ]);
         rounds=[]; goals=[];
         render(); applyTimerUI(liveState);
@@ -2229,8 +2193,12 @@ async function init() {
     tryAutoAuth();
     await loadAll();
 
-    // If live_state has a team_registry (set from index Start Meci), apply 3-team UI
-    if (liveState?.three_team_mode && liveState?.team_registry && Object.keys(liveState.team_registry).length > 0) {
+    // If live_state has three_team_mode active (set from index Start Meci), apply 3-team UI
+    if (liveState?.three_team_mode) {
+        // Asigură color_map populat dacă lipsește (siguranță, evită identitate ambiguă)
+        if (!liveState.color_map || Object.keys(liveState.color_map).length === 0) {
+            await patchState({ color_map: { orange: 'teamA', green: 'teamB', bench: 'teamC' } });
+        }
         const btn = document.getElementById('threeBtn');
         if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
     }
