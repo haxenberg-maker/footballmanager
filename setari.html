@@ -566,7 +566,21 @@ const PRESETS={
 
 // ── Utilities ─────────────────────────────────────────────────────
 
-const ROLES={atacant:{label:'Atacant',emoji:'⚽',color:'#ff8c00'},mijlocas:{label:'Mijlocaș',emoji:'🎯',color:'#82b1ff'},fundas:{label:'Fundaș',emoji:'🛡️',color:'#69f0ae'},portar:{label:'Portar',emoji:'🧤',color:'#ce93d8'}};
+const POSITIONS = {
+    GK:  { label: 'Portar',           group: 'GK',  emoji: '🧤', color: '#ce93d8' },
+    CB:  { label: 'Fundaș Central',   group: 'DEF', emoji: '🛡️', color: '#69f0ae' },
+    LB:  { label: 'Fundaș Stânga',    group: 'DEF', emoji: '🛡️', color: '#69f0ae' },
+    RB:  { label: 'Fundaș Dreapta',   group: 'DEF', emoji: '🛡️', color: '#69f0ae' },
+    CDM: { label: 'Mijlocaș Defensiv',group: 'MID', emoji: '🎯', color: '#82b1ff' },
+    CM:  { label: 'Mijlocaș Central', group: 'MID', emoji: '🎯', color: '#82b1ff' },
+    CAM: { label: 'Mijlocaș Ofensiv', group: 'MID', emoji: '🎯', color: '#82b1ff' },
+    LM:  { label: 'Mijlocaș Stânga',  group: 'MID', emoji: '🎯', color: '#82b1ff' },
+    RM:  { label: 'Mijlocaș Dreapta', group: 'MID', emoji: '🎯', color: '#82b1ff' },
+    LW:  { label: 'Extremă Stânga',   group: 'FWD', emoji: '⚽', color: '#ff8c00' },
+    RW:  { label: 'Extremă Dreapta',  group: 'FWD', emoji: '⚽', color: '#ff8c00' },
+    ST:  { label: 'Vârf',             group: 'FWD', emoji: '⚽', color: '#ff8c00' },
+    FW:  { label: 'Atacant',          group: 'FWD', emoji: '⚽', color: '#ff8c00' },
+};
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showConfirm(icon,title,msg,yesLabel,yesBg,cb){if(confirm(icon+' '+title+'\n'+msg))cb();}
@@ -616,6 +630,7 @@ async function loadAll(){
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
+        positionPrimary:p.position_primary||null, positionSecondary:p.position_secondary||null,
         id:p.id,name:p.name,status:p.status||'bench',
         wins:p.wins||0,games:p.games||0,
         matchHistory:p.match_history||[],
@@ -645,12 +660,19 @@ function buildPlayerEditList(){
             <span class="p-stats">★${getSmartRating(p).toFixed(1)} · ${wr}</span>
             <button class="btn-sm btn-save" onclick="savePlayerName(${p.id})">✓</button>
             <button class="btn-sm btn-del" onclick="deletePlayer(${p.id})">🗑️</button>
-            <div style="width:100%;padding-left:32px;margin-top:3px;">
+            <div style="width:100%;padding-left:32px;margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;">
     <div class="ar-wrap" style="margin-right:4px;">
-                    <span class="ar-lbl">🎮 Rol</span>
-                    <select class="ar-input" id="role-${p.id}" style="width:90px;color:${p.role&&ROLES[p.role]?ROLES[p.role].color:'#888'};" onchange="savePlayerRole(${p.id})">
+                    <span class="ar-lbl">⚡ Poz. Primary</span>
+                    <select class="ar-input" id="posP-${p.id}" style="width:130px;color:${p.positionPrimary&&POSITIONS[p.positionPrimary]?POSITIONS[p.positionPrimary].color:'#7d6849'};" onchange="savePlayerPosition(${p.id},'primary')">
                         <option value="">—</option>
-                        ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${p.role===k?'selected':''}>${v.emoji} ${v.label}</option>`).join('')}
+                        ${Object.entries(POSITIONS).map(([k,v])=>`<option value="${k}" ${p.positionPrimary===k?'selected':''}>${v.emoji} ${k} · ${v.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="ar-wrap" style="margin-right:4px;">
+                    <span class="ar-lbl">🔄 Poz. Secondary</span>
+                    <select class="ar-input" id="posS-${p.id}" style="width:130px;color:${p.positionSecondary&&POSITIONS[p.positionSecondary]?POSITIONS[p.positionSecondary].color:'#7d6849'};" onchange="savePlayerPosition(${p.id},'secondary')">
+                        <option value="">—</option>
+                        ${Object.entries(POSITIONS).map(([k,v])=>`<option value="${k}" ${p.positionSecondary===k?'selected':''}>${v.emoji} ${k} · ${v.label}</option>`).join('')}
                     </select>
                 </div>
                 <div class="ar-wrap${forced?' forced':''}">
@@ -687,14 +709,21 @@ async function deletePlayer(id){
 }
 
 
-async function savePlayerRole(id){
+async function savePlayerPosition(id, slot){
     const p=db.players.find(x=>x.id==id);if(!p)return;
-    const val=document.getElementById('role-'+id)?.value||null;
-    p.role=val||null;
-    const sel=document.getElementById('role-'+id);
-    if(sel) sel.style.color=val&&ROLES[val]?ROLES[val].color:'#888';
-    try{await sb.from('players').update({role:p.role}).eq('id',id);showToast('✅ Rol salvat: '+(p.role?ROLES[p.role]?.label||p.role:'—'));}
-    catch(e){showToast('⚠️ '+e.message);}
+    const elId = slot==='primary' ? 'posP-'+id : 'posS-'+id;
+    const val=document.getElementById(elId)?.value||null;
+    const dbCol = slot==='primary' ? 'position_primary' : 'position_secondary';
+    if (slot==='primary') p.positionPrimary = val||null;
+    else p.positionSecondary = val||null;
+    const sel=document.getElementById(elId);
+    if(sel) sel.style.color = val&&POSITIONS[val] ? POSITIONS[val].color : '#7d6849';
+    try{
+        await sb.from('players').update({[dbCol]: val||null}).eq('id',id);
+        showToast('✅ Poziție salvată: '+(val?POSITIONS[val]?.label||val:'—'));
+    } catch(e){
+        showToast('⚠️ Coloana '+dbCol+' poate nu există încă în DB · '+e.message);
+    }
 }
 async function saveAdminRating(id){
     const p=db.players.find(x=>x.id==id);if(!p)return;
