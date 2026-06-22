@@ -11,32 +11,32 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html{overflow-x:clip;max-width:100vw;}
-html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior-y:contain;}
-:root{--o:#ff8c00;--g:#28a745;--b:#1e2130;--accent:#3d5afe;}
+html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior-y:contain;}
+:root{--o:#ff8c00;--g:#28a745;--b:#e3d3ac;--accent:#3d5afe;}
 
-.hd{background:#080a12;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
+.hd{background:#f3e6cf;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
 .hd-logo{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:3px;}
 .hd-right{display:flex;align-items:center;gap:8px;}
 .live-pill{display:flex;align-items:center;gap:4px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);padding:2px 7px;border-radius:12px;}
 .live-dot{width:6px;height:6px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
-.live-lbl{font-size:.58rem;font-weight:700;color:#69f0ae;text-transform:uppercase;letter-spacing:1px;}
-.icon-btn{background:none;border:1px solid var(--b);color:#444;padding:7px 11px;border-radius:7px;font-size:.75rem;cursor:pointer;white-space:nowrap;min-height:36px;touch-action:manipulation;}
-.icon-btn:hover{border-color:#555;color:#aaa;}
-.icon-btn.danger{border-color:#c6282833;color:#ef9a9a44;}
-.icon-btn.danger:hover{border-color:#c62828;color:#ef9a9a;}
+.live-lbl{font-size:.58rem;font-weight:700;color:#1b7a43;text-transform:uppercase;letter-spacing:1px;}
+.icon-btn{background:none;border:1px solid var(--b);color:#6b5840;padding:7px 11px;border-radius:7px;font-size:.75rem;cursor:pointer;white-space:nowrap;min-height:36px;touch-action:manipulation;}
+.icon-btn:hover{border-color:#7d6849;color:#5c4a32;}
+.icon-btn.danger{border-color:#c6282833;color:#b71c1c44;}
+.icon-btn.danger:hover{border-color:#c62828;color:#b71c1c;}
 
-.timer-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:10px;}
+.timer-bar{background:#fffaf0;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:10px;}
 .timer-btn{padding:10px 20px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .12s;flex-shrink:0;touch-action:manipulation;min-height:44px;}
-.timer-btn.start{background:rgba(40,167,69,.1);border-color:var(--g);color:#69f0ae;}
-.timer-btn.pause{background:rgba(255,204,0,.1);border-color:#ffcc00;color:#ffcc00;}
-.timer-btn.resume{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
-.timer-display{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff;letter-spacing:3px;min-width:60px;}
-.timer-display.running{color:#69f0ae;}
-.timer-display.paused{color:#ffcc00;}
-.half-badge{font-size:.62rem;color:#555;flex:1;}
+.timer-btn.start{background:rgba(40,167,69,.1);border-color:var(--g);color:#1b7a43;}
+.timer-btn.pause{background:rgba(255,204,0,.1);border-color:#8a6800;color:#8a6800;}
+.timer-btn.resume{background:rgba(61,90,254,.1);border-color:var(--accent);color:#1554b3;}
+.timer-display{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#3a2f1f;letter-spacing:3px;min-width:60px;}
+.timer-display.running{color:#1b7a43;}
+.timer-display.paused{color:#8a6800;}
+.half-badge{font-size:.62rem;color:#7d6849;flex:1;}
 
-.score-wrap{background:#080a12;border-bottom:2px solid var(--b);padding:10px 12px 4px;}
+.score-wrap{background:#f3e6cf;border-bottom:2px solid var(--b);padding:10px 12px 4px;}
 .score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px;}
 .sc-side{display:flex;flex-direction:column;}
 .sc-side.right{align-items:flex-end;}
@@ -45,55 +45,55 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .sc-lbl-edit{font-size:.55rem;opacity:.4;}
 .team-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:600;display:none;align-items:center;justify-content:center;padding:16px;}
 .team-edit-overlay.show{display:flex;}
-.team-edit-box{background:#141720;width:100%;max-width:360px;border-radius:16px;border:1px solid #2a2d40;overflow:hidden;}
+.team-edit-box{background:#fff8ed;width:100%;max-width:360px;border-radius:16px;border:1px solid #d3bd8c;overflow:hidden;}
 .team-edit-hd{padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;}
-.team-edit-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;}
-.team-edit-close{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.team-edit-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;}
+.team-edit-close{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
 .team-edit-body{padding:14px 18px 18px;display:flex;flex-direction:column;gap:12px;}
-.team-edit-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;}
-.team-edit-input{width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;}
-.team-edit-input:focus{border-color:#82b1ff;box-shadow:0 0 0 2px rgba(61,90,254,.2);}
+.team-edit-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#6b5840;margin-bottom:5px;}
+.team-edit-input{width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1rem;font-family:'Rajdhani',sans-serif;font-weight:600;outline:none;}
+.team-edit-input:focus{border-color:#1554b3;box-shadow:0 0 0 2px rgba(61,90,254,.2);}
 .color-palette{display:flex;flex-wrap:wrap;gap:8px;}
 .color-swatch{width:34px;height:34px;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:transform .1s,border-color .1s;touch-action:manipulation;}
 .color-swatch:active{transform:scale(.88);}
-.color-swatch.sel{border-color:#fff !important;transform:scale(1.1);box-shadow:0 0 0 2px rgba(255,255,255,.3);}
+.color-swatch.sel{border-color:#3a2f1f !important;transform:scale(1.1);box-shadow:0 0 0 2px rgba(255,255,255,.3);}
 .color-preview-bar{height:4px;border-radius:2px;margin-top:4px;transition:background .2s;}
 .team-edit-actions{display:flex;gap:8px;margin-top:4px;}
-.team-edit-cancel{flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
-.team-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;touch-action:manipulation;}
+.team-edit-cancel{flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
+.team-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#3a2f1f;touch-action:manipulation;}
 /* All teams manager */
-.all-teams-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#888;touch-action:manipulation;}
+.all-teams-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#7d6849;touch-action:manipulation;}
 .sc-lbl.o{color:var(--o);}
 .sc-lbl.g{color:var(--g);}
 .sc-n{font-family:'Bebas Neue',sans-serif;font-size:5rem;line-height:.9;transition:transform .15s,text-shadow .15s;}
 .sc-n.o{color:var(--o);}
 .sc-n.g{color:var(--g);}
 .sc-n.bump{transform:scale(1.25);text-shadow:0 0 30px currentColor;}
-.sc-sep{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#1e2130;padding:0 4px;}
-.score-sub{text-align:center;font-size:.62rem;color:#555;padding:3px 0 7px;min-height:18px;}
-.score-sub b{color:#888;}
+.sc-sep{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#e3d3ac;padding:0 4px;}
+.score-sub{text-align:center;font-size:.62rem;color:#7d6849;padding:3px 0 7px;min-height:18px;}
+.score-sub b{color:#7d6849;}
 
-.undo-bar{background:#0d0f18;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:8px;min-height:42px;}
-.undo-lbl{flex:1;font-size:.75rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.undo-lbl span{color:#fff;}
-.undo-btn{background:rgba(61,90,254,.1);border:1px solid #2a2d40;color:#82b1ff;padding:8px 14px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;flex-shrink:0;touch-action:manipulation;}
+.undo-bar{background:#fffaf0;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:8px;min-height:42px;}
+.undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.undo-lbl span{color:#3a2f1f;}
+.undo-btn{background:rgba(61,90,254,.1);border:1px solid #d3bd8c;color:#1554b3;padding:8px 14px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;flex-shrink:0;touch-action:manipulation;}
 .undo-btn.show{display:block;}
 
 .teams-wrap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
 .team-col{padding:4px 3px 6px;}
 .team-col.o-col{border-right:1px solid var(--b);}
-.team-hd{display:flex;align-items:baseline;justify-content:space-between;padding:3px 3px 5px;border-bottom:1px solid #0f1118;margin-bottom:3px;}
+.team-hd{display:flex;align-items:baseline;justify-content:space-between;padding:3px 3px 5px;border-bottom:1px solid #f1e4c8;margin-bottom:3px;}
 .team-hd-lbl{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1.5px;}
 .team-hd-lbl.o{color:var(--o);}
 .team-hd-lbl.g{color:var(--g);}
-.team-hd-cnt{font-size:.58rem;color:#333;}
+.team-hd-cnt{font-size:.58rem;color:#7d6849;}
 .pr{display:flex;align-items:center;padding:2px 2px;gap:3px;min-height:46px;}
 .pr-name{flex:1;font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-.pr-cnt{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:18px;text-align:center;color:#252836;transition:color .15s;flex-shrink:0;}
-.pr-cnt.has{color:#fff;}
-.pr-minus{width:24px;height:42px;background:none;border:none;color:#333;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;}
+.pr-cnt{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:18px;text-align:center;color:#dcc89a;transition:color .15s;flex-shrink:0;}
+.pr-cnt.has{color:#3a2f1f;}
+.pr-minus{width:24px;height:42px;background:none;border:none;color:#7d6849;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;}
 .pr-minus.show{display:flex;}
-.pr-minus:active{background:#1c1f2b;color:#ef9a9a;}
+.pr-minus:active{background:#fdf3df;color:#b71c1c;}
 .pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .pr-plus:active,.pr-plus.busy{transform:scale(.88);}
 .pr-plus.busy{opacity:.4;pointer-events:none;}
@@ -102,197 +102,197 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 .g-col .pr-plus{background:rgba(40,167,69,.08);border-color:rgba(40,167,69,.2);color:var(--g);}
 .g-col .pr-plus:active{background:rgba(40,167,69,.22);}
 
-.log-toggle{background:#0a0c10;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
-.log-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
-.log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #2a2d40;color:#82b1ff;font-size:.6rem;padding:1px 6px;border-radius:10px;}
-.log-panel{display:none;background:#080a12;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
+.log-toggle{background:#f7ecd9;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.log-toggle-lbl{font-size:.72rem;color:#7d6849;display:flex;align-items:center;gap:6px;}
+.log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #d3bd8c;color:#1554b3;font-size:.6rem;padding:1px 6px;border-radius:10px;}
+.log-panel{display:none;background:#f3e6cf;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
 .log-panel.open{display:block;}
-.log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #0a0c14;font-size:.78rem;}
+.log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #f5e9d4;font-size:.78rem;}
 .log-entry:last-child{border-bottom:none;}
-.log-min{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#555;min-width:28px;}
+.log-min{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#7d6849;min-width:28px;}
 .log-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .log-name{flex:1;font-weight:700;}
-.log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#69f0ae;}
-.log-empty{padding:16px 14px;color:#333;font-size:.78rem;text-align:center;}
+.log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#1b7a43;}
+.log-empty{padding:16px 14px;color:#7d6849;font-size:.78rem;text-align:center;}
 
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
-.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
+.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#3a2f1f;min-height:48px;touch-action:manipulation;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
 /* Extra padding so last player row is never hidden by bottom-bar */
 main, body{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog-overlay.show{display:flex;}
-.dialog-box{background:#141720;width:100%;max-width:520px;border-radius:16px;border:1px solid #2a2d40;padding:20px;max-height:88vh;overflow-y:auto;}
+.dialog-box{background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #d3bd8c;padding:20px;max-height:88vh;overflow-y:auto;}
 .dialog-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:4px;}
 .dialog-score{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;margin:8px 0;}
-.dialog-section{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin:12px 0 6px;}
-.scorer-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0f1118;font-size:.82rem;}
+.dialog-section{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin:12px 0 6px;}
+.scorer-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1e4c8;font-size:.82rem;}
 .scorer-row:last-child{border-bottom:none;}
 .scorer-dot{width:8px;height:8px;border-radius:50%;}
 .scorer-name{flex:1;font-weight:700;}
-.scorer-goals{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#fff;}
-.scorer-mins{font-size:.68rem;color:#555;}
+.scorer-goals{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#3a2f1f;}
+.scorer-mins{font-size:.68rem;color:#7d6849;}
 .mvp-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,204,0,.06);border:1px solid rgba(255,204,0,.2);border-radius:9px;margin:8px 0;}
 .mvp-icon{font-size:1.4rem;}
-.mvp-info-lbl{font-size:.6rem;color:#888;text-transform:uppercase;letter-spacing:1px;}
-.mvp-info-name{font-weight:700;font-size:.95rem;color:#ffcc00;}
+.mvp-info-lbl{font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
+.mvp-info-name{font-weight:700;font-size:.95rem;color:#8a6800;}
 .dialog-actions{display:flex;gap:8px;margin-top:14px;}
-.dia-cancel{flex:0 0 auto;padding:12px 16px;border-radius:9px;background:#1c1f2b;border:1px solid #2a2d40;color:#555;font-size:.82rem;cursor:pointer;}
-.dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#fff;background:linear-gradient(135deg,#1a3a2a,var(--g));}
+.dia-cancel{flex:0 0 auto;padding:12px 16px;border-radius:9px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.82rem;cursor:pointer;}
+.dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#3a2f1f;background:linear-gradient(135deg,#1a3a2a,var(--g));}
 
-.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fdf3df;border:1px solid var(--accent);color:#3a2f1f;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;}
-.empty-teams{text-align:center;padding:40px 16px;color:#333;grid-column:span 2;font-size:.85rem;}
+.empty-teams{text-align:center;padding:40px 16px;color:#7d6849;grid-column:span 2;font-size:.85rem;}
 
 /* 3-team */
-.three-mode-bar{background:#0d0f18;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
+.three-mode-bar{background:#fffaf0;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
 .three-mode-bar.show{display:block;}
 .waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
 .waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#ce93d8;}
+.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#8e3a9e;}
 .swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
 .swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
 .swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
 .threshold-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
-.thr-lbl{font-size:.7rem;color:#555;flex:1;}
-.thr-btn{width:32px;height:32px;border-radius:7px;background:#1c1f2b;border:1px solid #252836;color:#888;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.thr-lbl{font-size:.7rem;color:#7d6849;flex:1;}
+.thr-btn{width:32px;height:32px;border-radius:7px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
 
 /* Reset confirm modal */
 .reset-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
 .reset-overlay.show{display:flex;}
-.reset-box{background:#141720;width:100%;max-width:360px;border-radius:16px;border:1px solid #c62828;padding:24px;text-align:center;}
-.reset-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#ef9a9a;margin-bottom:8px;}
-.reset-sub{font-size:.8rem;color:#666;margin-bottom:20px;line-height:1.5;}
+.reset-box{background:#fff8ed;width:100%;max-width:360px;border-radius:16px;border:1px solid #c62828;padding:24px;text-align:center;}
+.reset-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#b71c1c;margin-bottom:8px;}
+.reset-sub{font-size:.8rem;color:#6b5840;margin-bottom:20px;line-height:1.5;}
 .reset-actions{display:flex;gap:8px;}
-.reset-cancel{flex:1;padding:13px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#888;cursor:pointer;font-size:.88rem;touch-action:manipulation;}
-.reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
-.thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ce93d8;min-width:20px;text-align:center;}
-.round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;margin-left:4px;}
-.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#fff;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+.reset-cancel{flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.88rem;touch-action:manipulation;}
+.reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
+.thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#8e3a9e;min-width:20px;text-align:center;}
+.round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;margin-left:4px;}
+.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
-#roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #1e2130;margin-top:4px;}
+#roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #e3d3ac;margin-top:4px;}
 
 /* Team ID badges */
 .tid{font-size:.55rem;padding:1px 5px;border-radius:3px;font-weight:700;font-family:'Rajdhani',sans-serif;vertical-align:middle;}
-.tid-a{background:rgba(255,140,0,.18);color:#ff8c00;border:1px solid rgba(255,140,0,.35);}
-.tid-b{background:rgba(40,167,69,.18);color:#28a745;border:1px solid rgba(40,167,69,.35);}
-.tid-c{background:rgba(124,77,255,.18);color:#ce93d8;border:1px solid rgba(124,77,255,.35);}
+.tid-a{background:rgba(255,140,0,.18);color:#9c4f00;border:1px solid rgba(255,140,0,.35);}
+.tid-b{background:rgba(40,167,69,.18);color:#1b7a35;border:1px solid rgba(40,167,69,.35);}
+.tid-c{background:rgba(124,77,255,.18);color:#8e3a9e;border:1px solid rgba(124,77,255,.35);}
 
 /* Ture history */
-.ture-section{display:none;background:#080a12;border-top:1px solid #1e2130;}
+.ture-section{display:none;background:#f3e6cf;border-top:1px solid #e3d3ac;}
 .ture-section.show{display:block;}
-.ture-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;border-bottom:1px solid #0f1118;}
-.ture-toggle-lbl{font-size:.72rem;color:#555;display:flex;align-items:center;gap:6px;}
-.ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#ce93d8;font-size:.6rem;padding:1px 6px;border-radius:10px;}
+.ture-toggle{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;cursor:pointer;border-bottom:1px solid #f1e4c8;}
+.ture-toggle-lbl{font-size:.72rem;color:#7d6849;display:flex;align-items:center;gap:6px;}
+.ture-cnt{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .ture-body{max-height:220px;overflow-y:auto;display:none;}
 .ture-body.open{display:block;}
 /* ── Code Auth ───────────────────────────── */
 .code-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
 .code-auth-overlay.show{display:flex;}
-.code-auth-box{background:#141720;width:100%;max-width:320px;border-radius:16px;border:1px solid #2a2d40;padding:20px;}
-.admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#82b1ff;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
-.hd-key-btn{background:none;border:1px solid #252836;color:#444;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
+.code-auth-box{background:#fff8ed;width:100%;max-width:320px;border-radius:16px;border:1px solid #d3bd8c;padding:20px;}
+.admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#1554b3;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.hd-key-btn{background:none;border:1px solid #dcc89a;color:#6b5840;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
 /* ── Add Temp Player Modal ──────────────────────────────── */
 /* ── Ultima Faza ─────────────────────────────────────────── */
 .uf-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:480;display:none;align-items:center;justify-content:center;padding:16px;}
 .uf-overlay.show{display:flex;animation:ufPop .25s ease;}
 @keyframes ufPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
-.uf-box{background:#141720;width:100%;max-width:400px;border-radius:16px;border:2px solid #ffd54f;overflow:hidden;}
+.uf-box{background:#fff8ed;width:100%;max-width:400px;border-radius:16px;border:2px solid #c9920a;overflow:hidden;}
 .uf-hd{background:linear-gradient(135deg,#1a1500,#3d3000);padding:14px 18px;text-align:center;}
-.uf-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:4px;color:#ffd54f;}
+.uf-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:4px;color:#8a6307;}
 .uf-sub{font-size:.68rem;color:rgba(255,213,79,.6);margin-top:2px;}
-.uf-score{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;color:#fff;text-align:center;padding:16px 0 8px;line-height:1;}
+.uf-score{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;color:#3a2f1f;text-align:center;padding:16px 0 8px;line-height:1;}
 .uf-teams{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 14px;}
-.uf-team{background:#0d0f18;border-radius:8px;padding:8px 10px;text-align:center;border:1px solid #1e2130;}
+.uf-team{background:#fffaf0;border-radius:8px;padding:8px 10px;text-align:center;border:1px solid #e3d3ac;}
 .uf-team-lbl{font-size:.68rem;font-weight:700;margin-bottom:2px;}
-.uf-question{font-size:.78rem;color:#888;text-align:center;padding:0 16px 12px;line-height:1.5;}
+.uf-question{font-size:.78rem;color:#7d6849;text-align:center;padding:0 16px 12px;line-height:1.5;}
 .uf-actions{display:flex;flex-direction:column;gap:8px;padding:0 16px 16px;}
-.uf-btn-confirm{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;touch-action:manipulation;}
-.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;}
+.uf-btn-confirm{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;touch-action:manipulation;}
+.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;}
 .add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
 .add-temp-overlay.show{display:flex;}
-.add-temp-box{background:#141720;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;max-height:72vh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
-.add-temp-hd{padding:12px 16px;border-bottom:1px solid #1e2130;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+.add-temp-hd{padding:12px 16px;border-bottom:1px solid #e3d3ac;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .add-temp-body{overflow-y:auto;padding:10px 12px;}
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
-.round-detail-box{background:#141720;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
+.round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
 .rd-hd{background:linear-gradient(135deg,#1a0050,#3d006a);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
 .rd-hd-left{flex:1;}
-.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
 .rd-sub{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px;}
-.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
-.rd-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;background:#0d0f18;border-bottom:1px solid #1e2130;}
+.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#3a2f1f;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.rd-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;background:#fffaf0;border-bottom:1px solid #e3d3ac;}
 .rd-team{text-align:center;flex:1;}
-.rd-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:4px;}
+.rd-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;}
 .rd-team-score{font-family:'Bebas Neue',sans-serif;font-size:3rem;line-height:1;}
-.rd-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.rd-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#dcc89a;}
 .rd-body{overflow-y:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;}
-.rd-section{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#444;margin-bottom:5px;}
+.rd-section{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#6b5840;margin-bottom:5px;}
 .rd-players{display:flex;gap:8px;}
-.rd-pl-col{flex:1;background:#0d0f18;border-radius:8px;padding:8px 10px;border:1px solid #1e2130;}
+.rd-pl-col{flex:1;background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;}
 .rd-pl-col-hd{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;}
-.rd-pl-name{font-size:.78rem;color:#888;padding:2px 0;display:flex;align-items:center;gap:5px;}
-.rd-goal-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #0a0c14;font-size:.8rem;}
+.rd-pl-name{font-size:.78rem;color:#7d6849;padding:2px 0;display:flex;align-items:center;gap:5px;}
+.rd-goal-row{display:flex;align-items:center;gap:7px;padding:5px 0;border-bottom:1px solid #f5e9d4;font-size:.8rem;}
 .rd-goal-row:last-child{border-bottom:none;}
 .rd-goal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 .rd-goal-name{flex:1;font-weight:700;}
-.rd-goal-min{font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;}
+.rd-goal-min{font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#7d6849;}
 .rd-meta-row{display:flex;gap:8px;}
-.rd-meta-chip{flex:1;background:#0d0f18;border:1px solid #1e2130;border-radius:8px;padding:8px 10px;text-align:center;}
-.rd-meta-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#ce93d8;}
-.rd-meta-lbl{font-size:.58rem;color:#444;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
-.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #0a0c14;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
+.rd-meta-chip{flex:1;background:#fffaf0;border:1px solid #e3d3ac;border-radius:8px;padding:8px 10px;text-align:center;}
+.rd-meta-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#8e3a9e;}
+.rd-meta-lbl{font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #f5e9d4;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
 .tur-row:last-child{border-bottom:none;}
-.tur-row:active{background:#0f1118;}
-.tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#444;min-width:34px;}
+.tur-row:active{background:#f1e4c8;}
+.tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#6b5840;min-width:34px;}
 .tur-teams{display:flex;align-items:center;gap:4px;flex:1;}
 .tur-score{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:28px;text-align:center;}
-.tur-meta{font-size:.6rem;color:#444;white-space:nowrap;}
+.tur-meta{font-size:.6rem;color:#6b5840;white-space:nowrap;}
 .tur-reason{font-size:.58rem;padding:1px 5px;border-radius:4px;margin-left:3px;}
-.tur-reason.goals{background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#69f0ae;}
-.tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#ce93d8;}
-.tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#ffcc00;}
-.tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #333;color:#555;}
+.tur-reason.goals{background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#1b7a43;}
+.tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#8e3a9e;}
+.tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#8a6800;}
+.tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #7d6849;color:#7d6849;}
 
 /* ── Penalty Shootout ─────────────────────────────────────────── */
-.penalty-overlay{position:fixed;inset:0;background:#080a12;z-index:400;display:none;flex-direction:column;}
+.penalty-overlay{position:fixed;inset:0;background:#f3e6cf;z-index:400;display:none;flex-direction:column;}
 .penalty-overlay.show{display:flex;}
-.penalty-box{display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:#080a12;}
+.penalty-box{display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:#f3e6cf;}
 .penalty-hd{background:linear-gradient(135deg,#7b1010,#c62828);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
-.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
+.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
 .penalty-hd-sub{font-size:.62rem;color:rgba(255,255,255,.6);margin-top:1px;}
-.penalty-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:#0d0f18;border-bottom:1px solid #1e2130;flex-shrink:0;}
+.penalty-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:#fffaf0;border-bottom:1px solid #e3d3ac;flex-shrink:0;}
 .pen-team-score{text-align:center;flex:1;}
 .pen-team-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
 .pen-score-num{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;transition:all .15s;}
 .pen-dots{display:flex;gap:4px;justify-content:center;margin-top:3px;min-height:14px;}
 .pen-dot{width:12px;height:12px;border-radius:50%;border:2px solid;flex-shrink:0;}
-.pen-dot.goal{background:#28a745;border-color:#28a745;box-shadow:0 0 6px #28a745;}
+.pen-dot.goal{background:#28a745;border-color:#1b7a35;box-shadow:0 0 6px #28a745;}
 .pen-dot.miss{background:transparent;border-color:#c62828;}
-.pen-dot.pending{background:#252836;border-color:#444;}
-.pen-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#252836;}
+.pen-dot.pending{background:#dcc89a;border-color:#6b5840;}
+.pen-vs{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#dcc89a;}
 .penalty-current{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;min-height:0;}
-.penalty-kicker-label{font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
-.penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:3px;color:#fff;margin-bottom:8px;line-height:1.1;}
+.penalty-kicker-label{font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:3px;color:#3a2f1f;margin-bottom:8px;line-height:1.1;}
 .penalty-kicker-team{font-size:.78rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block;}
 .penalty-btns{display:flex;gap:10px;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
-.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#fff;touch-action:manipulation;}
-.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#fff;touch-action:manipulation;}
+.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#3a2f1f;touch-action:manipulation;}
+.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#3a2f1f;touch-action:manipulation;}
 .penalty-btn-goal:active,.penalty-btn-miss:active{opacity:.8;}
 .penalty-kicker-list{padding:0 16px 8px;flex-shrink:0;max-height:140px;overflow-y:auto;}
-.pen-list-section{font-size:.58rem;color:#555;text-transform:uppercase;letter-spacing:1px;padding:4px 0 3px;}
+.pen-list-section{font-size:.58rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;padding:4px 0 3px;}
 .pen-list-row{display:flex;align-items:center;gap:8px;padding:4px 0;}
 .pen-list-name{flex:1;font-size:.82rem;font-weight:700;}
 .pen-list-result{font-size:.82rem;}
 .pen-select-area{padding:0 20px 20px;}
-.pen-select-title{font-size:.68rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
-.pen-player-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:#0d0f18;cursor:pointer;margin:3px;font-size:.78rem;font-weight:700;color:#555;transition:all .1s;}
+.pen-select-title{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.pen-player-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:#fffaf0;cursor:pointer;margin:3px;font-size:.78rem;font-weight:700;color:#7d6849;transition:all .1s;}
 .pen-player-chip.sel-o{border-color:var(--o);background:rgba(255,140,0,.1);color:var(--o);}
 .pen-player-chip.sel-g{border-color:var(--g);background:rgba(40,167,69,.1);color:var(--g);}
-.pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#fff;margin-top:8px;}
+.pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#3a2f1f;margin-top:8px;}
 .pen-result-banner{text-align:center;padding:20px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
 
 </style>
@@ -306,7 +306,7 @@ main, body{padding-bottom:80px;}
     <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
     <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
     <button class="hd-key-btn" id="swapTeamsBtn" onclick="swapTeams()" title="Schimbă echipele între ele" style="display:none;">⇄</button>
-    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#7c4dff;color:#ce93d8;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
+    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
 </div>
@@ -316,8 +316,8 @@ main, body{padding-bottom:80px;}
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
   <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
-    <div style="width:1px;height:18px;background:#1e2130;margin:0 2px;"></div>
-    <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#ef9a9a;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
+    <div style="width:1px;height:18px;background:#e3d3ac;margin:0 2px;"></div>
+    <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#b71c1c;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
 </div>
 
@@ -326,7 +326,7 @@ main, body{padding-bottom:80px;}
     <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
     <div class="sc-sep">
       <div>:</div>
-      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#ce93d8;letter-spacing:2px;text-align:center;margin-top:2px;display:none;line-height:1;"></div>
+      <div id="roundTimeLbl" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#8e3a9e;letter-spacing:2px;text-align:center;margin-top:2px;display:none;line-height:1;"></div>
     </div>
     <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
@@ -356,24 +356,24 @@ main, body{padding-bottom:80px;}
 
 <!-- Transfer button — vizibil mereu pentru admin, indiferent de mod (2 sau 3 echipe) -->
 <div id="transferBtnWrap" style="display:none;padding:8px 12px 4px;">
-  <button onclick="openTransfer()" style="width:100%;padding:12px;border-radius:9px;background:#0d0f18;border:1px dashed #2a2d40;color:#888;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;">
+  <button onclick="openTransfer()" style="width:100%;padding:12px;border-radius:9px;background:#fffaf0;border:1px dashed #d3bd8c;color:#7d6849;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;">
     ⇄ Transfer jucător între echipe
   </button>
 </div>
 
 <!-- Settings: doar în 3-team mode, sub butonul de transfer -->
 <div id="belowTeamsBar" style="display:none;border-top:1px solid var(--b);">
-  <div style="display:flex;align-items:center;gap:0;background:#0a0c10;">
+  <div style="display:flex;align-items:center;gap:0;background:#f7ecd9;">
     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-right:1px solid var(--b);">
-      <span style="font-size:.6rem;color:#555;white-space:nowrap;">🎯 Schimb</span>
+      <span style="font-size:.6rem;color:#7d6849;white-space:nowrap;">🎯 Schimb</span>
       <button class="thr-btn" onclick="changeThreshold(-1)">−</button>
       <span class="thr-val" id="thrVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--star);min-width:22px;text-align:center;">2</span>
       <button class="thr-btn" onclick="changeThreshold(1)">+</button>
     </div>
     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;">
-      <span style="font-size:.6rem;color:#555;white-space:nowrap;">⏱ Max min</span>
+      <span style="font-size:.6rem;color:#7d6849;white-space:nowrap;">⏱ Max min</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(-1)">−</button>
-      <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#82b1ff;min-width:26px;text-align:center;">10</span>
+      <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#1554b3;min-width:26px;text-align:center;">10</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
     </div>
   </div>
@@ -382,14 +382,14 @@ main, body{padding-bottom:80px;}
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
     <span class="ture-toggle-lbl">📊 Istoric Ture <span class="ture-cnt" id="tureCnt">0</span></span>
-    <span style="font-size:.7rem;color:#333;" id="tureChevron">▲</span>
+    <span style="font-size:.7rem;color:#7d6849;" id="tureChevron">▲</span>
   </div>
   <div class="ture-body" id="tureBody"></div>
 </div>
 
 <div class="log-toggle" onclick="toggleLog()">
   <span class="log-toggle-lbl">📋 Log goluri <span class="log-toggle-cnt" id="logCnt">0</span></span>
-  <span style="font-size:.7rem;color:#333;" id="logChevron">▲</span>
+  <span style="font-size:.7rem;color:#7d6849;" id="logChevron">▲</span>
 </div>
 <div class="log-panel" id="logPanel">
   <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
@@ -531,11 +531,11 @@ function getColorMap()      { return liveState?.color_map || {}; }
 // ── IDENTITATE FIXĂ — 3 echipe standard, NEEDITABILE, pentru totdeauna ──
 // teamA = PORTOCALIU, teamB = VERDE, teamC = NEGRU. Indiferent unde rotează.
 const FIXED_TEAMS = {
-    teamA: { hex: '#ff8c00', name: 'Portocaliu' },
-    teamB: { hex: '#28a745', name: 'Verde' },
+    teamA: { hex: '#9c4f00', name: 'Portocaliu' },
+    teamB: { hex: '#1b7a35', name: 'Verde' },
     teamC: { hex: '#111111', name: 'Negru' },
 };
-const TEAM_COLORS = ['#ff8c00', '#28a745', '#111111'];
+const TEAM_COLORS = ['#9c4f00', '#1b7a35', '#111111'];
 
 // Toate cele 3 culori standard sunt suficient de întunecate — text alb mereu
 function getContrastColor(hex) { return '#ffffff'; }
@@ -674,7 +674,7 @@ function updateRoundTimerBar() {
     const pct       = Math.min(1, elapsed / totalSec);
     const m = Math.floor(remaining/60), s = remaining%60;
     lbl.textContent = m+':'+(s<10?'0':'')+s;
-    lbl.style.color = pct > 0.8 ? '#ef9a9a' : pct > 0.6 ? '#ffd54f' : '#ce93d8';
+    lbl.style.color = pct > 0.8 ? '#b71c1c' : pct > 0.6 ? '#c9920a' : '#8e3a9e';
     lbl.style.display = 'block';
 }
 
@@ -742,10 +742,10 @@ function ufPickScorer(team) {
 
     const list = teamPlayers.map(p => `
         <div onclick="ufConfirmScorerAndRotate('${p.name.replace(/'/g,"\\'")}','${team}')"
-            style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;border:1px solid #1e2130;background:#0d0f18;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;">
+            style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;border:1px solid #e3d3ac;background:#fffaf0;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;">
             <div style="width:30px;height:30px;border-radius:50%;background:${hex}22;border:1px solid ${hex}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:${hex};flex-shrink:0;">${p.name[0]}</div>
-            <div style="flex:1;font-weight:700;font-size:.88rem;color:#fff;">${p.name}</div>
-            <span style="color:#333;">›</span>
+            <div style="flex:1;font-weight:700;font-size:.88rem;color:#3a2f1f;">${p.name}</div>
+            <span style="color:#7d6849;">›</span>
         </div>`).join('');
 
     document.getElementById('ufScorerTitle').textContent = 'Cine a marcat? — ' + tName;
@@ -831,7 +831,7 @@ async function toggleThreeTeam() {
         });
         await sb.from('live_rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         rounds = [];
-        if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#ce93d8'; }
+        if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#8e3a9e'; }
         cancelRoundTimeout();
     }
     render();
@@ -1073,7 +1073,7 @@ function render() {
     const threeBtnEl = document.getElementById('threeBtn');
     if (threeBtnEl) {
         threeBtnEl.style.background = mode ? 'rgba(124,77,255,.4)' : 'rgba(124,77,255,.15)';
-        threeBtnEl.style.color      = mode ? '#fff' : '#ce93d8';
+        threeBtnEl.style.color      = mode ? '#fff' : '#8e3a9e';
     }
 
     // Teams grid
@@ -1090,10 +1090,10 @@ function render() {
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
             const isTemp = !!p._temp;
-            const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#ffd54f;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
-            const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#444;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
+            const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#8a6307;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
+            const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#6b5840;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
             return '<div class="pr">'
-                + `<div class="pr-name" style="${isTemp?'color:#ffd54f;':''}">${p.name}${tempBadge}</div>`
+                + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}">${p.name}${tempBadge}</div>`
                 + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
@@ -1169,8 +1169,8 @@ function render() {
                 swapG.style.opacity = matchStarted ? '0.35' : '1';
             }
             if (wp) wp.innerHTML = bench.length
-                    ? bench.map(p=>`<span style="background:#1c1f2b;border:1px solid #2a2d40;padding:2px 8px;border-radius:5px;color:#888;">${p.name}</span>`).join('')
-                    : '<span style="color:#333;font-size:.72rem;">Nimeni</span>';
+                    ? bench.map(p=>`<span style="background:#fdf3df;border:1px solid #d3bd8c;padding:2px 8px;border-radius:5px;color:#7d6849;">${p.name}</span>`).join('')
+                    : '<span style="color:#7d6849;font-size:.72rem;">Nimeni</span>';
         }
     }
 
@@ -1205,8 +1205,8 @@ function renderTureHistory() {
         const tA = r.team_a_id, tB = r.team_b_id;
         const sA = r.score_a || 0, sB = r.score_b || 0;
         const winA = sA > sB, winB = sB > sA;
-        const cA = winA ? '#69f0ae' : winB ? '#ef9a9a' : '#aaa';
-        const cB = winB ? '#69f0ae' : winA ? '#ef9a9a' : '#aaa';
+        const cA = winA ? '#1b7a43' : winB ? '#b71c1c' : '#aaa';
+        const cB = winB ? '#1b7a43' : winA ? '#b71c1c' : '#aaa';
         const min = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
         const rLabels = { goals:'goluri', time:'timp', manual:'manual', final:'final', penalty:'penalty' };
         const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
@@ -1214,14 +1214,14 @@ function renderTureHistory() {
         const nA = getTeamNameById(tA), nB = getTeamNameById(tB);
         return `<div class="tur-row" onclick="showRoundDetail('${rId}')">
             <span class="tur-num">Tur ${r.num}</span>
-            <span class="tur-teams" style="flex:1;font-size:.7rem;color:#888;">${nA} vs ${nB}</span>
+            <span class="tur-teams" style="flex:1;font-size:.7rem;color:#7d6849;">${nA} vs ${nB}</span>
             <span class="tur-score">
                 <span style="color:${cA}">${sA}</span>
-                <span style="color:#333;font-size:.7rem;margin:0 2px">-</span>
+                <span style="color:#7d6849;font-size:.7rem;margin:0 2px">-</span>
                 <span style="color:${cB}">${sB}</span>
             </span>
             <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
-            <span style="color:#333;font-size:.7rem;">›</span>
+            <span style="color:#7d6849;font-size:.7rem;">›</span>
         </div>`;
     }).join('');
 }
@@ -1245,8 +1245,8 @@ function showRoundDetail(roundId) {
     const hA = getTeamHexById(tA), hB = getTeamHexById(tB);
     const nA = getTeamNameById(tA) || tA;
     const nB = getTeamNameById(tB) || tB;
-    const cA = winA ? hA : winB ? '#ef9a9a' : '#aaa';
-    const cB = winB ? hB : winA ? '#ef9a9a' : '#aaa';
+    const cA = winA ? hA : winB ? '#b71c1c' : '#aaa';
+    const cB = winB ? hB : winA ? '#b71c1c' : '#aaa';
 
     const rLabels = { goals:'⚽ Goluri', time:'⏱ Timp', manual:'✋ Manual', final:'🏁 Final', penalty:'⚽ Penalty' };
     const endLabel = rLabels[r.end_reason] || r.end_reason || '—';
@@ -1264,7 +1264,7 @@ function showRoundDetail(roundId) {
                 <span class="rd-goal-min">${min}</span>
             </div>`;
         }).join('')
-        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat</div>';
+        : '<div style="color:#7d6849;font-size:.75rem;padding:4px 0;">Niciun gol marcat</div>';
 
     const oPlayers = Array.isArray(r.orange_players) ? r.orange_players : [];
     const gPlayers = Array.isArray(r.green_players)  ? r.green_players  : [];
@@ -1273,8 +1273,8 @@ function showRoundDetail(roundId) {
 
     const makePlayerList = (pls, teamGoals) => pls.map(name => {
         const cnt = teamGoals.filter(g => g.player_name === name).length;
-        return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#69f0ae;">⚽'+cnt+'</span>' : ''}</div>`;
-    }).join('') || '<div style="color:#333;font-size:.72rem;">—</div>';
+        return `<div class="rd-pl-name">${name}${cnt ? ' <span style="font-family:\'Bebas Neue\',sans-serif;font-size:.8rem;color:#1b7a43;">⚽'+cnt+'</span>' : ''}</div>`;
+    }).join('') || '<div style="color:#7d6849;font-size:.72rem;">—</div>';
 
     document.getElementById('rdTitle').textContent = `Tur ${r.num}`;
     document.getElementById('rdSub').textContent = `${nA} vs ${nB}`;
@@ -1318,7 +1318,7 @@ function renderLog() {
         // In past rounds, team slot may have rotated — use team field as stored
         const dot = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
         const min = g.minute != null ? g.minute+"'" : "—'";
-        const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#333;">T${g._roundNum}</span> ` : '';
+        const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#7d6849;">T${g._roundNum}</span> ` : '';
         div.innerHTML = roundLbl
             + '<span class="log-min">'+min+'</span>'
             + '<div class="log-dot" style="background:'+dot+';"></div>'
@@ -1416,14 +1416,20 @@ function buildPairs(allRounds) {
         const key = canonA + '-' + canonB;
         if (!pairMap[key]) {
             pairMap[key] = { key, team_a_id: canonA, team_b_id: canonB,
-                score_a: 0, score_b: 0,
+                score_a: 0, score_b: 0,           // ← TURE CÂȘTIGATE (nu goluri)
+                goals_a: 0, goals_b: 0,            // ← goluri cumulate (informativ)
                 a_players: new Set(), b_players: new Set(),
                 all_goals: [], rounds: [] };
         }
         const pair = pairMap[key];
         const aIsOrange = (r.team_a_id === canonA); // canonical A was in orange slot
-        pair.score_a += aIsOrange ? (r.score_a||0) : (r.score_b||0);
-        pair.score_b += aIsOrange ? (r.score_b||0) : (r.score_a||0);
+        const rA = aIsOrange ? (r.score_a||0) : (r.score_b||0);
+        const rB = aIsOrange ? (r.score_b||0) : (r.score_a||0);
+        pair.goals_a += rA;
+        pair.goals_b += rB;
+        // O tură = 1 punct pentru câștigător (egalitate nu există — penalty rezolvă mereu)
+        if (rA > rB) pair.score_a += 1;
+        else if (rB > rA) pair.score_b += 1;
         (aIsOrange ? r.orange_players : r.green_players  || []).forEach(n => pair.a_players.add(n));
         (aIsOrange ? r.green_players  : r.orange_players || []).forEach(n => pair.b_players.add(n));
         (Array.isArray(r.goals) ? r.goals : []).forEach(g => {
@@ -1487,7 +1493,7 @@ function renderFinalizeDialog() {
         : '';
     const scorersHtml = sorted.length
         ? sorted.map(([name,d])=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+d.count+'⚽</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>').join('')
-        : '<div style="color:#333;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
+        : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
     document.getElementById('dialogBox').innerHTML =
         '<div class="dialog-title">🏁 Finalizează Meciul</div>'
         +mvpHtml
@@ -1508,12 +1514,15 @@ function renderFinalize3Team() {
         ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${topScorer[0]} · ${topScorer[1]} goluri</div></div></div>`
         : '';
 
+    const reasonIcon  = {goals:'⚽',time:'⏱',manual:'✋',final:'🏁',penalty:'🥅'};
+    const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
+
     const pairsHtml = editPairs.map((pair, idx) => {
         const nA = getTeamNameById(pair.team_a_id);
         const nB = getTeamNameById(pair.team_b_id);
         const hA = getTeamHexById(pair.team_a_id);
         const hB = getTeamHexById(pair.team_b_id);
-        const sA = pair.score_a, sB = pair.score_b;
+        const sA = pair.score_a, sB = pair.score_b; // ture câștigate
         const winA = sA > sB, winB = sB > sA;
 
         // Scorers for this pair
@@ -1523,48 +1532,60 @@ function renderFinalize3Team() {
             .map(([n,c]) => {
                 const isA = pair.a_players.includes(n);
                 return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n} ⚽${c}</span>`;
-            }).join('<span style="color:#333;margin:0 4px;">·</span>');
+            }).join('<span style="color:#7d6849;margin:0 4px;">·</span>');
 
-        // Rounds summary
-        const roundsSummary = pair.rounds.map(r => {
-            const dur = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
-            const icon = {goals:'⚽',time:'⏱',manual:'✋',final:'🏁',penalty:'🥅'}[r.end_reason]||'';
-            const rA = r.team_a_id===pair.team_a_id ? r.score_a : r.score_b;
-            const rB = r.team_a_id===pair.team_a_id ? r.score_b : r.score_a;
-            return `<span style="font-size:.62rem;color:#444;white-space:nowrap;">Tur ${r.num}: ${rA}-${rB} ${icon} ${dur}</span>`;
-        }).join('<span style="color:#252836;margin:0 4px;">|</span>');
+        // Rounds detail — scor, mod încheiere, durată
+        const roundsDetail = pair.rounds.map(r => {
+            const aIsOrange = (r.team_a_id === pair.team_a_id);
+            const rA = aIsOrange ? r.score_a : r.score_b;
+            const rB = aIsOrange ? r.score_b : r.score_a;
+            const roundWinner = rA > rB ? nA : rB > rA ? nB : null;
+            const winCol = rA > rB ? hA : rB > rA ? hB : '#555';
+            const icon = reasonIcon[r.end_reason] || '•';
+            const label = reasonLabel[r.end_reason] || r.end_reason || '';
+            const m = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
+            const s = r.duration_sec ? r.duration_sec%60 : 0;
+            const durStr = r.duration_sec ? `${m}:${String(s).padStart(2,'0')}` : '—';
+            return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:.66rem;border-bottom:1px solid #14161f;">
+                <span style="color:#6b5840;min-width:38px;">Tur ${r.num}</span>
+                <span style="color:#7d6849;flex:1;">${rA}-${rB}</span>
+                <span style="color:${winCol};font-weight:700;min-width:62px;">${icon} ${label}</span>
+                <span style="color:#7d6849;min-width:42px;text-align:right;">⏲ ${durStr}</span>
+            </div>`;
+        }).join('');
 
-        return `<div style="background:#0d0f18;border-radius:10px;border:1px solid ${winA||winB?'#2a2d40':'#1e2130'};padding:10px 12px;margin-bottom:10px;">
-            <!-- Score row -->
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+        return `<div style="background:#fffaf0;border-radius:10px;border:1px solid ${winA||winB?'#d3bd8c':'#e3d3ac'};padding:10px 12px;margin-bottom:10px;">
+            <!-- Score row: TURE CÂȘTIGATE -->
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:${hA};flex:1;">${nA}</span>
                 <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
                     <input type="number" min="0" max="99" value="${sA}"
-                        style="width:40px;background:#0a0c10;border:2px solid ${winA?hA:'#252836'};color:${winA?hA:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
+                        style="width:40px;background:#f7ecd9;border:2px solid ${winA?hA:'#dcc89a'};color:${winA?hA:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
                         onchange="editPairScore(${idx},'a',this.value)">
-                    <span style="color:#333;font-family:'Bebas Neue',sans-serif;font-size:1rem;">:</span>
+                    <span style="color:#7d6849;font-family:'Bebas Neue',sans-serif;font-size:1rem;">:</span>
                     <input type="number" min="0" max="99" value="${sB}"
-                        style="width:40px;background:#0a0c10;border:2px solid ${winB?hB:'#252836'};color:${winB?hB:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
+                        style="width:40px;background:#f7ecd9;border:2px solid ${winB?hB:'#dcc89a'};color:${winB?hB:'#fff'};border-radius:7px;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;padding:2px 0;outline:none;"
                         onchange="editPairScore(${idx},'b',this.value)">
                 </div>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:${hB};flex:1;text-align:right;">${nB}</span>
             </div>
+            <div style="text-align:center;font-size:.58rem;color:#6b5840;margin-bottom:7px;">ture câștigate · goluri: ${pair.goals_a}-${pair.goals_b}</div>
             <!-- Players row -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:7px;">
-                <div style="font-size:.65rem;color:#666;line-height:1.5;">${pair.a_players.join(', ')||'—'}</div>
-                <div style="font-size:.65rem;color:#666;text-align:right;line-height:1.5;">${pair.b_players.join(', ')||'—'}</div>
+                <div style="font-size:.65rem;color:#6b5840;line-height:1.5;">${pair.a_players.join(', ')||'—'}</div>
+                <div style="font-size:.65rem;color:#6b5840;text-align:right;line-height:1.5;">${pair.b_players.join(', ')||'—'}</div>
             </div>
             <!-- Scorers -->
-            ${scorersList ? `<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:4px;">${scorersList}</div>` : ''}
-            <!-- Rounds -->
-            <div style="border-top:1px solid #1a1d28;padding-top:5px;display:flex;flex-wrap:wrap;gap:4px;">${roundsSummary||'<span style="color:#333;font-size:.62rem;">—</span>'}</div>
+            ${scorersList ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;">${scorersList}</div>` : ''}
+            <!-- Rounds detail -->
+            <div style="border-top:1px solid #1a1d28;padding-top:4px;">${roundsDetail}</div>
         </div>`;
     }).join('');
 
     document.getElementById('dialogBox').innerHTML =
         '<div class="dialog-title">🏁 Finalizează Meciul</div>'
         + mvpHtml
-        + `<div class="dialog-section">${editPairs.length} meciuri (câte un meci per pereche de echipe)</div>`
+        + `<div class="dialog-section">${editPairs.length} meciuri · scor = ture câștigate</div>`
         + pairsHtml
         + '<div class="dialog-actions">'
         + '<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
@@ -1611,20 +1632,46 @@ async function finalizeMatch3Team(pairs) {
             if (!pair.a_players.length || !pair.b_players.length) continue;
             const nA = getTeamNameById(pair.team_a_id);
             const nB = getTeamNameById(pair.team_b_id);
-            const sA = pair.score_a, sB = pair.score_b;
+            const sA = pair.score_a, sB = pair.score_b; // ture câștigate
             const winner = sA > sB ? nA : sB > sA ? nB : 'Egal';
             const aWon = sA > sB, bWon = sB > sA;
+            // Imbalanced bazat pe GOLURI cumulate, nu pe ture (sA/sB sunt mici, 0-5 ture)
+            const goalsImbalanced = Math.abs(pair.goals_a - pair.goals_b) >= 3;
 
-            const { data: mh, error: mhErr } = await sb.from('match_history').insert({
+            // Detalii ture pentru istoric — mod încheiere, durată, scor per tură
+            const roundsDetail = pair.rounds.map(r => {
+                const aIsOrange = (r.team_a_id === pair.team_a_id);
+                return {
+                    num: r.num,
+                    score_a: aIsOrange ? r.score_a : r.score_b,
+                    score_b: aIsOrange ? r.score_b : r.score_a,
+                    end_reason: r.end_reason,
+                    duration_sec: r.duration_sec || 0,
+                };
+            });
+
+            let { data: mh, error: mhErr } = await sb.from('match_history').insert({
                 date: today,
                 winner,
-                score: sA + ':' + sB,
-                imbalanced: Math.abs(sA - sB) >= 3,
+                score: sA + ':' + sB,            // scor pe TURE câștigate
+                imbalanced: goalsImbalanced,
                 orange_players: pair.a_players,
                 green_players:  pair.b_players,
                 started_at: liveState?.match_started_at || null,
                 ended_at: new Date().toISOString(),
+                rounds_detail: roundsDetail,      // ← detalii complete per tură
+                goals_total_a: pair.goals_a,
+                goals_total_b: pair.goals_b,
             }).select().single();
+            if (mhErr) {
+                // Coloane noi (rounds_detail/goals_total_a/b) pot să nu existe încă — reîncearcă fără ele
+                const retry = await sb.from('match_history').insert({
+                    date: today, winner, score: sA + ':' + sB, imbalanced: goalsImbalanced,
+                    orange_players: pair.a_players, green_players: pair.b_players,
+                    started_at: liveState?.match_started_at || null, ended_at: new Date().toISOString(),
+                }).select().single();
+                mh = retry.data; mhErr = retry.error;
+            }
             if (mhErr) { console.warn('pair save err:', mhErr.message); savedCount++; continue; }
 
             if (mh?.id && pair.all_goals.length) {
@@ -1649,8 +1696,7 @@ async function finalizeMatch3Team(pairs) {
                 const inA = pair.a_players.includes(name);
                 const won = inA ? aWon : bWon;
                 const pGoals = pair.all_goals.filter(g=>g.player_name===name).length;
-                const pConceded = inA ? sB : sA; // #4: goluri primite = golurile adversarilor
-                // #9: ponderare durată per rundă
+                const pConceded = inA ? pair.goals_b : pair.goals_a; // goluri primite = golurile adversarilor (cumulat)
                 const pairDurSec = pair.rounds.reduce((s,r)=>s+(r.duration_sec||0), 0);
                 const durW = getDurationWeight ? getDurationWeight(pairDurSec) : 1.0;
                 try {
@@ -1761,17 +1807,17 @@ function openAddTempPlayer(team) {
 
     document.getElementById('addTempBody').innerHTML = available.map(p => {
         const cnt = goalsMap()[p.name] || 0;
-        const cntLbl = cnt ? ` <span style="color:#69f0ae;font-size:.65rem;">⚽${cnt}</span>` : '';
+        const cntLbl = cnt ? ` <span style="color:#1b7a43;font-size:.65rem;">⚽${cnt}</span>` : '';
         return `<div onclick="addTempPlayer('${p.id}','${p.name}')"
-            style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid #1e2130;background:#0d0f18;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;"
+            style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:1px solid #e3d3ac;background:#fffaf0;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;"
             onmousedown="this.style.background='${teamHex}15';this.style.borderColor='${teamHex}'"
-            onmouseup="this.style.background='#0d0f18';this.style.borderColor='#1e2130'">
+            onmouseup="this.style.background='#fffaf0';this.style.borderColor='#e3d3ac'">
             <div style="width:32px;height:32px;border-radius:50%;background:${teamHex}22;border:1px solid ${teamHex}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:${teamHex};">${p.name[0]}</div>
             <div style="flex:1;">
                 <div style="font-weight:700;font-size:.85rem;">${p.name}${cntLbl}</div>
-                <div style="font-size:.6rem;color:#555;">Copiat temporar → ${teamName}</div>
+                <div style="font-size:.6rem;color:#7d6849;">Copiat temporar → ${teamName}</div>
             </div>
-            <span style="color:#333;font-size:.8rem;">›</span>
+            <span style="color:#7d6849;font-size:.8rem;">›</span>
         </div>`;
     }).join('');
 
@@ -1835,8 +1881,8 @@ function renderTransferBody() {
             <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:${slotHex(slot)};font-weight:700;margin-bottom:4px;">${slotLabel(slot)}</div>
             ${grp.map(p => `
                 <div onclick="selectTransferPlayer('${p.id}')" id="tp_${p.id}"
-                    style="padding:8px 10px;border-radius:8px;border:1px solid ${_transferPlayer===p.id?slotHex(slot):'#1e2130'};
-                    background:${_transferPlayer===p.id?slotHex(slot)+'22':'#0d0f18'};
+                    style="padding:8px 10px;border-radius:8px;border:1px solid ${_transferPlayer===p.id?slotHex(slot):'#e3d3ac'};
+                    background:${_transferPlayer===p.id?slotHex(slot)+'22':'#fffaf0'};
                     color:${_transferPlayer===p.id?'#fff':'#888'};font-size:.82rem;font-weight:700;
                     margin-bottom:3px;cursor:pointer;touch-action:manipulation;">
                     ${p.name} <span style="font-size:.65rem;color:${slotHex(slot)};opacity:.6;">(${slotLabel(slot)})</span>
@@ -1846,12 +1892,12 @@ function renderTransferBody() {
 
     const targetHtml = _transferPlayer ? (() => {
         const cur = players.find(p=>p.id===_transferPlayer);
-        return `<div style="margin-top:10px;border-top:1px solid #1e2130;padding-top:10px;">
-            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:6px;">Mută la echipa:</div>
+        return `<div style="margin-top:10px;border-top:1px solid #e3d3ac;padding-top:10px;">
+            <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:6px;">Mută la echipa:</div>
             ${slots.filter(s=>s!==cur?.status).map(s=>`
                 <div onclick="selectTransferTarget('${s}')" 
-                    style="padding:9px 12px;border-radius:8px;border:1px solid ${_transferTarget===s?slotHex(s):'#1e2130'};
-                    background:${_transferTarget===s?slotHex(s)+'22':'#0d0f18'};
+                    style="padding:9px 12px;border-radius:8px;border:1px solid ${_transferTarget===s?slotHex(s):'#e3d3ac'};
+                    background:${_transferTarget===s?slotHex(s)+'22':'#fffaf0'};
                     color:${_transferTarget===s?'#fff':'#666'};font-size:.85rem;font-weight:700;
                     margin-bottom:4px;cursor:pointer;touch-action:manipulation;">
                     <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${slotHex(s)};margin-right:6px;vertical-align:middle;"></span>
@@ -2029,6 +2075,8 @@ function renderPenalty() {
     if (!penState) return;
     const oHex = getTeamHex('orange'), gHex = getTeamHex('green');
     const oName = getTeamName('orange'), gName = getTeamName('green');
+    const oPlayers = players.filter(p => p.status === 'orange').map(p => p.name);
+    const gPlayers = players.filter(p => p.status === 'green').map(p => p.name);
     const shots = penState.shots;
     const oGoals = shots.filter(s=>s.team==='orange'&&s.state!=='miss').length;
     const gGoals = shots.filter(s=>s.team==='green' &&s.state!=='miss').length;
@@ -2040,27 +2088,36 @@ function renderPenalty() {
         return '<span style="font-size:1.4rem;">✅</span>';
     }).join('');
 
+    const makePlayerTags = (pls, hex) => pls.length
+        ? pls.map(n => `<span style="font-size:.62rem;color:${hex};background:${hex}15;border:1px solid ${hex}33;border-radius:5px;padding:2px 6px;display:inline-block;margin:1px;">${n}</span>`).join('')
+        : '<span style="font-size:.6rem;color:#6b5840;">—</span>';
+
     const content = document.getElementById('penaltyContent');
     if (!content) return;
     content.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px;">
-            <button onclick="penTap('orange')" style="padding:22px 10px;border-radius:12px;border:2px solid ${oHex};background:${oHex}15;color:${oHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px 6px;">
+            <button onclick="penTap('orange')" style="padding:18px 8px 10px;border-radius:12px;border:2px solid ${oHex};background:${oHex}15;color:${oHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:6px;">
                 <span>${oName}</span>
                 <span style="font-size:3rem;line-height:1;">${oGoals}</span>
                 <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('orange')}</div>
             </button>
-            <button onclick="penTap('green')" style="padding:22px 10px;border-radius:12px;border:2px solid ${gHex};background:${gHex}15;color:${gHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:8px;">
+            <button onclick="penTap('green')" style="padding:18px 8px 10px;border-radius:12px;border:2px solid ${gHex};background:${gHex}15;color:${gHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:6px;">
                 <span>${gName}</span>
                 <span style="font-size:3rem;line-height:1;">${gGoals}</span>
                 <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('green')}</div>
             </button>
         </div>
-        <div style="padding:2px 14px 6px;text-align:center;font-size:.62rem;color:#444;">
+        <!-- Membrii echipelor — clarifică sigur cine e cine -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 8px;">
+            <div style="text-align:center;line-height:1.6;">${makePlayerTags(oPlayers, oHex)}</div>
+            <div style="text-align:center;line-height:1.6;">${makePlayerTags(gPlayers, gHex)}</div>
+        </div>
+        <div style="padding:2px 14px 6px;text-align:center;font-size:.62rem;color:#6b5840;">
             1 tap = ✅ GOL &nbsp;·&nbsp; 2 tap-uri rapide = ❌ RATAT
         </div>
         <div style="padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;">
-            <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;">✓ Confirmă rezultat</button>
-            <button onclick="closePenalty()" style="width:100%;padding:10px;border-radius:10px;background:#0d0f18;border:1px solid #1e2130;color:#555;font-size:.8rem;cursor:pointer;">Anulează</button>
+            <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;">✓ Confirmă rezultat</button>
+            <button onclick="closePenalty()" style="width:100%;padding:10px;border-radius:10px;background:#fffaf0;border:1px solid #e3d3ac;color:#7d6849;font-size:.8rem;cursor:pointer;">Anulează</button>
         </div>`;
 }
 
@@ -2128,13 +2185,13 @@ async function showRotationConfirm(loserColor, reason, triggerMsg) {
             .map(([n,cnt])=>{
                 const team = roundG.find(g=>g.player_name===n)?.team||'orange';
                 const col  = getTeamHex(team);
-                return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #0a0c14;">
+                return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #f5e9d4;">
                     <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
                     <span style="flex:1;font-weight:700;font-size:.82rem;">${n}</span>
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#69f0ae;">⚽${cnt}</span>
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#1b7a43;">⚽${cnt}</span>
                 </div>`;
             }).join('')
-        : '<div style="color:#333;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
+        : '<div style="color:#7d6849;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
 
     document.getElementById('rotConfirmTitle').innerHTML =
         `🔄 <span style="color:${loseHex}">${loseName}</span> IESE`;
@@ -2142,18 +2199,18 @@ async function showRotationConfirm(loserColor, reason, triggerMsg) {
     document.getElementById('rotConfirmBody').innerHTML = `
         <div style="text-align:center;margin-bottom:12px;">
             <div style="font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:${getTeamHex(loserColor)};">${oG} : ${gG}</div>
-            <div style="font-size:.65rem;color:#555;">Scor tur curent</div>
+            <div style="font-size:.65rem;color:#7d6849;">Scor tur curent</div>
         </div>
-        <div style="font-size:.62rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcate în tur</div>
+        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Goluri marcate în tur</div>
         <div style="margin-bottom:12px;">${scorerHtml}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.72rem;">
-            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${winHex}44;">
+            <div style="background:#fffaf0;border-radius:8px;padding:8px;border:1px solid ${winHex}44;">
                 <div style="color:${winHex};font-weight:700;margin-bottom:4px;">✅ ${winName} rămâne</div>
-                ${winnerPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+                ${winnerPlayers.map(p=>`<div style="color:#7d6849;">${p.name}</div>`).join('')}
             </div>
-            <div style="background:#0d0f18;border-radius:8px;padding:8px;border:1px solid ${loseHex}44;">
+            <div style="background:#fffaf0;border-radius:8px;padding:8px;border:1px solid ${loseHex}44;">
                 <div style="color:${loseHex};font-weight:700;margin-bottom:4px;">↩ ${loseName} iese</div>
-                ${loserPlayers.map(p=>`<div style="color:#888;">${p.name}</div>`).join('')}
+                ${loserPlayers.map(p=>`<div style="color:#7d6849;">${p.name}</div>`).join('')}
                 ${benchPlayers.length?`<div style="color:${benchHex};font-size:.65rem;margin-top:4px;">Intră: ${benchName} (${benchPlayers.map(p=>p.name).join(', ')})</div>`:''}
             </div>
         </div>`;
@@ -2234,7 +2291,7 @@ init();
         <div class="penalty-hd-title">⚽ Penaltyuri</div>
         <div class="penalty-hd-sub" id="penSubtitle">Selecție lovitori</div>
       </div>
-      <button onclick="closePenalty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.85rem;">✕</button>
+      <button onclick="closePenalty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#3a2f1f;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.85rem;">✕</button>
     </div>
     <div id="penaltyContent"></div>
   </div>
@@ -2243,15 +2300,15 @@ init();
 
 <!-- Rotation Confirm Overlay -->
 <div id="rotConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:350;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#141720;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;overflow-y:auto;">
+  <div style="background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;overflow-y:auto;">
     <div style="background:linear-gradient(135deg,#1a0050,#4a0080);padding:14px 18px;border-radius:16px 16px 0 0;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#3a2f1f;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
       <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
     </div>
     <div style="padding:14px 18px;" id="rotConfirmBody"></div>
     <div style="display:flex;gap:8px;padding:0 18px 18px;">
-      <button onclick="cancelRotConfirm()" style="flex:1;padding:13px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;font-size:.85rem;touch-action:manipulation;">✕ Nu acum</button>
-      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#fff;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
+      <button onclick="cancelRotConfirm()" style="flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;touch-action:manipulation;">✕ Nu acum</button>
+      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#3a2f1f;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
     </div>
   </div>
 </div>
@@ -2336,16 +2393,16 @@ init();
 <!-- Code Auth Modal -->
 <div class="code-auth-overlay" id="codeAuthOverlay" onclick="if(event.target===this)closeCodeAuth()">
   <div class="code-auth-box">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#fff;margin-bottom:4px;">🔑 Cod Jucător</div>
-    <div style="font-size:.65rem;color:#444;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">🔑 Cod Jucător</div>
+    <div style="font-size:.65rem;color:#6b5840;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
     <input id="codeAuthInput" type="text" maxlength="10" placeholder="Cod secret..."
-      style="width:100%;background:#0d0f18;border:1px solid #3d5afe;color:#fff;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
+      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
       oninput="this.value=this.value.toUpperCase();document.getElementById('codeAuthErr').textContent=''"
       onkeydown="if(event.key==='Enter')submitCode()">
-    <div id="codeAuthErr" style="font-size:.68rem;color:#ef9a9a;min-height:16px;margin-bottom:10px;"></div>
+    <div id="codeAuthErr" style="font-size:.68rem;color:#b71c1c;min-height:16px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;">
-      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#1c1f2b;border:1px solid #252836;color:#555;cursor:pointer;">Anulează</button>
-      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
+      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
+      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#3a2f1f;">✓ Autentifică</button>
     </div>
   </div>
 </div>
@@ -2359,9 +2416,9 @@ init();
     </div>
     <div class="uf-score" id="ufScore">0 : 0</div>
     <div class="uf-actions">
-      <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #555;background:#0d0f18;color:#888;">⚽ Gol Echipa 1</button>
-      <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #555;background:#0d0f18;color:#888;">⚽ Gol Echipa 2</button>
-      <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #ffd54f33;color:#ffd54f;background:#1a1500;">🥅 Merg la Penaltyuri</button>
+      <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 1</button>
+      <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 2</button>
+      <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #c9920a33;color:#8a6307;background:#1a1500;">🥅 Merg la Penaltyuri</button>
       <div id="ufBtnConfirmWrap">
         <button class="uf-btn-confirm" id="ufBtnConfirm">✕ Echipa înfrântă iese</button>
       </div>
@@ -2375,9 +2432,9 @@ init();
     <div class="add-temp-hd">
       <div>
         <div id="ufScorerTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:1.5px;">Cine a marcat?</div>
-        <div style="font-size:.6rem;color:#444;margin-top:2px;">După confirmare, echipa de pe bancă intră automat</div>
+        <div style="font-size:.6rem;color:#6b5840;margin-top:2px;">După confirmare, echipa de pe bancă intră automat</div>
       </div>
-      <button onclick="closeUfScorerPicker()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+      <button onclick="closeUfScorerPicker()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
     </div>
     <div class="add-temp-body" id="ufScorerList"></div>
   </div>
@@ -2388,9 +2445,9 @@ init();
   <div class="dialog-box" style="max-width:320px;text-align:center;">
     <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
       <div id="gcDot" style="width:12px;height:12px;border-radius:50%;flex-shrink:0;"></div>
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#fff;">GOL!</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#3a2f1f;">GOL!</div>
     </div>
-    <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:3px;" id="gcName">—</div>
+    <div style="font-size:1rem;font-weight:700;color:#3a2f1f;margin-bottom:3px;" id="gcName">—</div>
     <div style="font-size:.75rem;margin-bottom:16px;" id="gcTeam">—</div>
     <div class="dialog-actions">
       <button class="dia-cancel" onclick="cancelGoalConfirm()">✕ Anulează</button>
@@ -2404,9 +2461,9 @@ init();
     <div class="add-temp-hd">
       <div>
         <div class="add-temp-title" id="addTempTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;">+ Adaugă jucător temporar</div>
-        <div style="font-size:.62rem;color:#444;margin-top:2px;">Jucătorul va fi copiat temporar în acest meci · golurile se vor salva</div>
+        <div style="font-size:.62rem;color:#6b5840;margin-top:2px;">Jucătorul va fi copiat temporar în acest meci · golurile se vor salva</div>
       </div>
-      <button onclick="closeAddTemp()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#888;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+      <button onclick="closeAddTemp()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
     </div>
     <div class="add-temp-body" id="addTempBody"></div>
   </div>
