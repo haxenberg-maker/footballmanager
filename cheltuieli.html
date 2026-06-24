@@ -51,6 +51,9 @@
         .tip-incasare { color: var(--green); font-weight: bold; }
         .tip-cheltuiala { color: #c62828; font-weight: bold; }
         
+        .btn-sterge { background: #e53935; color: white; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; border: none; width: auto; cursor: pointer; font-weight: 600; }
+        .btn-sterge:hover { background: #b71c1c; }
+        
         .loading-text { text-align: center; color: #7d6849; font-style: italic; padding: 10px; }
     </style>
 </head>
@@ -120,6 +123,7 @@
                         <th>Tip</th>
                         <th>Nume / Detalii</th>
                         <th>Sumă</th>
+                        <th style="width: 80px; text-align: center;">Acțiuni</th>
                     </tr>
                 </thead>
                 <tbody id="listaTranzactii">
@@ -133,7 +137,7 @@
         // Setăm data de azi automat la cheltuieli
         document.getElementById('dataCheltuiala').valueAsDate = new Date();
 
-        // --- CONFIGURARE COMPLETĂ SUPABASE (Preluată din index.html) ---
+        // --- CONFIGURARE COMPLETĂ SUPABASE ---
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -149,7 +153,6 @@
         // Încarcă lista de jucători în Dropdown
         async function incarcaJucatori() {
             try {
-                // Din index-ul tău, tabela se numește 'players', iar câmpul pentru nume este 'name'
                 const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
                 if (error) throw error;
                 
@@ -168,7 +171,7 @@
         // Calculează totalurile și generează tabelul de activitate generală
         async function recalculeazaBuget() {
             try {
-                // 1. Preluăm încasările (cu join pe tabela players pentru a aduce numele jucătorului)
+                // 1. Preluăm încasările
                 const { data: incasari, error: errI } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
                 if (errI) throw errI;
 
@@ -184,6 +187,8 @@
                 incasari.forEach(i => {
                     totalIncasat += parseFloat(i.suma);
                     toateTranzactiile.push({
+                        id: i.id,
+                        tabela: 'incasari',
                         data: i.data,
                         tip: `<span class="tip-incasare">ÎNCASARE</span>`,
                         detalii: `Jucător: <b>${i.players ? i.players.name : 'Necunoscut'}</b> (${i.detalii || 'Fără detalii'})`,
@@ -195,6 +200,8 @@
                 cheltuieli.forEach(c => {
                     totalCheltuit += parseFloat(c.suma);
                     toateTranzactiile.push({
+                        id: c.id,
+                        tabela: 'cheltuieli',
                         data: c.data,
                         tip: `<span class="tip-cheltuiala">CHELTUIALĂ</span>`,
                         detalii: c.descriere,
@@ -231,6 +238,9 @@
                                 <td>${t.tip}</td>
                                 <td>${t.detalii}</td>
                                 <td>${t.suma}</td>
+                                <td style="text-align: center;">
+                                    <button class="btn-sterge" onclick="stergeTranzactie('${t.tabela}', '${t.id}')">Șterge</button>
+                                </td>
                             </tr>
                         `;
                     });
@@ -238,6 +248,23 @@
 
             } catch (e) {
                 console.error("Eroare la calcularea bugetului:", e.message);
+            }
+        }
+
+        // Funcție pentru ștergerea unei tranzacții din baza de date
+        async function stergeTranzactie(tabela, id) {
+            if (!confirm("Sigur vrei să ștergi această înregistrare? Acțiunea este ireversibilă!")) {
+                return;
+            }
+
+            try {
+                const { error } = await sb.from(tabela).delete().eq('id', id);
+                if (error) throw error;
+
+                alert("Tranzacția a fost ștearsă!");
+                await recalculeazaBuget(); // Reîmprospătează calculele și tabelul
+            } catch (e) {
+                alert("Eroare la ștergere: " + e.message);
             }
         }
 
