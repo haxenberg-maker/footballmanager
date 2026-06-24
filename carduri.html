@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Carduri Jucători - FC 26 Arena</title>
+    <title>Generator Carduri FC 26 Arena</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -11,77 +11,180 @@
     <style>
         :root { 
             --dark-bg: #0b0e14;
-            --border-gold: #f1d483;
+            --panel-bg: #151b26;
+            --gold-gradient: linear-gradient(180deg, #ffe89e 0%, #cca03a 60%, #705113 100%);
+            --silver-gradient: linear-gradient(180deg, #ffffff 0%, #b0b5bc 60%, #52565d 100%);
+            --bronze-gradient: linear-gradient(180deg, #e29b7a 0%, #9c5939 60%, #471f0f 100%);
         }
         * { box-sizing: border-box; }
         body { 
             font-family: 'Rajdhani', sans-serif; 
-            background: #111622; 
+            background: #0f131c; 
             color: #fff; 
             margin: 0; 
             padding: 0; 
         }
         
-        .main-header { text-align: center; padding: 25px 20px; border-bottom: 1px solid #1e293b; background: #0c101b; position: relative; }
-        .main-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 3px; color: #f1d483; margin: 0; text-shadow: 0 2px 10px rgba(241,212,131,0.2); }
-        .btn-back { position: absolute; left: 20px; top: 32px; background: #f1d483; color: #0c101b; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
-        .btn-back:hover { background: #fff; transform: translateX(-2px); }
+        .main-header { 
+            text-align: center; 
+            padding: 20px; 
+            border-bottom: 1px solid #1e293b; 
+            background: #090d14; 
+            position: relative; 
+        }
+        .main-header h1 { 
+            font-family: 'Bebas Neue', sans-serif; 
+            font-size: 2.5rem; 
+            letter-spacing: 3px; 
+            color: #f1d483; 
+            margin: 0; 
+        }
+        .btn-back { 
+            position: absolute; 
+            left: 20px; 
+            top: 26px; 
+            background: #f1d483; 
+            color: #0c101b; 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 0.85rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
         
-        .container { padding: 40px 20px; max-width: 1200px; margin: 0 auto; }
+        /* LAYOUT SPLIT: Stânga listă, Dreapta Card */
+        .workspace {
+            display: flex;
+            max-width: 1200px;
+            margin: 30px auto;
+            gap: 30px;
+            padding: 0 20px;
+        }
         
-        .cards-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
-            gap: 40px; 
-            justify-items: center;
-            margin-top: 20px;
+        /* Panou Stânga: Lista de jucători */
+        .players-panel {
+            flex: 1;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #232d3f;
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .panel-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #94a3b8;
+            border-bottom: 1px solid #232d3f;
+            padding-bottom: 8px;
+        }
+        .player-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #1c2433;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .player-row:hover {
+            background: #253147;
+            border-color: #f1d483;
+        }
+        .player-row.selected {
+            background: linear-gradient(90deg, #253147 0%, #1e293b 100%);
+            border-color: #f1d483;
+            box-shadow: inset 4px 0 0 #f1d483;
+        }
+        .player-info-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .player-row-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #334155;
+        }
+        .player-row-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+        .player-row-rating {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            color: #f1d483;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* Panou Dreapta: Cardul Generat */
+        .card-preview-panel {
+            width: 380px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #232d3f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            min-height: 450px;
+        }
+        .no-selection-msg {
+            color: #64748b;
+            text-align: center;
+            font-size: 1.1rem;
         }
 
         /* ================= SHAPE EXACT FC26 FUT CARD ================= */
         .fc26-card {
             position: relative;
-            width: 230px;
-            height: 335px;
-            background: linear-gradient(180deg, #182030 0%, #0d131f 100%);
-            border: 2px solid #334155;
-            /* Decupajul specific de jos al cardurilor FIFA */
-            clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%);
+            width: 250px;
+            height: 365px;
+            background: linear-gradient(180deg, #2a354d 0%, #0d131f 100%);
+            border: 2px solid #475569;
+            clip-path: polygon(0% 0%, 100% 0%, 100% 86%, 50% 100%, 0% 86%);
             color: #e2e8f0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            animation: cardAppear 0.3s ease-out;
         }
 
-        /* Premium Gold Shield pentru jucătorii de top (Smart Rating ridicat) */
-        .fc26-card.gold {
-            background: linear-gradient(180deg, #ffe89e 0%, #cca03a 60%, #705113 100%);
-            border: 2px solid #ffd875;
-            color: #111622;
-            box-shadow: 0 15px 35px rgba(204,160,58,0.35);
-        }
+        /* Ierarhie culori în funcție de valoare exact ca pe FIFA */
+        .fc26-card.gold { background: var(--gold-gradient); border-color: #ffe082; color: #0b0e14; }
+        .fc26-card.silver { background: var(--silver-gradient); border-color: #e2e8f0; color: #0b0e14; }
+        .fc26-card.bronze { background: var(--bronze-gradient); border-color: #bd7351; color: #fff; }
         
-        .fc26-card:hover {
-            transform: translateY(-8px) scale(1.03);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
-        }
-        .fc26-card.gold:hover {
-            box-shadow: 0 20px 40px rgba(255,216,117,0.5);
+        @keyframes cardAppear {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
-        /* Elemente de fundal specifice FC26 */
         .fc26-card::after {
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(45deg, transparent 45%, rgba(255,255,255,0.04) 50%, transparent 55%);
+            background: linear-gradient(45deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%);
             background-size: 200% 200%;
             pointer-events: none;
         }
 
-        /* Coloana de Rating Stânga Sus */
+        /* Secțiune OVR și Poziție */
         .badge-section {
             position: absolute;
-            top: 25px;
-            left: 18px;
+            top: 28px;
+            left: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -90,23 +193,22 @@
         }
         .overall-rating {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 3.2rem;
+            font-size: 3.6rem;
             font-weight: 800;
             margin: 0;
         }
         .position-label {
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-top: 2px;
-            opacity: 0.9;
+            margin-top: 4px;
         }
 
-        /* Containerul pentru poza de jucător */
+        /* Avatar Jucător pe Card */
         .player-photo-container {
-            width: 140px;
-            height: 155px;
+            width: 150px;
+            height: 170px;
             position: absolute;
             top: 15px;
             right: 12px;
@@ -119,7 +221,6 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            /* Efect de mascare jos pentru a se îmbina cu cardul */
             mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
             -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
         }
@@ -128,169 +229,198 @@
         .player-card-name {
             font-family: 'Bebas Neue', sans-serif;
             position: absolute;
-            top: 175px;
+            top: 195px;
             left: 0;
             width: 100%;
             text-align: center;
-            font-size: 1.7rem;
+            font-size: 1.8rem;
             letter-spacing: 1.5px;
             text-transform: uppercase;
             padding: 0 10px;
         }
 
-        /* Linie divizoare FUT */
         .card-divider {
             position: absolute;
-            top: 215px;
+            top: 235px;
             left: 25px;
             right: 25px;
             height: 1px;
             background: rgba(255,255,255,0.15);
         }
-        .gold .card-divider {
+        .gold .card-divider, .silver .card-divider {
             background: rgba(0,0,0,0.15);
         }
 
-        /* Secțiunea de Statistici */
+        /* Statistici Sub Nume */
         .stats-section {
             position: absolute;
-            top: 228px;
+            top: 248px;
             left: 0;
             width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            padding: 0 25px;
-            column-gap: 20px;
-            row-gap: 6px;
+            padding: 0 30px;
+            column-gap: 25px;
+            row-gap: 8px;
         }
         .stat-block {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
             font-weight: 600;
         }
         .stat-number {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.35rem;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-right: 4px;
         }
         .stat-label {
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             opacity: 0.75;
             text-transform: uppercase;
             font-weight: 700;
-            letter-spacing: 0.5px;
         }
         
-        .loading { text-align: center; font-size: 1.4rem; color: #ffd875; margin-top: 80px; letter-spacing: 1px; }
+        .loading { text-align: center; font-size: 1.2rem; color: #f1d483; padding: 20px; }
     </style>
 </head>
 <body>
 
     <div class="main-header">
-        <a href="index.html" class="btn-back">← Dashboard</a>
-        <h1>FC 26 ARENA CARDS</h1>
+        <a href="index.html" class="btn-back">← Înapoi</a>
+        <h1>EA SPORTS FC 26 CARDS</h1>
     </div>
 
-    <div class="container">
-        <div id="loading" class="loading">SE DESCHID PACHETELE DE JUCĂTORI...</div>
-        <div class="cards-grid" id="cardsGrid"></div>
+    <div class="workspace">
+        <div class="players-panel">
+            <div class="panel-title">Alege un jucător</div>
+            <div id="loading" class="loading">Se încarcă baza de date...</div>
+            <div id="playersList"></div>
+        </div>
+
+        <div class="card-preview-panel" id="cardPreviewPanel">
+            <div class="no-selection-msg">Selectează un jucător din listă pentru a-i genera cardul oficial FC 26</div>
+        </div>
     </div>
 
     <script>
-        // Configurare legătură Supabase din indexul tău actul
+        // Configurație conexiune existentă din index.html
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Algoritmul de calcul extras direct din logica aplicației tale pentru a evita ratingurile identice fixate la 77
-        function calculeazaRatingSmart(p) {
-            let ratingDeBaza = p.general_rating || p.rating || 5.0; 
-            if(p.admin_rating) {
-                ratingDeBaza = p.admin_rating; // Prioritate dacă ai pus tu override manual
-            }
-            
-            // Calcul rată de câștig reală din meciuri
-            let winRateBonus = 0;
-            if (p.games > 0) {
-                const wr = p.wins / p.games;
-                winRateBonus = (wr - 0.5) * 2.0; 
-            }
-            
-            let finalSmart = ratingDeBaza + winRateBonus;
-            if(p.goalsLastMatch && p.goalsLastMatch > 0) finalSmart += 0.2; // În formă dacă a dat gol meciul trecut
+        let localPlayers = [];
 
-            // Conversie scară Supabase (1-10) în scară FIFA (1-99)
-            let fifaRating = Math.round((finalSmart / 10) * 99);
-            return Math.max(45, Math.min(99, fifaRating));
+        // Funcția de conversie corectă și calcularea exactă a ratingului FIFA
+        function calculeazaRatingFifa(p) {
+            // Dacă ai setat un admin_rating manual (ex: 9.2), îl folosim pe acela
+            let ratingBaza = p.admin_rating != null ? parseFloat(p.admin_rating) : (p.general_rating || p.rating || 7.5);
+            
+            // Mapare directă curată: nota 9.2 devine rating de 92 pe card!
+            let fifaScore = Math.round(ratingBaza * 10);
+            
+            // Securizare limite FIFA (minim 45, maxim 99)
+            return Math.max(45, Math.min(99, fifaScore));
         }
 
-        async function genereazaPaginadeCarduri() {
+        async function incarcajucatori() {
             try {
                 const { data: players, error } = await sb.from('players').select('*').order('name', { ascending: true });
                 if (error) throw error;
 
-                const grid = document.getElementById('cardsGrid');
+                localPlayers = players;
                 document.getElementById('loading').style.display = 'none';
-                grid.innerHTML = '';
+                
+                const listContainer = document.getElementById('playersList');
+                listContainer.innerHTML = '';
 
                 players.forEach(p => {
-                    // Ratingul general real calculat din statistici dinamice
-                    const ratingOVR = calculeazaRatingSmart(p);
-
-                    // Distribuim atributele în funcție de performanțele lui reale în teren din aplicația ta!
-                    const goluri = p.totalGoals || 0;
-                    const meciuri = p.games || 1;
-                    const eficientaGoluri = goluri / meciuri;
-
-                    // Formule matematice dinamice ca să difere cifrele radical de la jucător la jucător:
-                    const sho = Math.max(50, Math.min(98, Math.round(60 + (eficientaGoluri * 35))));
-                    const pac = Math.max(55, Math.min(99, Math.round(65 + ((p.id % 7) * 4)))); 
-                    const pas = Math.max(50, Math.min(97, Math.round(58 + ((p.wins || 0) * 1.5))));
-                    const dri = Math.max(52, Math.min(98, Math.round(62 + ((p.name.length % 5) * 6))));
-                    const def = Math.max(40, Math.min(96, Math.round(55 + (ratingOVR * 0.2) - (eficientaGoluri * 10))));
-                    const phy = Math.max(55, Math.min(99, Math.round(60 + ((goluri + meciuri) % 8) * 4)));
-
-                    // Stabilire Poziție (dacă nu are în bază, punem rol ofensiv/defensiv calculat)
-                    let pozitie = p.position || (eficientaGoluri > 0.4 ? "ST" : "CM");
-
-                    // Link poză
-                    const pozaJucator = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
-
-                    // Cei cu rating general de la 78 în sus primesc cardul premium strălucitor de AUR
-                    const clasaCard = ratingOVR >= 78 ? 'fc26-card gold' : 'fc26-card';
-
-                    grid.innerHTML += `
-                        <div class="${clasaCard}">
-                            <div class="badge-section">
-                                <span class="overall-rating">${ratingOVR}</span>
-                                <span class="position-label">${pozitie}</span>
+                    const ratingFifa = calculeazaRatingFifa(p);
+                    const avatarUrl = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+                    
+                    listContainer.innerHTML += `
+                        <div class="player-row" id="player-row-${p.id}" onclick="selecteazaJucator(${p.id})">
+                            <div class="player-info-left">
+                                <img src="${avatarUrl}" class="player-row-avatar">
+                                <span class="player-row-name">${p.name}</span>
                             </div>
-                            <div class="player-photo-container">
-                                <img src="${pozaJucator}" class="player-photo" alt="${p.name}">
-                            </div>
-                            <div class="player-card-name">${p.name}</div>
-                            <div class="card-divider"></div>
-                            <div class="stats-section">
-                                <div class="stat-block"><span class="stat-number">${pac}</span><span class="stat-label">PAC</span></div>
-                                <div class="stat-block"><span class="stat-number">${dri}</span><span class="stat-label">DRI</span></div>
-                                <div class="stat-block"><span class="stat-number">${sho}</span><span class="stat-label">SHO</span></div>
-                                <div class="stat-block"><span class="stat-number">${def}</span><span class="stat-label">DEF</span></div>
-                                <div class="stat-block"><span class="stat-number">${pas}</span><span class="stat-label">PAS</span></div>
-                                <div class="stat-block"><span class="stat-number">${phy}</span><span class="stat-label">PHY</span></div>
-                            </div>
+                            <span class="player-row-rating">${ratingFifa}</span>
                         </div>
                     `;
                 });
 
             } catch (e) {
-                document.getElementById('loading').textContent = "Eroare Supabase: " + e.message;
+                document.getElementById('loading').textContent = "Eroare la încărcare: " + e.message;
             }
         }
 
-        genereazaPaginadeCarduri();
+        function selecteazaJucator(id) {
+            // Elimină selecția vizuală veche
+            document.querySelectorAll('.player-row').forEach(row => row.classList.remove('selected'));
+            
+            // Adaugă clasa de selectat pe rândul curent
+            const selectedRow = document.getElementById(`player-row-${id}`);
+            if(selectedRow) selectedRow.classList.add('selected');
+
+            // Găsește obiectul jucătorului
+            const p = localPlayers.find(x => x.id === id);
+            if (!p) return;
+
+            const ratingOVR = calculeazaRatingFifa(p);
+
+            // Calculează atribute unice și direct proporționale cu nota lui reală
+            const goluri = p.total_goals || p.totalGoals || 0;
+            const meciuri = p.games || 1;
+            const eficienta = goluri / meciuri;
+
+            // Formule matematice adaptate corect la scara de până la 99
+            const pac = Math.max(50, Math.min(99, Math.round(ratingOVR - 4 + (id % 5))));
+            const sho = Math.max(45, Math.min(99, Math.round(55 + (eficienta * 35))));
+            const pas = Math.max(50, Math.min(99, Math.round(ratingOVR - 2 + (p.wins % 3))));
+            const dri = Math.max(50, Math.min(99, Math.round(ratingOVR + 3 - (id % 4))));
+            const def = Math.max(40, Math.min(99, Math.round(ratingOVR * 0.9 - (eficienta * 8))));
+            const phy = Math.max(50, Math.min(99, Math.round(60 + ((goluri + meciuri) % 10))));
+
+            // Tipul cardului în funcție de rating ca pe FIFA original
+            let clasaCard = 'fc26-card';
+            if (ratingOVR >= 75) {
+                clasaCard += ' gold';
+            } else if (ratingOVR >= 65) {
+                clasaCard += ' silver';
+            } else {
+                clasaCard += ' bronze';
+            }
+
+            const pozitie = p.position || (eficienta > 0.4 ? "ST" : "CM");
+            const pozaCard = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+
+            // Injectează cardul în panoul din dreapta
+            const previewPanel = document.getElementById('cardPreviewPanel');
+            previewPanel.innerHTML = `
+                <div class="${clasaCard}">
+                    <div class="badge-section">
+                        <span class="overall-rating">${ratingOVR}</span>
+                        <span class="position-label">${pozitie}</span>
+                    </div>
+                    <div class="player-photo-container">
+                        <img src="${pozaCard}" class="player-photo" alt="${p.name}">
+                    </div>
+                    <div class="player-card-name">${p.name}</div>
+                    <div class="card-divider"></div>
+                    <div class="stats-section">
+                        <div class="stat-block"><span class="stat-number">${pac}</span><span class="stat-label">PAC</span></div>
+                        <div class="stat-block"><span class="stat-number">${dri}</span><span class="stat-label">DRI</span></div>
+                        <div class="stat-block"><span class="stat-number">${sho}</span><span class="stat-label">SHO</span></div>
+                        <div class="stat-block"><span class="stat-number">${def}</span><span class="stat-label">DEF</span></div>
+                        <div class="stat-block"><span class="stat-number">${pas}</span><span class="stat-label">PAS</span></div>
+                        <div class="stat-block"><span class="stat-number">${phy}</span><span class="stat-label">PHY</span></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        incarcajucatori();
     </script>
 </body>
 </html>
