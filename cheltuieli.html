@@ -147,6 +147,17 @@
         }
 
         .item-name { font-size: 1.15rem; font-weight: 700; }
+        
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .prio-mare { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+        .prio-medie { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .prio-mica { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
 
         .item-finances {
             display: flex;
@@ -154,6 +165,26 @@
             font-size: 0.85rem;
             color: #94a3b8;
             margin-bottom: 6px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #0f131c;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #232d3f;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #cca03a 0%, var(--accent-gold) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .completed .progress-bar {
+            background: var(--success-green);
         }
 
         .delete-btn {
@@ -197,7 +228,6 @@
         }
 
         .amount-paid { color: var(--success-green); font-weight: 700; }
-        .amount-spent { color: #ef4444; font-weight: 700; }
     </style>
 </head>
 <body>
@@ -209,28 +239,40 @@
         </div>
 
         <div class="total-budget-box">
-            <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - CHELTUIELI)</span>
+            <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - ALOCĂRI CHELTUIELI)</span>
             <span class="suma" id="totalColectat">0 RON</span>
         </div>
 
         <div class="main-layout">
-            <!-- COLOANA STÂNGA: Planificare Cheltuieli -->
+            <!-- COLOANA STÂNGA: Planificare Cheltuieli / Wishlist -->
             <div>
-                <h2>🎯 Înregistrează Cheltuială</h2>
+                <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
                     <div class="form-group">
-                        <label>Descriere Cheltuială / Produs</label>
+                        <label>Ce trebuie cumpărat? (Produs)</label>
                         <input type="text" id="itemName" placeholder="Ex: Minge WC26 Trionda Pro">
                     </div>
                     <div class="form-group">
-                        <label>Suma Cheltuită (RON)</label>
+                        <label>Preț Total Necesar (RON)</label>
                         <input type="number" id="itemTarget" placeholder="Ex: 470">
                     </div>
-                    <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă Cheltuială</button>
+                    <div class="form-group">
+                        <label>Suma Alocată Deja (RON)</label>
+                        <input type="number" id="itemCurrent" placeholder="Ex: 100">
+                    </div>
+                    <div class="form-group">
+                        <label>Prioritate</label>
+                        <select id="itemPriority">
+                            <option value="mare">Mare 🔥</option>
+                            <option value="medie" selected>Medie ⚡</option>
+                            <option value="mica">Mică 💤</option>
+                        </select>
+                    </div>
+                    <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă în Wishlist</button>
                 </div>
 
-                <h2>📋 Listă Cheltuieli Înregistrate</h2>
-                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă cheltuieli...</div>
+                <h2>📋 Listă Achiziții & Progres</h2>
+                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
             <!-- COLOANA DREAPTĂ: Formular Adăugare Plăți + Istoric Nume Real -->
@@ -268,10 +310,10 @@
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let globalIncasari = 0;
-        let globalCheltuieli = 0;
+        let globalCheltuieliAlocate = 0;
 
         function actualizeazaSoldFinal() {
-            const soldFinal = globalIncasari - globalCheltuieli;
+            const soldFinal = globalIncasari - globalCheltuieliAlocate;
             document.getElementById('totalColectat').textContent = `${soldFinal.toFixed(2)} RON`;
         }
 
@@ -333,7 +375,7 @@
                     container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
                 }
 
-                actualizeazaSoldFinal();
+                await incarcaWishlist();
 
             } catch (e) {
                 console.error(e);
@@ -376,7 +418,7 @@
             }
         }
 
-        // 4. Încarcă cheltuielile folosind coloanele corecte ('descriere', 'suma', 'data')
+        // 4. Încarcă cheltuielile din baza de date și decodifică JSON-ul din coloana 'descriere'
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data');
@@ -385,31 +427,55 @@
                 const container = document.getElementById('wishlistContainer');
                 container.innerHTML = '';
 
-                globalCheltuieli = 0;
+                globalCheltuieliAlocate = 0;
                 if(!cheltuieli || cheltuieli.length === 0) {
-                    container.innerHTML = '<p style="color:#64748b;">Nu există cheltuieli înregistrate.</p>';
+                    container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
                     actualizeazaSoldFinal();
                     return;
                 }
 
                 cheltuieli.forEach(item => {
-                    const descriereProdus = item.descriere || 'Cheltuială generală';
-                    const sumaCheltuita = parseFloat(item.suma || 0);
-                    const dataCheltuiala = item.data || '';
+                    let numeProdus = item.descriere;
+                    let tinta = parseFloat(item.suma || 0);
+                    let curent = parseFloat(item.suma || 0);
+                    let prioritate = 'medie';
+
+                    // Încercăm să citim formatul JSON ascuns în 'descriere'
+                    if (item.descriere && item.descriere.startsWith('{"isWishlist"')) {
+                        try {
+                            const parsed = JSON.parse(item.descriere);
+                            numeProdus = parsed.produs;
+                            tinta = parseFloat(parsed.pret_total);
+                            curent = parseFloat(parsed.pret_alocat);
+                            prioritate = parsed.prioritate;
+                        } catch(e) {
+                            console.error("Eroare parsare item", e);
+                        }
+                    }
                     
-                    globalCheltuieli += sumaCheltuita;
+                    globalCheltuieliAlocate += curent;
+
+                    let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
+                    if(procent > 100) procent = 100;
+
+                    const rest = tinta - curent;
+                    const eComplet = procent === 100;
 
                     container.innerHTML += `
-                        <div class="wishlist-item">
+                        <div class="wishlist-item ${eComplet ? 'completed' : ''}">
                             <div class="item-header">
                                 <div>
-                                    <span class="item-name">${descriereProdus}</span>
+                                    <span class="item-name">${numeProdus}</span>
                                     <button class="delete-btn" onclick="stergeObiectiv(${item.id})">🗑️</button>
                                 </div>
-                                <span class="amount-spent">-${sumaCheltuita} RON</span>
+                                <span class="priority-badge prio-${prioritate}">${prioritate}</span>
                             </div>
                             <div class="item-finances">
-                                <span>Data înregistrării: <strong>${dataCheltuiala}</strong></span>
+                                <span>Alocat: <strong>${curent} RON</strong> din ${tinta} RON</span>
+                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest} RON (${procent}%)`}</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${procent}%"></div>
                             </div>
                         </div>
                     `;
@@ -423,22 +489,33 @@
             }
         }
 
-        // 5. Salvează cheltuială nouă în baza de date cu maparea corectă a coloanelor
+        // 5. Salvează structura complexă împachetată în câmpul simplu text 'descriere'
         async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
-            const suma = parseFloat(document.getElementById('itemTarget').value);
+            const tinta = parseFloat(document.getElementById('itemTarget').value);
+            const curent = parseFloat(document.getElementById('itemCurrent').value) || 0;
+            const prioritate = document.getElementById('itemPriority').value;
 
-            if(!nume || isNaN(suma) || suma <= 0) {
-                alert("Te rog adaugă o descriere și suma cheltuită!");
+            if(!nume || isNaN(tinta) || tinta <= 0) {
+                alert("Te rog adaugă un nume de produs și prețul lui total!");
                 return;
             }
+
+            // Construim un payload curat ascuns ca text în coloana descriere
+            const wishlistPayload = {
+                isWishlist: true,
+                produs: nume,
+                pret_total: tinta,
+                pret_alocat: curent,
+                prioritate: prioritate
+            };
 
             try {
                 const azi = new Date().toISOString().split('T')[0];
                 const { error } = await sb.from('cheltuieli').insert([
                     { 
-                        descriere: nume, 
-                        suma: suma, 
+                        descriere: JSON.stringify(wishlistPayload), 
+                        suma: curent, // În baza de date se salvează oficial suma alocată curent
                         data: azi
                     }
                 ]);
@@ -446,6 +523,7 @@
 
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemTarget').value = '';
+                document.getElementById('itemCurrent').value = '';
                 
                 await incarcaWishlist();
 
@@ -454,19 +532,19 @@
             }
         }
 
-        // 6. Șterge o cheltuială
+        // 6. Șterge produs din cheltuieli
         async function stergeObiectiv(id) {
-            if(!confirm("Sigur vrei să ștergi această cheltuială?")) return;
+            if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
             try {
                 const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
                 await incarcaWishlist();
             } catch(e) {
-                alert("Eroare la ștergerea cheltuielii.");
+                alert("Eroare la ștergerea produsului.");
             }
         }
 
-        // 7. Șterge o plată
+        // 7. Șterge o plată din încasări
         async function stergePlata(id) {
             if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
             try {
@@ -482,7 +560,6 @@
         async function init() {
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
-            await incarcaWishlist();
         }
 
         init();
