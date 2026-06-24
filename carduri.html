@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Carduri Jucători - Arena Friends FC</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root { 
+            --dark: #121212; 
+            --gold-bg: linear-gradient(135deg, #ffe066 0%, #f5b041 50%, #b7950b 100%);
+            --gold-glow: 0 10px 25px rgba(212, 175, 55, 0.4);
+            --border: #dcc89a;
+        }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Rajdhani', sans-serif; 
+            background: #f7ecd9; 
+            color: #3a2f1f; 
+            margin: 0; 
+            padding: 0; 
+        }
+        
+        .main-header { text-align: center; padding: 22px 20px 18px; border-bottom: 1px solid var(--border); background: #fffaf0; position: relative; }
+        .main-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.6rem; letter-spacing: 4px; color: #3a2f1f; margin: 0; }
+        .btn-back { position: absolute; left: 20px; top: 30px; background: #3a2f1f; color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.9rem; }
+        
+        .container { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
+        
+        /* Grid-ul de carduri */
+        .cards-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+            gap: 30px; 
+            justify-items: center;
+            margin-top: 20px;
+        }
+
+        /* --- STIL CARD FIFA UT --- */
+        .fut-card {
+            position: relative;
+            width: 250px;
+            height: 370px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 3px solid #fbbf24;
+            border-radius: 20px;
+            padding: 20px;
+            color: #fff;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            font-family: 'Rajdhani', sans-serif;
+        }
+        /* Design special tip card de aur pentru rating peste 75 */
+        .fut-card.gold {
+            background: linear-gradient(135deg, #fef08a 0%, #ca8a04 50%, #854d0e 100%);
+            border: 3px solid #fef08a;
+            color: #1e1b4b;
+            box-shadow: var(--gold-glow);
+        }
+        .fut-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+        .fut-card.gold:hover {
+            box-shadow: 0 20px 40px rgba(234, 179, 8, 0.6);
+        }
+
+        /* Badge-ul de sus cu Rating si Pozitie */
+        .card-meta {
+            position: absolute;
+            top: 25px;
+            left: 20px;
+            text-align: center;
+            line-height: 0.9;
+        }
+        .card-rating {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3rem;
+            font-weight: bold;
+            display: block;
+        }
+        .card-pos {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* Imagine Jucator */
+        .card-avatar-container {
+            width: 130px;
+            height: 130px;
+            margin: 10px auto 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden;
+            position: relative;
+        }
+        .card-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+        .gold .card-avatar {
+            border-bottom: 2px solid rgba(0,0,0,0.2);
+        }
+
+        /* Nume Jucator */
+        .card-name {
+            font-family: 'Bebas Neue', sans-serif;
+            text-align: center;
+            font-size: 1.8rem;
+            letter-spacing: 2px;
+            margin: 15px 0 10px 0;
+            text-transform: uppercase;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+        .gold .card-name {
+            border-bottom: 1px solid rgba(0,0,0,0.15);
+        }
+
+        /* Atributele in stil FIFA (PAC, SHO, etc) */
+        .card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 15px;
+            row-gap: 5px;
+            padding: 0 15px;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .stat-val {
+            font-weight: 700;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+        }
+        
+        .loading-text { text-align: center; font-size: 1.5rem; color: #7d6849; font-style: italic; margin-top: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-header">
+        <a href="index.html" class="btn-back">← Înapoi</a>
+        <h1>Echipa Arena Friends FC</h1>
+    </div>
+
+    <div class="container">
+        <div id="loading" class="loading-text">Se generează cardurile FIFA ale jucătorilor...</div>
+        <div class="cards-grid" id="cardsGrid"></div>
+    </div>
+
+    <script>
+        // --- CONFIGURARE SUPABASE ---
+        const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        async function incarcaCarduri() {
+            try {
+                // Tragem lista de jucători
+                const { data: players, error } = await sb.from('players').select('*').order('name', { ascending: true });
+                if (error) throw error;
+
+                const grid = document.getElementById('cardsGrid');
+                document.getElementById('loading').style.display = 'none';
+                grid.innerHTML = '';
+
+                players.forEach(p => {
+                    // --- FORMULĂ TEMPORARĂ PENTRU ATRIBUTE (Până îmi dai structura exactă) ---
+                    // Generăm valori realiste între 50 și 95 pe baza numelui sau id-ului ca să nu fie toți la fel
+                    const seed = p.id ? String(p.id).charCodeAt(0) : 70;
+                    
+                    const pac = 60 + (seed % 36); // Viteză
+                    const sho = 55 + ((seed + 5) % 41); // Șut
+                    const pas = 58 + ((seed + 12) % 38); // Pasă
+                    const dri = 60 + ((seed + 3) % 36); // Dribling
+                    const def = 50 + ((seed + 19) % 46); // Apărare
+                    const phy = 65 + ((seed + 7) % 31); // Fizic
+
+                    // Ratingul general este media celor 6 atribute principale
+                    const ratingGnl = Math.round((pac + sho + pas + dri + def + phy) / 6);
+                    
+                    // Stabilim o poziție fictivă sau preluată dacă există
+                    const pozitie = p.position || "OVR";
+
+                    // Verificăm dacă are avatar salvat, altfel punem o pictogramă neutră
+                    const fotoJucator = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+
+                    // Stabilim dacă este card de aur (rating mare) sau card dark standard
+                    const clasaCard = ratingGnl >= 75 ? 'fut-card gold' : 'fut-card';
+
+                    // Construim structura HTML a cardului stil FIFA
+                    grid.innerHTML += `
+                        <div class="${clasaCard}">
+                            <div class="card-meta">
+                                <span class="card-rating">${ratingGnl}</span>
+                                <span class="card-pos">${pozitie}</span>
+                            </div>
+                            <div class="card-avatar-container">
+                                <img src="${fotoJucator}" class="card-avatar" alt="${p.name}">
+                            </div>
+                            <div class="card-name">${p.name}</div>
+                            <div class="card-stats">
+                                <div class="stat-item"><span>PAC</span><span class="stat-val">${pac}</span></div>
+                                <div class="stat-item"><span>DRI</span><span class="stat-val">${dri}</span></div>
+                                <div class="stat-item"><span>SHO</span><span class="stat-val">${sho}</span></div>
+                                <div class="stat-item"><span>DEF</span><span class="stat-val">${def}</span></div>
+                                <div class="stat-item"><span>PAS</span><span class="stat-val">${pas}</span></div>
+                                <div class="stat-item"><span>PHY</span><span class="stat-val">${phy}</span></div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+            } catch (e) {
+                document.getElementById('loading').textContent = "Eroare la încărcarea cardurilor: " + e.message;
+            }
+        }
+
+        incarcaCarduri();
+    </script>
+</body>
+</html>
