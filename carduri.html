@@ -294,30 +294,57 @@
 
         let localPlayers = [];
 
-        // Detecție corectă și transformare din formatul 1-10 în formatul 1-100
+        // Funcție aliniată la structura reală a bazei de date (adminRating, camelCase)
         function calculeazaRatingFifa(p) {
-            let n = 7.5; // Valoare fallback implicită
-
-            if (p.admin_rating != null) {
-                n = parseFloat(p.admin_rating);
-            } else if (p.general_rating != null) {
-                n = parseFloat(p.general_rating);
-            } else if (p.rating != null) {
-                n = parseFloat(p.rating);
+            // 1. Verificare Override din admin (în DB se numește exact adminRating)
+            if (p.adminRating != null) {
+                let r = parseFloat(p.adminRating);
+                if (r <= 10) r = r * 10;
+                return Math.max(45, Math.min(99, Math.round(r)));
             }
 
-            // Dacă valoarea este extrasă pe scara 1-10 (ex: 9.2), o transformăm în 92
-            if (n > 0 && n <= 10) {
-                n = n * 10;
+            // 2. Fallback pe algoritmul Smart Rating bazat pe performanțele salvate în profil
+            let base = 5.0;
+            const games = p.games || 0;
+            const wins = p.wins || 0;
+            const wrRaw = games > 0 ? wins / games : 0.5;
+
+            base += (wrRaw - 0.5) * 4; // winrate weighting
+            if (wrRaw > 0.60 && games >= 3) base += 0.2;
+
+            const goluri = p.total_goals || p.totalGoals || 0;
+            if (goluri > 0 && games > 0) {
+                const gpg = Math.min(goluri / games, 3);
+                base += Math.min(gpg * 0.33, 1.0);
             }
 
-            let score = Math.round(n);
-            return Math.max(45, Math.min(99, score));
+            // 3. Integrare medii de voturi din tabelul relaționat (ratings) dacă există
+            if (p.ratings && Array.isArray(p.ratings) && p.ratings.length > 0) {
+                let sum = 0;
+                p.ratings.forEach(r => {
+                    const g = r.general != null ? r.general : 5;
+                    const v = r.viteza != null ? r.viteza : 5;
+                    const t = r.tehnica != null ? r.tehnica : 5;
+                    const s = r.strategie != null ? r.strategie : 5;
+                    const a = r.aparare != null ? r.aparare : 5;
+                    sum += (g + v + t + s + a) / 5;
+                });
+                let mediaVote = sum / p.ratings.length;
+                base = (base + mediaVote) / 2; // Combinare echilibrată între statisticile meciurilor și voturi
+            }
+
+            // Clamp în siguranță și transformare directă în format FIFA 45-99
+            let finalScore = Math.round(base * 10);
+            if (isNaN(finalScore) || finalScore < 45) {
+                return 75; // Fallback sigur în caz de profil fără nicio înregistrare validă
+            }
+            return Math.max(45, Math.min(99, finalScore));
         }
 
         async function incarcajucatori() {
             try {
-                const { data: players, error } = await sb.from('players').select('*').order('name', { ascending: true });
+                // Selectăm tot plus sub-tabelul de ratings pentru calculul mediei
+                const { data: players, error } = await sb.from('players').select('*, ratings(*)').order('name', { ascending: true });
                 if (error) throw error;
 
                 localPlayers = players;
@@ -361,7 +388,7 @@
             const meciuri = p.games || 1;
             const eficienta = goluri / meciuri;
 
-            // Atribute calculate dinamic raportate direct la valoarea OVR totală a jucătorului
+            // Atribute adaptate și calculate curat în raport direct cu OVR-ul
             const pac = Math.max(45, Math.min(99, Math.round(ratingOVR - 3 + (id % 6))));
             const sho = Math.max(45, Math.min(99, Math.round(ratingOVR - 8 + (eficienta * 25))));
             const pas = Math.max(45, Math.min(99, Math.round(ratingOVR - 2 + (p.wins % 4))));
