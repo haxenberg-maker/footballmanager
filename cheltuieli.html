@@ -39,6 +39,12 @@
             margin-bottom: 25px;
         }
 
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         h1, h2, h3 {
             color: var(--accent-gold);
             text-transform: uppercase;
@@ -56,6 +62,25 @@
             font-weight: bold;
         }
 
+        /* Iconiță discretă în dreapta sus */
+        .btn-report-icon {
+            background: #1c2433;
+            color: var(--accent-gold);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-report-icon:hover {
+            background: rgba(241, 212, 131, 0.1);
+            border-color: var(--accent-gold);
+        }
+
         .total-budget-box {
             background: linear-gradient(135deg, #1e293b 0%, #151b26 100%);
             border: 2px solid var(--accent-gold);
@@ -70,32 +95,6 @@
             color: var(--accent-gold);
             display: block;
             margin-top: 5px;
-        }
-
-        /* Buton subtil plasat la finalul panoului */
-        .btn-whatsapp-subtil {
-            background: transparent;
-            color: #64748b;
-            border: 1px dashed var(--border-color);
-            padding: 8px 12px;
-            font-family: inherit;
-            font-size: 0.85rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            border-radius: 6px;
-            cursor: pointer;
-            margin-top: 15px;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            width: 100%;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .btn-whatsapp-subtil:hover {
-            color: #25d366;
-            border-color: #25d366;
-            background: rgba(37, 211, 102, 0.05);
         }
 
         .main-layout {
@@ -261,7 +260,11 @@
     <div class="container">
         <div class="header-area">
             <h1>💰 Management Buget & Încasări</h1>
-            <a href="index.html" class="btn-back">← Înapoi</a>
+            <div class="header-actions">
+                <!-- Iconița subtilă mutată în dreapta sus -->
+                <button class="btn-report-icon" title="Generează tabelă raport" onclick="genereazaTabelaRaport()">📋</button>
+                <a href="index.html" class="btn-back">← Înapoi</a>
+            </div>
         </div>
 
         <div class="total-budget-box">
@@ -325,9 +328,6 @@
                 <div class="panel">
                     <h2>👥 Istoric Încasări Jucători</h2>
                     <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
-                    
-                    <!-- Buton discret plasat elegant la finalul istoricului -->
-                    <button class="btn-whatsapp-subtil" onclick="genereazaRaportWhatsApp()">💬 Copiază Tabela pentru WhatsApp</button>
                 </div>
             </div>
         </div>
@@ -374,10 +374,7 @@
                 if (error) throw error;
 
                 const container = document.getElementById('playersContributions');
-                
-                // Păstrăm structura existentă, curățăm doar rândurile vechi, nu și butonul
-                const randuriVechi = container.querySelectorAll('.player-row, p');
-                randuriVechi.forEach(el => el.remove());
+                container.innerHTML = '';
 
                 globalIncasari = 0;
                 dateRaportIncasari = [];
@@ -390,27 +387,23 @@
                         globalIncasari += sumaIncasata;
                         dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
                         
-                        const row = document.createElement('div');
-                        row.className = 'player-row';
-                        row.innerHTML = `
-                            <div class="player-row-top">
-                                <span>${numeJucator}</span>
-                                <div>
-                                    <span class="amount-paid">+${sumaIncasata} RON</span>
-                                    <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
+                        container.innerHTML += `
+                            <div class="player-row">
+                                <div class="player-row-top">
+                                    <span>${numeJucator}</span>
+                                    <div>
+                                        <span class="amount-paid">+${sumaIncasata} RON</span>
+                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
+                                    </div>
+                                </div>
+                                <div class="player-row-details">
+                                    ${detaliiMeci} (${i.data || ''})
                                 </div>
                             </div>
-                            <div class="player-row-details">
-                                ${detaliiMeci} (${i.data || ''})
-                            </div>
                         `;
-                        container.insertBefore(row, container.firstChild);
                     });
                 } else {
-                    const p = document.createElement('p');
-                    p.style.color = '#64748b';
-                    p.textContent = 'Nicio încasare înregistrată.';
-                    container.insertBefore(p, container.firstChild);
+                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
                 }
 
                 await incarcaWishlist();
@@ -590,8 +583,8 @@
             }
         }
 
-        // Generează o tabelă text aliniată, perfect lizibilă direct din mesajul de WhatsApp
-        function genereazaRaportWhatsApp() {
+        // Doar generează tabela text și o copiază în clipboard, fără redirecționări
+        function genereazaTabelaRaport() {
             const soldFinal = globalIncasari - globalCheltuieliAlocate;
             
             let text = `📊 *RAPORT FINANCIAR ARENA FC*\n`;
@@ -628,10 +621,9 @@
             text += `\n📱 _Generat din aplicația Arena Buget_`;
 
             navigator.clipboard.writeText(text).then(() => {
-                alert("Tabela formatată a fost copiată! Deschidem WhatsApp, doar dai Paste (Lipire) pe grup.");
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                alert("📋 Tabela a fost generată și copiată în clipboard! Acum poți da direct Paste (Lipire) pe grupul de WhatsApp.");
             }).catch(err => {
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                alert("Nu s-a putut copia automat. Reîncearcă.");
             });
         }
 
