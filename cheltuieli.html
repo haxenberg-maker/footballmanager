@@ -72,6 +72,29 @@
             margin-top: 5px;
         }
 
+        .btn-whatsapp {
+            background: #25d366;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+            transition: transform 0.2s;
+        }
+        .btn-whatsapp:hover {
+            transform: scale(1.03);
+            background: #20ba56;
+        }
+
         .main-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -241,10 +264,10 @@
         <div class="total-budget-box">
             <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - ALOCĂRI CHELTUIELI)</span>
             <span class="suma" id="totalColectat">0 RON</span>
+            <button class="btn-whatsapp" onclick="genereazaRaportWhatsApp()">💬 Generează Raport WhatsApp</button>
         </div>
 
         <div class="main-layout">
-            <!-- COLOANA STÂNGA: Planificare Cheltuieli / Wishlist -->
             <div>
                 <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -275,7 +298,6 @@
                 <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <!-- COLOANA DREAPTĂ: Formular Adăugare Plăți + Istoric Nume Real -->
             <div>
                 <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -311,6 +333,8 @@
 
         let globalIncasari = 0;
         let globalCheltuieliAlocate = 0;
+        let dateRaportIncasari = [];
+        let dateRaportWishlist = [];
 
         function actualizeazaSoldFinal() {
             const soldFinal = globalIncasari - globalCheltuieliAlocate;
@@ -348,6 +372,7 @@
                 container.innerHTML = '';
 
                 globalIncasari = 0;
+                dateRaportIncasari = [];
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
                         const numeJucator = i.players ? i.players.name : 'Jucător Necunoscut';
@@ -355,6 +380,7 @@
                         const detaliiMeci = i.detalii || 'Fără detalii';
                         
                         globalIncasari += sumaIncasata;
+                        dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
                         
                         container.innerHTML += `
                             <div class="player-row">
@@ -428,6 +454,7 @@
                 container.innerHTML = '';
 
                 globalCheltuieliAlocate = 0;
+                dateRaportWishlist = [];
                 if(!cheltuieli || cheltuieli.length === 0) {
                     container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
                     actualizeazaSoldFinal();
@@ -440,7 +467,6 @@
                     let curent = parseFloat(item.suma || 0);
                     let prioritate = 'medie';
 
-                    // Încercăm să citim formatul JSON ascuns în 'descriere'
                     if (item.descriere && item.descriere.startsWith('{"isWishlist"')) {
                         try {
                             const parsed = JSON.parse(item.descriere);
@@ -454,12 +480,14 @@
                     }
                     
                     globalCheltuieliAlocate += curent;
-
+                    
                     let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
                     if(procent > 100) procent = 100;
 
                     const rest = tinta - curent;
                     const eComplet = procent === 100;
+
+                    dateRaportWishlist.push({ produs: numeProdus, tinta: tinta, curent: curent, procent: procent, complet: eComplet });
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -489,7 +517,7 @@
             }
         }
 
-        // 5. Salvează structura complexă împachetată în câmpul simplu text 'descriere'
+        // 5. Salvează structura complexă în câmpul simplu text 'descriere'
         async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
@@ -501,7 +529,6 @@
                 return;
             }
 
-            // Construim un payload curat ascuns ca text în coloana descriere
             const wishlistPayload = {
                 isWishlist: true,
                 produs: nume,
@@ -515,7 +542,7 @@
                 const { error } = await sb.from('cheltuieli').insert([
                     { 
                         descriere: JSON.stringify(wishlistPayload), 
-                        suma: curent, // În baza de date se salvează oficial suma alocată curent
+                        suma: curent, 
                         data: azi
                     }
                 ]);
@@ -525,7 +552,7 @@
                 document.getElementById('itemTarget').value = '';
                 document.getElementById('itemCurrent').value = '';
                 
-                await incarcaWishlist();
+                await incarcaBugetSiJucatori();
 
             } catch(e) {
                 alert("Eroare la salvare: " + e.message);
@@ -538,7 +565,7 @@
             try {
                 const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
-                await incarcaWishlist();
+                await incarcaBugetSiJucatori();
             } catch(e) {
                 alert("Eroare la ștergerea produsului.");
             }
@@ -554,6 +581,48 @@
             } catch(e) {
                 alert("Eroare la ștergerea plății.");
             }
+        }
+
+        // 8. Generează mesaj formatat excelent pentru grupul de WhatsApp
+        function genereazaRaportWhatsApp() {
+            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            
+            let text = `📊 *RAPORT FINANCIAR ARENA FC*\n`;
+            text += `------------------------------------\n`;
+            text += `💰 *Sold Disponibil:* ${soldFinal.toFixed(2)} RON\n`;
+            text += `📥 Total Strâns: ${globalIncasari.toFixed(2)} RON\n`;
+            text += `💸 Total Alocat: ${globalCheltuieliAlocate.toFixed(2)} RON\n\n`;
+
+            text += `🎯 *CE VREM SĂ LUĂM / WISHLIST:*\n`;
+            if(dateRaportWishlist.length === 0) {
+                text += `_Niciun obiectiv adăugat_\n`;
+            } else {
+                dateRaportWishlist.forEach(w => {
+                    const status = w.complet ? `✅ Achiziționat` : `⏳ (${w.procent}%) - Alocat ${w.curent}/${w.tinta} RON`;
+                    text += `• *${w.produs}*: ${status}\n`;
+                });
+            }
+
+            text += `\n💵 *CINE A DAT BANI (ISTORIC):*\n`;
+            if(dateRaportIncasari.length === 0) {
+                text += `_Nicio încasare înregistrată_\n`;
+            } else {
+                dateRaportIncasari.forEach(i => {
+                    text += `• *${i.nume}*: ${i.suma} RON (${i.detalii})\n`;
+                });
+            }
+            
+            text += `\n------------------------------------\n`;
+            text += `📱 _Generat din aplicatia Management Buget_`;
+
+            // Copiază în clipboard automat
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Raportul a fost copiat în clipboard! Se deschide WhatsApp, dă doar Paste (Lipire) pe grup.");
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+            }).catch(err => {
+                // Alternativă dacă browserul blochează clipboard-ul automat
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+            });
         }
 
         // Inițializare aplicație
