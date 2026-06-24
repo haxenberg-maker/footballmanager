@@ -26,7 +26,7 @@
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
@@ -125,6 +125,11 @@
             font-size: 1rem;
             text-transform: uppercase;
         }
+        
+        .btn-add-payment {
+            background: var(--success-green);
+            color: #fff;
+        }
 
         .wishlist-item {
             background: #1c2433;
@@ -187,6 +192,7 @@
             color: #64748b;
             cursor: pointer;
             font-size: 0.85rem;
+            margin-left: 8px;
         }
         .delete-btn:hover { color: #ef4444; }
 
@@ -197,13 +203,30 @@
             padding: 20px;
         }
 
+        /* Stilul exact din poza ta image_88e3e4.png */
         .player-row {
             display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #1c2433;
+            flex-direction: column;
+            padding: 12px 0;
+            border-bottom: 1px solid #1e293b;
         }
         .player-row:last-child { border-bottom: none; }
+        
+        .player-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        .player-row-details {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
         .amount-paid { color: var(--success-green); font-weight: 700; }
     </style>
 </head>
@@ -221,6 +244,7 @@
         </div>
 
         <div class="main-layout">
+            <!-- COLOANA STÂNGA: Cheltuieli / Obiective -->
             <div>
                 <h2>🎯 Adaugă Necesar / Produse</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -234,7 +258,7 @@
                     </div>
                     <div class="form-group">
                         <label>Suma Alocată Deja (RON)</label>
-                        <input type="number" id="itemCurrent" placeholder="Ex: 50">
+                        <input type="number" id="itemCurrent" placeholder="Ex: 40">
                     </div>
                     <div class="form-group">
                         <label>Prioritate</label>
@@ -244,27 +268,81 @@
                             <option value="mica">Mică 💤</option>
                         </select>
                     </div>
-                    <button class="btn-add" onclick="salveazaInBaza()">Adaugă în tabelul Cheltuieli</button>
+                    <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă în tabelul Cheltuieli</button>
                 </div>
 
                 <h2>📋 Listă Achiziții & Progres</h2>
                 <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <div class="panel">
-                <h2>👥 Istoric Încasări Jucători</h2>
-                <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+            <!-- COLOANA DREAPTĂ: Adăugare Plăți + Istoric Plăți (Conform image_88e3e4.png) -->
+            <div>
+                <h2>💵 Înregistrează Plată Nouă</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Selectează Jucătorul</label>
+                        <select id="paymentPlayer">
+                            <option value="">Se încarcă jucătorii...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Suma Plătită (RON)</label>
+                        <input type="number" id="paymentAmount" placeholder="Ex: 50">
+                    </div>
+                    <div class="form-group">
+                        <label>Detalii Plată</label>
+                        <input type="text" id="paymentDetails" placeholder="Ex: Cotizatie minge / Rest sintetic">
+                    </div>
+                    <button class="btn-add btn-add-payment" onclick="salveazaPlata()">Adaugă Plată</button>
+                </div>
+
+                <div class="panel">
+                    <h2>👥 Istoric Încasări Jucători</h2>
+                    <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Supabase configuration
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // 1. Load data from 'incasari' table
+        // Map stocare locală id_jucator -> Nume pentru rezolvarea rapidă a ID-urilor din image_88e3e4.png
+        let listaJucatoriGlobal = {};
+
+        // Încărcare inițială a listei de jucători din baza ta pentru Dropdown
+        async function incarcaJucatoriDropdown() {
+            try {
+                // Încercăm să luăm din 'ratings' sau direct din 'jucatori'
+                let { data: jucatori, error } = await sb.from('ratings').select('*');
+                if(error) {
+                    const res = await sb.from('jucatori').select('*');
+                    jucatori = res.data;
+                }
+
+                const select = document.getElementById('paymentPlayer');
+                select.innerHTML = '<option value="">-- Alege Jucător --</option>';
+
+                if(jucatori && jucatori.length > 0) {
+                    jucatori.forEach(j => {
+                        const id = j.id || j.jucator_id;
+                        const nume = j.nume || j.name || j.player_name;
+                        
+                        listaJucatoriGlobal[id] = nume; // Salvează în map ca să știm numele după ID
+                        
+                        select.innerHTML += `<option value="${id}">${nume}</option>`;
+                    });
+                } else {
+                    select.innerHTML = '<option value="">Nu s-au găsit jucători în bază</option>';
+                }
+            } catch(e) {
+                console.error("Nu s-au putut încărca jucătorii pentru formular:", e);
+            }
+        }
+
+        // 1. Încarcă dinamic încasările cu formatare exactă ca în screenshot-ul tău (image_88e3e4.png)
         async function incarcaBugetSiJucatori() {
             try {
                 const { data: incasari, error } = await sb.from('incasari').select('*');
@@ -276,15 +354,27 @@
                 let total = 0;
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
-                        // Maps 'suma' and 'jucator' or defaults if column named differently
-                        const sumaIncasata = parseFloat(i.suma || i.amount || 0);
-                        const numeJucator = i.jucator || i.player_name || 'Jucător';
+                        // Rezolvă ID-ul sau numele direct conform structurii tale
+                        const refId = i.jucator_id || i.jucator;
+                        const numeJucator = listaJucatoriGlobal[refId] || i.nume || `Jucător (ID: ${refId})`;
+                        const sumaIncasata = parseFloat(i.suma || 0);
+                        const detaliiMeci = i.detalii || 'Cotizatie minge';
                         
                         total += sumaIncasata;
+                        
+                        // Generăm rândul exact ca structură din db (Nume + Sumă sus, Detalii dedesubt) + Buton Ștergere
                         container.innerHTML += `
                             <div class="player-row">
-                                <span>${numeJucator}</span>
-                                <span class="amount-paid">+${sumaIncasata} RON</span>
+                                <div class="player-row-top">
+                                    <span>${numeJucator}</span>
+                                    <div>
+                                        <span class="amount-paid">${sumaIncasata} RON</span>
+                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
+                                    </div>
+                                </div>
+                                <div class="player-row-details">
+                                    ${detaliiMeci}
+                                </div>
                             </div>
                         `;
                     });
@@ -293,8 +383,6 @@
                 }
 
                 document.getElementById('totalColectat').textContent = `${total} RON`;
-                
-                // Load items next
                 incarcaWishlist();
 
             } catch (e) {
@@ -303,7 +391,45 @@
             }
         }
 
-        // 2. Load data from 'cheltuieli' table
+        // 2. Salvează plată nouă în tabelul incasari (exact coloanele din imaginea ta)
+        async function salveazaPlata() {
+            const jucatorId = document.getElementById('paymentPlayer').value;
+            const suma = parseFloat(document.getElementById('paymentAmount').value);
+            const detalii = document.getElementById('paymentDetails').value.trim() || 'Cotizatie minge';
+
+            if(!jucatorId || isNaN(suma) || suma <= 0) {
+                alert("Te rog selectează un jucător și introdu suma corectă!");
+                return;
+            }
+
+            try {
+                // Introduce fix pe formatul coloanelor tale: jucator_id, suma, detalii, data
+                const azi = new Date().toISOString().split('T')[0];
+                const { error } = await sb.from('incasari').insert([
+                    {
+                        jucator_id: jucatorId,
+                        suma: suma,
+                        detalii: detalii,
+                        data: azi
+                    }
+                ]);
+
+                if (error) throw error;
+
+                // Resetăm formularul de plată
+                document.getElementById('paymentAmount').value = '';
+                document.getElementById('paymentDetails').value = '';
+                document.getElementById('paymentPlayer').value = '';
+
+                // Reîncărcăm lista ca să apară plata instant
+                incarcaBugetSiJucatori();
+
+            } catch(e) {
+                alert("Eroare la salvarea plății: " + e.message);
+            }
+        }
+
+        // 3. Încarcă cheltuielile/dorințele cu barele de progres
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb.from('cheltuieli').select('*');
@@ -318,10 +444,9 @@
                 }
 
                 cheltuieli.forEach(item => {
-                    // Fallback to various column naming schemes just in case
-                    const numeProdus = item.produs || item.nume || 'Produs';
-                    const tinta = parseFloat(item.pret_total || item.tinta || 0);
-                    const curent = parseFloat(item.pret_alocat || item.curent || 0);
+                    const numeProdus = item.produs || 'Produs';
+                    const tinta = parseFloat(item.pret_total || 0);
+                    const curent = parseFloat(item.pret_alocat || 0);
                     const prioritate = item.prioritate || 'medie';
                     
                     let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
@@ -356,8 +481,8 @@
             }
         }
 
-        // 3. Insert a new record into 'cheltuieli' table
-        async function salveazaInBaza() {
+        // 4. Salvează produs nou în cheltuieli
+        async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
             const curent = parseFloat(document.getElementById('itemCurrent').value) || 0;
@@ -369,7 +494,6 @@
             }
 
             try {
-                // Inserts using your standard structural names
                 const { error } = await sb.from('cheltuieli').insert([
                     { 
                         produs: nume, 
@@ -380,7 +504,6 @@
                 ]);
                 if (error) throw error;
 
-                // Reset fields
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemTarget').value = '';
                 document.getElementById('itemCurrent').value = '';
@@ -392,7 +515,7 @@
             }
         }
 
-        // 4. Delete a record from 'cheltuieli' table
+        // 5. Șterge produs din cheltuieli
         async function stergeObiectiv(id) {
             if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
             try {
@@ -404,8 +527,25 @@
             }
         }
 
-        // Initialize view
-        incarcaBugetSiJucatori();
+        // 6. Șterge o plată greșită din încasări
+        async function stergePlata(id) {
+            if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
+            try {
+                const { error } = await sb.from('incasari').delete().eq('id', id);
+                if (error) throw error;
+                incarcaBugetSiJucatori();
+            } catch(e) {
+                alert("Eroare la ștergerea plății.");
+            }
+        }
+
+        // Pornire logică secvențială: Jucători -> Încasări & Cheltuieli
+        async function init() {
+            await incarcaJucatoriDropdown();
+            await incarcaBugetSiJucatori();
+        }
+
+        init();
     </script>
 </body>
 </html>
