@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Buget & Achiziții Arena</title>
+    <title>Management Buget Arena</title>
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
@@ -56,7 +56,6 @@
             font-weight: bold;
         }
 
-        /* Zona de rezumat buget general */
         .total-budget-box {
             background: linear-gradient(135deg, #1e293b 0%, #151b26 100%);
             border: 2px solid var(--accent-gold);
@@ -83,7 +82,6 @@
             .main-layout { grid-template-columns: 1fr; }
         }
 
-        /* Formular Adăugare Obiectiv */
         .budget-form {
             background: var(--panel-bg);
             border: 1px solid var(--border-color);
@@ -126,14 +124,6 @@
             font-family: inherit;
             font-size: 1rem;
             text-transform: uppercase;
-        }
-
-        /* Lista de Obiective & Jucători */
-        .panel {
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px;
         }
 
         .wishlist-item {
@@ -200,7 +190,13 @@
         }
         .delete-btn:hover { color: #ef4444; }
 
-        /* Jucători Contribuții */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
         .player-row {
             display: flex;
             justify-content: space-between;
@@ -215,23 +211,21 @@
 
     <div class="container">
         <div class="header-area">
-            <h1>💰 Sistem Buget Arena</h1>
+            <h1>💰 Management Buget & Încasări</h1>
             <a href="index.html" class="btn-back">← Înapoi</a>
         </div>
 
-        <!-- Casetă Buget Total Strâns Dinamic din DB -->
         <div class="total-budget-box">
-            <span>TOTAL STRÂNS DE LA JUCĂTORI (BUGET DISPONIBIL)</span>
+            <span>TOTAL STRÂNS DIN JUCĂTORI (BUGET DISPONIBIL)</span>
             <span class="suma" id="totalColectat">0 RON</span>
         </div>
 
         <div class="main-layout">
-            <!-- COLOANA STÂNGA: Management Targete Cumpărături -->
             <div>
-                <h2>🎯 Adaugă Necesar / Target</h2>
+                <h2>🎯 Adaugă Necesar / Produse</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
                     <div class="form-group">
-                        <label>Ce trebuie cumpărat?</label>
+                        <label>Ce trebuie cumpărat? (Produs)</label>
                         <input type="text" id="itemName" placeholder="Ex: Mănuși Portar">
                     </div>
                     <div class="form-group">
@@ -239,95 +233,96 @@
                         <input type="number" id="itemTarget" placeholder="Ex: 300">
                     </div>
                     <div class="form-group">
-                        <label>Suma Alocată Deja din Buget (RON)</label>
-                        <input type="number" id="itemCurrent" placeholder="Ex: 40">
+                        <label>Suma Alocată Deja (RON)</label>
+                        <input type="number" id="itemCurrent" placeholder="Ex: 50">
                     </div>
                     <div class="form-group">
                         <label>Prioritate</label>
                         <select id="itemPriority">
                             <option value="mare">Mare 🔥</option>
-                            <option value="medie">Medie ⚡</option>
+                            <option value="medie" selected>Medie ⚡</option>
                             <option value="mica">Mică 💤</option>
                         </select>
                     </div>
-                    <button class="btn-add" onclick="salveazaInBaza()">Adaugă Obiectiv în DB</button>
+                    <button class="btn-add" onclick="salveazaInBaza()">Adaugă în tabelul Cheltuieli</button>
                 </div>
 
                 <h2>📋 Listă Achiziții & Progres</h2>
-                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă obiective...</div>
+                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <!-- COLOANA DREAPTĂ: Cine a dat bani (Dinamic din DB) -->
             <div class="panel">
-                <h2>👥 Istoric Contribuții Jucători</h2>
-                <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de plăți...</div>
+                <h2>👥 Istoric Încasări Jucători</h2>
+                <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
             </div>
         </div>
     </div>
 
     <script>
-        // Configurare Supabase
+        // Supabase configuration
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let sumaGlobalaDisponibila = 0;
-
-        // 1. Încarcă plățile jucătorilor și calculează totalul strâns
+        // 1. Load data from 'incasari' table
         async function incarcaBugetSiJucatori() {
             try {
-                // IMPORTANT: Înlocuiește 'payments' și coloanele cu denumirile tale reale dacă diferă
-                // Presupunem că ai tabelul de plăți cu numele jucătorului ('player_name') și suma ('amount')
-                const { data: plati, error } = await sb.from('payments').select('*');
+                const { data: incasari, error } = await sb.from('incasari').select('*');
                 if (error) throw error;
 
                 const container = document.getElementById('playersContributions');
                 container.innerHTML = '';
 
                 let total = 0;
-                if(plati && plati.length > 0) {
-                    plati.forEach(p => {
-                        total += parseFloat(p.amount || 0);
+                if(incasari && incasari.length > 0) {
+                    incasari.forEach(i => {
+                        // Maps 'suma' and 'jucator' or defaults if column named differently
+                        const sumaIncasata = parseFloat(i.suma || i.amount || 0);
+                        const numeJucator = i.jucator || i.player_name || 'Jucător';
+                        
+                        total += sumaIncasata;
                         container.innerHTML += `
                             <div class="player-row">
-                                <span>${p.player_name || 'Jucător Anonim'}</span>
-                                <span class="amount-paid">+${p.amount} RON</span>
+                                <span>${numeJucator}</span>
+                                <span class="amount-paid">+${sumaIncasata} RON</span>
                             </div>
                         `;
                     });
                 } else {
-                    container.innerHTML = '<p style="color:#64748b;">Nicio plată înregistrată încă.</p>';
+                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată în bază.</p>';
                 }
 
-                sumaGlobalaDisponibila = total;
                 document.getElementById('totalColectat').textContent = `${total} RON`;
                 
-                // După ce avem bugetul global, încărcăm și wishlist-ul ca să calculăm procentele corect
+                // Load items next
                 incarcaWishlist();
 
             } catch (e) {
                 console.error(e);
-                document.getElementById('playersContributions').textContent = "Eroare la încărcarea plăților.";
+                document.getElementById('playersContributions').textContent = "Eroare la încărcarea tabelului încasări.";
             }
         }
 
-        // 2. Încarcă dinamic wishlist-ul salvat în Supabase
+        // 2. Load data from 'cheltuieli' table
         async function incarcaWishlist() {
             try {
-                const { data: iteme, error } = await sb.from('wishlist').select('*').order('created_at', { ascending: false });
+                const { data: cheltuieli, error } = await sb.from('cheltuieli').select('*');
                 if (error) throw error;
 
                 const container = document.getElementById('wishlistContainer');
                 container.innerHTML = '';
 
-                if(!iteme || iteme.length === 0) {
-                    container.innerHTML = '<p style="color:#64748b;">Nu ai adăugat niciun obiectiv încă.</p>';
+                if(!cheltuieli || cheltuieli.length === 0) {
+                    container.innerHTML = '<p style="color:#64748b;">Nu există produse adăugate în cheltuieli.</p>';
                     return;
                 }
 
-                iteme.forEach(item => {
-                    const tinta = parseFloat(item.tinta);
-                    const curent = parseFloat(item.curent || 0);
+                cheltuieli.forEach(item => {
+                    // Fallback to various column naming schemes just in case
+                    const numeProdus = item.produs || item.nume || 'Produs';
+                    const tinta = parseFloat(item.pret_total || item.tinta || 0);
+                    const curent = parseFloat(item.pret_alocat || item.curent || 0);
+                    const prioritate = item.prioritate || 'medie';
                     
                     let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
                     if(procent > 100) procent = 100;
@@ -339,14 +334,14 @@
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
                             <div class="item-header">
                                 <div>
-                                    <span class="item-name">${item.nume}</span>
+                                    <span class="item-name">${numeProdus}</span>
                                     <button class="delete-btn" onclick="stergeObiectiv(${item.id})">🗑️</button>
                                 </div>
-                                <span class="priority-badge prio-${item.prioritate}">${item.prioritate}</span>
+                                <span class="priority-badge prio-${prioritate}">${prioritate}</span>
                             </div>
                             <div class="item-finances">
-                                <span>Acoperit: <strong>${curent} RON</strong> din ${tinta} RON</span>
-                                <span>${eComplet ? '🎉 Pregătit!' : `Mai trebuie: ${rest} RON (${procent}%)`}</span>
+                                <span>Alocat: <strong>${curent} RON</strong> din ${tinta} RON</span>
+                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest} RON (${procent}%)`}</span>
                             </div>
                             <div class="progress-container">
                                 <div class="progress-bar" style="width: ${procent}%"></div>
@@ -357,11 +352,11 @@
 
             } catch(e) {
                 console.error(e);
-                document.getElementById('wishlistContainer').textContent = "Eroare la încărcarea listei de cumpărături.";
+                document.getElementById('wishlistContainer').textContent = "Eroare la încărcarea tabelului cheltuieli.";
             }
         }
 
-        // 3. Inserează un obiectiv nou direct în Supabase
+        // 3. Insert a new record into 'cheltuieli' table
         async function salveazaInBaza() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
@@ -369,17 +364,23 @@
             const prioritate = document.getElementById('itemPriority').value;
 
             if(!nume || isNaN(tinta) || tinta <= 0) {
-                alert("Te rog adaugă un nume valid și prețul total necesar!");
+                alert("Te rog adaugă un nume de produs și prețul lui total!");
                 return;
             }
 
             try {
-                const { error } = await sb.from('wishlist').insert([
-                    { nume: nume, tinta: tinta, curent: curent, prioritate: prioritate }
+                // Inserts using your standard structural names
+                const { error } = await sb.from('cheltuieli').insert([
+                    { 
+                        produs: nume, 
+                        pret_total: tinta, 
+                        pret_alocat: curent, 
+                        prioritate: prioritate 
+                    }
                 ]);
                 if (error) throw error;
 
-                // Resetăm formularul și reîncărcăm datele proaspete
+                // Reset fields
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemTarget').value = '';
                 document.getElementById('itemCurrent').value = '';
@@ -391,19 +392,19 @@
             }
         }
 
-        // 4. Șterge un obiectiv din Supabase
+        // 4. Delete a record from 'cheltuieli' table
         async function stergeObiectiv(id) {
-            if(!confirm("Sigur vrei să ștergi acest obiectiv?")) return;
+            if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
             try {
-                const { error } = await sb.from('wishlist').delete().eq('id', id);
+                const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
                 incarcaWishlist();
             } catch(e) {
-                alert("Eroare la ștergere.");
+                alert("Eroare la ștergerea produsului.");
             }
         }
 
-        // Inițializare automată la deschiderea paginii
+        // Initialize view
         incarcaBugetSiJucatori();
     </script>
 </body>
