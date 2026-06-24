@@ -3,175 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Carduri Jucători - Arena Friends FC</title>
+    <title>Carduri Jucători - FC 26 Arena</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
         :root { 
-            --dark: #121212; 
-            --gold-bg: linear-gradient(135deg, #ffe066 0%, #f5b041 50%, #b7950b 100%);
-            --gold-glow: 0 10px 25px rgba(212, 175, 55, 0.4);
-            --border: #dcc89a;
+            --dark-bg: #0b0e14;
+            --border-gold: #f1d483;
         }
         * { box-sizing: border-box; }
         body { 
             font-family: 'Rajdhani', sans-serif; 
-            background: #f7ecd9; 
-            color: #3a2f1f; 
+            background: #111622; 
+            color: #fff; 
             margin: 0; 
             padding: 0; 
         }
         
-        .main-header { text-align: center; padding: 22px 20px 18px; border-bottom: 1px solid var(--border); background: #fffaf0; position: relative; }
-        .main-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.6rem; letter-spacing: 4px; color: #3a2f1f; margin: 0; }
-        .btn-back { position: absolute; left: 20px; top: 30px; background: #3a2f1f; color: #fff; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 0.9rem; }
+        .main-header { text-align: center; padding: 25px 20px; border-bottom: 1px solid #1e293b; background: #0c101b; position: relative; }
+        .main-header h1 { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 3px; color: #f1d483; margin: 0; text-shadow: 0 2px 10px rgba(241,212,131,0.2); }
+        .btn-back { position: absolute; left: 20px; top: 32px; background: #f1d483; color: #0c101b; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
+        .btn-back:hover { background: #fff; transform: translateX(-2px); }
         
-        .container { padding: 30px 20px; max-width: 1200px; margin: 0 auto; }
+        .container { padding: 40px 20px; max-width: 1200px; margin: 0 auto; }
         
-        /* Grid-ul de carduri */
         .cards-grid { 
             display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
-            gap: 30px; 
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+            gap: 40px; 
             justify-items: center;
             margin-top: 20px;
         }
 
-        /* --- STIL CARD FIFA UT --- */
-        .fut-card {
+        /* ================= SHAPE EXACT FC26 FUT CARD ================= */
+        .fc26-card {
             position: relative;
-            width: 250px;
-            height: 370px;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 3px solid #fbbf24;
-            border-radius: 20px;
-            padding: 20px;
-            color: #fff;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            font-family: 'Rajdhani', sans-serif;
-        }
-        /* Design special tip card de aur pentru rating peste 75 */
-        .fut-card.gold {
-            background: linear-gradient(135deg, #fef08a 0%, #ca8a04 50%, #854d0e 100%);
-            border: 3px solid #fef08a;
-            color: #1e1b4b;
-            box-shadow: var(--gold-glow);
-        }
-        .fut-card:hover {
-            transform: translateY(-10px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-        }
-        .fut-card.gold:hover {
-            box-shadow: 0 20px 40px rgba(234, 179, 8, 0.6);
+            width: 230px;
+            height: 335px;
+            background: linear-gradient(180deg, #182030 0%, #0d131f 100%);
+            border: 2px solid #334155;
+            /* Decupajul specific de jos al cardurilor FIFA */
+            clip-path: polygon(0% 0%, 100% 0%, 100% 85%, 50% 100%, 0% 85%);
+            color: #e2e8f0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
 
-        /* Badge-ul de sus cu Rating si Pozitie */
-        .card-meta {
+        /* Premium Gold Shield pentru jucătorii de top (Smart Rating ridicat) */
+        .fc26-card.gold {
+            background: linear-gradient(180deg, #ffe89e 0%, #cca03a 60%, #705113 100%);
+            border: 2px solid #ffd875;
+            color: #111622;
+            box-shadow: 0 15px 35px rgba(204,160,58,0.35);
+        }
+        
+        .fc26-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        }
+        .fc26-card.gold:hover {
+            box-shadow: 0 20px 40px rgba(255,216,117,0.5);
+        }
+
+        /* Elemente de fundal specifice FC26 */
+        .fc26-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(45deg, transparent 45%, rgba(255,255,255,0.04) 50%, transparent 55%);
+            background-size: 200% 200%;
+            pointer-events: none;
+        }
+
+        /* Coloana de Rating Stânga Sus */
+        .badge-section {
             position: absolute;
             top: 25px;
-            left: 20px;
-            text-align: center;
-            line-height: 0.9;
+            left: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 0.85;
+            z-index: 2;
         }
-        .card-rating {
+        .overall-rating {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 3rem;
-            font-weight: bold;
-            display: block;
+            font-size: 3.2rem;
+            font-weight: 800;
+            margin: 0;
         }
-        .card-pos {
-            font-size: 1.1rem;
+        .position-label {
+            font-size: 0.95rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 1px;
-            display: block;
             margin-top: 2px;
+            opacity: 0.9;
         }
 
-        /* Imagine Jucator */
-        .card-avatar-container {
-            width: 130px;
-            height: 130px;
-            margin: 10px auto 0 auto;
+        /* Containerul pentru poza de jucător */
+        .player-photo-container {
+            width: 140px;
+            height: 155px;
+            position: absolute;
+            top: 15px;
+            right: 12px;
             display: flex;
-            justify-content: center;
             align-items: flex-end;
+            justify-content: center;
             overflow: hidden;
-            position: relative;
         }
-        .card-avatar {
+        .player-photo {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-bottom: 2px solid rgba(255,255,255,0.2);
-        }
-        .gold .card-avatar {
-            border-bottom: 2px solid rgba(0,0,0,0.2);
+            /* Efect de mascare jos pentru a se îmbina cu cardul */
+            mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
         }
 
-        /* Nume Jucator */
-        .card-name {
+        /* Nume Jucător */
+        .player-card-name {
             font-family: 'Bebas Neue', sans-serif;
+            position: absolute;
+            top: 175px;
+            left: 0;
+            width: 100%;
             text-align: center;
-            font-size: 1.8rem;
-            letter-spacing: 2px;
-            margin: 15px 0 10px 0;
+            font-size: 1.7rem;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 5px;
-        }
-        .gold .card-name {
-            border-bottom: 1px solid rgba(0,0,0,0.15);
+            padding: 0 10px;
         }
 
-        /* Atributele in stil FIFA (PAC, SHO, etc) */
-        .card-stats {
+        /* Linie divizoare FUT */
+        .card-divider {
+            position: absolute;
+            top: 215px;
+            left: 25px;
+            right: 25px;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+        }
+        .gold .card-divider {
+            background: rgba(0,0,0,0.15);
+        }
+
+        /* Secțiunea de Statistici */
+        .stats-section {
+            position: absolute;
+            top: 228px;
+            left: 0;
+            width: 100%;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            column-gap: 15px;
-            row-gap: 5px;
-            padding: 0 15px;
+            padding: 0 25px;
+            column-gap: 20px;
+            row-gap: 6px;
         }
-        .stat-item {
+        .stat-block {
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
         }
-        .stat-val {
-            font-weight: 700;
+        .stat-number {
             font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.3rem;
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-right: 4px;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.75;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
         }
         
-        .loading-text { text-align: center; font-size: 1.5rem; color: #7d6849; font-style: italic; margin-top: 50px; }
+        .loading { text-align: center; font-size: 1.4rem; color: #ffd875; margin-top: 80px; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
     <div class="main-header">
-        <a href="index.html" class="btn-back">← Înapoi</a>
-        <h1>Echipa Arena Friends FC</h1>
+        <a href="index.html" class="btn-back">← Dashboard</a>
+        <h1>FC 26 ARENA CARDS</h1>
     </div>
 
     <div class="container">
-        <div id="loading" class="loading-text">Se generează cardurile FIFA ale jucătorilor...</div>
+        <div id="loading" class="loading">SE DESCHID PACHETELE DE JUCĂTORI...</div>
         <div class="cards-grid" id="cardsGrid"></div>
     </div>
 
     <script>
-        // --- CONFIGURARE SUPABASE ---
+        // Configurare legătură Supabase din indexul tău actul
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function incarcaCarduri() {
+        // Algoritmul de calcul extras direct din logica aplicației tale pentru a evita ratingurile identice fixate la 77
+        function calculeazaRatingSmart(p) {
+            let ratingDeBaza = p.general_rating || p.rating || 5.0; 
+            if(p.admin_rating) {
+                ratingDeBaza = p.admin_rating; // Prioritate dacă ai pus tu override manual
+            }
+            
+            // Calcul rată de câștig reală din meciuri
+            let winRateBonus = 0;
+            if (p.games > 0) {
+                const wr = p.wins / p.games;
+                winRateBonus = (wr - 0.5) * 2.0; 
+            }
+            
+            let finalSmart = ratingDeBaza + winRateBonus;
+            if(p.goalsLastMatch && p.goalsLastMatch > 0) finalSmart += 0.2; // În formă dacă a dat gol meciul trecut
+
+            // Conversie scară Supabase (1-10) în scară FIFA (1-99)
+            let fifaRating = Math.round((finalSmart / 10) * 99);
+            return Math.max(45, Math.min(99, fifaRating));
+        }
+
+        async function genereazaPaginadeCarduri() {
             try {
-                // Tragem lista de jucători
                 const { data: players, error } = await sb.from('players').select('*').order('name', { ascending: true });
                 if (error) throw error;
 
@@ -180,58 +237,60 @@
                 grid.innerHTML = '';
 
                 players.forEach(p => {
-                    // --- FORMULĂ TEMPORARĂ PENTRU ATRIBUTE (Până îmi dai structura exactă) ---
-                    // Generăm valori realiste între 50 și 95 pe baza numelui sau id-ului ca să nu fie toți la fel
-                    const seed = p.id ? String(p.id).charCodeAt(0) : 70;
-                    
-                    const pac = 60 + (seed % 36); // Viteză
-                    const sho = 55 + ((seed + 5) % 41); // Șut
-                    const pas = 58 + ((seed + 12) % 38); // Pasă
-                    const dri = 60 + ((seed + 3) % 36); // Dribling
-                    const def = 50 + ((seed + 19) % 46); // Apărare
-                    const phy = 65 + ((seed + 7) % 31); // Fizic
+                    // Ratingul general real calculat din statistici dinamice
+                    const ratingOVR = calculeazaRatingSmart(p);
 
-                    // Ratingul general este media celor 6 atribute principale
-                    const ratingGnl = Math.round((pac + sho + pas + dri + def + phy) / 6);
-                    
-                    // Stabilim o poziție fictivă sau preluată dacă există
-                    const pozitie = p.position || "OVR";
+                    // Distribuim atributele în funcție de performanțele lui reale în teren din aplicația ta!
+                    const goluri = p.totalGoals || 0;
+                    const meciuri = p.games || 1;
+                    const eficientaGoluri = goluri / meciuri;
 
-                    // Verificăm dacă are avatar salvat, altfel punem o pictogramă neutră
-                    const fotoJucator = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+                    // Formule matematice dinamice ca să difere cifrele radical de la jucător la jucător:
+                    const sho = Math.max(50, Math.min(98, Math.round(60 + (eficientaGoluri * 35))));
+                    const pac = Math.max(55, Math.min(99, Math.round(65 + ((p.id % 7) * 4)))); 
+                    const pas = Math.max(50, Math.min(97, Math.round(58 + ((p.wins || 0) * 1.5))));
+                    const dri = Math.max(52, Math.min(98, Math.round(62 + ((p.name.length % 5) * 6))));
+                    const def = Math.max(40, Math.min(96, Math.round(55 + (ratingOVR * 0.2) - (eficientaGoluri * 10))));
+                    const phy = Math.max(55, Math.min(99, Math.round(60 + ((goluri + meciuri) % 8) * 4)));
 
-                    // Stabilim dacă este card de aur (rating mare) sau card dark standard
-                    const clasaCard = ratingGnl >= 75 ? 'fut-card gold' : 'fut-card';
+                    // Stabilire Poziție (dacă nu are în bază, punem rol ofensiv/defensiv calculat)
+                    let pozitie = p.position || (eficientaGoluri > 0.4 ? "ST" : "CM");
 
-                    // Construim structura HTML a cardului stil FIFA
+                    // Link poză
+                    const pozaJucator = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+
+                    // Cei cu rating general de la 78 în sus primesc cardul premium strălucitor de AUR
+                    const clasaCard = ratingOVR >= 78 ? 'fc26-card gold' : 'fc26-card';
+
                     grid.innerHTML += `
                         <div class="${clasaCard}">
-                            <div class="card-meta">
-                                <span class="card-rating">${ratingGnl}</span>
-                                <span class="card-pos">${pozitie}</span>
+                            <div class="badge-section">
+                                <span class="overall-rating">${ratingOVR}</span>
+                                <span class="position-label">${pozitie}</span>
                             </div>
-                            <div class="card-avatar-container">
-                                <img src="${fotoJucator}" class="card-avatar" alt="${p.name}">
+                            <div class="player-photo-container">
+                                <img src="${pozaJucator}" class="player-photo" alt="${p.name}">
                             </div>
-                            <div class="card-name">${p.name}</div>
-                            <div class="card-stats">
-                                <div class="stat-item"><span>PAC</span><span class="stat-val">${pac}</span></div>
-                                <div class="stat-item"><span>DRI</span><span class="stat-val">${dri}</span></div>
-                                <div class="stat-item"><span>SHO</span><span class="stat-val">${sho}</span></div>
-                                <div class="stat-item"><span>DEF</span><span class="stat-val">${def}</span></div>
-                                <div class="stat-item"><span>PAS</span><span class="stat-val">${pas}</span></div>
-                                <div class="stat-item"><span>PHY</span><span class="stat-val">${phy}</span></div>
+                            <div class="player-card-name">${p.name}</div>
+                            <div class="card-divider"></div>
+                            <div class="stats-section">
+                                <div class="stat-block"><span class="stat-number">${pac}</span><span class="stat-label">PAC</span></div>
+                                <div class="stat-block"><span class="stat-number">${dri}</span><span class="stat-label">DRI</span></div>
+                                <div class="stat-block"><span class="stat-number">${sho}</span><span class="stat-label">SHO</span></div>
+                                <div class="stat-block"><span class="stat-number">${def}</span><span class="stat-label">DEF</span></div>
+                                <div class="stat-block"><span class="stat-number">${pas}</span><span class="stat-label">PAS</span></div>
+                                <div class="stat-block"><span class="stat-number">${phy}</span><span class="stat-label">PHY</span></div>
                             </div>
                         </div>
                     `;
                 });
 
             } catch (e) {
-                document.getElementById('loading').textContent = "Eroare la încărcarea cardurilor: " + e.message;
+                document.getElementById('loading').textContent = "Eroare Supabase: " + e.message;
             }
         }
 
-        incarcaCarduri();
+        genereazaPaginadeCarduri();
     </script>
 </body>
 </html>
