@@ -54,7 +54,6 @@
             letter-spacing: 1px; 
         }
         
-        /* LAYOUT SPLIT: Stânga listă, Dreapta Card */
         .workspace {
             display: flex;
             max-width: 1200px;
@@ -63,7 +62,6 @@
             padding: 0 20px;
         }
         
-        /* Panou Stânga: Lista de jucători */
         .players-panel {
             flex: 1;
             background: var(--panel-bg);
@@ -129,7 +127,6 @@
             border-radius: 4px;
         }
 
-        /* Panou Dreapta: Cardul Generat */
         .card-preview-panel {
             width: 380px;
             background: var(--panel-bg);
@@ -148,7 +145,7 @@
             font-size: 1.1rem;
         }
 
-        /* ================= SHAPE EXACT FC26 FUT CARD ================= */
+        /* CARD FC26 FUT STYLE */
         .fc26-card {
             position: relative;
             width: 250px;
@@ -161,7 +158,6 @@
             animation: cardAppear 0.3s ease-out;
         }
 
-        /* Ierarhie culori în funcție de valoare exact ca pe FIFA */
         .fc26-card.gold { background: var(--gold-gradient); border-color: #ffe082; color: #0b0e14; }
         .fc26-card.silver { background: var(--silver-gradient); border-color: #e2e8f0; color: #0b0e14; }
         .fc26-card.bronze { background: var(--bronze-gradient); border-color: #bd7351; color: #fff; }
@@ -171,16 +167,6 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        .fc26-card::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(45deg, transparent 42%, rgba(255,255,255,0.06) 50%, transparent 58%);
-            background-size: 200% 200%;
-            pointer-events: none;
-        }
-
-        /* Secțiune OVR și Poziție */
         .badge-section {
             position: absolute;
             top: 28px;
@@ -205,7 +191,6 @@
             margin-top: 4px;
         }
 
-        /* Avatar Jucător pe Card */
         .player-photo-container {
             width: 150px;
             height: 170px;
@@ -225,7 +210,6 @@
             -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
         }
 
-        /* Nume Jucător */
         .player-card-name {
             font-family: 'Bebas Neue', sans-serif;
             position: absolute;
@@ -251,7 +235,6 @@
             background: rgba(0,0,0,0.15);
         }
 
-        /* Statistici Sub Nume */
         .stats-section {
             position: absolute;
             top: 248px;
@@ -305,23 +288,31 @@
     </div>
 
     <script>
-        // Configurație conexiune existentă din index.html
         const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let localPlayers = [];
 
-        // Funcția de conversie corectă și calcularea exactă a ratingului FIFA
+        // Detecție corectă și transformare din formatul 1-10 în formatul 1-100
         function calculeazaRatingFifa(p) {
-            // Dacă ai setat un admin_rating manual (ex: 9.2), îl folosim pe acela
-            let ratingBaza = p.admin_rating != null ? parseFloat(p.admin_rating) : (p.general_rating || p.rating || 7.5);
-            
-            // Mapare directă curată: nota 9.2 devine rating de 92 pe card!
-            let fifaScore = Math.round(ratingBaza * 10);
-            
-            // Securizare limite FIFA (minim 45, maxim 99)
-            return Math.max(45, Math.min(99, fifaScore));
+            let n = 7.5; // Valoare fallback implicită
+
+            if (p.admin_rating != null) {
+                n = parseFloat(p.admin_rating);
+            } else if (p.general_rating != null) {
+                n = parseFloat(p.general_rating);
+            } else if (p.rating != null) {
+                n = parseFloat(p.rating);
+            }
+
+            // Dacă valoarea este extrasă pe scara 1-10 (ex: 9.2), o transformăm în 92
+            if (n > 0 && n <= 10) {
+                n = n * 10;
+            }
+
+            let score = Math.round(n);
+            return Math.max(45, Math.min(99, score));
         }
 
         async function incarcajucatori() {
@@ -356,33 +347,28 @@
         }
 
         function selecteazaJucator(id) {
-            // Elimină selecția vizuală veche
             document.querySelectorAll('.player-row').forEach(row => row.classList.remove('selected'));
             
-            // Adaugă clasa de selectat pe rândul curent
             const selectedRow = document.getElementById(`player-row-${id}`);
             if(selectedRow) selectedRow.classList.add('selected');
 
-            // Găsește obiectul jucătorului
             const p = localPlayers.find(x => x.id === id);
             if (!p) return;
 
             const ratingOVR = calculeazaRatingFifa(p);
 
-            // Calculează atribute unice și direct proporționale cu nota lui reală
             const goluri = p.total_goals || p.totalGoals || 0;
             const meciuri = p.games || 1;
             const eficienta = goluri / meciuri;
 
-            // Formule matematice adaptate corect la scara de până la 99
-            const pac = Math.max(50, Math.min(99, Math.round(ratingOVR - 4 + (id % 5))));
-            const sho = Math.max(45, Math.min(99, Math.round(55 + (eficienta * 35))));
-            const pas = Math.max(50, Math.min(99, Math.round(ratingOVR - 2 + (p.wins % 3))));
-            const dri = Math.max(50, Math.min(99, Math.round(ratingOVR + 3 - (id % 4))));
-            const def = Math.max(40, Math.min(99, Math.round(ratingOVR * 0.9 - (eficienta * 8))));
-            const phy = Math.max(50, Math.min(99, Math.round(60 + ((goluri + meciuri) % 10))));
+            // Atribute calculate dinamic raportate direct la valoarea OVR totală a jucătorului
+            const pac = Math.max(45, Math.min(99, Math.round(ratingOVR - 3 + (id % 6))));
+            const sho = Math.max(45, Math.min(99, Math.round(ratingOVR - 8 + (eficienta * 25))));
+            const pas = Math.max(45, Math.min(99, Math.round(ratingOVR - 2 + (p.wins % 4))));
+            const dri = Math.max(45, Math.min(99, Math.round(ratingOVR + 2 - (id % 3))));
+            const def = Math.max(45, Math.min(99, Math.round(ratingOVR - 6 + (p.id % 5))));
+            const phy = Math.max(45, Math.min(99, Math.round(ratingOVR - 4 + ((goluri + meciuri) % 6))));
 
-            // Tipul cardului în funcție de rating ca pe FIFA original
             let clasaCard = 'fc26-card';
             if (ratingOVR >= 75) {
                 clasaCard += ' gold';
@@ -392,10 +378,9 @@
                 clasaCard += ' bronze';
             }
 
-            const pozitie = p.position || (eficienta > 0.4 ? "ST" : "CM");
+            const pozitie = p.position_primary || p.position || (eficienta > 0.4 ? "ST" : "CM");
             const pozaCard = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
 
-            // Injectează cardul în panoul din dreapta
             const previewPanel = document.getElementById('cardPreviewPanel');
             previewPanel.innerHTML = `
                 <div class="${clasaCard}">
