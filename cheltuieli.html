@@ -72,13 +72,14 @@
             margin-top: 5px;
         }
 
-        .btn-whatsapp {
-            background: #25d366;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
+        /* Buton subtil plasat la finalul panoului */
+        .btn-whatsapp-subtil {
+            background: transparent;
+            color: #64748b;
+            border: 1px dashed var(--border-color);
+            padding: 8px 12px;
             font-family: inherit;
-            font-size: 1.1rem;
+            font-size: 0.85rem;
             font-weight: bold;
             text-transform: uppercase;
             border-radius: 6px;
@@ -86,13 +87,15 @@
             margin-top: 15px;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
-            transition: transform 0.2s;
+            gap: 6px;
+            width: 100%;
+            justify-content: center;
+            transition: all 0.2s;
         }
-        .btn-whatsapp:hover {
-            transform: scale(1.03);
-            background: #20ba56;
+        .btn-whatsapp-subtil:hover {
+            color: #25d366;
+            border-color: #25d366;
+            background: rgba(37, 211, 102, 0.05);
         }
 
         .main-layout {
@@ -264,10 +267,10 @@
         <div class="total-budget-box">
             <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - ALOCĂRI CHELTUIELI)</span>
             <span class="suma" id="totalColectat">0 RON</span>
-            <button class="btn-whatsapp" onclick="genereazaRaportWhatsApp()">💬 Generează Raport WhatsApp</button>
         </div>
 
         <div class="main-layout">
+            <!-- COLOANA STÂNGA: Planificare Cheltuieli / Wishlist -->
             <div>
                 <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -298,6 +301,7 @@
                 <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
+            <!-- COLOANA DREAPTĂ: Formular Adăugare Plăți + Istoric Nume Real -->
             <div>
                 <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -321,6 +325,9 @@
                 <div class="panel">
                     <h2>👥 Istoric Încasări Jucători</h2>
                     <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+                    
+                    <!-- Buton discret plasat elegant la finalul istoricului -->
+                    <button class="btn-whatsapp-subtil" onclick="genereazaRaportWhatsApp()">💬 Copiază Tabela pentru WhatsApp</button>
                 </div>
             </div>
         </div>
@@ -341,7 +348,6 @@
             document.getElementById('totalColectat').textContent = `${soldFinal.toFixed(2)} RON`;
         }
 
-        // 1. Încarcă jucătorii din tabelul 'players'
         async function incarcaJucatoriDropdown() {
             try {
                 const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
@@ -362,14 +368,16 @@
             }
         }
 
-        // 2. Încarcă încasările folosind relația nativă 'players(name)'
         async function incarcaBugetSiJucatori() {
             try {
                 const { data: incasari, error } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
                 if (error) throw error;
 
                 const container = document.getElementById('playersContributions');
-                container.innerHTML = '';
+                
+                // Păstrăm structura existentă, curățăm doar rândurile vechi, nu și butonul
+                const randuriVechi = container.querySelectorAll('.player-row, p');
+                randuriVechi.forEach(el => el.remove());
 
                 globalIncasari = 0;
                 dateRaportIncasari = [];
@@ -382,23 +390,27 @@
                         globalIncasari += sumaIncasata;
                         dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
                         
-                        container.innerHTML += `
-                            <div class="player-row">
-                                <div class="player-row-top">
-                                    <span>${numeJucator}</span>
-                                    <div>
-                                        <span class="amount-paid">+${sumaIncasata} RON</span>
-                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
-                                    </div>
-                                </div>
-                                <div class="player-row-details">
-                                    ${detaliiMeci} (${i.data || ''})
+                        const row = document.createElement('div');
+                        row.className = 'player-row';
+                        row.innerHTML = `
+                            <div class="player-row-top">
+                                <span>${numeJucator}</span>
+                                <div>
+                                    <span class="amount-paid">+${sumaIncasata} RON</span>
+                                    <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
                                 </div>
                             </div>
+                            <div class="player-row-details">
+                                ${detaliiMeci} (${i.data || ''})
+                            </div>
                         `;
+                        container.insertBefore(row, container.firstChild);
                     });
                 } else {
-                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
+                    const p = document.createElement('p');
+                    p.style.color = '#64748b';
+                    p.textContent = 'Nicio încasare înregistrată.';
+                    container.insertBefore(p, container.firstChild);
                 }
 
                 await incarcaWishlist();
@@ -409,7 +421,6 @@
             }
         }
 
-        // 3. Salvează plată nouă utilizând 'jucator_id'
         async function salveazaPlata() {
             const jucatorId = document.getElementById('paymentPlayer').value;
             const suma = parseFloat(document.getElementById('paymentAmount').value);
@@ -444,7 +455,6 @@
             }
         }
 
-        // 4. Încarcă cheltuielile din baza de date și decodifică JSON-ul din coloana 'descriere'
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data');
@@ -517,7 +527,6 @@
             }
         }
 
-        // 5. Salvează structura complexă în câmpul simplu text 'descriere'
         async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
@@ -559,7 +568,6 @@
             }
         }
 
-        // 6. Șterge produs din cheltuieli
         async function stergeObiectiv(id) {
             if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
             try {
@@ -571,7 +579,6 @@
             }
         }
 
-        // 7. Șterge o plată din încasări
         async function stergePlata(id) {
             if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
             try {
@@ -583,49 +590,51 @@
             }
         }
 
-        // 8. Generează mesaj formatat excelent pentru grupul de WhatsApp
+        // Generează o tabelă text aliniată, perfect lizibilă direct din mesajul de WhatsApp
         function genereazaRaportWhatsApp() {
             const soldFinal = globalIncasari - globalCheltuieliAlocate;
             
             let text = `📊 *RAPORT FINANCIAR ARENA FC*\n`;
-            text += `------------------------------------\n`;
-            text += `💰 *Sold Disponibil:* ${soldFinal.toFixed(2)} RON\n`;
-            text += `📥 Total Strâns: ${globalIncasari.toFixed(2)} RON\n`;
-            text += `💸 Total Alocat: ${globalCheltuieliAlocate.toFixed(2)} RON\n\n`;
+            text += `=========================\n`;
+            text += `💰 *SOLD DISPONIBIL:* ${soldFinal.toFixed(2)} RON\n`;
+            text += `📥 Strâns: ${globalIncasari.toFixed(2)} RON | Alocat: ${globalCheltuieliAlocate.toFixed(2)} RON\n`;
+            text += `=========================\n\n`;
 
-            text += `🎯 *CE VREM SĂ LUĂM / WISHLIST:*\n`;
+            text += `📋 *TABELĂ NECESAR / PROGRES:*\n`;
+            text += `\`-----------------------------------------\`\n`;
+            text += `\`| Produs          | Alocat / Necesar    |\`\n`;
+            text += `\`-----------------------------------------\`\n`;
+            
             if(dateRaportWishlist.length === 0) {
-                text += `_Niciun obiectiv adăugat_\n`;
+                text += `\`| Niciun produs în listă                |\`\n`;
             } else {
                 dateRaportWishlist.forEach(w => {
-                    const status = w.complet ? `✅ Achiziționat` : `⏳ (${w.procent}%) - Alocat ${w.curent}/${w.tinta} RON`;
-                    text += `• *${w.produs}*: ${status}\n`;
+                    let prodStr = w.produs.substring(0, 15).padEnd(15, ' ');
+                    let baniStr = `${w.curent}/${w.tinta} RON`.padEnd(19, ' ');
+                    text += `\`| ${prodStr} | ${baniStr} |\` ${w.complet ? '✅' : '⏳'}\n`;
                 });
             }
+            text += `\`-----------------------------------------\`\n\n`;
 
-            text += `\n💵 *CINE A DAT BANI (ISTORIC):*\n`;
+            text += `👥 *ISTORIC CONTRIBUȚII JUCĂTORI:*\n`;
             if(dateRaportIncasari.length === 0) {
-                text += `_Nicio încasare înregistrată_\n`;
+                text += `_Nicio plată înregistrată_\n`;
             } else {
                 dateRaportIncasari.forEach(i => {
-                    text += `• *${i.nume}*: ${i.suma} RON (${i.detalii})\n`;
+                    text += `• *${i.nume}*: +${i.suma} RON _(${i.detalii})_\n`;
                 });
             }
             
-            text += `\n------------------------------------\n`;
-            text += `📱 _Generat din aplicatia Management Buget_`;
+            text += `\n📱 _Generat din aplicația Arena Buget_`;
 
-            // Copiază în clipboard automat
             navigator.clipboard.writeText(text).then(() => {
-                alert("Raportul a fost copiat în clipboard! Se deschide WhatsApp, dă doar Paste (Lipire) pe grup.");
+                alert("Tabela formatată a fost copiată! Deschidem WhatsApp, doar dai Paste (Lipire) pe grup.");
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
             }).catch(err => {
-                // Alternativă dacă browserul blochează clipboard-ul automat
                 window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
             });
         }
 
-        // Inițializare aplicație
         async function init() {
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
