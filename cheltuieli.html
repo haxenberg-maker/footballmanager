@@ -155,9 +155,9 @@
             text-transform: uppercase;
             font-weight: 700;
         }
-        .prio-mare { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-        .prio-medie { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-        .prio-mica { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+        .prio-mare { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+        .prio-medie { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .prio-mica { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
 
         .item-finances {
             display: flex;
@@ -173,6 +173,7 @@
             height: 10px;
             border-radius: 5px;
             overflow: hidden;
+            border: 1px solid #232d3f;
         }
 
         .progress-bar {
@@ -203,7 +204,7 @@
             padding: 20px;
         }
 
-        /* Stilul exact din poza ta image_88e3e4.png */
+        /* Stilul listei pe 2 rânduri exact ca în imaginile trimise */
         .player-row {
             display: flex;
             flex-direction: column;
@@ -244,7 +245,6 @@
         </div>
 
         <div class="main-layout">
-            <!-- COLOANA STÂNGA: Cheltuieli / Obiective -->
             <div>
                 <h2>🎯 Adaugă Necesar / Produse</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -275,7 +275,6 @@
                 <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <!-- COLOANA DREAPTĂ: Adăugare Plăți + Istoric Plăți (Conform image_88e3e4.png) -->
             <div>
                 <h2>💵 Înregistrează Plată Nouă</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -309,13 +308,9 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Map stocare locală id_jucator -> Nume pentru rezolvarea rapidă a ID-urilor din image_88e3e4.png
-        let listaJucatoriGlobal = {};
-
-        // Încărcare inițială a listei de jucători din baza ta pentru Dropdown
+        // Încarcă jucătorii din tabelul tău de ratings în dropdown (salvează textul numelui direct)
         async function incarcaJucatoriDropdown() {
             try {
-                // Încercăm să luăm din 'ratings' sau direct din 'jucatori'
                 let { data: jucatori, error } = await sb.from('ratings').select('*');
                 if(error) {
                     const res = await sb.from('jucatori').select('*');
@@ -327,12 +322,10 @@
 
                 if(jucatori && jucatori.length > 0) {
                     jucatori.forEach(j => {
-                        const id = j.id || j.jucator_id;
-                        const nume = j.nume || j.name || j.player_name;
-                        
-                        listaJucatoriGlobal[id] = nume; // Salvează în map ca să știm numele după ID
-                        
-                        select.innerHTML += `<option value="${id}">${nume}</option>`;
+                        const nume = j.nume || j.name || j.player_name || j.jucator;
+                        if(nume) {
+                            select.innerHTML += `<option value="${nume}">${nume}</option>`;
+                        }
                     });
                 } else {
                     select.innerHTML = '<option value="">Nu s-au găsit jucători în bază</option>';
@@ -342,7 +335,7 @@
             }
         }
 
-        // 1. Încarcă dinamic încasările cu formatare exactă ca în screenshot-ul tău (image_88e3e4.png)
+        // 1. Încarcă dinamic încasările citind direct numele salvat ca text (exact ca în poze)
         async function incarcaBugetSiJucatori() {
             try {
                 const { data: incasari, error } = await sb.from('incasari').select('*');
@@ -354,15 +347,12 @@
                 let total = 0;
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
-                        // Rezolvă ID-ul sau numele direct conform structurii tale
-                        const refId = i.jucator_id || i.jucator;
-                        const numeJucator = listaJucatoriGlobal[refId] || i.nume || `Jucător (ID: ${refId})`;
+                        const numeJucator = i.jucator || i.nume || i.jucator_id || 'Jucător';
                         const sumaIncasata = parseFloat(i.suma || 0);
                         const detaliiMeci = i.detalii || 'Cotizatie minge';
                         
                         total += sumaIncasata;
                         
-                        // Generăm rândul exact ca structură din db (Nume + Sumă sus, Detalii dedesubt) + Buton Ștergere
                         container.innerHTML += `
                             <div class="player-row">
                                 <div class="player-row-top">
@@ -391,23 +381,22 @@
             }
         }
 
-        // 2. Salvează plată nouă în tabelul incasari (exact coloanele din imaginea ta)
+        // 2. Salvează plată nouă trimițând numele textual direct în coloana 'jucator'
         async function salveazaPlata() {
-            const jucatorId = document.getElementById('paymentPlayer').value;
+            const numeSelectat = document.getElementById('paymentPlayer').value;
             const suma = parseFloat(document.getElementById('paymentAmount').value);
             const detalii = document.getElementById('paymentDetails').value.trim() || 'Cotizatie minge';
 
-            if(!jucatorId || isNaN(suma) || suma <= 0) {
+            if(!numeSelectat || isNaN(suma) || suma <= 0) {
                 alert("Te rog selectează un jucător și introdu suma corectă!");
                 return;
             }
 
             try {
-                // Introduce fix pe formatul coloanelor tale: jucator_id, suma, detalii, data
                 const azi = new Date().toISOString().split('T')[0];
                 const { error } = await sb.from('incasari').insert([
                     {
-                        jucator_id: jucatorId,
+                        jucator: numeSelectat,
                         suma: suma,
                         detalii: detalii,
                         data: azi
@@ -416,12 +405,11 @@
 
                 if (error) throw error;
 
-                // Resetăm formularul de plată
+                // Resetare inputuri
                 document.getElementById('paymentAmount').value = '';
                 document.getElementById('paymentDetails').value = '';
                 document.getElementById('paymentPlayer').value = '';
 
-                // Reîncărcăm lista ca să apară plata instant
                 incarcaBugetSiJucatori();
 
             } catch(e) {
@@ -429,7 +417,7 @@
             }
         }
 
-        // 3. Încarcă cheltuielile/dorințele cu barele de progres
+        // 3. Încarcă cheltuielile cu barele de progres calculate dinamic
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb.from('cheltuieli').select('*');
@@ -527,7 +515,7 @@
             }
         }
 
-        // 6. Șterge o plată greșită din încasări
+        // 6. Șterge o plată din încasări
         async function stergePlata(id) {
             if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
             try {
@@ -539,7 +527,7 @@
             }
         }
 
-        // Pornire logică secvențială: Jucători -> Încasări & Cheltuieli
+        // Inițializare secvențială corectă
         async function init() {
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
