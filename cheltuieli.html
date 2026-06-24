@@ -62,7 +62,6 @@
             font-weight: bold;
         }
 
-        /* Iconiță discretă în dreapta sus */
         .btn-report-icon {
             background: #1c2433;
             color: var(--accent-gold);
@@ -261,8 +260,7 @@
         <div class="header-area">
             <h1>💰 Management Buget & Încasări</h1>
             <div class="header-actions">
-                <!-- Iconița subtilă mutată în dreapta sus -->
-                <button class="btn-report-icon" title="Generează tabelă raport" onclick="genereazaTabelaRaport()">📋</button>
+                <button class="btn-report-icon" title="Copiază Raport Grup" onclick="genereazaTabelaRaport()">📋</button>
                 <a href="index.html" class="btn-back">← Înapoi</a>
             </div>
         </div>
@@ -273,7 +271,7 @@
         </div>
 
         <div class="main-layout">
-            <!-- COLOANA STÂNGA: Planificare Cheltuieli / Wishlist -->
+            <!-- COLOANA STÂNGA -->
             <div>
                 <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -304,7 +302,7 @@
                 <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <!-- COLOANA DREAPTĂ: Formular Adăugare Plăți + Istoric Nume Real -->
+            <!-- COLOANA DREAPTĂ -->
             <div>
                 <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
                 <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
@@ -352,20 +350,12 @@
             try {
                 const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
                 if (error) throw error;
-
                 const select = document.getElementById('paymentPlayer');
                 select.innerHTML = '<option value="">-- Alege Jucător --</option>';
-
                 if(data && data.length > 0) {
-                    data.forEach(j => {
-                        select.innerHTML += `<option value="${j.id}">${j.name}</option>`;
-                    });
-                } else {
-                    select.innerHTML = '<option value="">Nu s-au găsit jucători în bază</option>';
+                    data.forEach(j => { select.innerHTML += `<option value="${j.id}">${j.name}</option>`; });
                 }
-            } catch(e) {
-                console.error("Nu s-au putut încărca jucătorii:", e);
-            }
+            } catch(e) { console.error(e); }
         }
 
         async function incarcaBugetSiJucatori() {
@@ -405,13 +395,8 @@
                 } else {
                     container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
                 }
-
                 await incarcaWishlist();
-
-            } catch (e) {
-                console.error(e);
-                document.getElementById('playersContributions').textContent = "Eroare la încărcarea tabelului încasări.";
-            }
+            } catch (e) { console.error(e); }
         }
 
         async function salveazaPlata() {
@@ -426,26 +411,12 @@
 
             try {
                 const azi = new Date().toISOString().split('T')[0];
-                const { error } = await sb.from('incasari').insert([
-                    {
-                        jucator_id: jucatorId,
-                        suma: suma,
-                        detalii: detalii || 'Cotizație',
-                        data: azi
-                    }
-                ]);
-
+                const { error } = await sb.from('incasari').insert([{ jucator_id: jucatorId, suma: suma, detalii: detalii || 'Cotizație', data: azi }]);
                 if (error) throw error;
-
                 document.getElementById('paymentAmount').value = '';
                 document.getElementById('paymentDetails').value = '';
-                document.getElementById('paymentPlayer').value = '';
-
                 await incarcaBugetSiJucatori();
-
-            } catch(e) {
-                alert("Eroare la salvarea plății: " + e.message);
-            }
+            } catch(e) { alert(e.message); }
         }
 
         async function incarcaWishlist() {
@@ -477,20 +448,16 @@
                             tinta = parseFloat(parsed.pret_total);
                             curent = parseFloat(parsed.pret_alocat);
                             prioritate = parsed.prioritate;
-                        } catch(e) {
-                            console.error("Eroare parsare item", e);
-                        }
+                        } catch(e) { console.error(e); }
                     }
                     
                     globalCheltuieliAlocate += curent;
-                    
                     let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
                     if(procent > 100) procent = 100;
-
                     const rest = tinta - curent;
                     const eComplet = procent === 100;
 
-                    dateRaportWishlist.push({ produs: numeProdus, tinta: tinta, curent: curent, procent: procent, complet: eComplet });
+                    dateRaportWishlist.push({ produs: numeProdus, tinta: tinta, curent: curent, procent: procent, complet: eComplet, prioritate: prioritate });
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -511,13 +478,8 @@
                         </div>
                     `;
                 });
-
                 actualizeazaSoldFinal();
-
-            } catch(e) {
-                console.error(e);
-                document.getElementById('wishlistContainer').textContent = "Eroare la încărcarea tabelului cheltuieli.";
-            }
+            } catch(e) { console.error(e); }
         }
 
         async function salveazaCheltuiala() {
@@ -531,34 +493,17 @@
                 return;
             }
 
-            const wishlistPayload = {
-                isWishlist: true,
-                produs: nume,
-                pret_total: tinta,
-                pret_alocat: curent,
-                prioritate: prioritate
-            };
+            const wishlistPayload = { isWishlist: true, produs: nume, pret_total: tinta, pret_alocat: curent, prioritate: prioritate };
 
             try {
                 const azi = new Date().toISOString().split('T')[0];
-                const { error } = await sb.from('cheltuieli').insert([
-                    { 
-                        descriere: JSON.stringify(wishlistPayload), 
-                        suma: curent, 
-                        data: azi
-                    }
-                ]);
+                const { error } = await sb.from('cheltuieli').insert([{ descriere: JSON.stringify(wishlistPayload), suma: curent, data: azi }]);
                 if (error) throw error;
-
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemTarget').value = '';
                 document.getElementById('itemCurrent').value = '';
-                
                 await incarcaBugetSiJucatori();
-
-            } catch(e) {
-                alert("Eroare la salvare: " + e.message);
-            }
+            } catch(e) { alert(e.message); }
         }
 
         async function stergeObiectiv(id) {
@@ -567,9 +512,7 @@
                 const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
                 await incarcaBugetSiJucatori();
-            } catch(e) {
-                alert("Eroare la ștergerea produsului.");
-            }
+            } catch(e) { alert("Eroare"); }
         }
 
         async function stergePlata(id) {
@@ -578,52 +521,60 @@
                 const { error } = await sb.from('incasari').delete().eq('id', id);
                 if (error) throw error;
                 await incarcaBugetSiJucatori();
-            } catch(e) {
-                alert("Eroare la ștergerea plății.");
-            }
+            } catch(e) { alert("Eroare"); }
         }
 
-        // Doar generează tabela text și o copiază în clipboard, fără redirecționări
+        // Generează un format mult mai jmeker, curat și aerisit pentru WhatsApp
         function genereazaTabelaRaport() {
             const soldFinal = globalIncasari - globalCheltuieliAlocate;
             
-            let text = `📊 *RAPORT FINANCIAR ARENA FC*\n`;
-            text += `=========================\n`;
-            text += `💰 *SOLD DISPONIBIL:* ${soldFinal.toFixed(2)} RON\n`;
-            text += `📥 Strâns: ${globalIncasari.toFixed(2)} RON | Alocat: ${globalCheltuieliAlocate.toFixed(2)} RON\n`;
-            text += `=========================\n\n`;
-
-            text += `📋 *TABELĂ NECESAR / PROGRES:*\n`;
-            text += `\`-----------------------------------------\`\n`;
-            text += `\`| Produs          | Alocat / Necesar    |\`\n`;
-            text += `\`-----------------------------------------\`\n`;
+            let text = `👑 *UPDATE FINANCIAR - ARENA FC* 👑\n`;
+            text += `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n`;
             
+            text += `💰 *STARE CASIERIE:*\n`;
+            text += `└ Sold Disponibil: *${soldFinal.toFixed(2)} RON*\n`;
+            text += `└ Total Strâns: _${globalIncasari.toFixed(2)} RON_\n`;
+            text += `└ Total Alocat: _${globalCheltuieliAlocate.toFixed(2)} RON_\n\n`;
+
+            text += `🎯 *CE VREM SĂ CUMPĂRĂM / WISHLIST:*\n`;
             if(dateRaportWishlist.length === 0) {
-                text += `\`| Niciun produs în listă                |\`\n`;
+                text += `└ _Fără produse adăugate în acest moment._\n`;
             } else {
                 dateRaportWishlist.forEach(w => {
-                    let prodStr = w.produs.substring(0, 15).padEnd(15, ' ');
-                    let baniStr = `${w.curent}/${w.tinta} RON`.padEnd(19, ' ');
-                    text += `\`| ${prodStr} | ${baniStr} |\` ${w.complet ? '✅' : '⏳'}\n`;
+                    if (w.complet) {
+                        text += `✅ *${w.produs}* → Strâns complet! (*${w.tinta} RON*)\n`;
+                    } else {
+                        const lipsa = w.tinta - w.curent;
+                        text += `⏳ *${w.produs}* \n`;
+                        text += `   └ Progres: *${w.curent}* / *${w.tinta} RON* (${w.procent}%)\n`;
+                        text += `   └ Mai trebuie: *${lipsa.toFixed(2)} RON*\n`;
+                    }
                 });
             }
-            text += `\`-----------------------------------------\`\n\n`;
 
-            text += `👥 *ISTORIC CONTRIBUȚII JUCĂTORI:*\n`;
+            text += `\n👥 *CINE A DAT BANI RECENT:*\n`;
             if(dateRaportIncasari.length === 0) {
-                text += `_Nicio plată înregistrată_\n`;
+                text += `└ _Nicio plată înregistrată în baza de date._\n`;
             } else {
+                // Grupăm contribuțiile pe jucători pentru a nu repeta numele aiurea în mesaj
+                const sumePeJucator = {};
                 dateRaportIncasari.forEach(i => {
-                    text += `• *${i.nume}*: +${i.suma} RON _(${i.detalii})_\n`;
+                    if(!sumePeJucator[i.nume]) sumePeJucator[i.nume] = [];
+                    sumePeJucator[i.nume].push(`${i.suma} RON (${i.detalii})`);
                 });
+
+                for (const jucator in sumePeJucator) {
+                    text += `• *${jucator}* : ${sumePeJucator[jucator].join(' + ')}\n`;
+                }
             }
             
-            text += `\n📱 _Generat din aplicația Arena Buget_`;
+            text += `\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n`;
+            text += `⚡ _Raport actualizat în timp real din aplicație._`;
 
             navigator.clipboard.writeText(text).then(() => {
-                alert("📋 Tabela a fost generată și copiată în clipboard! Acum poți da direct Paste (Lipire) pe grupul de WhatsApp.");
+                alert("📋 Raportul formatat „jmeker” a fost copiat! Dă Paste direct pe grupul de WhatsApp.");
             }).catch(err => {
-                alert("Nu s-a putut copia automat. Reîncearcă.");
+                alert("Eroare la copiere.");
             });
         }
 
@@ -631,7 +582,6 @@
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
         }
-
         init();
     </script>
 </body>
