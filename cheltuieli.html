@@ -204,7 +204,6 @@
             padding: 20px;
         }
 
-        /* Stilul listei pe 2 rânduri exact ca în imaginile trimise */
         .player-row {
             display: flex;
             flex-direction: column;
@@ -308,37 +307,31 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
         const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Încarcă jucătorii din tabelul tău de ratings în dropdown (salvează textul numelui direct)
+        // 1. Încarcă jucătorii folosind structura exactă din prima versiune (tabelul 'players')
         async function incarcaJucatoriDropdown() {
             try {
-                let { data: jucatori, error } = await sb.from('ratings').select('*');
-                if(error) {
-                    const res = await sb.from('jucatori').select('*');
-                    jucatori = res.data;
-                }
+                const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
+                if (error) throw error;
 
                 const select = document.getElementById('paymentPlayer');
                 select.innerHTML = '<option value="">-- Alege Jucător --</option>';
 
-                if(jucatori && jucatori.length > 0) {
-                    jucatori.forEach(j => {
-                        const nume = j.nume || j.name || j.player_name || j.jucator;
-                        if(nume) {
-                            select.innerHTML += `<option value="${nume}">${nume}</option>`;
-                        }
+                if(data && data.length > 0) {
+                    data.forEach(j => {
+                        select.innerHTML += `<option value="${j.id}">${j.name}</option>`;
                     });
                 } else {
                     select.innerHTML = '<option value="">Nu s-au găsit jucători în bază</option>';
                 }
             } catch(e) {
-                console.error("Nu s-au putut încărca jucătorii pentru formular:", e);
+                console.error("Nu s-au putut încărca jucătorii:", e);
             }
         }
 
-        // 1. Încarcă dinamic încasările citind direct numele salvat ca text (exact ca în poze)
+        // 2. Încarcă încasările folosind JOIN pe tabelul 'players' pentru a extrage corect NUMELE REAL
         async function incarcaBugetSiJucatori() {
             try {
-                const { data: incasari, error } = await sb.from('incasari').select('*');
+                const { data: incasari, error } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
                 if (error) throw error;
 
                 const container = document.getElementById('playersContributions');
@@ -347,9 +340,10 @@
                 let total = 0;
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
-                        const numeJucator = i.jucator || i.nume || i.jucator_id || 'Jucător';
+                        // Extrage numele din obiectul legat direct de tabelul 'players'
+                        const numeJucator = i.players ? i.players.name : 'Jucător Necunoscut';
                         const sumaIncasata = parseFloat(i.suma || 0);
-                        const detaliiMeci = i.detalii || 'Cotizatie minge';
+                        const detaliiMeci = i.detalii || 'Fără detalii';
                         
                         total += sumaIncasata;
                         
@@ -372,7 +366,7 @@
                     container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată în bază.</p>';
                 }
 
-                document.getElementById('totalColectat').textContent = `${total} RON`;
+                document.getElementById('totalColectat').textContent = `${total.toFixed(2)} RON`;
                 incarcaWishlist();
 
             } catch (e) {
@@ -381,14 +375,14 @@
             }
         }
 
-        // 2. Salvează plată nouă trimițând numele textual direct în coloana 'jucator'
+        // 3. Salvează plată nouă utilizând 'jucator_id' conform schemei originale corecte
         async function salveazaPlata() {
-            const numeSelectat = document.getElementById('paymentPlayer').value;
+            const jucatorId = document.getElementById('paymentPlayer').value;
             const suma = parseFloat(document.getElementById('paymentAmount').value);
-            const detalii = document.getElementById('paymentDetails').value.trim() || 'Cotizatie minge';
+            const detalii = document.getElementById('paymentDetails').value.trim();
 
-            if(!numeSelectat || isNaN(suma) || suma <= 0) {
-                alert("Te rog selectează un jucător și introdu suma corectă!");
+            if(!jucatorId || isNaN(suma) || suma <= 0) {
+                alert("Te rog selectează un jucător și introdu o sumă validă!");
                 return;
             }
 
@@ -396,28 +390,27 @@
                 const azi = new Date().toISOString().split('T')[0];
                 const { error } = await sb.from('incasari').insert([
                     {
-                        jucator: numeSelectat,
+                        jucator_id: jucatorId,
                         suma: suma,
-                        detalii: detalii,
+                        detalii: detalii || 'Cotizație',
                         data: azi
                     }
                 ]);
 
                 if (error) throw error;
 
-                // Resetare inputuri
                 document.getElementById('paymentAmount').value = '';
                 document.getElementById('paymentDetails').value = '';
                 document.getElementById('paymentPlayer').value = '';
 
-                incarcaBugetSiJucatori();
+                await incarcaBugetSiJucatori();
 
             } catch(e) {
                 alert("Eroare la salvarea plății: " + e.message);
             }
         }
 
-        // 3. Încarcă cheltuielile cu barele de progres calculate dinamic
+        // 4. Încarcă cheltuielile cu barele de progres calculate dinamic
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb.from('cheltuieli').select('*');
@@ -469,7 +462,7 @@
             }
         }
 
-        // 4. Salvează produs nou în cheltuieli
+        // 5. Salvează produs nou în cheltuieli
         async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
@@ -496,38 +489,38 @@
                 document.getElementById('itemTarget').value = '';
                 document.getElementById('itemCurrent').value = '';
                 
-                incarcaWishlist();
+                await incarcaWishlist();
 
             } catch(e) {
                 alert("Eroare la salvare: " + e.message);
             }
         }
 
-        // 5. Șterge produs din cheltuieli
+        // 6. Șterge produs din cheltuieli
         async function stergeObiectiv(id) {
             if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
             try {
                 const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
-                incarcaWishlist();
+                await incarcaWishlist();
             } catch(e) {
                 alert("Eroare la ștergerea produsului.");
             }
         }
 
-        // 6. Șterge o plată din încasări
+        // 7. Șterge o plată din încasări
         async function stergePlata(id) {
             if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
             try {
                 const { error } = await sb.from('incasari').delete().eq('id', id);
                 if (error) throw error;
-                incarcaBugetSiJucatori();
+                await incarcaBugetSiJucatori();
             } catch(e) {
                 alert("Eroare la ștergerea plății.");
             }
         }
 
-        // Inițializare secvențială corectă
+        // Inițializare corectă
         async function init() {
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
