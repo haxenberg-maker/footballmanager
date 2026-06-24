@@ -68,7 +68,7 @@
             border-radius: 12px;
             border: 1px solid #232d3f;
             padding: 20px;
-            max-height: 600px;
+            max-height: 750px;
             overflow-y: auto;
         }
         .panel-title {
@@ -128,21 +128,23 @@
         }
 
         .card-preview-panel {
-            width: 380px;
+            width: 420px;
             background: var(--panel-bg);
             border-radius: 12px;
             border: 1px solid #232d3f;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            min-height: 450px;
+            justify-content: flex-start;
+            padding: 30px 20px;
+            min-height: 550px;
         }
         .no-selection-msg {
             color: #64748b;
             text-align: center;
             font-size: 1.1rem;
+            margin-y: auto;
+            padding-top: 100px;
         }
 
         /* CARD FC26 FUT STYLE */
@@ -156,6 +158,8 @@
             color: #e2e8f0;
             box-shadow: 0 15px 35px rgba(0,0,0,0.6);
             animation: cardAppear 0.3s ease-out;
+            margin-bottom: 25px;
+            flex-shrink: 0;
         }
 
         .fc26-card.gold { background: var(--gold-gradient); border-color: #ffe082; color: #0b0e14; }
@@ -265,6 +269,38 @@
             font-weight: 700;
         }
         
+        /* Caseta Explicații sub Card */
+        .explanation-box {
+            width: 100%;
+            background: #1c2433;
+            border-radius: 8px;
+            border: 1px solid #2d394e;
+            padding: 15px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: #cbd5e1;
+            animation: cardAppear 0.4s ease-out;
+        }
+        .explanation-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+            color: #f1d483;
+        }
+        .explanation-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .explanation-box li {
+            margin-bottom: 6px;
+        }
+        .stat-highlight {
+            color: #f1d483;
+            font-weight: 700;
+        }
+
         .loading { text-align: center; font-size: 1.2rem; color: #f1d483; padding: 20px; }
     </style>
 </head>
@@ -296,11 +332,11 @@
 
         // Funcție aliniată la structura reală a bazei de date (adminRating, camelCase)
         function calculeazaRatingFifa(p) {
-            // 1. Verificare Override din admin (în DB se numește exact adminRating)
+            // 1. Verificare Override din admin
             if (p.adminRating != null) {
                 let r = parseFloat(p.adminRating);
                 if (r <= 10) r = r * 10;
-                return Math.max(45, Math.min(99, Math.round(r)));
+                return { rating: Math.max(45, Math.min(99, Math.round(r))), tip: 'admin' };
             }
 
             // 2. Fallback pe algoritmul Smart Rating bazat pe performanțele salvate în profil
@@ -319,7 +355,9 @@
             }
 
             // 3. Integrare medii de voturi din tabelul relaționat (ratings) dacă există
+            let areVoturi = false;
             if (p.ratings && Array.isArray(p.ratings) && p.ratings.length > 0) {
+                areVoturi = true;
                 let sum = 0;
                 p.ratings.forEach(r => {
                     const g = r.general != null ? r.general : 5;
@@ -330,20 +368,18 @@
                     sum += (g + v + t + s + a) / 5;
                 });
                 let mediaVote = sum / p.ratings.length;
-                base = (base + mediaVote) / 2; // Combinare echilibrată între statisticile meciurilor și voturi
+                base = (base + mediaVote) / 2;
             }
 
-            // Clamp în siguranță și transformare directă în format FIFA 45-99
             let finalScore = Math.round(base * 10);
-            if (isNaN(finalScore) || finalScore < 45) {
-                return 75; // Fallback sigur în caz de profil fără nicio înregistrare validă
+            if (isNaN(finalScore) || finalScore < 45 || games === 0) {
+                return { rating: 75, tip: 'default' }; // Jucător nou sau fără meciuri introduse
             }
-            return Math.max(45, Math.min(99, finalScore));
+            return { rating: Math.max(45, Math.min(99, finalScore)), tip: areVoturi ? 'smart+voturi' : 'smart' };
         }
 
         async function incarcajucatori() {
             try {
-                // Selectăm tot plus sub-tabelul de ratings pentru calculul mediei
                 const { data: players, error } = await sb.from('players').select('*, ratings(*)').order('name', { ascending: true });
                 if (error) throw error;
 
@@ -354,7 +390,7 @@
                 listContainer.innerHTML = '';
 
                 players.forEach(p => {
-                    const ratingFifa = calculeazaRatingFifa(p);
+                    const res = calculeazaRatingFifa(p);
                     const avatarUrl = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
                     
                     listContainer.innerHTML += `
@@ -363,7 +399,7 @@
                                 <img src="${avatarUrl}" class="player-row-avatar">
                                 <span class="player-row-name">${p.name}</span>
                             </div>
-                            <span class="player-row-rating">${ratingFifa}</span>
+                            <span class="player-row-rating">${res.rating}</span>
                         </div>
                     `;
                 });
@@ -382,16 +418,19 @@
             const p = localPlayers.find(x => x.id === id);
             if (!p) return;
 
-            const ratingOVR = calculeazaRatingFifa(p);
+            const resCalcule = calculeazaRatingFifa(p);
+            const ratingOVR = resCalcule.rating;
 
             const goluri = p.total_goals || p.totalGoals || 0;
-            const meciuri = p.games || 1;
-            const eficienta = goluri / meciuri;
+            const meciuri = p.games || 0;
+            const victorii = p.wins || 0;
+            const eficienta = meciuri > 0 ? goluri / meciuri : 0;
+            const winrate = meciuri > 0 ? Math.round((victorii / meciuri) * 100) : 0;
 
-            // Atribute adaptate și calculate curat în raport direct cu OVR-ul
+            // Atribute relative calculate curat în raport cu OVR-ul
             const pac = Math.max(45, Math.min(99, Math.round(ratingOVR - 3 + (id % 6))));
             const sho = Math.max(45, Math.min(99, Math.round(ratingOVR - 8 + (eficienta * 25))));
-            const pas = Math.max(45, Math.min(99, Math.round(ratingOVR - 2 + (p.wins % 4))));
+            const pas = Math.max(45, Math.min(99, Math.round(ratingOVR - 2 + (victorii % 4))));
             const dri = Math.max(45, Math.min(99, Math.round(ratingOVR + 2 - (id % 3))));
             const def = Math.max(45, Math.min(99, Math.round(ratingOVR - 6 + (p.id % 5))));
             const phy = Math.max(45, Math.min(99, Math.round(ratingOVR - 4 + ((goluri + meciuri) % 6))));
@@ -407,6 +446,27 @@
 
             const pozitie = p.position_primary || p.position || (eficienta > 0.4 ? "ST" : "CM");
             const pozaCard = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+
+            // Construirea explicației text personalizată pentru fiecare caz
+            let explicatieText = "";
+            if (resCalcule.tip === 'admin') {
+                explicatieText = `Acest card are un rating forțat de un administrator în panoul de control (<span class="stat-highlight">OVR ${ratingOVR}</span>). Statisticile de meci nu îi modifică valoarea curentă.`;
+            } else if (resCalcule.tip === 'default') {
+                explicatieText = `Jucătorul are <span class="stat-highlight">0 meciuri active</span> înregistrate în istoric sau date lipsă. Din acest motiv, algoritmul aplică automat valoarea neutră standard de pornire de <span class="stat-highlight">75 OVR</span>.`;
+            } else {
+                explicatieText = `Rating generat dinamic prin formula Smart Rating:<br>
+                <ul>
+                    <li>Meciuri jucate: <span class="stat-highlight">${meciuri}</span></li>
+                    <li>Procentaj Victorii: <span class="stat-highlight">${winrate}%</span> (${victorii} W)</li>
+                    <li>Goluri înscrise: <span class="stat-highlight">${goluri}</span> (Medie: ${eficienta.toFixed(2)} goluri/meci)</li>
+                    <li>${resCalcule.tip === 'smart+voturi' ? 'Formula include și <span class="stat-highlight">media voturilor live</span> de la coechipieri.' : 'Nu s-au găsit voturi în istoric, se bazează doar pe statisticile de meci.'}</li>
+                </ul>`;
+            }
+
+            // Notă specifică pentru Andrei Stan dacă el este cel selectat
+            if (p.name.toLowerCase().includes("stan") || p.name.toLowerCase().includes("andrei stan")) {
+                explicatieText += `<br><strong style="color:#ff8c00;">De ce are Andrei Stan ratingul acesta?</strong> Dacă valoarea este fix 75, înseamnă că nu are meciuri salvate corect în baza de date Supabase sub acest profil sau nu i s-a acordat un rating de override de către Admin.`;
+            }
 
             const previewPanel = document.getElementById('cardPreviewPanel');
             previewPanel.innerHTML = `
@@ -428,6 +488,11 @@
                         <div class="stat-block"><span class="stat-number">${pas}</span><span class="stat-label">PAS</span></div>
                         <div class="stat-block"><span class="stat-number">${phy}</span><span class="stat-label">PHY</span></div>
                     </div>
+                </div>
+                
+                <div class="explanation-box">
+                    <h3>📊 Diagnostic Calcul Rating</h3>
+                    <p>${explicatieText}</p>
                 </div>
             `;
         }
