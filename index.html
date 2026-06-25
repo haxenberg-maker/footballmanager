@@ -33,7 +33,7 @@
         .auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f7ecd9;z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;}
         .auth-overlay.hidden{display:none;}
         .auth-box{width:100%;max-width:400px;background:#fff8ed;border-radius:20px;border:1px solid #d3bd8c;box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden;}
-        .auth-logo{background:linear-gradient(135deg,#fffaf0,#1a1d30);padding:32px 28px 24px;text-align:center;border-bottom:1px solid #e3d3ac;}
+        .auth-logo{background:linear-gradient(135deg,#fffaf0,#fff3df);padding:32px 28px 24px;text-align:center;border-bottom:1px solid #e3d3ac;}
         .auth-logo-title{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:4px;color:#3a2f1f;margin-bottom:4px;}
         .auth-logo-sub{font-size:0.8rem;color:#6b5840;letter-spacing:2px;text-transform:uppercase;}
         .auth-tabs{display:flex;border-bottom:1px solid #e3d3ac;}
@@ -46,7 +46,7 @@
         .auth-input:focus{border-color:var(--accent);}
         .auth-btn{width:100%;padding:14px;border-radius:10px;font-size:1rem;letter-spacing:1px;margin-top:4px;}
         .auth-btn-login{background:var(--accent);color:#3a2f1f;}
-        .auth-btn-register{background:linear-gradient(135deg,#1a3a2a,#28a745);color:#3a2f1f;border:1px solid #28a745;}
+        .auth-btn-register{background:#28a745;color:#fff;border:1px solid #1b7a35;}
         .auth-error{background:rgba(198,40,40,0.15);border:1px solid #c62828;border-radius:8px;padding:10px 14px;font-size:0.85rem;color:#b33030;margin-bottom:12px;display:none;}
         .auth-error.show{display:block;}
         .auth-divider{text-align:center;font-size:0.75rem;color:#7d6849;margin:12px 0;}
@@ -81,8 +81,8 @@
         .btn-win-g{background:var(--green);}
         .btn-new-match{background:linear-gradient(135deg,#004d40,#00796b);border:1px solid #00bcd4;color:#80deea;}
         .btn-settings{background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;}
-        .btn-quick-vote{background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#8e3a9e;}
-        .btn-schedule{background:linear-gradient(135deg,#0d2b4a,#1a4a7a);border:1px solid #2979ff;color:#1554b3;}
+        .btn-quick-vote{background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;}
+        .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
         .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 260px 260px;gap:14px;align-items:start;}
         .column{background:#f1e4c8;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
@@ -91,8 +91,8 @@
         .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:4px;}
         .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
         .header-orange .col-header{background:linear-gradient(135deg,#ff6a00,#ee8a00);}
-        .header-green .col-header{background:linear-gradient(135deg,#1a7a30,#28a745);}
-        .header-bench .col-header{background:linear-gradient(135deg,#0d2040,#1a3060);}
+        .header-green .col-header{background:linear-gradient(135deg,#a8d8a0,#28a745);}
+        .header-bench .col-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);}
         .header-bench.team3-active .col-header{background:var(--bench-col, #4a0080);}
         .team3-active .col-header-title{color:var(--bench-text, #ce93d8)!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
@@ -135,7 +135,7 @@
             border-radius:10px;overflow:hidden;
             border:1px solid rgba(255,255,255,0.06);
             transition:transform .15s,box-shadow .15s;
-            background:linear-gradient(145deg,#1a1d2e,#f1e4c8);
+            background:linear-gradient(145deg,#fff3df,#f1e4c8);
             display:flex;flex-direction:column;
         }
         .player-card::before{
@@ -144,9 +144,9 @@
             pointer-events:none;
         }
         .player-card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(0,0,0,.6);}
-        .player-card.team-orange{border-color:rgba(255,140,0,.25);background:linear-gradient(145deg,#1e1408,#120c04);}
+        .player-card.team-orange{border-color:rgba(255,140,0,.25);background:linear-gradient(145deg,#ffe9cc,#ffd9a8);}
         .player-card.team-orange::before{background:linear-gradient(135deg,rgba(255,140,0,.08) 0%,transparent 60%);}
-        .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#0d1a10,#08100a);}
+        .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#dff3df,#c5e8c0);}
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
@@ -173,11 +173,11 @@
         .card-top{display:flex;justify-content:space-between;align-items:center;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
-        .rating-badge-smart{background:linear-gradient(135deg,#1a1060,#2d1b8e);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
+        .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
         .player-id-tag{font-size:0.6rem;color:#7d6849;font-family:monospace;margin-left:5px;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
-        .rating-badge-smart{background:linear-gradient(135deg,#1a1060,#2d1b8e);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
+        .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
         .player-rank-label{position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:60%;border-radius:0 2px 2px 0;}
         .rank-1{background:#ffd700}.rank-2{background:#c0c0c0}.rank-3{background:#cd7f32}.rank-other{background:transparent}
         .player-stats{font-size:0.73rem;color:#7d6849;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
@@ -218,7 +218,7 @@
         .tag-act-status{font-size:.78rem;}
         .tag-hist-wrap{max-height:0;overflow:hidden;transition:max-height .3s ease;}
         .tag-hist-wrap.open{max-height:300px;}
-        .tag-hist-inner{padding:6px 4px;background:#0a0d18;border-radius:7px;margin-top:5px;}
+        .tag-hist-inner{padding:6px 4px;background:#fffaf0;border-radius:7px;margin-top:5px;}
         .tag-hist-row{font-size:.68rem;color:#7d6849;padding:2px 0;display:flex;justify-content:space-between;}
         .tag-hist-row span{color:#7d6849;}
         /* Algorithm Control Panel */
@@ -289,8 +289,8 @@
         .arch-badge{font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;line-height:1.4;}
         .arch-s{background:rgba(40,167,69,.18);color:#1b7a43;border:1px solid rgba(40,167,69,.35);}
         .arch-w{background:rgba(198,40,40,.15);color:#b71c1c;border:1px solid rgba(198,40,40,.3);}
-        .lobby-section{grid-column:1/-1;background:#0c1220;border-radius:14px;border:1px solid #1a2a4a;overflow:hidden;}
-        .lobby-header{background:linear-gradient(135deg,#0d2040,#1a3060);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+        .lobby-section{grid-column:1/-1;background:#fffaf0;border-radius:14px;border:1px solid #1a2a4a;overflow:hidden;}
+        .lobby-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
         .lobby-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#1554b3;flex:1;}
         .lobby-datetime{font-size:0.88rem;color:#2f5fcf;font-weight:700;}
         .lobby-datetime.no-date{color:#7d6849;font-size:0.8rem;}
@@ -300,10 +300,10 @@
         .lobby-body{padding:14px 18px;}
         .lobby-hint{font-size:0.78rem;color:#7d6849;margin-bottom:12px;}
         .lobby-players{display:flex;flex-wrap:wrap;gap:8px;}
-        .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#111827;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
-        .lobby-player-chip:hover{border-color:#1554b3;background:#131d2e;}
-        .lobby-player-chip.confirmed{background:#0a2040;border-color:#1554b3;}
-        .lobby-player-chip.absent{background:#1a0a0a;border-color:#c62828;opacity:0.7;}
+        .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#faf0dc;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
+        .lobby-player-chip:hover{border-color:#1554b3;background:#e8f0ff;}
+        .lobby-player-chip.confirmed{background:#dde9ff;border-color:#1554b3;}
+        .lobby-player-chip.absent{background:#fce0e0;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#dcc89a;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
         .lobby-player-chip.confirmed .chip-dot{background:#2979ff;border-color:#1554b3;box-shadow:0 0 6px rgba(41,121,255,0.6);}
         .lobby-player-chip.absent .chip-dot{background:#c62828;border-color:#c62828;}
@@ -320,16 +320,16 @@
         .presence-player-name{font-size:0.82rem;color:#6b5840;margin-bottom:24px;}
         .presence-actions{display:flex;gap:12px;}
         .presence-btn{flex:1;padding:16px;border-radius:12px;font-size:1rem;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;cursor:pointer;border:none;transition:all 0.15s;}
-        .presence-yes{background:linear-gradient(135deg,#1a7a30,#28a745);color:#3a2f1f;border:1px solid #28a745;}
+        .presence-yes{background:#28a745;color:#fff;border:1px solid #1b7a35;}
         .presence-yes:hover{filter:brightness(1.15);transform:translateY(-2px);}
-        .presence-no{background:#1a0a0a;color:#b33030;border:1px solid #c62828;}
-        .presence-no:hover{background:#2a1010;transform:translateY(-2px);}
+        .presence-no{background:#fce0e0;color:#b33030;border:1px solid #c62828;}
+        .presence-no:hover{background:#fce0e0;transform:translateY(-2px);}
         .vote-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:5000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px);}
         .vote-overlay.show{display:flex;}
         .vote-box{width:92%;max-width:480px;background:#fff8ed;border-radius:20px;border:1px solid #d3bd8c;box-shadow:0 30px 80px rgba(0,0,0,0.9);overflow:hidden;display:flex;flex-direction:column;}
 
         /* Header */
-        .vote-header{background:linear-gradient(135deg,#fffaf0,#1a1d30);padding:16px 20px 14px;border-bottom:1px solid #e3d3ac;}
+        .vote-header{background:linear-gradient(135deg,#fffaf0,#fff3df);padding:16px 20px 14px;border-bottom:1px solid #e3d3ac;}
         .vote-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
         .vote-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:3px;color:#7d6849;}
         .vote-skip-btn{font-size:0.75rem;color:#7d6849;background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;font-family:'Rajdhani',sans-serif;}
@@ -378,7 +378,7 @@
         .vote-details-toggle.open{border-color:#3d2bbf;color:#6b46c1;border-style:solid;background:rgba(61,43,191,0.06);}
         .vote-details-wrap{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .vote-details-wrap.open{max-height:300px;}
-        .vote-details-inner{background:#0a0d18;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:8px;}
+        .vote-details-inner{background:#fffaf0;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:8px;}
         .vote-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
         .vote-sub-group{display:flex;flex-direction:column;gap:3px;}
         .vote-sub-label{font-size:0.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
@@ -394,15 +394,15 @@
         .vote-footer{padding:14px 22px;border-top:1px solid #e3d3ac;display:flex;gap:10px;align-items:center;}
         .vote-next-btn{flex:1;padding:14px;border-radius:12px;font-size:1rem;font-weight:700;letter-spacing:1px;background:var(--orange);color:#3a2f1f;transition:all 0.15s;}
         .vote-next-btn:disabled{opacity:0.3;cursor:not-allowed;transform:none;}
-        .vote-next-btn.last{background:linear-gradient(135deg,#1a7a30,#28a745);color:#3a2f1f;}
+        .vote-next-btn.last{background:#28a745;color:#fff;}
         .vote-dot-nav{display:flex;gap:5px;align-items:center;}
         .vote-dot{width:6px;height:6px;border-radius:50%;background:#dcc89a;transition:all 0.2s;}
         .vote-dot.active{background:var(--accent);width:18px;border-radius:3px;}
         .vote-dot.done{background:#28a745;}
         .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#fdf3df;border:1px solid var(--accent);color:#3a2f1f;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
-        .toast.toast-o{border-color:var(--orange);background:#2a1800;}
-        .toast.toast-g{border-color:var(--green);background:#0a2a14;}
+        .toast.toast-o{border-color:var(--orange);background:#fbe9c8;}
+        .toast.toast-g{border-color:var(--green);background:#dff3df;}
         .stats-section{grid-column:1/-1;margin-top:4px;background:#f1e4c8;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
         .stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:#7d6849;}
         .leaderboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
@@ -424,7 +424,7 @@
         .win-tag{padding:2px 9px;border-radius:20px;font-size:0.76rem;font-weight:700;}
         .history-players{font-size:0.76rem;color:#6b5840;margin-top:3px;}
         #match-history tbody tr{cursor:pointer;transition:background 0.12s;}
-        #match-history tbody tr:hover td{background:#151820;}
+        #match-history tbody tr:hover td{background:#f1e4c8;}
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         /* FIFA Modal */
         @keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:none}}
@@ -495,7 +495,7 @@
         .tl-item{position:relative;margin-bottom:16px;}
         .tl-dot{position:absolute;left:-20px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid;flex-shrink:0;}
         .tl-dot.W{background:#1a3a1a;border-color:#2e7d32;box-shadow:0 0 8px rgba(76,175,80,.4);}
-        .tl-dot.L{background:#3a1a1a;border-color:#a52020;box-shadow:0 0 8px rgba(229,57,53,.3);}
+        .tl-dot.L{background:#fce0e0;border-color:#a52020;box-shadow:0 0 8px rgba(229,57,53,.3);}
         .tl-date{font-size:.65rem;color:#6b5840;margin-bottom:3px;}
         .tl-result{font-size:.82rem;font-weight:700;margin-bottom:4px;}
         .tl-result.W{color:#2e7d32;}
@@ -522,7 +522,7 @@
         .mh-team{font-size:.72rem;color:#7d6849;flex:1;}
         .mh-teammates{font-size:.7rem;color:#6b5840;padding-left:68px;line-height:1.4;}
         .modal-stats-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;margin-bottom:4px;}
-        .modal-stats-toggle:hover{background:#141820;}
+        .modal-stats-toggle:hover{background:#f1e4c8;}
         .modal-stats-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
         .modal-avg-big{font-size:0.9rem;color:var(--star);font-weight:700;}
         .modal-smart-big{font-size:0.85rem;font-weight:700;color:#6b46c1;background:rgba(61,43,191,0.2);padding:2px 9px;border-radius:8px;border:1px solid #3d2bbf;}
@@ -543,7 +543,7 @@
         .algo-weight{font-size:0.68rem;color:#6b5840;width:30px;text-align:right;}
         .chart-section{margin-bottom:10px;}
         .chart-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:10px 14px;cursor:pointer;user-select:none;}
-        .chart-toggle:hover{background:#141820;}
+        .chart-toggle:hover{background:#f1e4c8;}
         .chart-toggle-label{font-size:0.78rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
         .chart-toggle-icon{transition:transform 0.25s;color:#6b5840;font-size:0.8rem;}
         .chart-toggle-icon.open{transform:rotate(180deg);}
@@ -555,7 +555,7 @@
         .cat-tab.active{background:var(--accent);color:#3a2f1f;border-color:var(--accent);}
         .ratings-list-wrap{margin-top:6px;margin-bottom:10px;}
         .ratings-list-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;}
-        .ratings-list-toggle:hover{background:#141820;}
+        .ratings-list-toggle:hover{background:#f1e4c8;}
         .ratings-list-label{font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
         .ratings-list-chevron{color:#6b5840;transition:transform 0.25s;font-size:0.75rem;}
         .ratings-list-chevron.open{transform:rotate(180deg);}
@@ -600,7 +600,7 @@
         .btn-details-toggle.open{border-color:#3d2bbf;color:#6b46c1;background:rgba(61,43,191,0.1);border-style:solid;}
         .details-section{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .details-section.open{max-height:400px;}
-        .details-section-inner{background:#0a0d18;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:6px;}
+        .details-section-inner{background:#fffaf0;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:6px;}
         .details-hint{font-size:0.72rem;color:#6b5840;margin-bottom:10px;font-style:italic;}
         .cat-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
         .cat-input-group{display:flex;flex-direction:column;gap:4px;}
@@ -725,7 +725,7 @@
         .me-team-header{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e3d3ac;}
         .me-players-checklist{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;}
         .me-player-check{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background 0.12s;user-select:none;}
-        .me-player-check:hover{background:#141820;}
+        .me-player-check:hover{background:#f1e4c8;}
         .me-player-check input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
         .me-player-check span{font-size:0.85rem;color:#5c4a32;}
         .me-player-check.checked span{color:#3a2f1f;}
@@ -739,8 +739,8 @@
         .btn-link-account{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;white-space:nowrap;}
 
         .balance-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;gap:8px;}
-        .btn-balance{background:linear-gradient(135deg,#1a0050,#6200ea);border:1px solid #7c4dff;color:#d1b3ff;width:36px;height:36px;border-radius:50%;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 10px rgba(124,77,255,0.3);}
-        .btn-balance:hover{background:linear-gradient(135deg,#2a0070,#7c4dff);transform:scale(1.1) rotate(20deg);box-shadow:0 4px 16px rgba(124,77,255,0.5);}
+        .btn-balance{background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#d1b3ff;width:36px;height:36px;border-radius:50%;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 10px rgba(124,77,255,0.3);}
+        .btn-balance:hover{background:linear-gradient(135deg,#ede3fa,#7c4dff);transform:scale(1.1) rotate(20deg);box-shadow:0 4px 16px rgba(124,77,255,0.5);}
         .balance-popup{position:absolute;background:#fdf3df;border:1px solid #3d2bbf;border-radius:12px;padding:8px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);min-width:170px;display:none;}
         /* Scenario slots */
         .scenario-bar{display:flex;gap:4px;padding:6px 10px 4px;border-top:1px solid #dcc89a;margin-top:4px;}
@@ -905,8 +905,8 @@
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
-    <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#1a3a1a,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
-    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#1a0a30,#3a0070);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
+    <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
+    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
 </div>
 
@@ -945,7 +945,7 @@
             </div>
             <div style="height:8px;border-radius:4px;background:#fdf3df;overflow:hidden;display:flex;">
                 <div id="probBarOrange" style="height:100%;background:linear-gradient(90deg,#ff8c00,#ffaa00);border-radius:4px 0 0 4px;transition:width 0.6s ease;width:50%;"></div>
-                <div id="probBarGreen"  style="height:100%;background:linear-gradient(90deg,#1a7a30,#28a745);border-radius:0 4px 4px 0;transition:width 0.6s ease;width:50%;"></div>
+                <div id="probBarGreen"  style="height:100%;background:linear-gradient(90deg,#a8d8a0,#28a745);border-radius:0 4px 4px 0;transition:width 0.6s ease;width:50%;"></div>
             </div>
             <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#7d6849;margin-top:3px;">
                 <span id="avgLabelOrange">★ —</span>
@@ -1111,7 +1111,7 @@
     <div class="history-section" id="sec-history">
         <div class="history-desktop-header">
             <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#7d6849;">Istoric Meciuri</h3>
-            <button class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
+            <button class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
         </div>
         <table id="match-history" style="margin-top:4px;">
             <thead><tr><th>Data</th><th>Câștigător</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
@@ -1234,7 +1234,7 @@
     </div>
     <!-- Footer -->
     <div style="padding:12px 16px;border-top:1px solid #e3d3ac;display:flex;gap:8px;">
-        <button onclick="submitGoals()" style="flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;">💾 Salvează &amp; Finalizează</button>
+        <button onclick="submitGoals()" style="flex:1;padding:11px;border-radius:10px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;">💾 Salvează &amp; Finalizează</button>
         <button onclick="skipGoals()" style="padding:11px 14px;border-radius:10px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.85rem;cursor:pointer;">Sari</button>
     </div>
 </div>
@@ -1267,7 +1267,7 @@
     <div id="draftPlayerGrid" style="padding:14px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
     <!-- Footer -->
     <div style="padding:12px 16px;border-top:1px solid #e3d3ac;display:flex;gap:8px;">
-        <button onclick="confirmDraft()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">✅ Confirmă Echipele</button>
+        <button onclick="confirmDraft()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">✅ Confirmă Echipele</button>
         <button onclick="closeDraft()" style="padding:10px 14px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.85rem;cursor:pointer;">Anulează</button>
     </div>
 </div>
@@ -1293,7 +1293,7 @@
         </div>
     </div>
     <div style="padding:10px 20px;border-top:1px solid #e3d3ac;display:flex;gap:8px;justify-content:flex-end;">
-        <button onclick="copyTeams();closeTableView();" style="background:#1a3050;border:1px solid #5c7aff;color:#8fa8ff;padding:7px 16px;border-radius:8px;font-size:.82rem;font-weight:700;">📋 Copiază</button>
+        <button onclick="copyTeams();closeTableView();" style="background:#dde9ff;border:1px solid #5c7aff;color:#8fa8ff;padding:7px 16px;border-radius:8px;font-size:.82rem;font-weight:700;">📋 Copiază</button>
         <button onclick="closeTableView()" style="background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;padding:7px 16px;border-radius:8px;font-size:.82rem;">Închide</button>
     </div>
 </div>
@@ -1320,7 +1320,7 @@
     <div class="schedule-field"><label>Ora</label><input type="time" class="schedule-input" id="scheduleTime"></div>
     <div class="schedule-field"><label>Locație (opțional)</label><input type="text" class="schedule-input" id="scheduleLocation" placeholder="ex: Terenul din Bârlad"></div>
     <div style="display:flex;gap:8px;margin-top:4px;">
-        <button style="flex:1;padding:12px;border-radius:10px;background:#1a3060;border:1px solid #2979ff;color:#1554b3;font-size:0.95rem;" onclick="saveSchedule()">💾 Salvează</button>
+        <button style="flex:1;padding:12px;border-radius:10px;background:#dde9ff;border:1px solid #2979ff;color:#1554b3;font-size:0.95rem;" onclick="saveSchedule()">💾 Salvează</button>
         <button style="padding:12px 16px;border-radius:10px;background:#dcc89a;" onclick="closeScheduleModal()">✕</button>
     </div>
     <button style="width:100%;margin-top:8px;padding:10px;border-radius:10px;background:transparent;border:1px dashed #c62828;color:#c62828;font-size:0.82rem;" onclick="clearSchedule()">🗑️ Șterge meci programat</button>
@@ -1390,7 +1390,7 @@
     </div>
 
     <div style="display:flex;gap:8px;margin-top:16px;">
-        <button style="flex:1;padding:13px;border-radius:10px;background:linear-gradient(135deg,#1a3a2a,#28a745);color:#3a2f1f;font-size:1rem;font-weight:700;" onclick="saveMatchEdit()">💾 Salvează Meciul</button>
+        <button style="flex:1;padding:13px;border-radius:10px;background:#28a745;color:#fff;font-size:1rem;font-weight:700;" onclick="saveMatchEdit()">💾 Salvează Meciul</button>
         <button id="meDeleteBtn" style="padding:13px 16px;border-radius:10px;background:#c62828;color:#3a2f1f;" onclick="deleteMatchEdit()" title="Șterge meciul">🗑️</button>
     </div>
 </div>
@@ -1416,7 +1416,7 @@
         <div class="settings-panel active" id="panel-players">
             <div style="font-size:0.75rem;color:#6b5840;margin-bottom:12px;">ID-urile sunt unice și permanente.</div>
             <div id="playerEditList"></div>
-            <button style="width:100%;margin-top:10px;padding:10px;background:#1a2a1a;border:1px dashed #28a745;color:#1b7a35;border-radius:8px;" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
+            <button style="width:100%;margin-top:10px;padding:10px;background:#dff3df;border:1px dashed #28a745;color:#1b7a35;border-radius:8px;" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
         </div>
 
         <!-- ACCOUNTS PANEL — admin only -->
@@ -1437,7 +1437,7 @@
                     <option value="">— Selectează —</option>
                 </select>
             </div>
-            <button style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid var(--purple);color:#8e3a9e;font-size:0.95rem;" onclick="enablePushNotifications()">🔔 Activează Notificările</button>
+            <button style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;font-size:0.95rem;" onclick="enablePushNotifications()">🔔 Activează Notificările</button>
             <div style="font-size:0.75rem;color:#6b5840;margin-top:10px;line-height:1.5;">
                 Vei primi notificări când se programează un meci nou. Necesită VAPID keys configurate în Supabase Edge Functions.
             </div>
@@ -1450,7 +1450,7 @@
                 </div>
                 <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Import JSON</div><div class="settings-action-desc">Restaurează din backup</div></div>
-                    <label style="background:#1a2a3a;border:1px solid #3d5afe;color:#3d5afe;padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;">
+                    <label style="background:#e3edf5;border:1px solid #3d5afe;color:#3d5afe;padding:8px 16px;border-radius:7px;cursor:pointer;font-weight:700;font-size:0.88rem;">
                         📂 Import<input type="file" accept=".json" onchange="importData(event)" style="display:none;">
                     </label>
                 </div>
@@ -1464,11 +1464,11 @@
                 </div>
                 <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Export Echipe Imagine</div><div class="settings-action-desc">PNG pentru WhatsApp / social</div></div>
-                    <button style="background:linear-gradient(135deg,#1a1a40,#3d1a70);border:1px solid #7c4dff;color:#d1b3ff;padding:8px 16px;border-radius:7px;" onclick="exportTeamsImage()">🖼️ PNG</button>
+                    <button style="background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #7c4dff;color:#d1b3ff;padding:8px 16px;border-radius:7px;" onclick="exportTeamsImage()">🖼️ PNG</button>
                 </div>
                 <div class="settings-action-item">
                     <div class="settings-action-info"><div class="settings-action-title">Copiază Echipele</div><div class="settings-action-desc">Pentru WhatsApp</div></div>
-                    <button style="background:#1a3050;border:1px solid #5c7aff;color:#8fa8ff;padding:8px 16px;border-radius:7px;" onclick="copyTeams()">📋 Copiază</button>
+                    <button style="background:#dde9ff;border:1px solid #5c7aff;color:#8fa8ff;padding:8px 16px;border-radius:7px;" onclick="copyTeams()">📋 Copiază</button>
                 </div>
             </div>
         </div>
@@ -3496,8 +3496,8 @@ function exportTeamsText(){
         <pre id="exportPreview" style="background:#f5e9d4;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'Rajdhani',sans-serif;font-size:.85rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:12px;">${textEmoji}</pre>
         <div style="display:flex;gap:6px;">
             <button onclick="this.closest('div[style*=fixed]').remove()" style="padding:10px 12px;border-radius:9px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;cursor:pointer;font-size:.78rem;">✕</button>
-            <button id="exportBtnEmoji" onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Cu Emoji',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#3a2f1f;">📋 Cu Emoji</button>
-            <button onclick="navigator.clipboard.writeText(window._exportRaw||'').then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📄 RAW',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#1a2a50,var(--accent));border:1px solid var(--accent);color:#3a2f1f;">📄 RAW</button>
+            <button id="exportBtnEmoji" onclick="navigator.clipboard.writeText(document.getElementById('exportPreview').textContent).then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📋 Cu Emoji',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid var(--green);color:#3a2f1f;">📋 Cu Emoji</button>
+            <button onclick="navigator.clipboard.writeText(window._exportRaw||'').then(()=>{this.textContent='✅ Copiat!';setTimeout(()=>this.textContent='📄 RAW',1500);})" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:linear-gradient(135deg,#dde9ff,var(--accent));border:1px solid var(--accent);color:#3a2f1f;">📄 RAW</button>
         </div>
     </div>`;
     document.body.appendChild(overlay);
@@ -4404,10 +4404,10 @@ function openModal(id){
     const initials = p.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
     const teamColor = p.status==='orange'?'#9c4f00':p.status==='green'?'#1b7a35':'#3d5afe';
     const teamGrad  = p.status==='orange'
-        ? 'linear-gradient(145deg,#1e1408,#120c04)'
+        ? 'linear-gradient(145deg,#ffe9cc,#ffd9a8)'
         : p.status==='green'
-        ? 'linear-gradient(145deg,#0d1a10,#08100a)'
-        : 'linear-gradient(145deg,#fff7e8,#090c18)';
+        ? 'linear-gradient(145deg,#dff3df,#c5e8c0)'
+        : 'linear-gradient(145deg,#fff7e8,#fce9c8)';
     const teamBorder = p.status==='orange'?'rgba(255,140,0,.3)':p.status==='green'?'rgba(40,167,69,.25)':'rgba(61,90,254,.2)';
 
     document.getElementById('modalFifaHeader').style.background = teamGrad;
@@ -4481,7 +4481,7 @@ function buildModalStats(p){
         if (admin) {
             statsEditPanel.style.display = 'block';
             statsEditPanel.innerHTML = `
-                <div style="background:#0a0f1a;border:1px solid #e3d3ac;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+                <div style="background:#fffaf0;border:1px solid #e3d3ac;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
                     <div style="font-size:.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Editare statistici</div>
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
                         <div>
@@ -4517,7 +4517,7 @@ function buildModalStats(p){
             const curVal = p.adminRating != null ? p.adminRating : '';
             arPanel.style.display = 'block';
             arPanel.innerHTML = `
-                <div style="background:#0a0f1a;border:1px solid ${p.adminRating!=null?'var(--orange)':'#e3d3ac'};border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="background:#fffaf0;border:1px solid ${p.adminRating!=null?'var(--orange)':'#e3d3ac'};border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                     <span style="font-size:.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;flex:1;">👑 Rating Admin Override</span>
                     <input type="number" id="adminRatingInput" min="1" max="10" step="0.1"
                         value="${curVal}" placeholder="—"
@@ -4789,7 +4789,7 @@ function buildLiveEditor(p){
         <div style="display:flex;flex-direction:column;gap:2px;">${attrsHtml}</div>
         <!-- Save button -->
         <button onclick="saveLiveStats(${p.id})"
-            style="margin-top:10px;width:100%;padding:9px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;font-size:.88rem;font-weight:700;cursor:pointer;">
+            style="margin-top:10px;width:100%;padding:9px;border-radius:9px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;font-size:.88rem;font-weight:700;cursor:pointer;">
             💾 Salvează Statisticile
         </button>`;
 
@@ -6485,7 +6485,7 @@ function openStartMatch(){
     const canStart = oP.length > 0 && gP.length > 0;
     document.getElementById('startMatchActions').innerHTML =
         `<button id="launchLiveBtn" onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
-            style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;">
+            style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;">
             ▶ Start Meci — Deschide Live
         </button>
         <button onclick="closeStartMatch()" style="padding:12px;border-radius:10px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;">✕ Anulează</button>`;
@@ -7015,7 +7015,7 @@ init();
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
 <div style="background:#fff8ed;width:92%;max-width:520px;border-radius:16px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,.8);max-height:88vh;overflow-y:auto;padding:0;">
-    <div style="background:linear-gradient(135deg,#1a3a1a,#1a4a2a);padding:16px 20px;border-radius:16px 16px 0 0;">
+    <div style="background:linear-gradient(135deg,#dff3df,#a8d8a0);padding:16px 20px;border-radius:16px 16px 0 0;">
         <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#3a2f1f;margin-bottom:2px;">▶ START MECI</div>
         <div style="font-size:.72rem;color:rgba(255,255,255,.5);">Confirmă configurația și pornește meciul</div>
     </div>

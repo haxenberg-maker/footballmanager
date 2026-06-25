@@ -169,7 +169,7 @@ main, body{padding-bottom:80px;}
 .reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
 .thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#8e3a9e;min-width:20px;text-align:center;}
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;margin-left:4px;}
-.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1a0050,#4a0080);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
+.rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 #roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #e3d3ac;margin-top:4px;}
@@ -292,7 +292,7 @@ main, body{padding-bottom:80px;}
 .pen-player-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:#fffaf0;cursor:pointer;margin:3px;font-size:.78rem;font-weight:700;color:#7d6849;transition:all .1s;}
 .pen-player-chip.sel-o{border-color:var(--o);background:rgba(255,140,0,.1);color:var(--o);}
 .pen-player-chip.sel-g{border-color:var(--g);background:rgba(40,167,69,.1);color:var(--g);}
-.pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#3a2f1f;margin-top:8px;}
+.pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#fff;margin-top:8px;}
 .pen-result-banner{text-align:center;padding:20px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
 
 </style>
@@ -2116,7 +2116,7 @@ function renderPenalty() {
             1 tap = ✅ GOL &nbsp;·&nbsp; 2 tap-uri rapide = ❌ RATAT
         </div>
         <div style="padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;">
-            <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;">✓ Confirmă rezultat</button>
+            <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;">✓ Confirmă rezultat</button>
             <button onclick="closePenalty()" style="width:100%;padding:10px;border-radius:10px;background:#fffaf0;border:1px solid #e3d3ac;color:#7d6849;font-size:.8rem;cursor:pointer;">Anulează</button>
         </div>`;
 }
@@ -2301,7 +2301,7 @@ init();
 <!-- Rotation Confirm Overlay -->
 <div id="rotConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:350;align-items:center;justify-content:center;padding:16px;">
   <div style="background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;overflow-y:auto;">
-    <div style="background:linear-gradient(135deg,#1a0050,#4a0080);padding:14px 18px;border-radius:16px 16px 0 0;">
+    <div style="background:linear-gradient(135deg,#ede3fa,#8e3a9e);padding:14px 18px;border-radius:16px 16px 0 0;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#3a2f1f;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
       <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
     </div>
@@ -2418,7 +2418,7 @@ init();
     <div class="uf-actions">
       <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 1</button>
       <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 2</button>
-      <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #c9920a33;color:#8a6307;background:#1a1500;">🥅 Merg la Penaltyuri</button>
+      <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #c9920a33;color:#8a6307;background:#fbe9c8;">🥅 Merg la Penaltyuri</button>
       <div id="ufBtnConfirmWrap">
         <button class="uf-btn-confirm" id="ufBtnConfirm">✕ Echipa înfrântă iese</button>
       </div>
