@@ -3008,6 +3008,7 @@ function renderHistory(){
     document.querySelector('#match-history tbody').innerHTML = sorted.map(h => {
         const origIdx = db.history.indexOf(h);
         const hasBlack = (h.blackPlayers||[]).length > 0;
+        const _ws = getWinnerSideFromScore(h); // 'orange'|'green'|'black'|'draw'|null
         const winColor = _ws === 'orange' ? teamColors.orange
                        : _ws === 'green'  ? teamColors.green
                        : _ws === 'black'  ? '#3d3d3d'
