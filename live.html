@@ -1412,34 +1412,80 @@ let editPairs  = []; // 3-team mode: grouped by team pair
 function buildPairs(allRounds) {
     const pairMap = {};
     allRounds.forEach(r => {
-        const [canonA, canonB] = [r.team_a_id, r.team_b_id].sort();
-        const key = canonA + '-' + canonB;
-        if (!pairMap[key]) {
-            pairMap[key] = { key, team_a_id: canonA, team_b_id: canonB,
-                score_a: 0, score_b: 0,           // ← TURE CÂȘTIGATE (nu goluri)
-                goals_a: 0, goals_b: 0,            // ← goluri cumulate (informativ)
-                a_players: new Set(), b_players: new Set(),
-                all_goals: [], rounds: [] };
+        const tA = r.team_a_id;
+        const tB = r.team_b_id;
+        if (!tA || !tB) return;
+
+        // Cheia canonică: verificăm ambele ordini (A-B și B-A) să nu creăm duplicate
+        const key1 = tA + '-' + tB;
+        const key2 = tB + '-' + tA;
+        let key, isStrictA;
+
+        if (pairMap[key1]) {
+            key = key1;
+            isStrictA = true; // această rundă: r.team_a_id = pair.team_a_id
+        } else if (pairMap[key2]) {
+            key = key2;
+            isStrictA = false; // această rundă: echipele sunt inversate față de pair
+        } else {
+            // Prima apariție — creăm perechea cu ordinea din această rundă
+            key = key1;
+            isStrictA = true;
+            pairMap[key] = {
+                key,
+                team_a_id: tA, // PRIMA echipă văzută = canonA
+                team_b_id: tB, // A DOUA echipă văzută = canonB
+                score_a: 0, score_b: 0,   // ture câștigate
+                goals_a: 0, goals_b: 0,   // goluri cumulate
+                a_players: new Set(),
+                b_players: new Set(),
+                all_goals: [],
+                rounds: []
+            };
         }
+
         const pair = pairMap[key];
-        const aIsOrange = (r.team_a_id === canonA); // canonical A was in orange slot
-        const rA = aIsOrange ? (r.score_a||0) : (r.score_b||0);
-        const rB = aIsOrange ? (r.score_b||0) : (r.score_a||0);
+
+        // Scoruri: dacă isStrictA, runda are same order; altfel, inversat
+        const rA = isStrictA ? (r.score_a||0) : (r.score_b||0);
+        const rB = isStrictA ? (r.score_b||0) : (r.score_a||0);
         pair.goals_a += rA;
         pair.goals_b += rB;
-        // O tură = 1 punct pentru câștigător (egalitate nu există — penalty rezolvă mereu)
         if (rA > rB) pair.score_a += 1;
         else if (rB > rA) pair.score_b += 1;
-        (aIsOrange ? r.orange_players : r.green_players  || []).forEach(n => pair.a_players.add(n));
-        (aIsOrange ? r.green_players  : r.orange_players || []).forEach(n => pair.b_players.add(n));
+
+        // Jucători: orange = echipa care era în slotul 'orange', green = slotul 'green'
+        const orangePl = r.orange_players || [];
+        const greenPl  = r.green_players  || [];
+        if (isStrictA) {
+            // r.team_a_id === pair.team_a_id → orange slot = echipa A, green slot = echipa B
+            orangePl.forEach(n => pair.a_players.add(n));
+            greenPl.forEach(n  => pair.b_players.add(n));
+        } else {
+            // Rundă inversată → orange slot = echipa B, green slot = echipa A
+            orangePl.forEach(n => pair.b_players.add(n));
+            greenPl.forEach(n  => pair.a_players.add(n));
+        }
+
+        // Goluri: mapăm la canon_team ('a' sau 'b') bazat pe slotul real
         (Array.isArray(r.goals) ? r.goals : []).forEach(g => {
-            const canonTeam = (g.team === 'orange') === aIsOrange ? 'a' : 'b';
+            // 'orange' slot → echipa A dacă isStrictA, echipa B dacă !isStrictA
+            let canonTeam;
+            if (g.team === 'orange') {
+                canonTeam = isStrictA ? 'a' : 'b';
+            } else { // 'green'
+                canonTeam = isStrictA ? 'b' : 'a';
+            }
             pair.all_goals.push({ ...g, canon_team: canonTeam });
         });
-        pair.rounds.push(r);
+
+        pair.rounds.push({ ...r, _isStrictA: isStrictA });
     });
+
     return Object.values(pairMap).map(p => ({
-        ...p, a_players: [...p.a_players], b_players: [...p.b_players]
+        ...p,
+        a_players: [...p.a_players],
+        b_players: [...p.b_players]
     }));
 }
 
