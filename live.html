@@ -1632,44 +1632,43 @@ async function finalizeMatch3Team(pairs) {
             if (!pair.a_players.length || !pair.b_players.length) continue;
             const nA = getTeamNameById(pair.team_a_id);
             const nB = getTeamNameById(pair.team_b_id);
-            const sA = pair.score_a, sB = pair.score_b; // ture câștigate
+            const sA = pair.score_a, sB = pair.score_b;
             const winner = sA > sB ? nA : sB > sA ? nB : 'Egal';
             const aWon = sA > sB, bWon = sB > sA;
-            // Imbalanced bazat pe GOLURI cumulate, nu pe ture (sA/sB sunt mici, 0-5 ture)
             const goalsImbalanced = Math.abs(pair.goals_a - pair.goals_b) >= 3;
 
-            // Detalii ture pentru istoric — mod încheiere, durată, scor per tură
+            // ── Coloana corectă per teamId ──
+            const getColumn = (teamId) => {
+                if (teamId === 'teamA') return 'orange';
+                if (teamId === 'teamB') return 'green';
+                if (teamId === 'teamC') return 'black';
+                const name = getTeamNameById(teamId).toLowerCase();
+                if (name.includes('portocaliu')) return 'orange';
+                if (name.includes('verde')) return 'green';
+                return 'black';
+            };
+            const colA = getColumn(pair.team_a_id);
+            const colB = getColumn(pair.team_b_id);
+
+            const base_payload = {
+                date: today, winner, score: sA + ':' + sB, imbalanced: goalsImbalanced,
+                orange_players: colA==='orange' ? pair.a_players : colB==='orange' ? pair.b_players : [],
+                green_players:  colA==='green'  ? pair.a_players : colB==='green'  ? pair.b_players : [],
+                black_players:  colA==='black'  ? pair.a_players : colB==='black'  ? pair.b_players : [],
+                team_a_id: pair.team_a_id, team_b_id: pair.team_b_id,
+                started_at: liveState?.match_started_at || null, ended_at: new Date().toISOString(),
+                goals_total_a: pair.goals_a, goals_total_b: pair.goals_b,
+            };
             const roundsDetail = pair.rounds.map(r => {
-                const aIsOrange = (r.team_a_id === pair.team_a_id);
-                return {
-                    num: r.num,
-                    score_a: aIsOrange ? r.score_a : r.score_b,
-                    score_b: aIsOrange ? r.score_b : r.score_a,
-                    end_reason: r.end_reason,
-                    duration_sec: r.duration_sec || 0,
-                };
+                const aIsA = (r.team_a_id === pair.team_a_id);
+                return { num:r.num, score_a:aIsA?r.score_a:r.score_b, score_b:aIsA?r.score_b:r.score_a,
+                    end_reason:r.end_reason, duration_sec:r.duration_sec||0 };
             });
 
-            let { data: mh, error: mhErr } = await sb.from('match_history').insert({
-                date: today,
-                winner,
-                score: sA + ':' + sB,            // scor pe TURE câștigate
-                imbalanced: goalsImbalanced,
-                orange_players: pair.a_players,
-                green_players:  pair.b_players,
-                started_at: liveState?.match_started_at || null,
-                ended_at: new Date().toISOString(),
-                rounds_detail: roundsDetail,      // ← detalii complete per tură
-                goals_total_a: pair.goals_a,
-                goals_total_b: pair.goals_b,
-            }).select().single();
+            let { data: mh, error: mhErr } = await sb.from('match_history')
+                .insert({ ...base_payload, rounds_detail: roundsDetail }).select().single();
             if (mhErr) {
-                // Coloane noi (rounds_detail/goals_total_a/b) pot să nu existe încă — reîncearcă fără ele
-                const retry = await sb.from('match_history').insert({
-                    date: today, winner, score: sA + ':' + sB, imbalanced: goalsImbalanced,
-                    orange_players: pair.a_players, green_players: pair.b_players,
-                    started_at: liveState?.match_started_at || null, ended_at: new Date().toISOString(),
-                }).select().single();
+                const retry = await sb.from('match_history').insert(base_payload).select().single();
                 mh = retry.data; mhErr = retry.error;
             }
             if (mhErr) { console.warn('pair save err:', mhErr.message); savedCount++; continue; }
@@ -1677,45 +1676,36 @@ async function finalizeMatch3Team(pairs) {
             if (mh?.id && pair.all_goals.length) {
                 try {
                     await sb.from('match_goals').insert(pair.all_goals.map(g => ({
-                        match_id: mh.id,
-                        player_name: g.player_name,
-                        team: g.canon_team === 'a' ? 'orange' : 'green',
-                        goals: 1, goals_conceded: 0,
-                        minute: g.minute ?? null,
+                        match_id: mh.id, player_name: g.player_name,
+                        team: g.canon_team === 'a' ? colA : colB,
+                        goals: 1, goals_conceded: 0, minute: g.minute ?? null,
                     })));
                 } catch(e) {}
-                // MVP for this pair
                 const sc = {}; pair.all_goals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
                 const mvpE = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
                 if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
             }
 
-            // Update player stats
             for (const name of [...pair.a_players, ...pair.b_players]) {
                 const p = players.find(x=>x.name===name); if(!p) continue;
                 const inA = pair.a_players.includes(name);
                 const won = inA ? aWon : bWon;
                 const pGoals = pair.all_goals.filter(g=>g.player_name===name).length;
-                const pConceded = inA ? pair.goals_b : pair.goals_a; // goluri primite = golurile adversarilor (cumulat)
-                const pairDurSec = pair.rounds.reduce((s,r)=>s+(r.duration_sec||0), 0);
-                const durW = getDurationWeight ? getDurationWeight(pairDurSec) : 1.0;
+                const pConceded = inA ? pair.goals_b : pair.goals_a;
                 try {
-                    const {data:cur} = await sb.from('players').select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss').eq('id',p.id).single();
+                    const {data:cur} = await sb.from('players')
+                        .select('wins,games,match_history,total_goals,total_goals_conceded,last_imbalance_loss')
+                        .eq('id',p.id).single();
                     if(cur) {
-                        const newWins  = (cur.wins||0) + (won?1:0);
-                        const newGames = (cur.games||0) + 1;
-                        const isImbalanced = Math.abs(sA-sB) >= 3;
-                        const newImb = (!won && isImbalanced)
-                            ? (cur.last_imbalance_loss||0)+1
-                            : won ? 0 : (cur.last_imbalance_loss||0);
+                        const newImb = (!won && goalsImbalanced)
+                            ? (cur.last_imbalance_loss||0)+1 : won ? 0 : (cur.last_imbalance_loss||0);
                         await sb.from('players').update({
-                            wins: newWins,
-                            games: newGames,
-                            match_history: [...(cur.match_history||[]), won?'W':'L'].slice(-20),
-                            total_goals: (cur.total_goals||0) + pGoals,
-                            total_goals_conceded: (cur.total_goals_conceded||0) + pConceded,
+                            wins:(cur.wins||0)+(won?1:0), games:(cur.games||0)+1,
+                            match_history:[...(cur.match_history||[]),won?'W':'L'].slice(-20),
+                            total_goals:(cur.total_goals||0)+pGoals,
+                            total_goals_conceded:(cur.total_goals_conceded||0)+pConceded,
                             last_imbalance_loss: newImb,
-                        }).eq('id', p.id);
+                        }).eq('id',p.id);
                     }
                 } catch(e){}
             }
@@ -1723,13 +1713,15 @@ async function finalizeMatch3Team(pairs) {
         }
         await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
         await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
-        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null});
+        await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,
+            three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null});
         rounds=[]; goals=[]; editPairs=[]; editRounds=[];
         render(); applyTimerUI(liveState);
-        showToast(`✅ ${savedCount} meciuri salvate (${savedCount} perechi)!`);
+        showToast(`✅ ${savedCount} meciuri salvate cu echipele corecte!`);
         isSaving = false;
     } catch(e){ isSaving=false; showToast('⚠️ '+e.message); console.error(e); }
 }
+
 
 // ── Finalize 2-team: 1 meci ───────────────────────────────────────
 async function finalizeMatch2Team(finalRounds) {
