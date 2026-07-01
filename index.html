@@ -2592,9 +2592,8 @@ function getAntiSynergyPairs() {
                 const inBlack  = (h.blackPlayers||[]).includes(a) && (h.blackPlayers||[]).includes(b);
                 if (!inOrange && !inGreen && !inBlack) return;
                 together++;
-                const aInOrange = h.orangePlayers.includes(a);
-                const wSide = getWinnerSideFromScore(h);
-                const won = wSide ? (aInOrange ? wSide==='orange' : wSide==='green') : false;
+                // Folosim playerWonMatch (cu winner string) pentru corectitudine cu 3 echipe
+                const won = playerWonMatch(h, a) === true;
                 if (won) wins++;
             });
             if (together >= 3 && wins / together < 0.33) {
@@ -3008,15 +3007,11 @@ function renderHistory(){
 
     document.querySelector('#match-history tbody').innerHTML = sorted.map(h => {
         const origIdx = db.history.indexOf(h);
-        const isBlack = (h.winner||'').toLowerCase().includes('negru');
         const hasBlack = (h.blackPlayers||[]).length > 0;
-
-        // ── Win badge ──
-        const _ws = getWinnerSideFromScore(h);
-        const winColor = isBlack ? '#3d3d3d'
-                       : _ws === 'orange' ? teamColors.orange
+        const winColor = _ws === 'orange' ? teamColors.orange
                        : _ws === 'green'  ? teamColors.green
-                       : '#7d6849';
+                       : _ws === 'black'  ? '#3d3d3d'
+                       : '#7d6849'; // draw
         const winnerBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${winColor};color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap;">${h.winner||'Egal'}</span>`;
         const imbalBadge = h.imbalanced ? `<span title="Dezechilibru 3+ goluri" style="font-size:.65rem;color:#b71c1c;margin-left:4px;">⚠️</span>` : '';
 
@@ -5100,12 +5095,12 @@ function buildPlayerMatchHistory(p){
         const oppTeam=inOrange?[...h.greenPlayers,...(h.blackPlayers||[])]:inBlack?[...h.orangePlayers,...h.greenPlayers]:h.orangePlayers;
         const won = playerWonMatch(h, p.name) === true;
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
-        const teamColor=inOrange?'var(--orange)':'#2e7d32';
-        const teamIcon=inOrange?'●':'●';
+        const teamColor=inOrange?'#9c4f00':inBlack?'#555':'#1b7a35';
+        const teamName=inOrange?'Portocaliu':inBlack?'Negru':'Verde';
         return `<div class="tl-item">
             <div class="tl-dot ${won?'W':'L'}"></div>
             <div class="tl-date">${h.date||'—'}</div>
-            <div class="tl-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNGERE'} · <span style="color:${teamColor};font-size:.75rem;">${teamIcon} ${h.winner}</span></div>
+            <div class="tl-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNGERE'} · <span style="color:${teamColor};font-size:.75rem;">${teamName}</span></div>
             ${teammates.length?`<div class="tl-mates">👥 ${teammates.join(' · ')}</div>`:''}
             ${(oppTeam||[]).length?`<div class="tl-mates" style="color:#2a2d3a;">⚔️ ${(oppTeam||[]).join(' · ')}</div>`:''}
         </div>`;
@@ -5121,7 +5116,8 @@ function buildChemistry(p){
     const chemMap={};
     myMatches.forEach(h=>{
         const inOrange=(h.orangePlayers||[]).includes(p.name);
-        const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
+        const inBlack=(h.blackPlayers||[]).includes(p.name);
+        const myTeam=inOrange?h.orangePlayers:inBlack?(h.blackPlayers||[]):h.greenPlayers;
         const won = playerWonMatch(h, p.name) === true;
         (myTeam||[]).forEach(name=>{
             if(name===p.name)return;
@@ -5273,14 +5269,18 @@ async function deleteRating(index){
 // ── Match Detail Modal ──
 async function openMatchModal(idx){
     const h=db.history[idx];
-    const _wSide=getWinnerSideFromScore(h);
+    const _wSide=getWinnerSideFromScore(h); // acum bazat pe winner string
     const isO=_wSide==='orange';
-    const isEq=_wSide==='draw'||!_wSide;
+    const isG=_wSide==='green';
+    const isB=_wSide==='black';
+    const isEq=!isO&&!isG&&!isB;
+    const bannerColor = isO?'var(--orange)':isG?'var(--green)':isB?'#555':'#7d6849';
+    const bannerBg    = isO?'rgba(255,140,0,0.12)':isG?'rgba(40,167,69,0.12)':isB?'rgba(0,0,0,0.08)':'rgba(125,100,73,0.1)';
 
     document.getElementById('matchModalDate').textContent=`📅 ${h.date||'—'}`;
     const banner=document.getElementById('matchWinnerBanner');
-    banner.textContent=`🏆 ${h.winner} a câștigat`;
-    banner.style.cssText=`background:${isO?'rgba(255,140,0,0.15)':'rgba(40,167,69,0.15)'};border:1px solid ${isO?'var(--orange)':'var(--green)'};color:${isO?'var(--orange)':'var(--green)'}`;
+    banner.textContent = isEq ? '🤝 Egal' : `🏆 ${h.winner} a câștigat`;
+    banner.style.cssText=`background:${bannerBg};border:1px solid ${bannerColor};color:${bannerColor}`;
     document.getElementById('matchScore').textContent=h.score&&h.score!=='—'?`Scor: ${h.score}`:'';
 
     // Timing info (started_at / ended_at)
@@ -6066,30 +6066,41 @@ function colorToNameIdx(hex) {
     return best||hex;
 }
 // ── Determină câștigătorul din scor (nu din string winner care se schimbă) ──
+// ── Determină câștigătorul — folosim winner string (cel mai robust) ──
+// getWinnerSideFromScore e păstrat pentru compatibilitate vizuală (culori badge)
+// DAR nu mai e folosit pentru logica de W/L a jucătorilor!
 function getWinnerSideFromScore(h) {
+    // Dacă avem winner string, folosim asta (cel mai corect)
+    const w = (h.winner||'').toLowerCase().trim();
+    if (!w || w === 'egal') return 'draw';
+    if (w.includes('portocaliu') || w.includes('orange')) return 'orange';
+    if (w.includes('verde') || w.includes('green')) return 'green';
+    if (w.includes('negru') || w.includes('black')) return 'black';
+    // Fallback: parsare scor (funcționează corect DOAR pentru orange vs green direct)
     const parts = (h.score||'').split(':').map(s => parseInt(s.trim()));
     if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
         if (parts[0] > parts[1]) return 'orange';
         if (parts[1] > parts[0]) return 'green';
         return 'draw';
     }
-    return null; // nu se poate determina
+    return null;
 }
 
-// Determină dacă un jucător a câștigat un meci din istoric
+// Determină dacă un jucător a câștigat un meci — bazat pe winner string, NU pe scor
 function playerWonMatch(h, playerName) {
     const inOrange = (h.orangePlayers||[]).includes(playerName);
     const inGreen  = (h.greenPlayers||[]).includes(playerName);
     const inBlack  = (h.blackPlayers||[]).includes(playerName);
-    if (!inOrange && !inGreen && !inBlack) return null; // nu a jucat
-    // Pentru echipa neagră: câștigul se determină din winner string (negrul e always 'bench' slot)
-    if (inBlack) {
-        const w = (h.winner||'').toLowerCase();
-        return w.includes('negru') || w.includes('black');
-    }
-    const side = getWinnerSideFromScore(h);
-    if (!side || side === 'draw') return false;
-    return (inOrange && side === 'orange') || (inGreen && side === 'green');
+    if (!inOrange && !inGreen && !inBlack) return null; // nu a jucat deloc
+
+    const w = (h.winner||'').toLowerCase().trim();
+    if (!w || w === 'egal') return false; // egal = nimeni nu câștigă
+
+    // Mapare directă echipă → victorie prin winner string
+    if (inOrange) return w.includes('portocaliu') || w.includes('orange');
+    if (inGreen)  return w.includes('verde') || w.includes('green');
+    if (inBlack)  return w.includes('negru') || w.includes('black');
+    return false;
 }
 
 
