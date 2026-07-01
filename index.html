@@ -2155,20 +2155,11 @@ async function loadAll() {
             }
         } catch(e) { /* mvp_votes table may not exist yet */ }
 
-        // Next match (1 + 2)
+        // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
         db.nextMatch = nm
-            ? { date:nm.match_date, time:nm.match_time, location:nm.location,
-                confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[],
-                presenceLog: nm.presence_log||[] }
-            : { date:null, time:null, location:null, confirmedIds:[], absentIds:[], presenceLog:[] };
-
-        const { data: nm2 } = await sb.from('next_match').select('*').eq('id',2).maybeSingle();
-        db.nextMatch2 = nm2
-            ? { date:nm2.match_date, time:nm2.match_time, location:nm2.location,
-                confirmedIds:nm2.confirmed_ids||[], absentIds:nm2.absent_ids||[],
-                presenceLog: nm2.presence_log||[] }
-            : { date:null, time:null, location:null, confirmedIds:[], absentIds:[], presenceLog:[] };
+            ? { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] }
+            : { date:null, time:null, location:null, confirmedIds:[], absentIds:[] };
 
         setConnected(true);
         render();
@@ -2247,22 +2238,17 @@ async function dbDeleteRating(dbId) {
     if (error) throw error;
 }
 
-async function dbSaveNextMatch(matchId = 1) {
-    const nm = matchId === 2 ? db.nextMatch2 : db.nextMatch;
+async function dbSaveNextMatch() {
+    const nm = db.nextMatch;
     const { error } = await sb.from('next_match').upsert({
-        id: matchId,
+        id:1,
         match_date: nm.date || null,
         match_time: nm.time || null,
         location:   nm.location || null,
         confirmed_ids: nm.confirmedIds || [],
-        absent_ids: nm.absentIds || [],
-        presence_log: nm.presenceLog || []
+        absent_ids: nm.absentIds || []
     });
     if (error) throw error;
-}
-async function dbSaveBothMatches() {
-    await dbSaveNextMatch(1);
-    if (db.nextMatch2?.date) await dbSaveNextMatch(2);
 }
 
 async function dbInsertMatchHistory(entry) {
@@ -2280,21 +2266,16 @@ async function dbInsertMatchHistory(entry) {
 function setupRealtime() {
     sb.channel('next_match_realtime')
         .on('postgres_changes', { event:'*', schema:'public', table:'next_match' }, async () => {
-            const [{ data:nm }, { data:nm2 }] = await Promise.all([
-                sb.from('next_match').select('*').eq('id',1).maybeSingle(),
-                sb.from('next_match').select('*').eq('id',2).maybeSingle(),
-            ]);
-            if (nm) db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location,
-                confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[], presenceLog:nm.presence_log||[] };
-            db.nextMatch2 = nm2
-                ? { date:nm2.match_date, time:nm2.match_time, location:nm2.location,
-                    confirmedIds:nm2.confirmed_ids||[], absentIds:nm2.absent_ids||[], presenceLog:nm2.presence_log||[] }
-                : { date:null, time:null, location:null, confirmedIds:[], absentIds:[], presenceLog:[] };
-            renderLobby();
-            updateScenarioBadge();
+            const { data:nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
+            if (nm) {
+                db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] };
+                renderLobby();
+                updateScenarioBadge();
+            }
         })
         .subscribe();
     setupScenariosRealtime();
+    // Subscribe to live state for live banner
     sb.channel('live_state_idx')
         .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'},()=>checkLiveStatus())
         .subscribe();
@@ -3011,171 +2992,123 @@ function renderHistory(){
         : `<tr><td colspan="${admin?3:2}" style="color:#6b5840;text-align:center;">Niciun meci înregistrat</td></tr>`;
 }
 
-// ── Helper: format match datetime ─────────────────────────────────
-function fmtMatchStr(nm) {
-    if (!nm?.date) return null;
-    const dt = new Date(nm.date + 'T' + (nm.time || '23:59'));
-    if (dt < new Date()) return null; // trecut
-    let str = dt.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
-    if (nm.time) str += ' · ' + nm.time;
-    if (nm.location) str += ' · ' + nm.location;
-    return str;
-}
-
 function renderLobby(){
-    const nm1 = db.nextMatch;
-    const nm2 = db.nextMatch2;
-    const str1 = fmtMatchStr(nm1);
-    const str2 = fmtMatchStr(nm2);
+    const nm=db.nextMatch;
+    const dtEl=document.getElementById('lobbyDatetime');
+    const bd = document.getElementById('matchBannerDate');
 
-    // Banner date (primul meci activ)
-    const dtEl = document.getElementById('lobbyDatetime');
-    const bd   = document.getElementById('matchBannerDate');
-    if (str1) {
-        dtEl.textContent = str1; dtEl.className = 'lobby-datetime';
-        if (bd) bd.textContent = '📅 ' + str1;
-    } else {
-        dtEl.textContent = 'Niciun meci programat'; dtEl.className = 'lobby-datetime no-date';
-        if (bd) bd.textContent = '';
+    // Check if next match date+time is actually in the past
+    const matchIsPast = nm.date && (() => {
+        const dt = new Date(nm.date + 'T' + (nm.time || '23:59'));
+        return dt < new Date();
+    })();
+
+    if(nm.date && !matchIsPast){
+        const d=new Date(nm.date+'T'+(nm.time||'00:00'));
+        let str=d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'});
+        if(nm.time)str+=' · '+nm.time;
+        if(nm.location)str+=' · '+nm.location;
+        dtEl.textContent=str;dtEl.className='lobby-datetime';
+        if(bd) bd.textContent='📅 ' + str;
+    }else{
+        dtEl.textContent='Niciun meci programat';dtEl.className='lobby-datetime no-date';
+        if(bd) bd.textContent='';
     }
 
-    // ── Render pentru un meci ─────────────────────────────────────
-    const renderMatchBlock = (nm, matchId, container) => {
-        container.innerHTML = '';
-        const sortedPlayers = [...db.players].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
-        sortedPlayers.forEach(p => {
-            const confirmed = nm.confirmedIds.includes(p.id);
-            const absent    = nm.absentIds?.includes(p.id);
-            const chip = document.createElement('div');
-            let chipClass = 'lobby-player-chip';
-            let dotHtml = '<div class="chip-dot"></div>';
-            if (confirmed) { chipClass += ' confirmed'; }
-            else if (absent) { chipClass += ' absent'; dotHtml = '<span style="font-size:.75rem;line-height:1;">✕</span>'; }
-            chip.className = chipClass;
-            chip.innerHTML = dotHtml +
-                `<span class="chip-name">${p.name}</span>` +
-                `<span style="font-size:.68rem;color:${confirmed?'#5c8aff':absent?'#a52020':'#7d6849'};margin-left:2px;">${getGeneralAvg(p).toFixed(1)}</span>`;
-            chip.onclick = () => toggleLobbyPresence(p.id, matchId);
-            container.appendChild(chip);
-        });
-        const cnt = nm.confirmedIds.length;
-        const absCnt = nm.absentIds?.length || 0;
-        const pending = db.players.length - cnt - absCnt;
-        let txt = '';
-        if (cnt>0) txt += `✅ ${cnt} prezenți`;
-        if (absCnt>0) txt += (txt?' · ':'') + `❌ ${absCnt} absenți`;
-        if (pending>0) txt += (txt?' · ':'') + `⏳ ${pending} fără răspuns`;
-        const cntEl = document.getElementById(matchId===1?'lobbyCount':'lobbyCount2');
-        if (cntEl) cntEl.textContent = txt || 'Nimeni nu a răspuns.';
-    };
-
-    const c1 = document.getElementById('lobbyPlayers');
-    if (c1) renderMatchBlock(nm1, 1, c1);
-
-    // Meciul 2 — arată doar dacă e programat
-    const block2 = document.getElementById('lobbyMatch2Block');
-    if (block2) {
-        if (str2) {
-            block2.style.display = 'block';
-            document.getElementById('lobbyDate2').textContent = '📅 ' + str2;
-            const c2 = document.getElementById('lobbyPlayers2');
-            if (c2) renderMatchBlock(nm2, 2, c2);
-        } else {
-            block2.style.display = 'none';
+    const container=document.getElementById('lobbyPlayers');container.innerHTML='';
+    const sortedPlayers=[...db.players].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+    sortedPlayers.forEach(p=>{
+        const confirmed = nm.confirmedIds.includes(p.id);
+        const absent    = nm.absentIds?.includes(p.id);
+        const chip=document.createElement('div');
+        let chipClass = 'lobby-player-chip';
+        let dotHtml = '<div class="chip-dot"></div>';
+        let nameHtml = `<span class="chip-name">${p.name}</span>`;
+        if(confirmed){
+            chipClass += ' confirmed';
+            dotHtml = '<div class="chip-dot"></div>';
+        } else if(absent){
+            chipClass += ' absent';
+            dotHtml = '<span style="font-size:0.75rem;line-height:1;">✕</span>';
         }
+        chip.className = chipClass;
+        chip.innerHTML = dotHtml + nameHtml + `<span style="font-size:0.68rem;color:${confirmed?'#5c8aff':absent?'#c62828':'#333'};margin-left:2px;">${getGeneralAvg(p).toFixed(1)}</span>`;
+        // Admin can toggle anyone; players can only toggle themselves
+        chip.onclick = () => toggleLobbyPresence(p.id);
+        container.appendChild(chip);
+    });
+
+    const cnt = nm.confirmedIds.length;
+    const absCnt = nm.absentIds?.length || 0;
+    const pending = db.players.length - cnt - absCnt;
+    let countText = '';
+    if(cnt > 0) countText += `✅ ${cnt} prezenți`;
+    if(absCnt > 0) countText += (countText?' · ':'') + `❌ ${absCnt} absenți`;
+    if(pending > 0) countText += (countText?' · ':'') + `⏳ ${pending} fără răspuns`;
+    document.getElementById('lobbyCount').textContent = countText || 'Nimeni nu a răspuns încă.';
+}
+
+async function toggleLobbyPresence(playerId){
+    if(!isAdmin()){
+        // Jucătorii nu pot schimba singuri din lobby — folosesc modalul de prezență
+        showToast('⚠️ Folosește modalul de prezență la login!');
+        return;
     }
-
-    // Log prezență (primul meci activ)
-    renderPresenceLog(nm1, 1);
-    if (str2) renderPresenceLog(nm2, 2);
-}
-
-function renderPresenceLog(nm, matchId) {
-    const log = nm?.presenceLog || [];
-    const el = document.getElementById('presenceLog' + matchId);
-    if (!el) return;
-    if (!log.length) { el.innerHTML = '<div style="color:#7d6849;font-size:.75rem;text-align:center;padding:8px;">Niciun log încă.</div>'; return; }
-    el.innerHTML = [...log].reverse().slice(0, 20).map(entry => {
-        const t = new Date(entry.ts).toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit'});
-        const d = new Date(entry.ts).toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit'});
-        const icon = entry.action==='confirmed'?'✅':entry.action==='absent'?'❌':'⬜';
-        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #e3d3ac;font-size:.75rem;">
-            <span>${icon}</span>
-            <span style="font-weight:700;flex:1;">${entry.name}</span>
-            <span style="color:#7d6849;">${d} ${t}</span>
-        </div>`;
-    }).join('');
-}
-
-async function toggleLobbyPresence(playerId, matchId = 1){
-    if (!isAdmin()) { showToast('⚠️ Folosește modalul de prezență!'); return; }
-    const nm = matchId === 2 ? db.nextMatch2 : db.nextMatch;
-    if (!nm.presenceLog) nm.presenceLog = [];
-    const ids = nm.confirmedIds;
-    const abs = nm.absentIds || (nm.absentIds=[]);
+    // Admin: ciclează prin stări: niciuna → prezent → absent → niciuna
+    const ids = db.nextMatch.confirmedIds;
+    const abs = db.nextMatch.absentIds || (db.nextMatch.absentIds=[]);
     const inConf = ids.indexOf(playerId);
     const inAbs  = abs.indexOf(playerId);
-    const p = db.players.find(x => x.id == playerId);
-    const pName = p?.name || playerId;
-    let action = '';
 
-    if (inConf === -1 && inAbs === -1) {
-        ids.push(playerId); action = 'confirmed';
-        if (matchId === 1 && p?.status === 'active') { p.status='bench'; await dbUpdatePlayer(p); }
-    } else if (inConf !== -1) {
-        ids.splice(inConf, 1); abs.push(playerId); action = 'absent';
-        if (matchId === 1 && p?.status === 'bench') { p.status='active'; await dbUpdatePlayer(p); }
+    if(inConf === -1 && inAbs === -1){
+        // Niciuna → PREZENT → mută pe bench
+        ids.push(playerId);
+        const p = db.players.find(x=>x.id==playerId);
+        if(p && p.status === 'active') { p.status='bench'; await dbUpdatePlayer(p); }
+    } else if(inConf !== -1){
+        // PREZENT → ABSENT → mută înapoi în active
+        ids.splice(inConf,1);
+        abs.push(playerId);
+        const p = db.players.find(x=>x.id==playerId);
+        if(p && p.status === 'bench') { p.status='active'; await dbUpdatePlayer(p); }
     } else {
-        abs.splice(inAbs, 1); action = 'removed';
-    }
-
-    // Adaugă în log
-    if (action) {
-        nm.presenceLog.push({ playerId, name: pName, action, ts: new Date().toISOString() });
-        // Păstrăm max 100 intrări
-        if (nm.presenceLog.length > 100) nm.presenceLog = nm.presenceLog.slice(-100);
+        // ABSENT → niciuna
+        abs.splice(inAbs,1);
     }
 
     renderLobby();
     render();
-    try { await dbSaveNextMatch(matchId); } catch(e) { showToast('⚠️ ' + e.message); }
+    try{ await dbSaveNextMatch(); }catch(e){ showToast('⚠️ '+e.message); }
 }
 
-function openScheduleModal(matchId = 1){
-    const nm = matchId === 2 ? db.nextMatch2 : db.nextMatch;
-    document.getElementById('scheduleDate').value = nm.date||'';
-    document.getElementById('scheduleTime').value = nm.time||'';
-    document.getElementById('scheduleLocation').value = nm.location||'';
-    document.getElementById('scheduleOverlay')._matchId = matchId;
-    document.getElementById('scheduleModalTitle').textContent = matchId===2?'Programare Meci 2':'Programare Meci 1';
-    document.getElementById('scheduleOverlay').style.display = 'flex';
+function openScheduleModal(){
+    const nm=db.nextMatch;
+    document.getElementById('scheduleDate').value=nm.date||'';
+    document.getElementById('scheduleTime').value=nm.time||'';
+    document.getElementById('scheduleLocation').value=nm.location||'';
+    document.getElementById('scheduleOverlay').style.display='flex';
 }
-function closeScheduleModal(){ document.getElementById('scheduleOverlay').style.display='none'; }
+function closeScheduleModal(){document.getElementById('scheduleOverlay').style.display='none';}
 async function saveSchedule(){
-    const matchId = document.getElementById('scheduleOverlay')._matchId || 1;
-    const nm = matchId === 2 ? db.nextMatch2 : db.nextMatch;
-    nm.date = document.getElementById('scheduleDate').value || null;
-    nm.time = document.getElementById('scheduleTime').value || null;
-    nm.location = document.getElementById('scheduleLocation').value.trim() || null;
-    renderLobby(); closeScheduleModal();
-    try {
-        await dbSaveNextMatch(matchId);
-        showToast('📅 Meci ' + matchId + ' programat!');
+    db.nextMatch.date=document.getElementById('scheduleDate').value||null;
+    db.nextMatch.time=document.getElementById('scheduleTime').value||null;
+    db.nextMatch.location=document.getElementById('scheduleLocation').value.trim()||null;
+    renderLobby();closeScheduleModal();
+    try{
+        await dbSaveNextMatch();
+        showToast('📅 Meci programat!');
+        // Send push notifications to all subscribers
         await sendPushToAll({
             title:'⚽ Meci programat!',
-            body:`${nm.date||''}${nm.time?' · '+nm.time:''}${nm.location?' · '+nm.location:''}`,
+            body:`${db.nextMatch.date||''}${db.nextMatch.time?' · '+db.nextMatch.time:''}${db.nextMatch.location?' · '+db.nextMatch.location:''}`,
             url: window.location.origin
         });
-    } catch(e) { showToast('⚠️ '+e.message); }
+    }catch(e){showToast('⚠️ '+e.message);}
 }
 async function clearSchedule(){
-    const matchId = document.getElementById('scheduleOverlay')._matchId || 1;
-    const emptyMatch = {date:null,time:null,location:null,confirmedIds:[],absentIds:[],presenceLog:[]};
-    if (matchId===2) db.nextMatch2 = emptyMatch;
-    else db.nextMatch = emptyMatch;
-    renderLobby(); closeScheduleModal();
-    try { await dbSaveNextMatch(matchId); showToast('🗑️ Meci '+matchId+' șters.'); }
-    catch(e) { showToast('⚠️ '+e.message); }
+    db.nextMatch={date:null,time:null,location:null,confirmedIds:[],absentIds:[]};
+    renderLobby();closeScheduleModal();
+    try{await dbSaveNextMatch();showToast('🗑️ Meci șters.');}catch(e){showToast('⚠️ '+e.message);}
 }
 function formTeamsFromLobby(){
     const confirmed = db.players.filter(p => db.nextMatch.confirmedIds.includes(p.id));
