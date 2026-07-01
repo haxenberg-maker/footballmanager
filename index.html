@@ -1609,12 +1609,16 @@
     <!-- Teams -->
     <div class="match-teams">
         <div class="match-team-block">
-            <div class="match-team-title" id="matchOrangeTitle2" style="color:var(--orange)">Portocaliu</div>
+            <div class="match-team-title" id="matchOrangeTitle2" style="color:#9c4f00">Portocaliu</div>
             <div id="matchOrangePlayers"></div>
         </div>
         <div class="match-team-block">
-            <div class="match-team-title" id="matchGreenTitle2" style="color:var(--green)">Verde</div>
+            <div class="match-team-title" id="matchGreenTitle2" style="color:#1b7a35">Verde</div>
             <div id="matchGreenPlayers"></div>
+        </div>
+        <div class="match-team-block" id="matchBlackBlock" style="display:none;">
+            <div class="match-team-title" style="color:#555">Negru</div>
+            <div id="matchBlackPlayers"></div>
         </div>
     </div>
     <button onclick="closeMatchModal()" style="width:100%;margin-top:16px;background:#dcc89a;">✕ Închide</button>
@@ -1765,7 +1769,7 @@ function computeTagStats(p){
 
     // player's last N matches, newest first
     const myMatches = [...db.history]
-        .filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name))
+        .filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name))
         .sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
 
     const stats = {};
@@ -2128,7 +2132,8 @@ async function loadAll() {
             startedAt: h.started_at||null,
             endedAt: h.ended_at||null,
             orangePlayers: h.orange_players || [],
-            greenPlayers:  h.green_players  || []
+            greenPlayers:  h.green_players  || [],
+            blackPlayers:  h.black_players  || []
         }))
         // Sortează după data reală a meciului, cel mai recent primul
         .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
@@ -2504,7 +2509,8 @@ function getSynergyScore(pName, mateName) {
     db.history.forEach(h => {
         const inOrange = h.orangePlayers.includes(pName) && h.orangePlayers.includes(mateName);
         const inGreen  = h.greenPlayers.includes(pName)  && h.greenPlayers.includes(mateName);
-        if (!inOrange && !inGreen) return;
+        const inBlack  = (h.blackPlayers||[]).includes(pName) && (h.blackPlayers||[]).includes(mateName);
+        if (!inOrange && !inGreen && !inBlack) return;
         together++;
         const pInOrange = h.orangePlayers.includes(pName);
         const won = playerWonMatch(h, pName);
@@ -2535,7 +2541,7 @@ function getActivityMultiplier(p) {
     if (recentMatches.length < 3) return 1.0; // prea puțin istoric
     let absent = 0;
     recentMatches.forEach(h => {
-        const played = h.orangePlayers.includes(p.name) || h.greenPlayers.includes(p.name);
+        const played = h.orangePlayers.includes(p.name) || h.greenPlayers.includes(p.name) || (h.blackPlayers||[]).includes(p.name);
         if (!played) absent++;
     });
     // 0 absențe = 1.0, 3+ absențe = 0.82
@@ -2556,7 +2562,8 @@ function getAntiSynergyPairs() {
             db.history.forEach(h => {
                 const inOrange = h.orangePlayers.includes(a) && h.orangePlayers.includes(b);
                 const inGreen  = h.greenPlayers.includes(a)  && h.greenPlayers.includes(b);
-                if (!inOrange && !inGreen) return;
+                const inBlack  = (h.blackPlayers||[]).includes(a) && (h.blackPlayers||[]).includes(b);
+                if (!inOrange && !inGreen && !inBlack) return;
                 together++;
                 const aInOrange = h.orangePlayers.includes(a);
                 const wSide = getWinnerSideFromScore(h);
@@ -2974,8 +2981,13 @@ function renderHistory(){
         ? sorted.map((h,idx) => {
             const origIdx = db.history.indexOf(h);
             const _ws = getWinnerSideFromScore(h);
-            const winColor = _ws==='orange' ? teamColors.orange : _ws==='green' ? teamColors.green : '#555';
-            const winText  = getContrastColorIdx(winColor);
+            // Detectează echipa neagră: dacă winner conține 'Negru' sau dacă black_players are jucători
+            const isBlack = (h.winner||'').toLowerCase().includes('negru') ||
+                            ((h.blackPlayers||[]).length > 0 && _ws === 'green' && h.winner?.toLowerCase().includes('negru'));
+            const winColor = isBlack ? '#555' :
+                             _ws==='orange' ? teamColors.orange :
+                             _ws==='green'  ? teamColors.green : '#6b5840';
+            const winText  = '#fff';
             const scoreDisplay = h.score && h.score !== '—' ? ` <span style="font-size:.72rem;color:#6b5840;">${h.score}</span>` : '';
             const imbalBadge = h.imbalanced ? ' <span style="font-size:.6rem;color:#b71c1c;border:1px solid #ef9a9a33;border-radius:4px;padding:1px 4px;" title="Dezechilibru 3+ goluri">⚠️</span>' : '';
             const voteLink = h._dbId ? `<button class="match-edit-btn" onclick="event.stopPropagation();window.open('vote.html?match=${h._dbId}','_blank')" title="Votează jucătorii" style="color:#6b46c1;">🗳️</button>` : '';
@@ -5006,14 +5018,15 @@ function buildRadarChart(p){ buildHexChart(p); }
 
 // ── buildPlayerMatchHistory — Timeline style ─────────────────────
 function buildPlayerMatchHistory(p){
-    const matches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name));
+    const matches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name));
     const el=document.getElementById('playerMatchHistory');
     if(!matches.length){el.innerHTML='<div style="text-align:center;padding:24px;color:#6b5840;">Niciun meci înregistrat.</div>';return;}
     const sorted=[...matches].sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
     el.innerHTML=sorted.map(h=>{
         const inOrange=(h.orangePlayers||[]).includes(p.name);
-        const myTeam=inOrange?h.orangePlayers:h.greenPlayers;
-        const oppTeam=inOrange?h.greenPlayers:h.orangePlayers;
+        const inBlack=(h.blackPlayers||[]).includes(p.name);
+        const myTeam=inOrange?h.orangePlayers:inBlack?(h.blackPlayers||[]):h.greenPlayers;
+        const oppTeam=inOrange?[...h.greenPlayers,...(h.blackPlayers||[])]:inBlack?[...h.orangePlayers,...h.greenPlayers]:h.orangePlayers;
         const won = playerWonMatch(h, p.name) === true;
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
         const teamColor=inOrange?'var(--orange)':'#2e7d32';
@@ -5031,7 +5044,7 @@ function buildPlayerMatchHistory(p){
 // ── buildChemistry ──────────────────────────────────────────────
 function buildChemistry(p){
     const el=document.getElementById('chemistryList');
-    const myMatches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name));
+    const myMatches=db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name));
     if(myMatches.length===0){el.innerHTML='<div style="text-align:center;padding:20px;color:#6b5840;">Insuficiente meciuri pentru calcul.</div>';return;}
 
     const chemMap={};
@@ -5244,8 +5257,14 @@ async function openMatchModal(idx){
         }).join('');
     };
 
-    document.getElementById('matchOrangePlayers').innerHTML=renderTeam(h.orangePlayers,'orange','var(--orange)');
-    document.getElementById('matchGreenPlayers').innerHTML=renderTeam(h.greenPlayers,'green','#2e7d32');
+    document.getElementById('matchOrangePlayers').innerHTML=renderTeam(h.orangePlayers,'orange','#9c4f00');
+    document.getElementById('matchGreenPlayers').innerHTML=renderTeam(h.greenPlayers,'green','#1b7a35');
+    const blackBlock = document.getElementById('matchBlackBlock');
+    const blackPls = h.blackPlayers || [];
+    if (blackBlock) {
+        blackBlock.style.display = blackPls.length ? 'block' : 'none';
+        document.getElementById('matchBlackPlayers').innerHTML = renderTeam(blackPls,'black','#555');
+    }
 
     // Goal timeline — each row in goalsData is one goal event
     const tlEl=document.getElementById('matchTimeline');
@@ -5990,7 +6009,13 @@ function getWinnerSideFromScore(h) {
 function playerWonMatch(h, playerName) {
     const inOrange = (h.orangePlayers||[]).includes(playerName);
     const inGreen  = (h.greenPlayers||[]).includes(playerName);
-    if (!inOrange && !inGreen) return null; // nu a jucat
+    const inBlack  = (h.blackPlayers||[]).includes(playerName);
+    if (!inOrange && !inGreen && !inBlack) return null; // nu a jucat
+    // Pentru echipa neagră: câștigul se determină din winner string (negrul e always 'bench' slot)
+    if (inBlack) {
+        const w = (h.winner||'').toLowerCase();
+        return w.includes('negru') || w.includes('black');
+    }
     const side = getWinnerSideFromScore(h);
     if (!side || side === 'draw') return false;
     return (inOrange && side === 'orange') || (inGreen && side === 'green');
