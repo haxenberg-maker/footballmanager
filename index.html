@@ -423,8 +423,10 @@
         th{color:#6b5840;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;}
         .win-tag{padding:2px 9px;border-radius:20px;font-size:0.76rem;font-weight:700;}
         .history-players{font-size:0.76rem;color:#6b5840;margin-top:3px;}
-        #match-history tbody tr{cursor:pointer;transition:background 0.12s;}
+        #match-history tbody tr{cursor:pointer;transition:background 0.12s;border-bottom:1px solid #e3d3ac;}
         #match-history tbody tr:hover td{background:#f1e4c8;}
+        #match-history th{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:#7d6849;border-bottom:2px solid #dcc89a;padding:8px 12px;}
+        #match-history td{padding:8px 12px;vertical-align:top;}
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         /* FIFA Modal */
         @keyframes modalIn{from{opacity:0;transform:scale(.92) translateY(20px)}to{opacity:1;transform:none}}
@@ -1114,7 +1116,11 @@
             <button class="admin-only" onclick="openMatchEditor(null)" style="background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;padding:7px 14px;border-radius:8px;font-size:0.85rem;">+ Adaugă Meci</button>
         </div>
         <table id="match-history" style="margin-top:4px;">
-            <thead><tr><th>Data</th><th>Câștigător</th><th id="th-actions" style="display:none;width:70px;"></th></tr></thead>
+            <thead><tr>
+                <th style="width:90px;">Data</th>
+                <th>Meci</th>
+                <th id="th-actions" style="display:none;width:80px;"></th>
+            </tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -2125,18 +2131,39 @@ async function loadAll() {
             .from('match_history')
             .select('*')
             .order('created_at', { ascending: false });
-        db.history = (histRaw || []).map(h => ({
-            _dbId: h.id,
-            date: h.date, winner: h.winner, score: h.score,
-            imbalanced: h.imbalanced||false,
-            startedAt: h.started_at||null,
-            endedAt: h.ended_at||null,
-            orangePlayers: h.orange_players || [],
-            greenPlayers:  h.green_players  || [],
-            blackPlayers:  h.black_players  || []
-        }))
-        // Sortează după data reală a meciului, cel mai recent primul
-        .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+
+        // Load match_goals in bulk — one query for all matches
+        let goalsPerMatch = {};
+        try {
+            const { data: allGoals } = await sb.from('match_goals').select('match_id,player_name,team,goals');
+            (allGoals || []).forEach(g => {
+                if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
+                goalsPerMatch[g.match_id].push(g);
+            });
+        } catch(e) { /* match_goals may not exist */ }
+
+        db.history = (histRaw || []).map(h => {
+            const goals = goalsPerMatch[h.id] || [];
+            // Aggregate goals per player for top scorer
+            const playerGoals = {};
+            goals.forEach(g => { playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1); });
+            const topEntries = Object.entries(playerGoals).sort((a,b)=>b[1]-a[1]);
+            const topScorer = topEntries[0] ? { name: topEntries[0][0], goals: topEntries[0][1] } : null;
+            // Goals per team
+            const teamGoals = { orange:0, green:0, black:0 };
+            goals.forEach(g => { if(teamGoals[g.team]!==undefined) teamGoals[g.team] += (g.goals||1); });
+            return {
+                _dbId: h.id,
+                date: h.date, winner: h.winner, score: h.score,
+                imbalanced: h.imbalanced||false,
+                startedAt: h.started_at||null, endedAt: h.ended_at||null,
+                orangePlayers: h.orange_players || [],
+                greenPlayers:  h.green_players  || [],
+                blackPlayers:  h.black_players  || [],
+                topScorer,   // { name, goals } or null
+                teamGoals,   // { orange, green, black }
+            };
+        }).sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
         // Load MVP votes and attach counts to players
         db.players.forEach(p => { p.mvpWinCount = 0; p.mvpLossCount = 0; });
@@ -2971,37 +2998,81 @@ function renderHistory(){
     document.getElementById('th-actions').style.display = admin ? '' : 'none';
     document.querySelector('#match-history thead tr').lastElementChild.style.display = admin ? '' : 'none';
 
-    // Sort by date descending (most recent first)
-    const sorted = [...db.history].sort((a,b) => {
-        const da = parseDateToObj(a.date), db_ = parseDateToObj(b.date);
-        return db_ - da;
-    });
+    const sorted = [...db.history].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
-    document.querySelector('#match-history tbody').innerHTML = sorted.length
-        ? sorted.map((h,idx) => {
-            const origIdx = db.history.indexOf(h);
-            const _ws = getWinnerSideFromScore(h);
-            // Detectează echipa neagră: dacă winner conține 'Negru' sau dacă black_players are jucători
-            const isBlack = (h.winner||'').toLowerCase().includes('negru') ||
-                            ((h.blackPlayers||[]).length > 0 && _ws === 'green' && h.winner?.toLowerCase().includes('negru'));
-            const winColor = isBlack ? '#555' :
-                             _ws==='orange' ? teamColors.orange :
-                             _ws==='green'  ? teamColors.green : '#6b5840';
-            const winText  = '#fff';
-            const scoreDisplay = h.score && h.score !== '—' ? ` <span style="font-size:.72rem;color:#6b5840;">${h.score}</span>` : '';
-            const imbalBadge = h.imbalanced ? ' <span style="font-size:.6rem;color:#b71c1c;border:1px solid #ef9a9a33;border-radius:4px;padding:1px 4px;" title="Dezechilibru 3+ goluri">⚠️</span>' : '';
-            const voteLink = h._dbId ? `<button class="match-edit-btn" onclick="event.stopPropagation();window.open('vote.html?match=${h._dbId}','_blank')" title="Votează jucătorii" style="color:#6b46c1;">🗳️</button>` : '';
-            return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
-                <td>${h.date||'—'}</td>
-                <td><span class="win-tag" style="background:${winColor};color:${winText}">${h.winner||'—'}</span>${scoreDisplay}${imbalBadge}</td>
-                <td style="white-space:nowrap;">
-                    ${voteLink}
-                    ${admin?`<button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
-                    <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>`:''}
-                </td>
-            </tr>`;
-        }).join('')
-        : `<tr><td colspan="${admin?3:2}" style="color:#6b5840;text-align:center;">Niciun meci înregistrat</td></tr>`;
+    if (!sorted.length) {
+        document.querySelector('#match-history tbody').innerHTML =
+            `<tr><td colspan="3" style="color:#7d6849;text-align:center;padding:20px;">Niciun meci înregistrat</td></tr>`;
+        return;
+    }
+
+    document.querySelector('#match-history tbody').innerHTML = sorted.map(h => {
+        const origIdx = db.history.indexOf(h);
+        const isBlack = (h.winner||'').toLowerCase().includes('negru');
+        const hasBlack = (h.blackPlayers||[]).length > 0;
+
+        // ── Win badge ──
+        const _ws = getWinnerSideFromScore(h);
+        const winColor = isBlack ? '#3d3d3d'
+                       : _ws === 'orange' ? teamColors.orange
+                       : _ws === 'green'  ? teamColors.green
+                       : '#7d6849';
+        const winnerBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${winColor};color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap;">${h.winner||'Egal'}</span>`;
+        const imbalBadge = h.imbalanced ? `<span title="Dezechilibru 3+ goluri" style="font-size:.65rem;color:#b71c1c;margin-left:4px;">⚠️</span>` : '';
+
+        // ── Scoruri per echipă ──
+        const tg = h.teamGoals || { orange:0, green:0, black:0 };
+        const oN = h.orangePlayers?.length || 0;
+        const gN = h.greenPlayers?.length  || 0;
+        const bN = h.blackPlayers?.length  || 0;
+
+        const makeTeamScore = (names, teamKey, color, label) => {
+            if (!names?.length) return '';
+            const g = tg[teamKey] || 0;
+            const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+                <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#3a2f1f'};">${label}</span>
+                <span style="font-size:.72rem;color:#7d6849;">(${names.length} juc.)</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}</span>
+            </div>`;
+        };
+
+        const teamsHTML = [
+            makeTeamScore(h.orangePlayers, 'orange', teamColors.orange, 'Portocaliu'),
+            makeTeamScore(h.greenPlayers,  'green',  teamColors.green,  'Verde'),
+            hasBlack ? makeTeamScore(h.blackPlayers, 'black', '#555', 'Negru') : '',
+        ].filter(Boolean).join('<div style="height:1px;background:#e3d3ac;margin:1px 0;"></div>');
+
+        // ── Golgheter ──
+        const topScorerHTML = h.topScorer
+            ? `<div style="margin-top:5px;padding:3px 8px;background:#fdf3df;border-radius:6px;border:1px solid #e3d3ac;font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
+                ⚽ <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}
+               </div>`
+            : '';
+
+        // ── Acțiuni admin ──
+        const voteLink = h._dbId ? `<button class="match-edit-btn" onclick="event.stopPropagation();window.open('vote.html?match=${h._dbId}','_blank')" title="Votează" style="color:#6b46c1;">🗳️</button>` : '';
+        const adminBtns = admin ? `${voteLink}<button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
+            <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>` : voteLink;
+
+        return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
+            <td style="vertical-align:top;padding-top:10px;">
+                <div style="font-weight:700;font-size:.82rem;color:#3a2f1f;">${h.date||'—'}</div>
+            </td>
+            <td style="padding:8px 12px 8px 6px;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                    ${winnerBadge}${imbalBadge}
+                    ${h.score ? `<span style="font-size:.72rem;color:#7d6849;">ture: ${h.score}</span>` : ''}
+                </div>
+                <div style="background:#fffaf0;border-radius:8px;padding:6px 10px;border:1px solid #e3d3ac;min-width:220px;">
+                    ${teamsHTML}
+                </div>
+                ${topScorerHTML}
+            </td>
+            <td style="white-space:nowrap;vertical-align:top;padding-top:10px;">${adminBtns}</td>
+        </tr>`;
+    }).join('');
 }
 
 function renderLobby(){
