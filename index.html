@@ -896,8 +896,10 @@
 
 <!-- CONTROLS -->
 <div class="controls">
-   <a href="buget.html" class="btn-win-o" style="display: inline-block; text-decoration: none; text-align: center;">Buget</a>
-    <a href="tactic.html" class="btn-win-g" style="display: inline-block; text-decoration: none; text-align: center;">Tactic</a>
+   <!-- Butoane noi pentru Buget și Tactică care înlocuiesc vechile butoane de Win -->
+    <button class="btn-win-o" onclick="window.location.href='buget.html'">💰 Buget</button>
+    <button class="btn-win-g" onclick="window.location.href='tactic.html'">📋 Tactică</button>
+    
     <button class="btn-new-match admin-only" onclick="newMatch()">🔄 Meci Nou</button>
     <div class="controls-separator admin-only"></div>
     <button class="btn-schedule admin-only" onclick="openScheduleModal()">📅 Programează</button>
@@ -908,8 +910,8 @@
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
-    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
-    <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
+    <button onclick="window.open('live.html','_blank')">
+
 </div>
 
 <!-- MOBILE TABS -->
