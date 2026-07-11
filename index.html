@@ -2178,6 +2178,7 @@ async function loadAll() {
                 greenPlayers:  h.green_players  || [],
                 blackPlayers:  h.black_players  || [],
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
+                playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -5577,14 +5578,14 @@ function openMatchEditor(idx) {
         const h = db.history[idx];
         document.getElementById('meDate').value = h.date || '';
         if (h.winner) setMatchWinner(h.winner);
-        buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || []);
+        buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || [], h.blackPlayers || []);
         // Populate score
         if(h.score && h.score !== '—'){
             const parts = h.score.split(':');
             if(parts.length===2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
         }
         // Populate goals grid
-        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.goals||{});
+        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], h.playerGoals||{});
     }
 
     document.getElementById('matchEditorOverlay').style.display = 'flex';
