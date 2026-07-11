@@ -1644,8 +1644,12 @@ function renderFinalize3Team() {
             const aIsOrange = (r.team_a_id === pair.team_a_id);
             const rA = aIsOrange ? r.score_a : r.score_b;
             const rB = aIsOrange ? r.score_b : r.score_a;
-            const roundWinner = rA > rB ? nA : rB > rA ? nB : null;
-            const winCol = rA > rB ? hA : rB > rA ? hB : '#555';
+            let roundWinner = rA > rB ? nA : rB > rA ? nB : null;
+            let winCol = rA > rB ? hA : rB > rA ? hB : '#555';
+            if (rA === rB && r.penalty_winner_id) {
+                if (r.penalty_winner_id === pair.team_a_id) { roundWinner = nA; winCol = hA; }
+                else if (r.penalty_winner_id === pair.team_b_id) { roundWinner = nB; winCol = hB; }
+            }
             const icon = reasonIcon[r.end_reason] || '•';
             const label = reasonLabel[r.end_reason] || r.end_reason || '';
             const m = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
@@ -1766,8 +1770,19 @@ async function finalizeMatch3Team(pairs) {
             };
             const roundsDetail = pair.rounds.map(r => {
                 const aIsA = (r.team_a_id === pair.team_a_id);
-                return { num:r.num, score_a:aIsA?r.score_a:r.score_b, score_b:aIsA?r.score_b:r.score_a,
-                    end_reason:r.end_reason, duration_sec:r.duration_sec||0 };
+                const loserName = r.loser_team_id === pair.team_a_id ? nA
+                                 : r.loser_team_id === pair.team_b_id ? nB : null;
+                const penWinnerName = r.penalty_winner_id === pair.team_a_id ? nA
+                                     : r.penalty_winner_id === pair.team_b_id ? nB : null;
+                return {
+                    num: r.num,
+                    score_a: aIsA ? r.score_a : r.score_b,
+                    score_b: aIsA ? r.score_b : r.score_a,
+                    end_reason: r.end_reason,
+                    duration_sec: r.duration_sec || 0,
+                    loser_name: loserName,
+                    penalty_winner_name: r.end_reason === 'penalty' ? penWinnerName : null,
+                };
             });
 
             let { data: mh, error: mhErr } = await sb.from('match_history')
