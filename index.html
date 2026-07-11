@@ -5518,20 +5518,21 @@ function openMatchEditor(idx) {
     document.getElementById('meGoalsList').innerHTML = '';
 
     // Build player checklists
-    buildMePlayerLists([], []);
+    buildMePlayerLists([], [], []);
 
     if (!isNew) {
         const h = db.history[idx];
         document.getElementById('meDate').value = h.date || '';
         if (h.winner) setMatchWinner(h.winner);
-        buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || []);
+        buildMePlayerLists(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[]);
         // Populate score
         if(h.score && h.score !== '—'){
             const parts = h.score.split(':');
-            if(parts.length===2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
+            if(parts.length>=2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
+            const sb=document.getElementById('meScoreB'); if(sb&&parts[2]) sb.value=parseInt(parts[2])||0;
         }
-        // Populate goals grid
-        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.goals||{});
+        // Populate goals grid — blackNames ca al 3-lea argument, goals ca al 4-lea
+        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], h.goals||{});
     }
 
     document.getElementById('matchEditorOverlay').style.display = 'flex';
