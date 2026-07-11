@@ -244,8 +244,9 @@ main, body{padding-bottom:80px;}
 .rd-meta-chip{flex:1;background:#fffaf0;border:1px solid #e3d3ac;border-radius:8px;padding:8px 10px;text-align:center;}
 .rd-meta-val{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#8e3a9e;}
 .rd-meta-lbl{font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
-.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid #f5e9d4;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
-.tur-row:last-child{border-bottom:none;}
+.tur-item{border-bottom:1px solid #f5e9d4;}
+.tur-item:last-child{border-bottom:none;}
+.tur-row{display:flex;align-items:center;gap:7px;padding:9px 14px;font-size:.76rem;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .1s;}
 .tur-row:active{background:#f1e4c8;}
 .tur-num{font-family:'Bebas Neue',sans-serif;font-size:.78rem;color:#6b5840;min-width:34px;}
 .tur-teams{display:flex;align-items:center;gap:4px;flex:1;}
@@ -256,6 +257,9 @@ main, body{padding-bottom:80px;}
 .tur-reason.time{background:rgba(124,77,255,.1);border:1px solid #7c4dff;color:#8e3a9e;}
 .tur-reason.manual{background:rgba(255,204,0,.08);border:1px solid rgba(255,204,0,.3);color:#8a6800;}
 .tur-reason.final{background:rgba(100,100,100,.1);border:1px solid #7d6849;color:#7d6849;}
+.tur-reason.penalty{background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;}
+.tur-sub{padding:0 14px 9px 14px;margin-top:-4px;font-size:.64rem;color:#7d6849;display:flex;align-items:center;gap:4px;}
+.tur-sub b{font-weight:700;}
 
 /* ── Penalty Shootout ─────────────────────────────────────────── */
 .penalty-overlay{position:fixed;inset:0;background:#f3e6cf;z-index:400;display:none;flex-direction:column;}
@@ -888,6 +892,8 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
     const gG = roundGoals.filter(g => g.team === 'green').length;
     const durationSec = Math.max(0, calcRoundElapsedSec(liveState));
     const num = rounds.length + 1;
+    // ID-ul echipei care IESE (merge pe bancă) — salvat explicit, nu dedus din scor
+    const loserTeamId = loserColor === 'orange' ? (oTid || 'teamA') : (gTid || 'teamB');
 
     const roundData = {
         num,
@@ -901,6 +907,7 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
         duration_sec:   durationSec,
         end_reason:     reason,
         penalty_winner_id: reason === 'penalty' ? penaltyWinnerId : null,
+        loser_team_id:  loserTeamId,
     };
 
     const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
@@ -1204,10 +1211,23 @@ function renderTureHistory() {
     if (cnt) cnt.textContent = rounds.length;
     if (!show) return;
 
+    const outReasonText = {
+        goals:   'prea multe goluri primite',
+        time:    'timp expirat',
+        manual:  'schimbare manuală',
+        final:   'final meci',
+        penalty: 'egalitate — decis la penalty',
+    };
+
     body.innerHTML = [...rounds].reverse().map(r => {
         const tA = r.team_a_id, tB = r.team_b_id;
         const sA = r.score_a || 0, sB = r.score_b || 0;
-        const winA = sA > sB, winB = sB > sA;
+        let winA = sA > sB, winB = sB > sA;
+        // La egalitate, dacă runda s-a decis la penalty, câștigătorul e cel din penalty_winner_id
+        if (sA === sB && r.penalty_winner_id) {
+            winA = r.penalty_winner_id === tA;
+            winB = r.penalty_winner_id === tB;
+        }
         const cA = winA ? '#1b7a43' : winB ? '#b71c1c' : '#aaa';
         const cB = winB ? '#1b7a43' : winA ? '#b71c1c' : '#aaa';
         const min = r.duration_sec ? Math.ceil(r.duration_sec/60)+"'" : '';
@@ -1215,16 +1235,36 @@ function renderTureHistory() {
         const rLabel  = rLabels[r.end_reason] || r.end_reason || '';
         const rId = r.id;
         const nA = getTeamNameById(tA), nB = getTeamNameById(tB);
-        return `<div class="tur-row" onclick="showRoundDetail('${rId}')">
-            <span class="tur-num">Tur ${r.num}</span>
-            <span class="tur-teams" style="flex:1;font-size:.7rem;color:#7d6849;">${nA} vs ${nB}</span>
-            <span class="tur-score">
-                <span style="color:${cA}">${sA}</span>
-                <span style="color:#7d6849;font-size:.7rem;margin:0 2px">-</span>
-                <span style="color:${cB}">${sB}</span>
-            </span>
-            <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
-            <span style="color:#7d6849;font-size:.7rem;">›</span>
+
+        // Linia secundară: cine iese și de ce (+ cine câștigă la penalty)
+        const outName  = r.loser_team_id ? getTeamNameById(r.loser_team_id) : null;
+        const outHex   = r.loser_team_id ? getTeamHexById(r.loser_team_id) : '#7d6849';
+        const outText  = outReasonText[r.end_reason] || r.end_reason || '';
+        let subHtml = '';
+        if (outName) {
+            subHtml = `<div class="tur-sub">↩ <b style="color:${outHex}">${outName}</b> iese — ${outText}</div>`;
+        } else if (r.end_reason === 'final') {
+            subHtml = `<div class="tur-sub">🏁 ${outText}</div>`;
+        }
+        if (r.end_reason === 'penalty' && r.penalty_winner_id) {
+            const winName = getTeamNameById(r.penalty_winner_id);
+            const winHex  = getTeamHexById(r.penalty_winner_id);
+            subHtml += `<div class="tur-sub">🏆 <b style="color:${winHex}">${winName}</b> câștigă la penalty</div>`;
+        }
+
+        return `<div class="tur-item">
+            <div class="tur-row" onclick="showRoundDetail('${rId}')">
+                <span class="tur-num">Tur ${r.num}</span>
+                <span class="tur-teams" style="flex:1;font-size:.7rem;color:#7d6849;">${nA} vs ${nB}</span>
+                <span class="tur-score">
+                    <span style="color:${cA}">${sA}</span>
+                    <span style="color:#7d6849;font-size:.7rem;margin:0 2px">-</span>
+                    <span style="color:${cB}">${sB}</span>
+                </span>
+                <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
+                <span style="color:#7d6849;font-size:.7rem;">›</span>
+            </div>
+            ${subHtml}
         </div>`;
     }).join('');
 }
@@ -1244,7 +1284,11 @@ function showRoundDetail(roundId) {
 
     const tA = r.team_a_id, tB = r.team_b_id;
     const sA = r.score_a || 0, sB = r.score_b || 0;
-    const winA = sA > sB, winB = sB > sA;
+    let winA = sA > sB, winB = sB > sA;
+    if (sA === sB && r.penalty_winner_id) {
+        winA = r.penalty_winner_id === tA;
+        winB = r.penalty_winner_id === tB;
+    }
     const hA = getTeamHexById(tA), hB = getTeamHexById(tB);
     const nA = getTeamNameById(tA) || tA;
     const nB = getTeamNameById(tB) || tB;
@@ -1252,7 +1296,12 @@ function showRoundDetail(roundId) {
     const cB = winB ? hB : winA ? '#b71c1c' : '#aaa';
 
     const rLabels = { goals:'⚽ Goluri', time:'⏱ Timp', manual:'✋ Manual', final:'🏁 Final', penalty:'⚽ Penalty' };
-    const endLabel = rLabels[r.end_reason] || r.end_reason || '—';
+    let endLabel = rLabels[r.end_reason] || r.end_reason || '—';
+    const outName = r.loser_team_id ? getTeamNameById(r.loser_team_id) : null;
+    if (outName) endLabel += ` · ↩ ${outName} iese`;
+    if (r.end_reason === 'penalty' && r.penalty_winner_id) {
+        endLabel += ` · 🏆 ${getTeamNameById(r.penalty_winner_id)} câștigă`;
+    }
     const durMin = r.duration_sec ? Math.floor(r.duration_sec/60)+"'"+String(r.duration_sec%60).padStart(2,'0')+"\"" : '—';
 
     const rGoals = Array.isArray(r.goals) ? r.goals : [];
