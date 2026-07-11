@@ -877,7 +877,9 @@ async function checkGoalRotation() {
 }
 
 // ── Save round to DB (call BEFORE swapping) ───────────────────────
-async function saveRoundToDB(loserColor, reason) {
+// penaltyWinnerId = ID-ul echipei (team_a_id/team_b_id) care a câștigat la
+// lovituri de departajare — se completează DOAR când reason === 'penalty'.
+async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
     const colorMap = getColorMap();
     const oTid = colorMap['orange'];
     const gTid = colorMap['green'];
@@ -898,6 +900,7 @@ async function saveRoundToDB(loserColor, reason) {
         goals:          roundGoals,
         duration_sec:   durationSec,
         end_reason:     reason,
+        penalty_winner_id: reason === 'penalty' ? penaltyWinnerId : null,
     };
 
     const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
@@ -913,7 +916,7 @@ async function saveRoundToDB(loserColor, reason) {
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
-async function doRotation(loserColor, reason) {
+async function doRotation(loserColor, reason, penaltyWinnerId = null) {
     if (isSaving) return;
     isSaving = true;
 
@@ -923,7 +926,7 @@ async function doRotation(loserColor, reason) {
 
     try {
         // 1. Save round FIRST (before any swap)
-        await saveRoundToDB(loserColor, reason);
+        await saveRoundToDB(loserColor, reason, penaltyWinnerId);
 
         // *** Clear live_goals so score resets to 0-0 for new round ***
         goals = [];
@@ -1453,6 +1456,13 @@ function buildPairs(allRounds) {
         pair.goals_b += rB;
         if (rA > rB) pair.score_a += 1;
         else if (rB > rA) pair.score_b += 1;
+        else if (rA === rB && r.penalty_winner_id) {
+            // Egalitate în timpul rundei → decisă la penalty-uri.
+            // penalty_winner_id e ID-ul absolut al echipei (team_a_id/team_b_id din DB),
+            // deci se compară direct cu ID-urile canonice ale perechii, nu cu rA/rB.
+            if (r.penalty_winner_id === pair.team_a_id) pair.score_a += 1;
+            else if (r.penalty_winner_id === pair.team_b_id) pair.score_b += 1;
+        }
 
         // Jucători: orange = echipa care era în slotul 'orange', green = slotul 'green'
         const orangePl = r.orange_players || [];
@@ -2188,11 +2198,12 @@ async function confirmPenalty() {
     if (oG === gG) {
         showToast(`⚽ Egal ${oG}-${gG}! Continuați!`); return;
     }
-    const loser = oG > gG ? 'green' : 'orange';
+    const loser  = oG > gG ? 'green' : 'orange';
     const winner = loser === 'orange' ? 'green' : 'orange';
+    const winnerTeamId = getTeamIdByColor(winner); // ID-ul echipei câștigătoare la penalty-uri
     showToast(`🏆 ${getTeamName(winner)} câștigă penalty ${oG}-${gG}!`);
     closePenalty();
-    await doRotation(loser, 'penalty');
+    await doRotation(loser, 'penalty', winnerTeamId);
 }
 
 
