@@ -1639,6 +1639,11 @@
             <div id="matchBlackPlayers"></div>
         </div>
     </div>
+    <!-- Istoric ture (doar meciuri mod 3 echipe) -->
+    <div id="matchRoundsSection" style="display:none;margin-top:12px;background:#f3e6cf;border-radius:10px;border:1px solid #e3d3ac;padding:10px 12px;">
+        <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔁 Istoric Ture</div>
+        <div id="matchRoundsBody"></div>
+    </div>
     <button onclick="closeMatchModal()" style="width:100%;margin-top:16px;background:#dcc89a;">✕ Închide</button>
 </div>
 </div>
@@ -2172,6 +2177,7 @@ async function loadAll() {
                 orangePlayers: h.orange_players || [],
                 greenPlayers:  h.green_players  || [],
                 blackPlayers:  h.black_players  || [],
+                roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -5386,9 +5392,56 @@ async function openMatchModal(idx){
         tlEl.style.display='none';
     }
 
+    renderMatchRounds(h);
+
     document.getElementById('matchModalOverlay').style.display='flex';
 }
 function closeMatchModal(){document.getElementById('matchModalOverlay').style.display='none';}
+
+// ── Rounds history block (mod 3 echipe) ──
+function renderMatchRounds(h){
+    const sectEl = document.getElementById('matchRoundsSection');
+    const bodyEl = document.getElementById('matchRoundsBody');
+    const rd = h.roundsDetail;
+    if(!Array.isArray(rd) || !rd.length){ sectEl.style.display='none'; return; }
+
+    const reasonIcon  = {goals:'⚽',time:'⏱',manual:'✋',final:'🏁',penalty:'🥅'};
+    const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
+    const outReasonText = {
+        goals:   'prea multe goluri primite',
+        time:    'timp expirat',
+        manual:  'schimbare manuală',
+        final:   'final meci',
+        penalty: 'egalitate — decis la penalty',
+    };
+
+    bodyEl.innerHTML = rd.map(r=>{
+        const icon  = reasonIcon[r.end_reason]  || '•';
+        const label = reasonLabel[r.end_reason] || r.end_reason || '';
+        const m = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
+        const s = r.duration_sec ? r.duration_sec%60 : 0;
+        const durStr = r.duration_sec ? `${m}:${String(s).padStart(2,'0')}` : '—';
+
+        let subLines = '';
+        if(r.loser_name){
+            subLines += `<div style="font-size:.62rem;color:#7d6849;margin-top:2px;">↩ <b>${r.loser_name}</b> iese — ${outReasonText[r.end_reason]||''}</div>`;
+        }
+        if(r.end_reason==='penalty' && r.penalty_winner_name){
+            subLines += `<div style="font-size:.62rem;color:#7d6849;margin-top:2px;">🏆 <b style="color:#1b7a43;">${r.penalty_winner_name}</b> câștigă la penalty</div>`;
+        }
+
+        return `<div style="padding:6px 0;border-bottom:1px solid #e3d3ac;">
+            <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;">
+                <span style="color:#6b5840;min-width:44px;">Tur ${r.num}</span>
+                <span style="color:#3a2f1f;font-weight:700;flex:1;">${r.score_a}-${r.score_b}</span>
+                <span style="color:#7d6849;font-weight:700;">${icon} ${label}</span>
+                <span style="color:#7d6849;font-size:.65rem;min-width:38px;text-align:right;">⏲ ${durStr}</span>
+            </div>
+            ${subLines}
+        </div>`;
+    }).join('');
+    sectEl.style.display='block';
+}
 
 function openCSVModal(){document.getElementById('csvModalOverlay').style.display='flex';}
 function closeCsvModal(){document.getElementById('csvModalOverlay').style.display='none';csvParsed=null;document.getElementById('csvPreviewArea').style.display='none';}
@@ -5518,21 +5571,20 @@ function openMatchEditor(idx) {
     document.getElementById('meGoalsList').innerHTML = '';
 
     // Build player checklists
-    buildMePlayerLists([], [], []);
+    buildMePlayerLists([], []);
 
     if (!isNew) {
         const h = db.history[idx];
         document.getElementById('meDate').value = h.date || '';
         if (h.winner) setMatchWinner(h.winner);
-        buildMePlayerLists(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[]);
+        buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || []);
         // Populate score
         if(h.score && h.score !== '—'){
             const parts = h.score.split(':');
-            if(parts.length>=2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
-            const sb=document.getElementById('meScoreB'); if(sb&&parts[2]) sb.value=parseInt(parts[2])||0;
+            if(parts.length===2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
         }
-        // Populate goals grid — blackNames ca al 3-lea argument, goals ca al 4-lea
-        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], h.goals||{});
+        // Populate goals grid
+        buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.goals||{});
     }
 
     document.getElementById('matchEditorOverlay').style.display = 'flex';
