@@ -722,6 +722,7 @@
         .me-winner-btn:hover{filter:brightness(1.2);transform:none;}
         .me-winner-btn.active-o{background:rgba(255,140,0,0.2);border-color:var(--orange);color:var(--orange);}
         .me-winner-btn.active-g{background:rgba(40,167,69,0.2);border-color:#2e7d32;color:#2e7d32;}
+        .me-winner-btn.active-b{background:rgba(0,0,0,0.15);border-color:#333;color:#333;}
         .me-teams-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
         .me-team-col{background:#f1e4c8;border-radius:10px;padding:12px;border:1px solid #e3d3ac;}
         .me-team-header{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e3d3ac;}
@@ -1348,9 +1349,10 @@
         </div>
         <div class="me-field">
             <label>Câștigător</label>
-            <div style="display:flex;gap:8px;">
-                <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">Portocaliu</button>
-                <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">Verde</button>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">🟠 Portocaliu</button>
+                <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">🟢 Verde</button>
+                <button class="me-winner-btn" id="meWinB" onclick="setMatchWinner('Negru')" style="flex:1;">⚫ Negru</button>
             </div>
         </div>
     </div>
@@ -1370,6 +1372,12 @@
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:#2e7d32;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
+            <div style="text-align:center;">
+                <div class="me-score-lbl" style="font-size:.6rem;color:#555;margin-bottom:4px;">Negru</div>
+                <input type="number" min="0" max="99" id="meScoreB" value="0"
+                    style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:#555;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
+            </div>
         </div>
     </div>
 
@@ -1384,14 +1392,18 @@
         <div id="meGoalsList" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
     </div>
 
-    <div class="me-teams-grid">
+    <div class="me-teams-grid" style="grid-template-columns:1fr 1fr 1fr;">
         <div class="me-team-col">
-            <div class="me-team-header" style="color:var(--orange);">Portocaliu</div>
+            <div class="me-team-header" style="color:#9c4f00;">🟠 Portocaliu</div>
             <div class="me-players-checklist" id="meOrangePlayers"></div>
         </div>
         <div class="me-team-col">
-            <div class="me-team-header" style="color:var(--green);">Verde</div>
+            <div class="me-team-header" style="color:#1b7a35;">🟢 Verde</div>
             <div class="me-players-checklist" id="meGreenPlayers"></div>
+        </div>
+        <div class="me-team-col">
+            <div class="me-team-header" style="color:#555;">⚫ Negru</div>
+            <div class="me-players-checklist" id="meBlackPlayers"></div>
         </div>
     </div>
 
@@ -5531,16 +5543,19 @@ function closeMatchEditor() {
 
 function setMatchWinner(winner) {
     matchEditorWinner = winner;
-    document.getElementById('meWinO').className = 'me-winner-btn' + (winner === 'Portocaliu' ? ' active-o' : '');
-    document.getElementById('meWinG').className = 'me-winner-btn' + (winner === 'Verde' ? ' active-g' : '');
+    document.getElementById('meWinO').className = 'me-winner-btn' + (winner==='Portocaliu'?' active-o':'');
+    document.getElementById('meWinG').className = 'me-winner-btn' + (winner==='Verde'?' active-g':'');
+    const wb = document.getElementById('meWinB');
+    if(wb) wb.className = 'me-winner-btn' + (winner==='Negru'?' active-b':'');
 }
 
-function buildMePlayerLists(orangeNames, greenNames) {
+function buildMePlayerLists(orangeNames, greenNames, blackNames=[]) {
     const sorted = [...db.players].sort((a,b) => a.name.localeCompare(b.name));
 
-    ['Orange','Green'].forEach(team => {
-        const names = team === 'Orange' ? orangeNames : greenNames;
+    ['Orange','Green','Black'].forEach(team => {
+        const names = team==='Orange'?orangeNames:team==='Green'?greenNames:blackNames;
         const container = document.getElementById(`me${team}Players`);
+        if(!container) return;
         container.innerHTML = sorted.map(p => {
             const checked = names.includes(p.name);
             return `<label class="me-player-check ${checked?'checked':''}" id="mecheck-${team}-${p.id}">
@@ -5551,10 +5566,10 @@ function buildMePlayerLists(orangeNames, greenNames) {
     });
 }
 
-function buildMeGoalsList(orangeNames, greenNames, existingGoals={}){
+function buildMeGoalsList(orangeNames, greenNames, blackNames=[], existingGoals={}){
     const list = document.getElementById('meGoalsList');
     if(!list) return;
-    const allPlayers = [...orangeNames.map(n=>({name:n,team:'orange',color:'var(--orange)'})), ...greenNames.map(n=>({name:n,team:'green',color:'#2e7d32'}))];
+    const allPlayers = [...orangeNames.map(n=>({name:n,team:'orange',color:'#9c4f00'})),...greenNames.map(n=>({name:n,team:'green',color:'#1b7a35'})),...(blackNames||[]).map(n=>({name:n,team:'black',color:'#555'}))];
     if(!allPlayers.length){ list.innerHTML='<div style="color:#7d6849;font-size:.78rem;padding:6px;">Selectează jucători mai întâi.</div>'; return; }
     list.innerHTML = allPlayers.map(pl=>{
         const key = pl.name.replace(/ /g,'__');
@@ -5584,17 +5599,11 @@ function meGoalStep(key, type, delta){
 function mePLayerToggle(el, team, playerId) {
     const label = el.closest('.me-player-check');
     label.classList.toggle('checked', el.checked);
-    const otherTeam = team === 'Orange' ? 'Green' : 'Orange';
-    const otherId = `mecheck-${otherTeam}-${playerId}`;
-    const otherLabel = document.getElementById(otherId);
-    if (otherLabel && el.checked) {
-        otherLabel.querySelector('input').checked = false;
-        otherLabel.classList.remove('checked');
-    }
-    // Refresh goals list
-    const oP = getMeSelectedPlayers('Orange');
-    const gP = getMeSelectedPlayers('Green');
-    buildMeGoalsList(oP, gP, {});
+    ['Orange','Green','Black'].filter(t=>t!==team).forEach(ot=>{
+        const lbl=document.getElementById(`mecheck-${ot}-${playerId}`);
+        if(lbl&&el.checked){lbl.querySelector('input').checked=false;lbl.classList.remove('checked');}
+    });
+    buildMeGoalsList(getMeSelectedPlayers('Orange'),getMeSelectedPlayers('Green'),getMeSelectedPlayers('Black'),{});
 }
 
 function getMeSelectedPlayers(team) {
@@ -5614,18 +5623,18 @@ async function saveMatchEdit() {
 
     const orangePlayers = getMeSelectedPlayers('Orange');
     const greenPlayers  = getMeSelectedPlayers('Green');
-
-    // Use manually entered score if present, else calculate
+    const blackPlayers  = getMeSelectedPlayers('Black');
     const scoreO = parseInt(document.getElementById('meScoreO')?.value)||0;
     const scoreG = parseInt(document.getElementById('meScoreG')?.value)||0;
-    const hasManualScore = scoreO > 0 || scoreG > 0;
-    const score = hasManualScore ? `${scoreO}:${scoreG}` : '—';
+    const scoreB = parseInt(document.getElementById('meScoreB')?.value||'0')||0;
+    const hasManualScore = scoreO>0||scoreG>0||scoreB>0;
+    const score = hasManualScore?`${scoreO}:${scoreG}${blackPlayers.length?':'+scoreB:''}`:'—';
     const imbalanced = hasManualScore && Math.abs(scoreO-scoreG) >= 3;
 
     // Collect individual goals from meGoalsList
     const goals = {};
     const goalsConceded = {};
-    [...orangePlayers,...greenPlayers].forEach(name=>{
+    [...orangePlayers,...greenPlayers,...blackPlayers].forEach(name=>{
         const key = name.replace(/ /g,'__');
         const scored = parseInt(document.getElementById('meg-scored-'+key)?.textContent)||0;
         const conceded = parseInt(document.getElementById('meg-conceded-'+key)?.textContent)||0;
@@ -5633,14 +5642,15 @@ async function saveMatchEdit() {
         if(conceded>0) goalsConceded[name]=conceded;
     });
 
-    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, goals };
+    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, goals };
 
     if (matchEditorIdx === null) {
         try {
             const { data, error } = await sb.from('match_history').insert({
                 date, winner, score, imbalanced,
                 orange_players: orangePlayers,
-                green_players:  greenPlayers
+                green_players:  greenPlayers,
+                black_players:  blackPlayers
             }).select().single();
             if (error) throw error;
             entry._dbId = data.id;
@@ -5648,7 +5658,7 @@ async function saveMatchEdit() {
             // Save goals
             if(data.id && (Object.keys(goals).length||Object.keys(goalsConceded).length)){
                 const rows = [...new Set([...Object.keys(goals),...Object.keys(goalsConceded)])].map(name=>{
-                    const team = orangePlayers.includes(name)?'orange':'green';
+                    const team=orangePlayers.includes(name)?'orange':blackPlayers.includes(name)?'black':'green';
                     return {match_id:data.id,player_name:name,team,goals:goals[name]||0,goals_conceded:goalsConceded[name]||0};
                 });
                 await sb.from('match_goals').insert(rows);
@@ -5663,13 +5673,14 @@ async function saveMatchEdit() {
                 await sb.from('match_history').update({
                     date, winner, score, imbalanced,
                     orange_players: orangePlayers,
-                    green_players:  greenPlayers
+                    green_players:  greenPlayers,
+                black_players:  blackPlayers
                 }).eq('id', dbId);
                 entry._dbId = dbId; h._dbId = dbId;
                 // Update goals: delete old, insert new
                 await sb.from('match_goals').delete().eq('match_id', dbId);
                 const rows = [...new Set([...Object.keys(goals),...Object.keys(goalsConceded)])].map(name=>{
-                    const team = orangePlayers.includes(name)?'orange':'green';
+                    const team=orangePlayers.includes(name)?'orange':blackPlayers.includes(name)?'black':'green';
                     return {match_id:dbId,player_name:name,team,goals:goals[name]||0,goals_conceded:goalsConceded[name]||0};
                 });
                 if(rows.length) await sb.from('match_goals').insert(rows);
@@ -5678,7 +5689,7 @@ async function saveMatchEdit() {
     }
 
     recalculateAllPlayerStats();
-    const affectedNames = new Set([...orangePlayers, ...greenPlayers]);
+    const affectedNames = new Set([...orangePlayers,...greenPlayers,...blackPlayers]);
     const affectedPlayers = db.players.filter(p => affectedNames.has(p.name));
     try {
         await Promise.all(affectedPlayers.map(p => dbUpdatePlayer(p)));
