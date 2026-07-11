@@ -84,7 +84,7 @@
         .btn-quick-vote{background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;}
         .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
-        .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 260px 260px;gap:14px;align-items:start;}
+        .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 1fr 1fr;gap:14px;align-items:start;}
         .column{background:#f1e4c8;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
         .column-active{border-style:dashed;border-color:#7d6849;}
@@ -776,8 +776,8 @@
         .history-desktop-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;}
 
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1e4c8}::-webkit-scrollbar-thumb{background:#d3bd8c;border-radius:3px}
-        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 220px 220px}}
-        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 180px 180px}}
+        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
+        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
         @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-active{grid-column:span 1}}
         @media(max-width:640px){
             .page{padding:0;}
@@ -1352,7 +1352,7 @@
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="me-winner-btn" id="meWinO" onclick="setMatchWinner('Portocaliu')" style="flex:1;">🟠 Portocaliu</button>
                 <button class="me-winner-btn" id="meWinG" onclick="setMatchWinner('Verde')" style="flex:1;">🟢 Verde</button>
-                <button class="me-winner-btn" id="meWinB" onclick="setMatchWinner('Negru')" style="flex:1;">⚫ Negru</button>
+                <button class="me-winner-btn" id="meWinB" onclick="setMatchWinner('Negru')" style="flex:1;display:none;">⚫ Negru</button>
             </div>
         </div>
     </div>
@@ -1372,8 +1372,8 @@
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:#2e7d32;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
-            <div style="text-align:center;">
+            <div id="meScoreSepB" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;display:none;">:</div>
+            <div id="meScoreBlockB" style="text-align:center;display:none;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:#555;margin-bottom:4px;">Negru</div>
                 <input type="number" min="0" max="99" id="meScoreB" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:#555;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
@@ -5567,8 +5567,10 @@ function openMatchEditor(idx) {
     document.getElementById('meDate').value = '';
     document.getElementById('meWinO').className = 'me-winner-btn';
     document.getElementById('meWinG').className = 'me-winner-btn';
+    document.getElementById('meWinB').className = 'me-winner-btn';
     document.getElementById('meScoreO').value = 0;
     document.getElementById('meScoreG').value = 0;
+    document.getElementById('meScoreB').value = 0;
     document.getElementById('meGoalsList').innerHTML = '';
 
     // Build player checklists
@@ -5587,6 +5589,9 @@ function openMatchEditor(idx) {
         // Populate goals grid
         buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], h.playerGoals||{});
     }
+
+    // Arată "Negru" doar dacă meciul are efectiv jucători pe echipa neagră
+    updateMeBlackVisibility();
 
     document.getElementById('matchEditorOverlay').style.display = 'flex';
 }
@@ -5658,6 +5663,28 @@ function mePLayerToggle(el, team, playerId) {
         if(lbl&&el.checked){lbl.querySelector('input').checked=false;lbl.classList.remove('checked');}
     });
     buildMeGoalsList(getMeSelectedPlayers('Orange'),getMeSelectedPlayers('Green'),getMeSelectedPlayers('Black'),{});
+    updateMeBlackVisibility();
+}
+
+// Arată scorul + butonul "Negru" doar dacă există jucători bifați pe echipa Negru
+function updateMeBlackVisibility() {
+    const hasBlack = getMeSelectedPlayers('Black').length > 0;
+    const winB = document.getElementById('meWinB');
+    const sep  = document.getElementById('meScoreSepB');
+    const blk  = document.getElementById('meScoreBlockB');
+    if (winB) winB.style.display = hasBlack ? '' : 'none';
+    if (sep)  sep.style.display  = hasBlack ? '' : 'none';
+    if (blk)  blk.style.display  = hasBlack ? '' : 'none';
+    // Dacă echipa Negru dispare și era selectată ca și câștigătoare, resetăm
+    if (!hasBlack && matchEditorWinner === 'Negru') {
+        matchEditorWinner = null;
+        if (winB) winB.className = 'me-winner-btn';
+    }
+    // Scorul rămas ascuns nu trebuie să influențeze salvarea — îl resetăm la 0
+    if (!hasBlack) {
+        const sb = document.getElementById('meScoreB');
+        if (sb) sb.value = 0;
+    }
 }
 
 function getMeSelectedPlayers(team) {
