@@ -7037,22 +7037,37 @@ function recalculateAllPlayerStats() {
     sortedHistory.forEach(h => {
         const orangeNames = h.orangePlayers || [];
         const greenNames  = h.greenPlayers  || [];
-        const winnerIsOrange = h.winner === 'Portocaliu';
+        const blackNames  = h.blackPlayers  || [];
+
+        // Comparație robustă (case-insensitive, "conține"), identică cu playerWonMatch:
+        // un rezultat de tip 'Egal' sau câștigat de a treia echipă NU e victorie pentru orange/green.
+        const w = (h.winner || '').toLowerCase().trim();
+        const orangeWon = !!w && w !== 'egal' && (w.includes('portocaliu') || w.includes('orange'));
+        const greenWon  = !!w && w !== 'egal' && (w.includes('verde') || w.includes('green'));
+        const blackWon  = !!w && w !== 'egal' && (w.includes('negru') || w.includes('black'));
 
         orangeNames.forEach(name => {
             const p = db.players.find(x => x.name === name);
             if (!p) return;
             p.games++;
-            if (winnerIsOrange) p.wins++;
-            p.matchHistory.push(winnerIsOrange ? 'W' : 'L');
+            if (orangeWon) p.wins++;
+            p.matchHistory.push(orangeWon ? 'W' : 'L');
         });
 
         greenNames.forEach(name => {
             const p = db.players.find(x => x.name === name);
             if (!p) return;
             p.games++;
-            if (!winnerIsOrange) p.wins++;
-            p.matchHistory.push(!winnerIsOrange ? 'W' : 'L');
+            if (greenWon) p.wins++;
+            p.matchHistory.push(greenWon ? 'W' : 'L');
+        });
+
+        blackNames.forEach(name => {
+            const p = db.players.find(x => x.name === name);
+            if (!p) return;
+            p.games++;
+            if (blackWon) p.wins++;
+            p.matchHistory.push(blackWon ? 'W' : 'L');
         });
     });
 
