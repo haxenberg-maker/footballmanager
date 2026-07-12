@@ -40,6 +40,30 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
 .me-card-rank{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--star);min-width:44px;text-align:center;}
 .footer-note{text-align:center;font-size:.65rem;color:#9a8663;margin-top:18px;letter-spacing:.5px;}
 .row-highlight{outline:2px solid var(--accent);}
+.streak-banner-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+@media(max-width:480px){.streak-banner-grid{grid-template-columns:1fr;}}
+.streak-banner-card{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;}
+.streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,0,.12),rgba(229,57,53,.10));border:1px solid rgba(255,140,0,.35);}
+.streak-banner-card.cold{background:linear-gradient(135deg,rgba(61,90,254,.10),rgba(3,169,244,.08));border:1px solid rgba(61,90,254,.3);}
+.streak-banner-icon{font-size:1.4rem;line-height:1;}
+.streak-banner-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;}
+.streak-banner-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
+.streak-banner-sub{font-size:.65rem;color:#6b5840;}
+.milestone-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
+.milestone-badge{font-size:.58rem;padding:2px 6px;border-radius:6px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:#8a6800;white-space:nowrap;font-weight:700;}
+.week-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+@media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
+.week-card{background:#fffaf0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
+.week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#7d6849;margin-bottom:8px;}
+.week-player-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0e6d0;font-size:.78rem;}
+.week-player-row:last-child{border-bottom:none;}
+.week-player-rank{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#b89860;min-width:16px;}
+.week-player-name{flex:1;font-weight:700;color:#3a2f1f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.week-player-sub{font-size:.64rem;color:#6b5840;}
+.derby-score{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px;text-align:center;margin:4px 0;color:#3a2f1f;}
+.derby-teams{display:flex;justify-content:space-between;font-size:.68rem;color:#6b5840;text-transform:uppercase;letter-spacing:.5px;}
+.derby-summary{font-size:.74rem;color:#3a2f1f;margin-top:6px;text-align:center;line-height:1.4;}
+.derby-date{text-align:center;font-size:.6rem;color:#9a8663;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -57,13 +81,16 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
 
     <div id="meCardWrap"></div>
 
+    <div id="weeklyCards" style="display:none;"></div>
+
     <div class="stats-section">
         <h3>🏅 Clasament</h3>
+        <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
-            <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty ( Abia i-am dat start ) </button>
+            <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
         <div id="lbPeriodRow" style="display:flex;gap:4px;margin-bottom:10px;">
             <button class="lb-period-btn active" id="lbp-all"   onclick="setLbPeriod('all')"  >Tot timpul</button>
@@ -277,6 +304,153 @@ function getSmartRating(p, context = {}) {
 function getCatAvg(p,cat){return p.ratings?.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
 function getGeneralAvg(p){return getCatAvg(p,'general');}
 
+function getStreak(p){
+    if(!p.matchHistory?.length) return {count:0,type:null};
+    const last=p.matchHistory[p.matchHistory.length-1]; let count=0;
+    for(let i=p.matchHistory.length-1;i>=0;i--){ if(p.matchHistory[i]===last) count++; else break; }
+    return {count,type:last};
+}
+
+function renderStreakBanner(){
+    const el = document.getElementById('streakBanner');
+    if(!el) return;
+    const withGames = db.players.filter(p=>p.games>0);
+    let hot=null, cold=null;
+    withGames.forEach(p=>{
+        const s = getStreak(p);
+        if(!s.count || s.count<2) return;
+        if(s.type==='W' && (!hot || s.count>hot.count)) hot = {p, count:s.count};
+        if(s.type==='L' && (!cold || s.count>cold.count)) cold = {p, count:s.count};
+    });
+    if(!hot && !cold){ el.style.display='none'; el.innerHTML=''; return; }
+    el.style.display='block';
+    el.innerHTML = `<div class="streak-banner-grid">
+        ${hot ? `<div class="streak-banner-card hot">
+            <div class="streak-banner-icon">🔥</div>
+            <div><div class="streak-banner-lbl">Pe val</div><div class="streak-banner-name">${hot.p.name}</div><div class="streak-banner-sub">${hot.count} victorii la rând</div></div>
+        </div>` : ''}
+        ${cold ? `<div class="streak-banner-card cold">
+            <div class="streak-banner-icon">🥶</div>
+            <div><div class="streak-banner-lbl">În cădere</div><div class="streak-banner-name">${cold.p.name}</div><div class="streak-banner-sub">${cold.count} înfrângeri la rând</div></div>
+        </div>` : ''}
+    </div>`;
+}
+
+function getLongestWinStreak(p){
+    let longest=0, cur=0;
+    (p.matchHistory||[]).forEach(r=>{ if(r==='W'){ cur++; longest=Math.max(longest,cur); } else cur=0; });
+    return longest;
+}
+function getBestSingleMatchGoals(p){
+    let max=0;
+    db.history.forEach(h=>{ const g=(h.playerGoals&&h.playerGoals[p.name])||0; if(g>max) max=g; });
+    return max;
+}
+const MILESTONE_TIERS = {
+    goals:  [{n:10,emoji:'⚽',label:'10 Goluri'},{n:25,emoji:'🎯',label:'25 Goluri'},{n:50,emoji:'🔱',label:'50 Goluri'},{n:100,emoji:'💯',label:'100 Goluri'}],
+    wins:   [{n:10,emoji:'🏆',label:'10 Victorii'},{n:25,emoji:'🥇',label:'25 Victorii'},{n:50,emoji:'👑',label:'50 Victorii'}],
+    games:  [{n:25,emoji:'📅',label:'25 Meciuri'},{n:50,emoji:'🏟️',label:'50 Meciuri'},{n:100,emoji:'💼',label:'100 Meciuri'}],
+    streak: [{n:5,emoji:'🔥',label:'5 Victorii la rând'},{n:10,emoji:'🚀',label:'10 Victorii la rând'}],
+};
+function _pickTier(arr,val){ let best=null; arr.forEach(t=>{ if(val>=t.n) best=t; }); return best; }
+function getPlayerMilestones(p){
+    const badges=[];
+    let b;
+    b=_pickTier(MILESTONE_TIERS.goals,(p.totalGoals||0));      if(b) badges.push(b);
+    b=_pickTier(MILESTONE_TIERS.wins,(p.wins||0));              if(b) badges.push(b);
+    b=_pickTier(MILESTONE_TIERS.games,(p.games||0));            if(b) badges.push(b);
+    b=_pickTier(MILESTONE_TIERS.streak,getLongestWinStreak(p)); if(b) badges.push(b);
+    const bestGoals = getBestSingleMatchGoals(p);
+    if(bestGoals>=4) badges.push({emoji:'🎩🎩',label:'Poker de goluri'});
+    else if(bestGoals>=3) badges.push({emoji:'🎩',label:'Hat-trick'});
+    return badges;
+}
+function renderMilestoneBadges(p){
+    const badges = getPlayerMilestones(p);
+    if(!badges.length) return '';
+    return `<div class="milestone-row">${badges.map(b=>`<span class="milestone-badge" title="${b.label}">${b.emoji} ${b.label}</span>`).join('')}</div>`;
+}
+
+const teamNames = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru' };
+
+function getRecentMatchesWindow(){
+    if(!db.history.length) return [];
+    const cutoff = new Date(Date.now()-7*24*60*60*1000);
+    let recent = db.history.filter(h=>parseDateToObj(h.date)>=cutoff);
+    if(!recent.length) recent = db.history.slice(0,5);
+    return recent;
+}
+function computeWeekTeam(){
+    const recent = getRecentMatchesWindow();
+    if(!recent.length) return [];
+    const stats={};
+    const ensure=n=>stats[n]||(stats[n]={name:n,games:0,wins:0,goals:0});
+    recent.forEach(h=>{
+        const winO=h.winner==='Portocaliu', winG=h.winner==='Verde', winB=h.winner==='Negru';
+        (h.orangePlayers||[]).forEach(n=>{const s=ensure(n);s.games++;if(winO)s.wins++;});
+        (h.greenPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winG)s.wins++;});
+        (h.blackPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winB)s.wins++;});
+        if(h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+    });
+    const arr = Object.values(stats).map(s=>{
+        const p = db.players.find(x=>x.name===s.name);
+        const wr = s.games>0 ? s.wins/s.games : 0;
+        const smartBonus = p ? getSmartRating(p)/10 : 0;
+        return { ...s, player:p, score: wr*3 + s.goals*0.6 + smartBonus };
+    });
+    arr.sort((a,b)=>b.score-a.score);
+    return arr.slice(0,5);
+}
+function computeDerbyOfWeek(){
+    const recent = getRecentMatchesWindow();
+    if(!recent.length) return null;
+    let best=null, bestDiff=Infinity, bestTotal=-1;
+    recent.forEach(h=>{
+        if(!h.score) return;
+        const parts = h.score.split(':').map(s=>parseInt(s.trim(),10));
+        if(parts.length<2 || isNaN(parts[0]) || isNaN(parts[1])) return;
+        const diff = Math.abs(parts[0]-parts[1]);
+        const total = parts[0]+parts[1];
+        if(diff<bestDiff || (diff===bestDiff && total>bestTotal)){
+            best={h,diff,total,a:parts[0],b:parts[1]};
+            bestDiff=diff; bestTotal=total;
+        }
+    });
+    return best;
+}
+function renderWeeklyCards(){
+    const wrap = document.getElementById('weeklyCards');
+    if(!wrap) return;
+    const weekTeam = computeWeekTeam();
+    const derby = computeDerbyOfWeek();
+    if(!weekTeam.length && !derby){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+    wrap.style.display='block';
+    const teamHtml = weekTeam.length ? `<div class="week-card">
+        <div class="week-card-title">📅 Echipa Săptămânii</div>
+        ${weekTeam.map((s,i)=>`<div class="week-player-row">
+            <span class="week-player-rank">${i+1}</span>
+            <span class="week-player-name">${s.name}</span>
+            <span class="week-player-sub">${s.wins}V/${s.games}M${s.goals?' · ⚽'+s.goals:''}</span>
+        </div>`).join('')}
+    </div>` : '';
+    let derbyHtml = '';
+    if(derby){
+        const h=derby.h;
+        let summary;
+        if(derby.diff===0) summary = `⚡ Egalitate dramatică, ${derby.a}-${derby.b}!`;
+        else if(derby.diff===1) summary = `🔥 Meci strâns, decis la un singur gol diferență!`;
+        else summary = `🎬 Cel mai disputat meci recent.`;
+        derbyHtml = `<div class="week-card">
+            <div class="week-card-title">🎬 Derby-ul Săptămânii</div>
+            <div class="derby-teams"><span>${teamNames.orange}</span><span>${teamNames.green}</span></div>
+            <div class="derby-score">${derby.a} : ${derby.b}</div>
+            <div class="derby-summary">${summary}</div>
+            <div class="derby-date">${h.date||''}</div>
+        </div>`;
+    }
+    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}</div>`;
+}
+
 function getFormIndex(p){
     const history = p.matchHistory || [];
     const last5 = history.slice(-5);
@@ -446,6 +620,7 @@ function renderLeaderboard(){
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#7d6849'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}${isMe?' 📍':''}</div>
+                    ${renderMilestoneBadges(p)}
                     <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
                         <div style="flex:1;height:${i===0?'3px':'2px'};background:#e3d3ac;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#d3bd8c'};border-radius:1px;"></div></div>
                         <span style="font-size:.58rem;color:#6b5840;">${subLabel(p)}</span>
@@ -557,6 +732,8 @@ async function loadAll(){
         }catch(e){}
 
         renderMeCard();
+        renderStreakBanner();
+        renderWeeklyCards();
         renderLeaderboard();
     }catch(err){
         document.getElementById('lbContent').innerHTML = `<p style="color:#b71c1c;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
