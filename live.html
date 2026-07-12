@@ -21,6 +21,14 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .live-dot{width:6px;height:6px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
 .live-lbl{font-size:.58rem;font-weight:700;color:#1b7a43;text-transform:uppercase;letter-spacing:1px;}
+.conn-pill{display:flex;align-items:center;gap:4px;padding:2px 7px;border-radius:12px;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;transition:all .2s;}
+.conn-pill.ok{background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);color:#1b7a43;}
+.conn-pill.warn{background:rgba(255,193,7,.15);border:1px solid #ffc107;color:#8a6800;}
+.conn-pill.off{background:rgba(198,40,40,.15);border:1px solid #c62828;color:#b71c1c;}
+.conn-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.conn-pill.ok .conn-dot{background:#28a745;}
+.conn-pill.warn .conn-dot{background:#ffc107;animation:blink 1s infinite;}
+.conn-pill.off .conn-dot{background:#c62828;animation:blink .6s infinite;}
 .icon-btn{background:none;border:1px solid var(--b);color:#6b5840;padding:7px 11px;border-radius:7px;font-size:.75rem;cursor:pointer;white-space:nowrap;min-height:36px;touch-action:manipulation;}
 .icon-btn:hover{border-color:#7d6849;color:#5c4a32;}
 .icon-btn.danger{border-color:#c6282833;color:#b71c1c44;}
@@ -167,6 +175,14 @@ main, body{padding-bottom:80px;}
 .reset-actions{display:flex;gap:8px;}
 .reset-cancel{flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.88rem;touch-action:manipulation;}
 .reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
+.result-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
+.result-overlay.show{display:flex;}
+.result-box{background:#fff8ed;width:100%;max-width:400px;border-radius:16px;border:1px solid #28a745;padding:22px;text-align:center;}
+.result-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#1b7a43;margin-bottom:10px;}
+.result-preview{background:#f3e6cf;border:1px solid #e3d3ac;border-radius:10px;padding:12px;font-size:.78rem;color:#3a2f1f;text-align:left;white-space:pre-wrap;line-height:1.5;margin-bottom:14px;max-height:220px;overflow-y:auto;}
+.result-actions{display:flex;gap:8px;}
+.result-copy{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;touch-action:manipulation;}
+.result-close{flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
 .thr-val{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#8e3a9e;min-width:20px;text-align:center;}
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;margin-left:4px;}
 .rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
@@ -307,6 +323,7 @@ main, body{padding-bottom:80px;}
   <div class="hd-logo">⚽ Arena FC</div>
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
+    <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
     <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
     <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
     <button class="hd-key-btn" id="swapTeamsBtn" onclick="swapTeams()" title="Schimbă echipele între ele" style="display:none;">⇄</button>
@@ -507,6 +524,87 @@ function showToast(msg) {
     t.textContent = msg; t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2800);
 }
+// ── Feedback sonor (pe lângă vibrație) — util pe teren, unde vibrația
+// singură nu se simte/aude mereu. Nu necesită fișiere audio externe.
+let _audioCtx = null;
+function playBeep(freq=880, durMs=120, vol=0.16) {
+    try {
+        if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (_audioCtx.state === 'suspended') _audioCtx.resume();
+        const osc = _audioCtx.createOscillator();
+        const gain = _audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        gain.gain.value = vol;
+        osc.connect(gain); gain.connect(_audioCtx.destination);
+        osc.start();
+        gain.gain.exponentialRampToValueAtTime(0.001, _audioCtx.currentTime + durMs/1000);
+        osc.stop(_audioCtx.currentTime + durMs/1000 + 0.02);
+    } catch(e) {}
+}
+function playGoalSound(){ playBeep(920, 110); }
+function playRoundEndSound(){ playBeep(660,140); setTimeout(()=>playBeep(420,180), 150); }
+
+// ── Rezultat gata de trimis pe WhatsApp ─────────────────────────────
+let _resultShareText = '';
+function showResultShare(title, previewText, shareText) {
+    document.getElementById('resultTitle').textContent = title;
+    document.getElementById('resultPreview').textContent = previewText;
+    _resultShareText = shareText;
+    document.getElementById('resultOverlay').classList.add('show');
+}
+async function copyResultShareText() {
+    try {
+        await navigator.clipboard.writeText(_resultShareText);
+        showToast('📋 Copiat! Lipește-l în WhatsApp.');
+        return;
+    } catch(e) {}
+    // Fallback pentru browsere fără Clipboard API disponibil
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = _resultShareText;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('📋 Copiat! Lipește-l în WhatsApp.');
+    } catch(e2) {
+        showToast('⚠️ Nu am putut copia automat — selectează textul manual.');
+    }
+}
+
+// ── Indicator de conexiune ──────────────────────────────────────────
+// Pe teren, în aer liber, netul poate cădea fără avertisment — iar o
+// salvare eșuată silențios înseamnă un gol/o tură pierdută din istoric.
+function updateConnPill(state, label) {
+    const pill = document.getElementById('connPill');
+    const lbl  = document.getElementById('connLbl');
+    if (!pill || !lbl) return;
+    pill.className = 'conn-pill ' + state;
+    lbl.textContent = label;
+}
+window.addEventListener('online',  () => updateConnPill('ok', 'Online'));
+window.addEventListener('offline', () => updateConnPill('off', 'Fără conexiune'));
+if (!navigator.onLine) updateConnPill('off', 'Fără conexiune');
+
+// Reîncearcă un apel Supabase de câteva ori înainte să renunțe — și
+// ține indicatorul de conexiune sincronizat cu ce se întâmplă real.
+async function withRetry(fn, { retries = 3, label = 'salvare' } = {}) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const result = await fn();
+            updateConnPill('ok', 'Online');
+            return result;
+        } catch (e) {
+            if (attempt === retries) {
+                updateConnPill('off', 'Salvare eșuată');
+                showToast(`⚠️ Nu s-a putut salva (${label}) — verifică conexiunea!`);
+                throw e;
+            }
+            updateConnPill('warn', `Reîncerc ${attempt}/${retries - 1}...`);
+            await new Promise(r => setTimeout(r, 700 * attempt));
+        }
+    }
+}
 function showRotationToast(msg) {
     const el = document.getElementById('rotationToast');
     if (!el) return;
@@ -688,6 +786,7 @@ async function onRoundTimeout() {
     const bench = players.filter(p => p.status === 'bench');
     if (!bench.length) return;
     if (navigator.vibrate) navigator.vibrate([300,100,300]);
+    playRoundEndSound();
     showUltimaFaza();
 }
 
@@ -872,10 +971,12 @@ async function checkGoalRotation() {
     if (conc.orange >= threshold) {
         cancelRoundTimeout();
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
+        playRoundEndSound();
         setTimeout(() => showRotationConfirm('orange','goals',`${getTeamName('orange')}: ${conc.orange} goluri primite — schimb!`), 400);
     } else if (conc.green >= threshold) {
         cancelRoundTimeout();
         if (navigator.vibrate) navigator.vibrate([200,100,200]);
+        playRoundEndSound();
         setTimeout(() => showRotationConfirm('green','goals',`${getTeamName('green')}: ${conc.green} goluri primite — schimb!`), 400);
     }
 }
@@ -910,15 +1011,21 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
         loser_team_id:  loserTeamId,
     };
 
-    const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
-    if (error) {
-        console.error('saveRound:', error.message);
-        // Push with temp id so UI updates even if DB fails
+    let data = null;
+    try {
+        data = await withRetry(async () => {
+            const { data, error } = await sb.from('live_rounds').insert(roundData).select().single();
+            if (error) throw error;
+            return data;
+        }, { label: 'tură ' + num });
+    } catch(e) {
+        console.error('saveRound:', e.message);
+        // Push with temp id so UI updates even if DB tot a eșuat după reîncercări
         rounds.push({ ...roundData, id: 'tmp_' + Date.now() });
-    } else if (data) {
-        // Update locally immediately — don't wait for Realtime roundtrip
-        if (!rounds.some(r => r.id === data.id)) rounds.push(data);
+        renderTureHistory();
+        return;
     }
+    if (data && !rounds.some(r => r.id === data.id)) rounds.push(data);
     renderTureHistory();
 }
 
@@ -1420,6 +1527,7 @@ async function addGoal(name, team) {
     setTimeout(() => { _goalBusy = false; }, 900);
 
     if (navigator.vibrate) navigator.vibrate(40);
+    playGoalSound();
     const minute = liveState?.timer_status !== 'idle'
         ? Math.floor(calcElapsedSec(liveState) / 60) : null;
     const tmpId  = 'tmp_' + Date.now();
@@ -1737,6 +1845,7 @@ async function finalizeMatch3Team(pairs) {
     const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
     try {
         let savedCount = 0;
+        const pairResults = [];
         for (const pair of pairs) {
             if (!pair.a_players.length || !pair.b_players.length) continue;
             const nA = getTeamNameById(pair.team_a_id);
@@ -1745,6 +1854,7 @@ async function finalizeMatch3Team(pairs) {
             const winner = sA > sB ? nA : sB > sA ? nB : 'Egal';
             const aWon = sA > sB, bWon = sB > sA;
             const goalsImbalanced = Math.abs(pair.goals_a - pair.goals_b) >= 3;
+            pairResults.push({ nA, nB, sA, sB });
 
             // ── Coloana corectă per teamId ──
             const getColumn = (teamId) => {
@@ -1838,6 +1948,9 @@ async function finalizeMatch3Team(pairs) {
         rounds=[]; goals=[]; editPairs=[]; editRounds=[];
         render(); applyTimerUI(liveState);
         showToast(`✅ ${savedCount} meciuri salvate cu echipele corecte!`);
+        const shareLines = pairResults.map(r => `⚽ ${r.nA} ${r.sA}:${r.sB} ${r.nB}`);
+        const shareText = `⚽ Arena FC — ${today}\n\n` + shareLines.join('\n');
+        showResultShare('🏁 Meci Finalizat', shareText, shareText);
         isSaving = false;
     } catch(e){ isSaving=false; showToast('⚠️ '+e.message); console.error(e); }
 }
@@ -1900,6 +2013,11 @@ async function finalizeMatch2Team(finalRounds) {
         goals=[];render();applyTimerUI(liveState);
         const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
         showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
+        const scorerLines = Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)
+            .map(([name,g]) => `⚽ ${name} (${g.count===1?'1 gol':g.count+' goluri'})`);
+        const shareText = `⚽ Arena FC — ${today}\n🏆 ${winnerLabel} câștigă ${oScore}:${gScore}\n\n`
+            + (scorerLines.length ? scorerLines.join('\n') : 'Fără goluri înregistrate.');
+        showResultShare('🏆 '+winnerLabel+' câștigă!', shareText, shareText);
         isSaving=false;
     } catch(e){isSaving=false;showToast('⚠️ '+e.message);console.error(e);}
 }
@@ -2487,6 +2605,17 @@ init();
     <div class="reset-actions">
       <button class="reset-cancel" onclick="document.getElementById('resetOverlay').classList.remove('show')">Anulează</button>
       <button class="reset-confirm" onclick="doReset()">✓ Resetează</button>
+    </div>
+  </div>
+</div>
+<!-- Result Share Modal -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-box">
+    <div class="result-title" id="resultTitle">🏆 Meci Finalizat</div>
+    <div class="result-preview" id="resultPreview"></div>
+    <div class="result-actions">
+      <button class="result-close" onclick="document.getElementById('resultOverlay').classList.remove('show')">Închide</button>
+      <button class="result-copy" onclick="copyResultShareText()">📋 Copiază pt. WhatsApp</button>
     </div>
   </div>
 </div>
