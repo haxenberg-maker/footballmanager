@@ -84,8 +84,12 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .undo-bar{background:#fffaf0;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;gap:8px;min-height:42px;}
 .undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#3a2f1f;}
-.undo-btn{background:rgba(61,90,254,.1);border:1px solid #d3bd8c;color:#1554b3;padding:8px 14px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;display:none;white-space:nowrap;flex-shrink:0;touch-action:manipulation;}
-.undo-btn.show{display:block;}
+
+.universal-undo-btn{position:fixed;right:14px;bottom:18px;z-index:500;display:none;flex-direction:column;align-items:flex-end;gap:2px;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;max-width:min(78vw,320px);}
+.universal-undo-btn.show{display:flex;}
+.universal-undo-btn .uu-main{font-size:.82rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
+.universal-undo-btn .uu-sub{font-size:.62rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.universal-undo-btn:active{transform:scale(.96);}
 
 .teams-wrap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
 .team-col{padding:4px 3px 6px;}
@@ -354,11 +358,6 @@ main, body{padding-bottom:80px;}
   <div class="score-sub" id="scoreSub"></div>
 </div>
 
-<div class="undo-bar">
-  <div class="undo-lbl" id="undoLbl">Niciun gol înregistrat</div>
-  <button class="undo-btn" id="undoBtn" onclick="undoLast()">↩ Anulează</button>
-</div>
-
 <div class="three-mode-bar" id="threeBar">
   <!-- Waiting team row -->
   <div class="waiting-team">
@@ -425,6 +424,11 @@ main, body{padding-bottom:80px;}
 </div>
 <div class="toast" id="toast"></div>
 
+<button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
+  <span class="uu-main">↩ Anulează ultima acțiune</span>
+  <span class="uu-sub" id="universalUndoSub"></span>
+</button>
+
 <script>
 const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
@@ -487,6 +491,7 @@ function tryAutoAuth() {
 let players    = [];
 let goals      = [];
 let rounds     = [];   // live_rounds rows
+let lastAction = null; // { type:'goal'|'rotation', label:string, undo:asyncFn } — pentru butonul universal ↩
 let liveState  = null; // live_state row
 let isSaving   = false;
 
@@ -1024,10 +1029,11 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null, penalty
         // Push with temp id so UI updates even if DB tot a eșuat după reîncercări
         rounds.push({ ...roundData, id: 'tmp_' + Date.now() });
         renderTureHistory();
-        return;
+        return rounds[rounds.length-1].id;
     }
     if (data && !rounds.some(r => r.id === data.id)) rounds.push(data);
     renderTureHistory();
+    return data ? data.id : (rounds.length ? rounds[rounds.length-1].id : null);
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
@@ -1040,8 +1046,17 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
     if (!bench.length || !losers.length) { isSaving = false; return; }
 
     try {
+        // 0. Snapshot ÎNAINTE de orice mutație — folosit dacă utilizatorul anulează rotația
+        const preSnapshot = {
+            players: players.map(p => ({ id: p.id, status: p.status })),
+            goals: goals.map(g => ({ ...g })),
+            colorMap: { ...getColorMap() },
+            roundStartSec: liveState.round_start_sec,
+        };
+
         // 1. Save round FIRST (before any swap)
-        await saveRoundToDB(loserColor, reason, penaltyWinnerId, penaltyShots);
+        const savedRoundId = await saveRoundToDB(loserColor, reason, penaltyWinnerId, penaltyShots);
+        preSnapshot.roundId = savedRoundId;
 
         // *** Clear live_goals so score resets to 0-0 for new round ***
         goals = [];
@@ -1085,6 +1100,9 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
         showRotationToast(`${exitingName} IESE · ${enteringName} INTRĂ`);
         scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
 
+        lastAction = { type:'rotation', label:`Ultima rotație: ${exitingName} → bancă`, undo: () => undoRotation(preSnapshot) };
+        updateUniversalUndoBtn();
+
     } catch(e) {
         console.error('doRotation error:', e);
         showToast('⚠️ Eroare la schimb: ' + e.message);
@@ -1096,6 +1114,53 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
 async function manualSwap(loserColor) {
     cancelRoundTimeout();
     await doRotation(loserColor, 'manual');
+}
+
+// ── Anulează ultima rotație — reface statusurile jucătorilor, scorul turei anterioare
+//    și identitatea echipelor (color_map), și șterge tura salvată în DB ──
+async function undoRotation(snap) {
+    if (!snap) { showToast('⚠️ Nimic de anulat.'); return; }
+    cancelRoundTimeout();
+    try {
+        // 1. Șterge tura salvată în DB
+        if (snap.roundId && !String(snap.roundId).startsWith('tmp_')) {
+            await sb.from('live_rounds').delete().eq('id', snap.roundId);
+        }
+        rounds = rounds.filter(r => r.id !== snap.roundId);
+
+        // 2. Restaurează statusurile jucătorilor (local + DB)
+        players = players.map(p => {
+            const orig = snap.players.find(x => x.id === p.id);
+            return orig ? { ...p, status: orig.status } : p;
+        });
+        await Promise.all(snap.players.map(({ id, status }) =>
+            sb.from('players').update({ status }).eq('id', id)
+        ));
+
+        // 3. Restaurează scorul turei anterioare (live_goals)
+        await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (snap.goals.length) {
+            const rows = snap.goals.map(g => ({
+                id: String(g.id).startsWith('tmp_') ? undefined : g.id,
+                player_name: g.player_name, team: g.team, minute: g.minute, created_at: g.created_at,
+            }));
+            await sb.from('live_goals').insert(rows);
+        }
+        const { data: freshGoals } = await sb.from('live_goals').select('*').order('created_at', { ascending: true });
+        goals = freshGoals || [];
+
+        // 4. Restaurează identitatea echipelor + cronometrul turei
+        await patchState({ color_map: snap.colorMap, round_start_sec: snap.roundStartSec });
+
+        render();
+        renderTureHistory();
+        scheduleRoundTimeout(liveState);
+        showToast('↩ Rotația a fost anulată');
+    } catch(e) {
+        console.error('undoRotation error:', e);
+        showToast('⚠️ Eroare la anulare — se resincronizează: ' + e.message);
+        await loadAll();
+    }
 }
 
 // ── Load all data ─────────────────────────────────────────────────
@@ -1113,6 +1178,7 @@ async function loadAll() {
     rounds = rd || [];
     render();
     applyTimerUI(liveState);
+    updateUniversalUndoBtn();
 }
 
 // ── Render ────────────────────────────────────────────────────────
@@ -1173,16 +1239,7 @@ function render() {
         } else subEl.innerHTML = '';
     }
 
-    // Undo bar
-    const lastG = realGoals[realGoals.length-1] || null;
-    if (lastG) {
-        const min = lastG.minute != null ? lastG.minute+"' · " : '';
-        document.getElementById('undoLbl').innerHTML = 'Ultimul gol: <span>'+min+lastG.player_name+'</span>';
-        document.getElementById('undoBtn').classList.add('show');
-    } else {
-        document.getElementById('undoLbl').textContent = 'Niciun gol înregistrat';
-        document.getElementById('undoBtn').classList.remove('show');
-    }
+    // (bara veche de undo a fost înlocuită de butonul universal fix, vezi updateUniversalUndoBtn())
 
     // Finalize button
     document.getElementById('btnFinalize').disabled = realGoals.length === 0 && rounds.length === 0;
@@ -1559,6 +1616,8 @@ async function addGoal(name, team) {
         if (error) throw error;
         goals = goals.map(g => g.id === tmpId ? data : g);
         render();
+        lastAction = { type:'goal', label:`Ultimul gol: ${name}`, undo: undoLast };
+        updateUniversalUndoBtn();
         if (liveState?.three_team_mode) await checkGoalRotation();
     } catch(e) {
         goals = goals.filter(g => g.id !== tmpId);
@@ -1573,6 +1632,28 @@ async function removeGoal(name, team) {
     goals.splice(i, 1); render();
     try { await sb.from('live_goals').delete().eq('id', g.id); }
     catch(e) { goals.splice(i,0,g); render(); showToast('⚠️ '+e.message); }
+}
+
+// ── Buton universal ↩ — anulează ultima acțiune (gol SAU rotație), oriunde ar fi ──
+function updateUniversalUndoBtn(){
+    const btn = document.getElementById('universalUndoBtn');
+    const sub = document.getElementById('universalUndoSub');
+    if (!btn) return;
+    if (lastAction) {
+        btn.classList.add('show');
+        if (sub) sub.textContent = lastAction.label || '';
+    } else {
+        btn.classList.remove('show');
+        if (sub) sub.textContent = '';
+    }
+}
+async function universalUndo(){
+    if (!lastAction) return;
+    const action = lastAction;
+    lastAction = null;
+    updateUniversalUndoBtn();
+    try { await action.undo(); }
+    catch(e){ console.error('universalUndo error:', e); showToast('⚠️ Eroare la anulare: '+e.message); }
 }
 
 async function undoLast() {
@@ -1859,6 +1940,7 @@ function getDurationWeight(durationSec) {
 async function finalizeMatch3Team(pairs) {
     if (isSaving) return;
     isSaving = true;
+    lastAction = null; updateUniversalUndoBtn();
     document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
     const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
@@ -1980,6 +2062,7 @@ async function finalizeMatch3Team(pairs) {
 async function finalizeMatch2Team(finalRounds) {
     if (isSaving) return;
     isSaving = true;
+    lastAction = null; updateUniversalUndoBtn();
     document.querySelectorAll('.dia-confirm').forEach(b=>{b.disabled=true;b.textContent='⏳ Se salvează...';});
     closeDialog();
     const today = new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
