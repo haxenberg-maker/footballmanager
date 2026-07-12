@@ -424,7 +424,7 @@
         .milestone-row{display:flex;gap:3px;flex-wrap:wrap;}
         .milestone-badge{font-size:.6rem;padding:2px 6px;border-radius:6px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:#8a6800;white-space:nowrap;font-weight:700;}
         .milestone-badge.big{font-size:.68rem;padding:3px 8px;background:rgba(255,204,0,.18);border-color:rgba(255,204,0,.5);}
-        .week-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+        .week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
         @media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
         .week-card{background:#fffaf0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
         .week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#7d6849;margin-bottom:8px;}
@@ -2688,10 +2688,24 @@ function getStreak(p){
 }
 
 // ── 🔥 Pe val / 🥶 În cădere — cea mai lungă serie ACTIVĂ (nu all-time) ──
+function playerLastMatchDate(p){
+    for(const h of db.history){ // db.history e deja sortat descrescător după dată
+        if((h.orangePlayers||[]).includes(p.name) || (h.greenPlayers||[]).includes(p.name) || (h.blackPlayers||[]).includes(p.name)){
+            return parseDateToObj(h.date);
+        }
+    }
+    return null;
+}
+const STREAK_RECENCY_DAYS = 21; // doar jucători activi în ultimele 3 săptămâni intră în calcul
 function renderStreakBanner(){
     const el = document.getElementById('streakBanner');
     if(!el) return;
-    const withGames = db.players.filter(p=>p.games>0);
+    const cutoff = new Date(Date.now() - STREAK_RECENCY_DAYS*24*60*60*1000);
+    const withGames = db.players.filter(p=>{
+        if(!p.games) return false;
+        const lastDate = playerLastMatchDate(p);
+        return lastDate && lastDate >= cutoff;
+    });
     let hot=null, cold=null;
     withGames.forEach(p=>{
         const s = getStreak(p);
@@ -2843,6 +2857,16 @@ function computeDerbyOfWeek(){
     return best;
 }
 
+function computeLastMatchTopScorer(){
+    if(!db.history.length) return null;
+    const h = db.history[0]; // cel mai recent meci (db.history e sortat descrescător)
+    if(!h.playerGoals || !Object.keys(h.playerGoals).length) return null;
+    const entries = Object.entries(h.playerGoals).sort((a,b)=>b[1]-a[1]);
+    const topGoals = entries[0][1];
+    const topScorers = entries.filter(([,g])=>g===topGoals).map(([name])=>name);
+    return { h, topScorers, goals: topGoals };
+}
+
 function renderWeeklyCards(){
     const wrap = document.getElementById('weeklyCards');
     if(!wrap) return;
@@ -2877,7 +2901,27 @@ function renderWeeklyCards(){
             <div class="derby-date">${h.date||''}</div>
         </div>`;
     }
-    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}</div>`;
+
+    let scorerHtml = '';
+    const topScorer = computeLastMatchTopScorer();
+    if(topScorer){
+        const { h, topScorers, goals } = topScorer;
+        const isTie = topScorers.length > 1;
+        scorerHtml = `<div class="week-card">
+            <div class="week-card-title">⚽ Marcatorul Ultimului Meci</div>
+            ${topScorers.map(name=>{
+                const p = db.players.find(x=>x.name===name);
+                return `<div class="week-player-row" onclick="${p?`openModal(${p.id})`:''}">
+                    <span class="week-player-rank">${isTie?'🤝':'👑'}</span>
+                    <span class="week-player-name">${name}</span>
+                    <span class="week-player-sub">${goals} gol${goals!==1?'uri':''}</span>
+                </div>`;
+            }).join('')}
+            <div class="derby-date">${h.date||''}</div>
+        </div>`;
+    }
+
+    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}${scorerHtml}</div>`;
 }
 
 // Form Index: last 5 results as dots, plus form label
