@@ -1136,6 +1136,7 @@
 <div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
 <div class="modal">
     <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    <button class="modal-close-btn" id="modalShareLinkBtn" onclick="copyPlayerLink()" title="Copiază link clasament live" style="right:auto;left:14px;">🔗</button>
 
     <!-- FIFA Header -->
     <div class="modal-fifa-header" id="modalFifaHeader">
@@ -4423,6 +4424,20 @@ function urlBase64ToUint8Array(base64String){
     const rawData=window.atob(base64);const outputArray=new Uint8Array(rawData.length);
     for(let i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);
     return outputArray;
+}
+
+function copyPlayerLink(){
+    const p = db.players.find(x=>x.id==currentPlayerId);
+    if(!p){ showToast('Nu am găsit jucătorul','error'); return; }
+    const base = window.location.href.replace(/[^/]*$/, ''); // directorul curent, indiferent de numele fișierului
+    const url = `${base}clasament.html?player=${encodeURIComponent(p.name)}`;
+    const done = ()=> showToast(`🔗 Link copiat pentru ${p.name}`, 'g');
+    const fail = ()=>{
+        window.prompt('Copiază linkul manual:', url);
+    };
+    if(navigator.clipboard?.writeText){
+        navigator.clipboard.writeText(url).then(done).catch(fail);
+    } else { fail(); }
 }
 
 function openModal(id){
