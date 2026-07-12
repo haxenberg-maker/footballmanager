@@ -406,6 +406,11 @@
         .lb-tab{padding:5px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;transition:all .12s;white-space:nowrap;}
         .lb-tab:hover{color:#3a2f1f;}
         .lb-tab.active{background:rgba(167,139,250,.2);border-color:#5a2fd9;color:#6b46c1;}
+        .lb-period-btn{padding:4px 9px;border-radius:6px;font-size:.64rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid #dcc89a;color:#8a7452;transition:all .12s;}
+        .lb-period-btn:hover{color:#3a2f1f;}
+        .lb-period-btn.active{background:#e9d9b3;border-color:#b89860;color:#3a2f1f;}
+        .lb-more-btn{width:100%;text-align:center;padding:7px;margin-top:4px;font-size:.68rem;font-weight:700;color:#7d6849;background:#fdf3df;border:1px dashed #dcc89a;border-radius:8px;cursor:pointer;}
+        .lb-more-btn:hover{background:#f3e6cf;}
         .lb-card{background:var(--card);border-radius:10px;padding:11px 13px;border:1px solid var(--border);}
         .lb-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#7d6849;}
         .lb-name{font-weight:700;color:#3a2f1f;font-size:0.93rem;margin:2px 0;}
@@ -1072,7 +1077,7 @@
     <div class="stats-section" id="sec-stats">
         <h3 style="margin:0 0 10px;">🏅 Clasament</h3>
         <!-- Leaderboard tabs -->
-        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;" id="lbTabs">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
             <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')">⭐ General</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
@@ -1080,6 +1085,12 @@
             <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
             <button class="lb-tab"        id="lbt-wr"      onclick="setLbTab('wr')"     >📈 Win%</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
+            <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
+        </div>
+        <!-- Filtru perioadă (doar pentru taburile bazate pe meciuri, nu pe rating) -->
+        <div id="lbPeriodRow" style="display:flex;gap:4px;margin-bottom:10px;">
+            <button class="lb-period-btn active" id="lbp-all"   onclick="setLbPeriod('all')"  >Tot timpul</button>
+            <button class="lb-period-btn"        id="lbp-month" onclick="setLbPeriod('month')">Ultimele 30 zile</button>
         </div>
         <div id="lbContent"></div>
     </div>
@@ -2879,20 +2890,69 @@ function updateTeamStats(){
     }
 }
 let currentLbTab = 'smart';
+let currentLbPeriod = 'all';   // 'all' | 'month'
+let lbExpanded = false;        // arată tot clasamentul, nu doar top 10
+const LB_MIN_GAMES = 3;        // prag minim pt. taburi bazate pe rată (Win%, G/Meci)
+const LB_PERIODLESS_TABS = ['smart','general']; // taburi bazate pe rating, nu pe perioadă
+
 function setLeaderboardMode(m){ setLbTab(m); }
 function setLbTab(tab){
     currentLbTab=tab;
+    lbExpanded=false;
     document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));
     const btn=document.getElementById('lbt-'+tab);
     if(btn) btn.classList.add('active');
+    const periodRow = document.getElementById('lbPeriodRow');
+    if(periodRow) periodRow.style.display = LB_PERIODLESS_TABS.includes(tab) ? 'none' : 'flex';
     renderLeaderboard();
+}
+function setLbPeriod(period){
+    currentLbPeriod=period;
+    lbExpanded=false;
+    document.querySelectorAll('.lb-period-btn').forEach(b=>b.classList.remove('active'));
+    const btn=document.getElementById('lbp-'+period);
+    if(btn) btn.classList.add('active');
+    renderLeaderboard();
+}
+function toggleLbExpand(){ lbExpanded=!lbExpanded; renderLeaderboard(); }
+
+// Calculează stats per jucător (meciuri/victorii/goluri/penalty-uri câștigate)
+// strict din db.history, filtrat pe perioada aleasă — independent de p.wins/p.games (all-time).
+function computeLbPeriodStats(period){
+    const cutoff = period==='month' ? new Date(Date.now()-30*86400000) : null;
+    const stats = {};
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyWins:0});
+    db.history.forEach(h=>{
+        if (cutoff){ const d=parseDateToObj(h.date); if(!d || d<cutoff) return; }
+        const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
+        (h.orangePlayers||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winO) s.wins++; });
+        (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
+        (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
+        if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
+            if (r.penalty_winner_name) ensure(r.penalty_winner_name).penaltyWins++;
+        });
+    });
+    return stats;
 }
 function renderLeaderboard(){
     const medals=['🥇','🥈','🥉'];
-    const withGames=db.players.filter(p=>p.games>0);
-    const all=db.players;
     const content=document.getElementById('lbContent');
     if(!content) return;
+
+    // Taburile bazate pe rating (Smart/General) rămân mereu all-time — perioada nu se aplică.
+    const periodApplies = !LB_PERIODLESS_TABS.includes(currentLbTab);
+    const usesPeriodStats = periodApplies && (currentLbPeriod==='month' || currentLbTab==='pen');
+    const periodStats = usesPeriodStats ? computeLbPeriodStats(currentLbTab==='pen' ? currentLbPeriod : currentLbPeriod) : null;
+
+    const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
+    const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
+    const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
+
+    const all = db.players;
+    const withGames = usesPeriodStats
+        ? db.players.filter(p=>(periodStats[p.name]?.games||0)>0)
+        : db.players.filter(p=>p.games>0);
 
     let sorted=[], getValue, subLabel, bigColor='var(--star)', bigLabel;
     switch(currentLbTab){
@@ -2909,43 +2969,60 @@ function renderLeaderboard(){
             bigColor='var(--star)'; bigLabel='⭐ General';
             break;
         case 'goals':
-            sorted=[...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>(b.totalGoals||0)-(a.totalGoals||0));
-            getValue=p=>'⚽'+( p.totalGoals||0);
-            subLabel=p=>{const gpg=p.games>0?((p.totalGoals||0)/p.games).toFixed(1):'—';return gpg+'/meci';};
+            sorted=[...withGames].filter(p=>goalsOf(p)>0).sort((a,b)=>goalsOf(b)-goalsOf(a));
+            getValue=p=>'⚽'+goalsOf(p);
+            subLabel=p=>{const g=gamesOf(p);const gpg=g>0?(goalsOf(p)/g).toFixed(1):'—';return gpg+'/meci';};
             bigColor='#1b7a43'; bigLabel='⚽ Goluri';
             break;
         case 'wins':
-            sorted=[...withGames].sort((a,b)=>b.wins-a.wins);
-            getValue=p=>'🏆'+p.wins;
-            subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR';};
-            bigColor='#6b46c1'; bigLabel='🏆 Victorii';
+            sorted=[...withGames].sort((a,b)=>winsOf(b)-winsOf(a));
+            getValue=p=>'🏆'+winsOf(p);
+            subLabel=p=>{const g=gamesOf(p);const wr=g>0?((winsOf(p)/g)*100).toFixed(0)+'%':'—';return wr+' WR';};
+            bigColor='#c9820a'; bigLabel='🏆 Victorii';
             break;
         case 'games':
-            sorted=[...db.players].sort((a,b)=>b.games-a.games);
-            getValue=p=>'📅'+p.games;
-            subLabel=p=>p.wins+'V / '+(p.games-p.wins)+'P';
+            sorted=[...withGames].sort((a,b)=>gamesOf(b)-gamesOf(a));
+            getValue=p=>'📅'+gamesOf(p);
+            subLabel=p=>winsOf(p)+'V / '+(gamesOf(p)-winsOf(p))+'P';
             bigColor='#1554b3'; bigLabel='📅 Meciuri';
             break;
         case 'wr':
-            sorted=[...withGames].filter(p=>p.games>=3).sort((a,b)=>(b.wins/b.games)-(a.wins/a.games));
-            getValue=p=>((p.wins/p.games)*100).toFixed(0)+'%';
-            subLabel=p=>p.wins+'V / '+p.games+'M';
+            // Prag minim de meciuri, ca winrate-ul să nu fie umflat de un singur meci jucat
+            sorted=[...withGames].filter(p=>gamesOf(p)>=LB_MIN_GAMES).sort((a,b)=>(winsOf(b)/gamesOf(b))-(winsOf(a)/gamesOf(a)));
+            getValue=p=>((winsOf(p)/gamesOf(p))*100).toFixed(0)+'%';
+            subLabel=p=>winsOf(p)+'V / '+gamesOf(p)+'M';
             bigColor='#2e7d32'; bigLabel='📈 Win Rate';
             break;
         case 'gpg':
-            sorted=[...withGames].filter(p=>(p.totalGoals||0)>0).sort((a,b)=>((b.totalGoals||0)/b.games)-((a.totalGoals||0)/a.games));
-            getValue=p=>((p.totalGoals||0)/p.games).toFixed(2);
-            subLabel=p=>( p.totalGoals||0)+' goluri total';
+            // Același prag minim — altfel 1 meci + 1 gol iese pe primul loc la rată
+            sorted=[...withGames].filter(p=>gamesOf(p)>=LB_MIN_GAMES && goalsOf(p)>0)
+                .sort((a,b)=>(goalsOf(b)/gamesOf(b))-(goalsOf(a)/gamesOf(a)));
+            getValue=p=>(goalsOf(p)/gamesOf(p)).toFixed(2);
+            subLabel=p=>goalsOf(p)+' goluri'+(usesPeriodStats && currentLbPeriod==='month' ? ' (30 zile)' : ' total');
             bigColor='#8a6800'; bigLabel='⚡ G/Meci';
+            break;
+        case 'pen':
+            sorted=db.players.filter(p=>(periodStats[p.name]?.penaltyWins||0)>0)
+                .sort((a,b)=>(periodStats[b.name]?.penaltyWins||0)-(periodStats[a.name]?.penaltyWins||0));
+            getValue=p=>'🥅'+(periodStats[p.name]?.penaltyWins||0);
+            subLabel=p=>(periodStats[p.name]?.penaltyWins||0)+' câștigate la penalty';
+            bigColor='#b71c1c'; bigLabel='🥅 Penalty';
             break;
         default:
             sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
             getValue=p=>getSmartRating(p).toFixed(1); subLabel=p=>p.games+'M'; bigColor='#6b46c1';
     }
-    if(!sorted.length){content.innerHTML='<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">Fără date disponibile.</p>';return;}
+    if(!sorted.length){
+        const emptyMsg = usesPeriodStats && currentLbPeriod==='month'
+            ? 'Niciun meci în ultimele 30 de zile.'
+            : (currentLbTab==='pen' ? 'Nicio tură decisă la penalty încă.' : 'Fără date disponibile.');
+        content.innerHTML=`<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
+        return;
+    }
     const maxVal=parseFloat(getValue(sorted[0]).replace(/[^0-9.]/g,''))||1;
+    const visibleCount = lbExpanded ? sorted.length : Math.min(10, sorted.length);
     content.innerHTML='<div style="display:flex;flex-direction:column;gap:4px;">'+
-        sorted.slice(0,10).map((p,i)=>{
+        sorted.slice(0,visibleCount).map((p,i)=>{
             const val=getValue(p);
             const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
             const pct=Math.round((numVal/maxVal)*100);
@@ -2966,9 +3043,10 @@ function renderLeaderboard(){
                 </div>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i===0?'1.1rem':'.9rem'};color:${i===0?bigColor:i<3?'#aaa':'#444'};white-space:nowrap;">${val}</span>
             </div>`;
-        }).join('')+'</div>';
+        }).join('')+
+        (sorted.length>10 ? `<button class="lb-more-btn" onclick="toggleLbExpand()">${lbExpanded?'▲ Arată doar top 10':'▼ Vezi tot clasamentul ('+sorted.length+')'}</button>` : '')
+        +'</div>';
 }
-function renderGoalsAndWinsLB(){}
 function renderHistory(){
     const admin = isAdmin();
     document.getElementById('th-actions').style.display = admin ? '' : 'none';
