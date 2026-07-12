@@ -51,7 +51,7 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
 .streak-banner-sub{font-size:.65rem;color:#6b5840;}
 .milestone-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
 .milestone-badge{font-size:.58rem;padding:2px 6px;border-radius:6px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:#8a6800;white-space:nowrap;font-weight:700;}
-.week-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
 @media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
 .week-card{background:#fffaf0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
 .week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#7d6849;margin-bottom:8px;}
@@ -87,7 +87,7 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
+            <button class="lb-tab active"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-wr"      onclick="setLbTab('wr')"     >📈 Win%</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
@@ -312,10 +312,24 @@ function getStreak(p){
     return {count,type:last};
 }
 
+function playerLastMatchDate(p){
+    for(const h of db.history){
+        if((h.orangePlayers||[]).includes(p.name) || (h.greenPlayers||[]).includes(p.name) || (h.blackPlayers||[]).includes(p.name)){
+            return parseDateToObj(h.date);
+        }
+    }
+    return null;
+}
+const STREAK_RECENCY_DAYS = 21;
 function renderStreakBanner(){
     const el = document.getElementById('streakBanner');
     if(!el) return;
-    const withGames = db.players.filter(p=>p.games>0);
+    const cutoff = new Date(Date.now() - STREAK_RECENCY_DAYS*24*60*60*1000);
+    const withGames = db.players.filter(p=>{
+        if(!p.games) return false;
+        const lastDate = playerLastMatchDate(p);
+        return lastDate && lastDate >= cutoff;
+    });
     let hot=null, cold=null;
     withGames.forEach(p=>{
         const s = getStreak(p);
@@ -419,6 +433,15 @@ function computeDerbyOfWeek(){
     });
     return best;
 }
+function computeLastMatchTopScorer(){
+    if(!db.history.length) return null;
+    const h = db.history[0];
+    if(!h.playerGoals || !Object.keys(h.playerGoals).length) return null;
+    const entries = Object.entries(h.playerGoals).sort((a,b)=>b[1]-a[1]);
+    const topGoals = entries[0][1];
+    const topScorers = entries.filter(([,g])=>g===topGoals).map(([name])=>name);
+    return { h, topScorers, goals: topGoals };
+}
 function renderWeeklyCards(){
     const wrap = document.getElementById('weeklyCards');
     if(!wrap) return;
@@ -449,7 +472,24 @@ function renderWeeklyCards(){
             <div class="derby-date">${h.date||''}</div>
         </div>`;
     }
-    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}</div>`;
+
+    let scorerHtml = '';
+    const topScorer = computeLastMatchTopScorer();
+    if(topScorer){
+        const { h, topScorers, goals } = topScorer;
+        const isTie = topScorers.length > 1;
+        scorerHtml = `<div class="week-card">
+            <div class="week-card-title">⚽ Marcatorul Ultimului Meci</div>
+            ${topScorers.map(name=>`<div class="week-player-row">
+                <span class="week-player-rank">${isTie?'🤝':'👑'}</span>
+                <span class="week-player-name">${name}</span>
+                <span class="week-player-sub">${goals} gol${goals!==1?'uri':''}</span>
+            </div>`).join('')}
+            <div class="derby-date">${h.date||''}</div>
+        </div>`;
+    }
+
+    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}${scorerHtml}</div>`;
 }
 
 function getFormIndex(p){
