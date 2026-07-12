@@ -984,7 +984,7 @@ async function checkGoalRotation() {
 // ── Save round to DB (call BEFORE swapping) ───────────────────────
 // penaltyWinnerId = ID-ul echipei (team_a_id/team_b_id) care a câștigat la
 // lovituri de departajare — se completează DOAR când reason === 'penalty'.
-async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
+async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null, penaltyShots = null) {
     const colorMap = getColorMap();
     const oTid = colorMap['orange'];
     const gTid = colorMap['green'];
@@ -1009,6 +1009,7 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
         end_reason:     reason,
         penalty_winner_id: reason === 'penalty' ? penaltyWinnerId : null,
         loser_team_id:  loserTeamId,
+        penalty_shots:  reason === 'penalty' ? (penaltyShots || []) : null,
     };
 
     let data = null;
@@ -1030,7 +1031,7 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null) {
 }
 
 // ── Rotation ──────────────────────────────────────────────────────
-async function doRotation(loserColor, reason, penaltyWinnerId = null) {
+async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltyShots = null) {
     if (isSaving) return;
     isSaving = true;
 
@@ -1040,7 +1041,7 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null) {
 
     try {
         // 1. Save round FIRST (before any swap)
-        await saveRoundToDB(loserColor, reason, penaltyWinnerId);
+        await saveRoundToDB(loserColor, reason, penaltyWinnerId, penaltyShots);
 
         // *** Clear live_goals so score resets to 0-0 for new round ***
         goals = [];
@@ -1448,6 +1449,24 @@ function showRoundDetail(roundId) {
     document.getElementById('rdOPlayers').innerHTML = makePlayerList(oPlayers, oGoals);
     document.getElementById('rdGPlayers').innerHTML = makePlayerList(gPlayers, gGoals);
     document.getElementById('rdScorers').innerHTML = scorersHtml;
+
+    // Execuții penalty, dacă tura s-a decis la lovituri de departajare
+    const penSection = document.getElementById('rdPenaltySection');
+    const penShotsEl  = document.getElementById('rdPenaltyShots');
+    if (Array.isArray(r.penalty_shots) && r.penalty_shots.length) {
+        penShotsEl.innerHTML = r.penalty_shots.map((s,i) => {
+            const col = s.team === 'orange' ? hA : hB;
+            const icon = s.state === 'goal' ? '✅' : '❌';
+            return `<div class="rd-goal-row">
+                <div class="rd-goal-dot" style="background:${col};"></div>
+                <span class="rd-goal-name">${i+1}. ${s.player_name}</span>
+                <span class="rd-goal-min">${icon}</span>
+            </div>`;
+        }).join('');
+        penSection.style.display = 'block';
+    } else {
+        penSection.style.display = 'none';
+    }
     // Fix column headers
     document.getElementById('rdOHd').style.color = hA;
     document.getElementById('rdGHd').style.color = hB;
@@ -1892,6 +1911,7 @@ async function finalizeMatch3Team(pairs) {
                     duration_sec: r.duration_sec || 0,
                     loser_name: loserName,
                     penalty_winner_name: r.end_reason === 'penalty' ? penWinnerName : null,
+                    penalty_shots: r.end_reason === 'penalty' ? (r.penalty_shots || null) : null,
                 };
             });
 
@@ -2308,66 +2328,58 @@ function renderPenalty() {
     const oPlayers = players.filter(p => p.status === 'orange').map(p => p.name);
     const gPlayers = players.filter(p => p.status === 'green').map(p => p.name);
     const shots = penState.shots;
-    const oGoals = shots.filter(s=>s.team==='orange'&&s.state!=='miss').length;
-    const gGoals = shots.filter(s=>s.team==='green' &&s.state!=='miss').length;
-    const oMiss  = shots.filter(s=>s.team==='orange'&&s.state==='miss').length;
-    const gMiss  = shots.filter(s=>s.team==='green' &&s.state==='miss').length;
+    const oGoals = shots.filter(s=>s.team==='orange'&&s.state==='goal').length;
+    const gGoals = shots.filter(s=>s.team==='green' &&s.state==='goal').length;
 
-    const makeDots = (team) => shots.filter(s=>s.team===team).map(s=>{
-        if (s.state==='miss') return '<span style="font-size:1.4rem;">❌</span>';
-        return '<span style="font-size:1.4rem;">✅</span>';
-    }).join('');
+    const shotIconsFor = (team, name) => shots
+        .filter(s => s.team===team && s.playerName===name)
+        .map(s => s.state==='goal' ? '✅' : '❌').join(' ') || '<span style="opacity:.3;">—</span>';
 
-    const makePlayerTags = (pls, hex) => pls.length
-        ? pls.map(n => `<span style="font-size:.62rem;color:${hex};background:${hex}15;border:1px solid ${hex}33;border-radius:5px;padding:2px 6px;display:inline-block;margin:1px;">${n}</span>`).join('')
-        : '<span style="font-size:.6rem;color:#6b5840;">—</span>';
+    const esc = s => s.replace(/'/g,"\\'");
+    const makePlayerRow = (name, team, hex) => `
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 7px;background:#fffaf0;border:1px solid #e3d3ac;border-radius:8px;margin-bottom:5px;">
+            <span style="flex:1;font-size:.78rem;font-weight:700;color:#3a2f1f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>
+            <span style="font-size:.72rem;min-width:30px;text-align:center;">${shotIconsFor(team,name)}</span>
+            <button onclick="penShot('${team}','${esc(name)}','goal')" style="width:30px;height:30px;flex-shrink:0;border-radius:7px;background:rgba(40,167,69,.15);border:1px solid #28a745;color:#1b7a43;font-size:.95rem;cursor:pointer;touch-action:manipulation;">✅</button>
+            <button onclick="penShot('${team}','${esc(name)}','miss')" style="width:30px;height:30px;flex-shrink:0;border-radius:7px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-size:.95rem;cursor:pointer;touch-action:manipulation;">❌</button>
+        </div>`;
 
     const content = document.getElementById('penaltyContent');
     if (!content) return;
     content.innerHTML = `
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px 6px;">
-            <button onclick="penTap('orange')" style="padding:18px 8px 10px;border-radius:12px;border:2px solid ${oHex};background:${oHex}15;color:${oHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <span>${oName}</span>
-                <span style="font-size:3rem;line-height:1;">${oGoals}</span>
-                <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('orange')}</div>
-            </button>
-            <button onclick="penTap('green')" style="padding:18px 8px 10px;border-radius:12px;border:2px solid ${gHex};background:${gHex}15;color:${gHex};font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:6px;">
-                <span>${gName}</span>
-                <span style="font-size:3rem;line-height:1;">${gGoals}</span>
-                <div style="min-height:22px;display:flex;gap:3px;flex-wrap:wrap;justify-content:center;">${makeDots('green')}</div>
-            </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px 14px 4px;text-align:center;">
+            <div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;color:${oHex};">${oName}</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:2.6rem;line-height:1;color:${oHex};">${oGoals}</div>
+            </div>
+            <div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;color:${gHex};">${gName}</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:2.6rem;line-height:1;color:${gHex};">${gGoals}</div>
+            </div>
         </div>
-        <!-- Membrii echipelor — clarifică sigur cine e cine -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 8px;">
-            <div style="text-align:center;line-height:1.6;">${makePlayerTags(oPlayers, oHex)}</div>
-            <div style="text-align:center;line-height:1.6;">${makePlayerTags(gPlayers, gHex)}</div>
-        </div>
-        <div style="padding:2px 14px 6px;text-align:center;font-size:.62rem;color:#6b5840;">
-            1 tap = ✅ GOL &nbsp;·&nbsp; 2 tap-uri rapide = ❌ RATAT
+        <div style="padding:0 14px 6px;text-align:center;font-size:.6rem;color:#6b5840;">Apasă ✅ sau ❌ lângă jucătorul care execută lovitura</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px 8px;overflow-y:auto;flex:1;">
+            <div>${oPlayers.length ? oPlayers.map(n=>makePlayerRow(n,'orange',oHex)).join('') : '<div style="font-size:.65rem;color:#6b5840;text-align:center;padding:8px;">Fără jucători</div>'}</div>
+            <div>${gPlayers.length ? gPlayers.map(n=>makePlayerRow(n,'green',gHex)).join('') : '<div style="font-size:.65rem;color:#6b5840;text-align:center;padding:8px;">Fără jucători</div>'}</div>
         </div>
         <div style="padding:4px 14px 14px;display:flex;flex-direction:column;gap:8px;">
+            <button onclick="undoPenShot()" ${shots.length?'':'disabled'} style="width:100%;padding:9px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.75rem;cursor:pointer;opacity:${shots.length?'1':'.5'};">↩ Anulează ultima execuție</button>
             <button onclick="confirmPenalty()" style="width:100%;padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;">✓ Confirmă rezultat</button>
             <button onclick="closePenalty()" style="width:100%;padding:10px;border-radius:10px;background:#fffaf0;border:1px solid #e3d3ac;color:#7d6849;font-size:.8rem;cursor:pointer;">Anulează</button>
         </div>`;
 }
 
-let _penTapTimer = null;
-function penTap(team) {
+function penShot(team, playerName, state) {
     if (!penState) return;
-    if (_penTapTimer) {
-        clearTimeout(_penTapTimer);
-        _penTapTimer = null;
-        // 2nd tap → ratat
-        penState.shots.push({ team, state: 'miss' });
-        renderPenalty();
-        return;
-    }
-    // 1st tap — wait 600ms for 2nd tap
-    _penTapTimer = setTimeout(() => {
-        _penTapTimer = null;
-        penState.shots.push({ team, state: 'goal' });
-        renderPenalty();
-    }, 600);
+    penState.shots.push({ team, playerName, state });
+    if (navigator.vibrate) navigator.vibrate(state==='goal' ? 30 : [20,40,20]);
+    playBeep(state==='goal' ? 880 : 300, state==='goal' ? 90 : 160);
+    renderPenalty();
+}
+function undoPenShot() {
+    if (!penState || !penState.shots.length) return;
+    penState.shots.pop();
+    renderPenalty();
 }
 
 async function confirmPenalty() {
@@ -2384,8 +2396,9 @@ async function confirmPenalty() {
     const winner = loser === 'orange' ? 'green' : 'orange';
     const winnerTeamId = getTeamIdByColor(winner); // ID-ul echipei câștigătoare la penalty-uri
     showToast(`🏆 ${getTeamName(winner)} câștigă penalty ${oG}-${gG}!`);
+    const shotsLog = penState.shots.map(s => ({ player_name: s.playerName, team: s.team, state: s.state }));
     closePenalty();
-    await doRotation(loser, 'penalty', winnerTeamId);
+    await doRotation(loser, 'penalty', winnerTeamId, shotsLog);
 }
 
 
@@ -2582,6 +2595,10 @@ init();
       <div>
         <div class="rd-section">Goluri marcate</div>
         <div id="rdScorers"></div>
+      </div>
+      <div id="rdPenaltySection" style="display:none;">
+        <div class="rd-section">🥅 Execuții penalty</div>
+        <div id="rdPenaltyShots"></div>
       </div>
       <div class="rd-meta-row">
         <div class="rd-meta-chip">
