@@ -5943,13 +5943,20 @@ function getMeSelectedPlayers(team) {
         }).filter(Boolean);
 }
 
+let _savingMatchEdit = false; // blochează salvări duble (dublu-click / dublă invocare) care duplicau golurile în DB
 async function saveMatchEdit() {
+    if (_savingMatchEdit) return; // deja se salvează — ignorăm orice apăsare suplimentară
     if (matchEditorIdx === null || matchEditorIdx === undefined) return; // doar editare — nu mai există creare manuală
     const date   = document.getElementById('meDate').value.trim();
     const winner = matchEditorWinner;
 
     if (!date)   { showToast('⚠️ Introduceți data meciului!'); return; }
     if (!winner) { showToast('⚠️ Selectați câștigătorul!');   return; }
+
+    _savingMatchEdit = true;
+    const saveBtn = document.querySelector('#matchEditorOverlay .me-actions button[onclick="saveMatchEdit()"]')
+        || [...document.querySelectorAll('#matchEditorOverlay button')].find(b=>b.textContent.includes('Salvează Meciul'));
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.6'; saveBtn.textContent = '⏳ Se salvează...'; }
 
     const orangePlayers = getMeSelectedPlayers('Orange');
     const greenPlayers  = getMeSelectedPlayers('Green');
@@ -5987,14 +5994,20 @@ async function saveMatchEdit() {
             }).eq('id', dbId);
             entry._dbId = dbId; h._dbId = dbId;
             // Update goals: delete old, insert new
-            await sb.from('match_goals').delete().eq('match_id', dbId);
+            const { error: delErr } = await sb.from('match_goals').delete().eq('match_id', dbId);
+            if (delErr) throw new Error('Ștergere goluri vechi eșuată: ' + delErr.message);
             const rows = [...new Set([...Object.keys(goals),...Object.keys(goalsConceded)])].map(name=>{
                 const team=orangePlayers.includes(name)?'orange':blackPlayers.includes(name)?'black':'green';
                 return {match_id:dbId,player_name:name,team,goals:goals[name]||0,goals_conceded:goalsConceded[name]||0};
             });
             if(rows.length) await sb.from('match_goals').insert(rows);
         }
-    } catch(e) { showToast('⚠️ ' + e.message); return; }
+    } catch(e) {
+        showToast('⚠️ ' + e.message);
+        _savingMatchEdit = false;
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; saveBtn.textContent = '💾 Salvează Meciul'; }
+        return;
+    }
 
     recalculateAllPlayerStats();
     const affectedNames = new Set([...orangePlayers,...greenPlayers,...blackPlayers]);
@@ -6004,6 +6017,8 @@ async function saveMatchEdit() {
         showToast('✅ Meci actualizat!');
     } catch(e) { showToast('⚠️ Salvat local, eroare DB: ' + e.message); }
 
+    _savingMatchEdit = false;
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = ''; saveBtn.textContent = '💾 Salvează Meciul'; }
     closeMatchEditor();
     render();
 }
