@@ -1383,13 +1383,13 @@
 
     <!-- Goals per player -->
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">⚽ Goluri Individuale</div>
-            <div style="display:flex;gap:12px;font-size:.6rem;color:#6b5840;">
-                <span>⚽ marcat</span><span>🧤 primit</span>
-            </div>
-        </div>
-        <div id="meGoalsList" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
+        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Goluri — cine, ce echipă, la ce minut</div>
+        <div id="meGoalsList" style="display:flex;flex-direction:column;gap:3px;max-height:220px;overflow-y:auto;"></div>
+    </div>
+
+    <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
+        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧤 Goluri Primite (per jucător)</div>
+        <div id="meConcededList" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
     </div>
 
     <div class="me-teams-grid" style="grid-template-columns:1fr 1fr 1fr;">
@@ -5808,7 +5808,7 @@ async function registerServiceWorker(){
 let matchEditorIdx = null; // null = nou, number = editare
 let matchEditorWinner = null;
 
-function openMatchEditor(idx) {
+async function openMatchEditor(idx) {
     if (idx === null || idx === undefined || !db.history[idx]) return; // doar editare — nu mai există creare manuală
     matchEditorIdx = idx;
     matchEditorWinner = null;
@@ -5825,6 +5825,8 @@ function openMatchEditor(idx) {
     document.getElementById('meScoreG').value = 0;
     document.getElementById('meScoreB').value = 0;
     document.getElementById('meGoalsList').innerHTML = '';
+    document.getElementById('meConcededList').innerHTML = '';
+    meGoalEvents = [];
 
     const h = db.history[idx];
     document.getElementById('meDate').value = h.date || '';
@@ -5835,8 +5837,24 @@ function openMatchEditor(idx) {
         const parts = h.score.split(':');
         if(parts.length===2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
     }
-    // Populate goals grid
-    buildMeGoalsList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], h.playerGoals||{});
+
+    // Încarcă golurile REALE (eveniment cu eveniment, cu minut) direct din DB, nu doar agregatul local
+    let existingConceded = {};
+    if (h._dbId) {
+        try {
+            const { data: goalRows } = await sb.from('match_goals').select('*').eq('match_id', h._dbId).order('minute', { ascending: true, nullsFirst: false });
+            (goalRows||[]).forEach(g=>{
+                if ((g.goals||0) > 0) {
+                    meGoalEvents.push({ player: g.player_name, minute: g.minute!=null ? g.minute : '', goals: g.goals });
+                }
+                if ((g.goals_conceded||0) > 0) {
+                    existingConceded[g.player_name] = (existingConceded[g.player_name]||0) + g.goals_conceded;
+                }
+            });
+        } catch(e) { console.warn('load goals for editor:', e.message); }
+    }
+    renderMeGoalEvents();
+    buildMeConcededList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], existingConceded);
 
     // Arată "Negru" doar dacă meciul are efectiv jucători pe echipa neagră
     updateMeBlackVisibility();
@@ -5846,6 +5864,7 @@ function openMatchEditor(idx) {
 
 function closeMatchEditor() {
     document.getElementById('matchEditorOverlay').style.display = 'none';
+    meGoalEvents = [];
 }
 
 function setMatchWinner(winner) {
@@ -5873,23 +5892,70 @@ function buildMePlayerLists(orangeNames, greenNames, blackNames=[]) {
     });
 }
 
-function buildMeGoalsList(orangeNames, greenNames, blackNames=[], existingGoals={}){
+// ── Editor de goluri pe evenimente: fiecare gol = jucător + minut + câte (de obicei 1) ──
+let meGoalEvents = []; // [{player, minute, goals}]
+
+function getMeAllMatchPlayers(){
+    return [
+        ...getMeSelectedPlayers('Orange').map(n=>({name:n,team:'orange',color:'#9c4f00'})),
+        ...getMeSelectedPlayers('Green').map(n=>({name:n,team:'green',color:'#1b7a35'})),
+        ...getMeSelectedPlayers('Black').map(n=>({name:n,team:'black',color:'#555'})),
+    ];
+}
+
+function addGoalEventRow(){
+    const players = getMeAllMatchPlayers();
+    if(!players.length){ showToast('⚠️ Selectează jucătorii meciului mai întâi!'); return; }
+    meGoalEvents.push({ player: players[0].name, minute: '', goals: 1 });
+    renderMeGoalEvents();
+}
+function removeGoalEventRow(i){
+    meGoalEvents.splice(i,1);
+    renderMeGoalEvents();
+}
+function updateGoalEventField(i, field, value){
+    if(!meGoalEvents[i]) return;
+    meGoalEvents[i][field] = value;
+}
+
+function renderMeGoalEvents(){
     const list = document.getElementById('meGoalsList');
     if(!list) return;
-    const allPlayers = [...orangeNames.map(n=>({name:n,team:'orange',color:'#9c4f00'})),...greenNames.map(n=>({name:n,team:'green',color:'#1b7a35'})),...(blackNames||[]).map(n=>({name:n,team:'black',color:'#555'}))];
+    const allPlayers = getMeAllMatchPlayers();
+    if(!allPlayers.length){
+        list.innerHTML = '<div style="color:#7d6849;font-size:.78rem;padding:6px;">Selectează jucători mai întâi.</div>';
+        return;
+    }
+    const rowsHtml = meGoalEvents.map((ev,i)=>{
+        const pl = allPlayers.find(p=>p.name===ev.player);
+        const color = pl?.color || '#3a2f1f';
+        const options = allPlayers.map(p=>`<option value="${p.name}" ${ev.player===p.name?'selected':''}>${p.name}</option>`).join('');
+        return `<div style="display:flex;align-items:center;gap:5px;padding:4px 6px;background:#f5e9d4;border-radius:6px;">
+            <select onchange="updateGoalEventField(${i},'player',this.value)" style="flex:1;min-width:0;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;background:#fffaf0;color:${color};">${options}</select>
+            <input type="number" inputmode="numeric" value="${ev.minute}" placeholder="min" oninput="updateGoalEventField(${i},'minute',this.value)" style="width:46px;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;text-align:center;">
+            <span style="font-size:.65rem;color:#7d6849;">′</span>
+            <input type="number" min="1" value="${ev.goals}" oninput="updateGoalEventField(${i},'goals',this.value)" title="Câte goluri (de obicei 1)" style="width:34px;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;text-align:center;">
+            <span style="font-size:.6rem;color:#7d6849;">⚽</span>
+            <button onclick="removeGoalEventRow(${i})" style="width:24px;height:24px;border-radius:5px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-size:.9rem;cursor:pointer;flex-shrink:0;">×</button>
+        </div>`;
+    }).join('');
+    list.innerHTML = rowsHtml + `<button onclick="addGoalEventRow()" style="margin-top:2px;padding:8px;border-radius:7px;background:rgba(40,167,69,.1);border:1px dashed #28a745;color:#1b7a43;font-weight:700;font-size:.78rem;cursor:pointer;">+ Adaugă Gol</button>`;
+}
+
+// ── Goluri primite (per jucător) — rămâne un simplu contor +/- ──
+function buildMeConcededList(orangeNames, greenNames, blackNames=[], existingConceded={}){
+    const list = document.getElementById('meConcededList');
+    if(!list) return;
+    const allPlayers = [...orangeNames.map(n=>({name:n,color:'#9c4f00'})),...greenNames.map(n=>({name:n,color:'#1b7a35'})),...(blackNames||[]).map(n=>({name:n,color:'#555'}))];
     if(!allPlayers.length){ list.innerHTML='<div style="color:#7d6849;font-size:.78rem;padding:6px;">Selectează jucători mai întâi.</div>'; return; }
     list.innerHTML = allPlayers.map(pl=>{
         const key = pl.name.replace(/ /g,'__');
-        const scored = existingGoals[pl.name]||0;
+        const conceded = existingConceded[pl.name]||0;
         return `<div style="display:flex;align-items:center;gap:5px;padding:4px 6px;background:#f5e9d4;border-radius:6px;">
             <span style="flex:1;font-size:.8rem;color:${pl.color};">${pl.name}</span>
-            <span style="font-size:.6rem;color:#7d6849;">⚽</span>
-            <button onclick="meGoalStep('${key}','scored',-1)" style="width:22px;height:22px;border-radius:5px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.85rem;cursor:pointer;">−</button>
-            <span id="meg-scored-${key}" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:${pl.color};min-width:16px;text-align:center;">${scored}</span>
-            <button onclick="meGoalStep('${key}','scored',1)" style="width:22px;height:22px;border-radius:5px;background:rgba(40,167,69,.1);border:1px solid #28a745;color:#1b7a43;font-size:.85rem;cursor:pointer;">+</button>
-            <span style="font-size:.6rem;color:#7d6849;margin-left:4px;">🧤</span>
+            <span style="font-size:.6rem;color:#7d6849;">🧤</span>
             <button onclick="meGoalStep('${key}','conceded',-1)" style="width:22px;height:22px;border-radius:5px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.85rem;cursor:pointer;">−</button>
-            <span id="meg-conceded-${key}" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#b71c1c;min-width:16px;text-align:center;">0</span>
+            <span id="meg-conceded-${key}" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#b71c1c;min-width:16px;text-align:center;">${conceded}</span>
             <button onclick="meGoalStep('${key}','conceded',1)" style="width:22px;height:22px;border-radius:5px;background:rgba(198,40,40,.08);border:1px solid #c62828;color:#b71c1c;font-size:.85rem;cursor:pointer;">+</button>
         </div>`;
     }).join('');
@@ -5903,6 +5969,18 @@ function meGoalStep(key, type, delta){
     el.textContent = cur;
 }
 
+function captureCurrentConceded(){
+    const result = {};
+    document.querySelectorAll('[id^="meg-conceded-"]').forEach(el=>{
+        const val = parseInt(el.textContent)||0;
+        if(val>0){
+            const name = el.id.replace('meg-conceded-','').replace(/__/g,' ');
+            result[name] = val;
+        }
+    });
+    return result;
+}
+
 function mePLayerToggle(el, team, playerId) {
     const label = el.closest('.me-player-check');
     label.classList.toggle('checked', el.checked);
@@ -5910,7 +5988,8 @@ function mePLayerToggle(el, team, playerId) {
         const lbl=document.getElementById(`mecheck-${ot}-${playerId}`);
         if(lbl&&el.checked){lbl.querySelector('input').checked=false;lbl.classList.remove('checked');}
     });
-    buildMeGoalsList(getMeSelectedPlayers('Orange'),getMeSelectedPlayers('Green'),getMeSelectedPlayers('Black'),{});
+    renderMeGoalEvents();
+    buildMeConcededList(getMeSelectedPlayers('Orange'),getMeSelectedPlayers('Green'),getMeSelectedPlayers('Black'), captureCurrentConceded());
     updateMeBlackVisibility();
 }
 
@@ -5968,15 +6047,26 @@ async function saveMatchEdit() {
     const score = hasManualScore?`${scoreO}:${scoreG}${blackPlayers.length?':'+scoreB:''}`:'—';
     const imbalanced = hasManualScore && Math.abs(scoreO-scoreG) >= 3;
 
-    // Collect individual goals from meGoalsList
-    const goals = {};
+    // Colectăm golurile — un rând per gol individual, cu jucător + minut reale
     const goalsConceded = {};
     [...orangePlayers,...greenPlayers,...blackPlayers].forEach(name=>{
         const key = name.replace(/ /g,'__');
-        const scored = parseInt(document.getElementById('meg-scored-'+key)?.textContent)||0;
         const conceded = parseInt(document.getElementById('meg-conceded-'+key)?.textContent)||0;
-        if(scored>0) goals[name]=scored;
         if(conceded>0) goalsConceded[name]=conceded;
+    });
+
+    // Validăm evenimentele de gol: jucătorul trebuie să fie în meci, numărul de goluri >=1
+    const validGoalEvents = meGoalEvents.filter(ev => ev.player && [...orangePlayers,...greenPlayers,...blackPlayers].includes(ev.player));
+    const invalidCount = meGoalEvents.length - validGoalEvents.length;
+    if (invalidCount > 0) {
+        showToast(`⚠️ ${invalidCount} gol(uri) ignorate — jucătorul nu mai e selectat în meci.`);
+    }
+
+    // playerGoals local (pentru afișare imediată, fără reload) — sumă pe jucător
+    const goals = {};
+    validGoalEvents.forEach(ev => {
+        const count = Math.max(1, parseInt(ev.goals)||1);
+        goals[ev.player] = (goals[ev.player]||0) + count;
     });
 
     const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals };
@@ -5996,11 +6086,30 @@ async function saveMatchEdit() {
             // Update goals: delete old, insert new
             const { error: delErr } = await sb.from('match_goals').delete().eq('match_id', dbId);
             if (delErr) throw new Error('Ștergere goluri vechi eșuată: ' + delErr.message);
-            const rows = [...new Set([...Object.keys(goals),...Object.keys(goalsConceded)])].map(name=>{
-                const team=orangePlayers.includes(name)?'orange':blackPlayers.includes(name)?'black':'green';
-                return {match_id:dbId,player_name:name,team,goals:goals[name]||0,goals_conceded:goalsConceded[name]||0};
-            });
-            if(rows.length) await sb.from('match_goals').insert(rows);
+
+            // Un rând per gol individual (cu minut real, dacă a fost completat)
+            const goalRows = validGoalEvents.map(ev => ({
+                match_id: dbId,
+                player_name: ev.player,
+                team: orangePlayers.includes(ev.player) ? 'orange' : blackPlayers.includes(ev.player) ? 'black' : 'green',
+                goals: Math.max(1, parseInt(ev.goals)||1),
+                goals_conceded: 0,
+                minute: (ev.minute !== '' && ev.minute !== null && !isNaN(parseInt(ev.minute))) ? parseInt(ev.minute) : null,
+            }));
+            // Rânduri separate pentru goluri primite (agregat per jucător, fără minut)
+            const concededRows = Object.keys(goalsConceded).map(name => ({
+                match_id: dbId,
+                player_name: name,
+                team: orangePlayers.includes(name) ? 'orange' : blackPlayers.includes(name) ? 'black' : 'green',
+                goals: 0,
+                goals_conceded: goalsConceded[name],
+                minute: null,
+            }));
+            const rows = [...goalRows, ...concededRows];
+            if(rows.length) {
+                const { error: insErr } = await sb.from('match_goals').insert(rows);
+                if (insErr) throw new Error('Salvare goluri eșuată: ' + insErr.message);
+            }
         }
     } catch(e) {
         showToast('⚠️ ' + e.message);
