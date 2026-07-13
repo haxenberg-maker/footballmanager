@@ -44,7 +44,7 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
 @media(max-width:480px){.streak-banner-grid{grid-template-columns:1fr;}}
 .streak-banner-card{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;}
 .streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,0,.12),rgba(229,57,53,.10));border:1px solid rgba(255,140,0,.35);}
-.streak-banner-card.cold{background:linear-gradient(135deg,rgba(61,90,254,.10),rgba(3,169,244,.08));border:1px solid rgba(61,90,254,.3);}
+.streak-banner-card.goal{background:linear-gradient(135deg,rgba(27,122,67,.12),rgba(139,195,74,.10));border:1px solid rgba(27,122,67,.3);}
 .streak-banner-icon{font-size:1.4rem;line-height:1;}
 .streak-banner-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;}
 .streak-banner-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
@@ -87,8 +87,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
-            <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
+            <button class="lb-tab active" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
+            <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
@@ -120,7 +120,7 @@ let TAG_BONUS_CAP = 10.0;
 const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
 const DEFAULT_W = {winrate:0.40,borda:0.30,general:0.10,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0,mvpWin:0.0,mvpLoss:0.0};
 let W = {...DEFAULT_W};
-let currentLbTab = 'smart';
+let currentLbTab = 'wins';
 let currentLbPeriod = 'all';
 let lbExpanded = false;
 const LB_MIN_GAMES = 3;
@@ -329,23 +329,23 @@ function renderStreakBanner(){
         const lastDate = playerLastMatchDate(p);
         return lastDate && lastDate >= cutoff;
     });
-    let hot=null, cold=null;
+    let hot=null;
     withGames.forEach(p=>{
         const s = getStreak(p);
         if(!s.count || s.count<2) return;
         if(s.type==='W' && (!hot || s.count>hot.count)) hot = {p, count:s.count};
-        if(s.type==='L' && (!cold || s.count>cold.count)) cold = {p, count:s.count};
     });
-    if(!hot && !cold){ el.style.display='none'; el.innerHTML=''; return; }
+    const topScorer = computeWeekTopScorer();
+    if(!hot && !topScorer){ el.style.display='none'; el.innerHTML=''; return; }
     el.style.display='block';
     el.innerHTML = `<div class="streak-banner-grid">
         ${hot ? `<div class="streak-banner-card hot">
             <div class="streak-banner-icon">🔥</div>
             <div><div class="streak-banner-lbl">Pe val</div><div class="streak-banner-name">${hot.p.name}</div><div class="streak-banner-sub">${hot.count} victorii la rând</div></div>
         </div>` : ''}
-        ${cold ? `<div class="streak-banner-card cold">
-            <div class="streak-banner-icon">🥶</div>
-            <div><div class="streak-banner-lbl">În cădere</div><div class="streak-banner-name">${cold.p.name}</div><div class="streak-banner-sub">${cold.count} înfrângeri la rând</div></div>
+        ${topScorer ? `<div class="streak-banner-card goal">
+            <div class="streak-banner-icon">⚽</div>
+            <div><div class="streak-banner-lbl">Golgheterul Săptămânii</div><div class="streak-banner-name">${topScorer.players.map(s=>s.name).join(', ')}</div><div class="streak-banner-sub">${topScorer.goals} gol${topScorer.goals!==1?'uri':''} în ultima săptămână</div></div>
         </div>` : ''}
     </div>`;
 }
@@ -394,9 +394,9 @@ function getRecentMatchesWindow(){
     if(!recent.length) recent = db.history.slice(0,5);
     return recent;
 }
-function computeWeekTeam(){
+function computeWeekPlayerStats(){
     const recent = getRecentMatchesWindow();
-    if(!recent.length) return [];
+    if(!recent.length) return {};
     const stats={};
     const ensure=n=>stats[n]||(stats[n]={name:n,games:0,wins:0,goals:0});
     recent.forEach(h=>{
@@ -406,6 +406,10 @@ function computeWeekTeam(){
         (h.blackPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winB)s.wins++;});
         if(h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
     });
+    return stats;
+}
+function computeWeekTeam(){
+    const stats = computeWeekPlayerStats();
     const arr = Object.values(stats).map(s=>{
         const p = db.players.find(x=>x.name===s.name);
         const wr = s.games>0 ? s.wins/s.games : 0;
@@ -414,6 +418,14 @@ function computeWeekTeam(){
     });
     arr.sort((a,b)=>b.score-a.score);
     return arr.slice(0,5);
+}
+function computeWeekTopScorer(){
+    const stats = computeWeekPlayerStats();
+    const arr = Object.values(stats).filter(s=>s.goals>0).sort((a,b)=>b.goals-a.goals);
+    if(!arr.length) return null;
+    const topGoals = arr[0].goals;
+    const top = arr.filter(s=>s.goals===topGoals);
+    return { players: top, goals: topGoals };
 }
 function computeDerbyOfWeek(){
     const recent = getRecentMatchesWindow();
