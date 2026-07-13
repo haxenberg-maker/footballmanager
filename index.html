@@ -6086,6 +6086,19 @@ async function saveMatchEdit() {
             const { error: delErr } = await sb.from('match_goals').delete().eq('match_id', dbId);
             if (delErr) throw new Error('Ștergere goluri vechi eșuată: ' + delErr.message);
 
+            // Verificare: dacă Supabase (ex. o politică RLS pe DELETE) blochează silențios
+            // ștergerea — fără să arunce eroare — rândurile vechi ar rămâne, iar cele noi
+            // s-ar aduna peste ele (exact bug-ul "adaugă goluri în loc să șteargă/editeze").
+            // Verificăm explicit că nu a mai rămas nimic înainte să inserăm rândurile noi.
+            const { count: leftoverCount, error: checkErr } = await sb
+                .from('match_goals')
+                .select('id', { count: 'exact', head: true })
+                .eq('match_id', dbId);
+            if (checkErr) throw new Error('Verificare goluri vechi eșuată: ' + checkErr.message);
+            if (leftoverCount && leftoverCount > 0) {
+                throw new Error(`Nu s-au putut șterge ${leftoverCount} goluri vechi din baza de date (posibil o politică RLS pe DELETE pentru tabela match_goals). Salvarea a fost oprită ca să nu dubleze golurile — verifică permisiunile din Supabase.`);
+            }
+
             // Un rând per gol individual (cu minut real, dacă a fost completat)
             const goalRows = validGoalEvents.map(ev => ({
                 match_id: dbId,
