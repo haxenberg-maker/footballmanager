@@ -1147,6 +1147,10 @@
     <div class="history-section" id="sec-history">
         <div class="history-desktop-header">
             <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#7d6849;">Istoric Meciuri</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="admin-only" onclick="saveSeason()" title="Arhivează meciurile curente sub un nume de sezon și pornește un sezon nou" style="background:rgba(27,94,32,.1);border:1px solid rgba(27,94,32,.35);color:#1b5e20;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">💾 Salvează Sezon</button>
+                <button onclick="viewSeasons()" title="Vezi meciurile din sezoanele arhivate" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#7d6849;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📂 Sezoane Anterioare</button>
+            </div>
         </div>
         <table id="match-history" style="margin-top:4px;">
             <thead><tr>
@@ -2143,11 +2147,19 @@ async function loadAll() {
             db.players = (seeded || []).map(rowToPlayer);
         }
 
-        // Match history
-        const { data: histRaw } = await sb
-            .from('match_history')
-            .select('*')
-            .order('created_at', { ascending: false });
+        // Match history — doar sezonul curent (nearhivat); sezoanele salvate se
+        // încarcă separat, la cerere, din viewSeasons()/openSeasonArchive()
+        let histRaw = null;
+        {
+            const r = await sb.from('match_history').select('*').is('season', null).order('created_at', { ascending: false });
+            if (r.error) {
+                // Coloana 'season' probabil nu există încă (migrare SQL neefectuată) — fallback la toate meciurile
+                const r2 = await sb.from('match_history').select('*').order('created_at', { ascending: false });
+                histRaw = r2.data;
+            } else {
+                histRaw = r.data;
+            }
+        }
 
         // Load match_goals in bulk — one query for all matches
         let goalsPerMatch = {};
@@ -3567,6 +3579,75 @@ function addNewPlayer(){
         .then(()=>sb.from('ratings').insert({player_id:newP.id,rater:'Initial',date:today,general:5,viteza:5,tehnica:5,strategie:5,aparare:5}))
         .catch(e=>showToast('⚠️ '+e.message));
     showToast(`✅ ${name.trim()} adăugat!`);
+}
+
+async function saveSeason(){
+    if(!isAdmin()){ showToast('⚠️ Doar adminul poate face asta!'); return; }
+    const suggested = 'Ianuarie - Iunie';
+    const name = prompt('Numele sezonului care se arhivează:', suggested);
+    if(name===null) return;
+    const seasonName = name.trim();
+    if(!seasonName){ showToast('⚠️ Numele sezonului nu poate fi gol.'); return; }
+    showConfirm('💾', `Salvezi sezonul „${seasonName}"?`,
+        'Meciurile curente vor fi arhivate sub acest nume, iar victoriile/golurile jucătorilor se resetează pentru un sezon nou. Meciurile NU se șterg din baza de date — le poți revedea oricând din „📂 Sezoane Anterioare". Ratingurile jucătorilor rămân neschimbate.',
+        '💾 Salvează Sezon', '#1b5e20', async () => {
+        try{
+            const { error: upErr } = await sb.from('match_history').update({season: seasonName}).is('season', null);
+            if(upErr) throw new Error('Ai rulat migrarea SQL pentru coloana "season"? Detalii: ' + upErr.message);
+            db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];p.totalGoals=0;p.totalGoalsConceded=0;});
+            await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
+            db.history = [];
+            db.nextMatch.confirmedIds=[]; db.nextMatch.absentIds=[];
+            await dbSaveNextMatch();
+            render();
+            showToast(`✅ Sezon „${seasonName}" salvat! Sezon nou început.`);
+        }catch(e){ showToast('⚠️ '+e.message); }
+    });
+}
+
+async function viewSeasons(){
+    try{
+        const { data, error } = await sb.from('match_history').select('season').not('season','is',null);
+        if(error) throw new Error('Ai rulat migrarea SQL pentru coloana "season"? Detalii: ' + error.message);
+        const names = [...new Set((data||[]).map(r=>r.season).filter(Boolean))];
+        if(!names.length){ showToast('📂 Nu există sezoane arhivate încă.'); return; }
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+        overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:20px;max-width:360px;width:100%;max-height:80vh;overflow:auto;">
+            <h3 style="margin:0 0 12px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;color:#7d6849;">📂 Sezoane Anterioare</h3>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                ${names.map(n=>`<button data-season="${n.replace(/"/g,'&quot;')}" style="text-align:left;padding:11px 14px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">🗓️ ${n}</button>`).join('')}
+            </div>
+            <button id="seasonListCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
+        </div>`;
+        overlay.querySelectorAll('button[data-season]').forEach(btn=>{
+            btn.onclick = ()=>{ overlay.remove(); openSeasonArchive(btn.dataset.season); };
+        });
+        overlay.querySelector('#seasonListCloseBtn').onclick = ()=>overlay.remove();
+        document.body.appendChild(overlay);
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function openSeasonArchive(seasonName){
+    try{
+        const { data: rows, error } = await sb.from('match_history').select('*').eq('season', seasonName).order('created_at', { ascending: false });
+        if(error) throw error;
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
+        const rowsHtml = (rows||[]).map(h => `<div style="padding:10px 12px;background:#fffaf0;border:1px solid #dcc89a;border-radius:9px;">
+                <div style="font-size:.72rem;color:#9a8663;">${h.date||''}</div>
+                <div style="font-weight:700;color:#3a2f1f;">${h.score||''} ${h.winner?`— câștigă ${h.winner}`:''}</div>
+            </div>`).join('') || '<div style="color:#7d6849;">Niciun meci găsit.</div>';
+        overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:20px;max-width:420px;width:100%;max-height:80vh;overflow:auto;">
+            <h3 style="margin:0 0 12px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;color:#7d6849;">🗓️ ${seasonName} <span style="font-size:.7rem;color:#9a8663;font-family:inherit;letter-spacing:0;">(${(rows||[]).length} meciuri)</span></h3>
+            <div style="display:flex;flex-direction:column;gap:8px;">${rowsHtml}</div>
+            <button id="seasonArchiveCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
+        </div>`;
+        overlay.querySelector('#seasonArchiveCloseBtn').onclick = ()=>overlay.remove();
+        document.body.appendChild(overlay);
+    }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 async function resetSeason(){
