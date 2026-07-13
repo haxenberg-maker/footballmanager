@@ -87,9 +87,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
+            <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
-            <button class="lb-tab"        id="lbt-wr"      onclick="setLbTab('wr')"     >📈 Win%</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
@@ -419,16 +418,17 @@ function computeWeekTeam(){
 function computeDerbyOfWeek(){
     const recent = getRecentMatchesWindow();
     if(!recent.length) return null;
-    let best=null, bestDiff=Infinity, bestTotal=-1;
+    let best=null, bestExcitement=-Infinity;
     recent.forEach(h=>{
         if(!h.score) return;
         const parts = h.score.split(':').map(s=>parseInt(s.trim(),10));
         if(parts.length<2 || isNaN(parts[0]) || isNaN(parts[1])) return;
         const diff = Math.abs(parts[0]-parts[1]);
         const total = parts[0]+parts[1];
-        if(diff<bestDiff || (diff===bestDiff && total>bestTotal)){
-            best={h,diff,total,a:parts[0],b:parts[1]};
-            bestDiff=diff; bestTotal=total;
+        const excitement = total - diff;
+        if(excitement > bestExcitement){
+            best={h,diff,total,excitement,a:parts[0],b:parts[1]};
+            bestExcitement=excitement;
         }
     });
     return best;
@@ -461,11 +461,14 @@ function renderWeeklyCards(){
     if(derby){
         const h=derby.h;
         let summary;
-        if(derby.diff===0) summary = `⚡ Egalitate dramatică, ${derby.a}-${derby.b}!`;
-        else if(derby.diff===1) summary = `🔥 Meci strâns, decis la un singur gol diferență!`;
-        else summary = `🎬 Cel mai disputat meci recent.`;
+        if(derby.total>=7 && derby.diff<=1)      summary = `🔥🔥 Meci nebun — plin de goluri și super strâns!`;
+        else if(derby.diff===0 && derby.total>=4) summary = `⚡ Egalitate spectaculoasă, plină de goluri!`;
+        else if(derby.diff===0)                   summary = `⚡ Egalitate, ${derby.a}-${derby.b}.`;
+        else if(derby.total>=6)                   summary = `🎯 Meci plin de goluri!`;
+        else if(derby.diff===1)                   summary = `🔥 Decis la un singur gol diferență!`;
+        else                                        summary = `🎬 Cel mai captivant meci recent.`;
         derbyHtml = `<div class="week-card">
-            <div class="week-card-title">🎬 Derby-ul Săptămânii</div>
+            <div class="week-card-title">🎬 Meciul Captivant al Săptămânii</div>
             <div class="derby-teams"><span>${teamNames.orange}</span><span>${teamNames.green}</span></div>
             <div class="derby-score">${derby.a} : ${derby.b}</div>
             <div class="derby-summary">${summary}</div>
