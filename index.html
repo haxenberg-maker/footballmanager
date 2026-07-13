@@ -5931,11 +5931,10 @@ function renderMeGoalEvents(){
         const color = pl?.color || '#3a2f1f';
         const options = allPlayers.map(p=>`<option value="${p.name}" ${ev.player===p.name?'selected':''}>${p.name}</option>`).join('');
         return `<div style="display:flex;align-items:center;gap:5px;padding:4px 6px;background:#f5e9d4;border-radius:6px;">
+            <span style="font-size:.7rem;color:#7d6849;">⚽</span>
             <select onchange="updateGoalEventField(${i},'player',this.value)" style="flex:1;min-width:0;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;background:#fffaf0;color:${color};">${options}</select>
-            <input type="number" inputmode="numeric" value="${ev.minute}" placeholder="min" oninput="updateGoalEventField(${i},'minute',this.value)" style="width:46px;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;text-align:center;">
+            <input type="number" inputmode="numeric" value="${ev.minute}" placeholder="min" oninput="updateGoalEventField(${i},'minute',this.value)" style="width:50px;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;text-align:center;">
             <span style="font-size:.65rem;color:#7d6849;">′</span>
-            <input type="number" min="1" value="${ev.goals}" oninput="updateGoalEventField(${i},'goals',this.value)" title="Câte goluri (de obicei 1)" style="width:34px;font-size:.78rem;padding:4px;border-radius:5px;border:1px solid #dcc89a;text-align:center;">
-            <span style="font-size:.6rem;color:#7d6849;">⚽</span>
             <button onclick="removeGoalEventRow(${i})" style="width:24px;height:24px;border-radius:5px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-size:.9rem;cursor:pointer;flex-shrink:0;">×</button>
         </div>`;
     }).join('');
@@ -6063,10 +6062,10 @@ async function saveMatchEdit() {
     }
 
     // playerGoals local (pentru afișare imediată, fără reload) — sumă pe jucător
+    // Fiecare eveniment = exact 1 gol (un jucător nu poate da 2 goluri în același minut)
     const goals = {};
     validGoalEvents.forEach(ev => {
-        const count = Math.max(1, parseInt(ev.goals)||1);
-        goals[ev.player] = (goals[ev.player]||0) + count;
+        goals[ev.player] = (goals[ev.player]||0) + 1;
     });
 
     const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals };
@@ -6092,7 +6091,7 @@ async function saveMatchEdit() {
                 match_id: dbId,
                 player_name: ev.player,
                 team: orangePlayers.includes(ev.player) ? 'orange' : blackPlayers.includes(ev.player) ? 'black' : 'green',
-                goals: Math.max(1, parseInt(ev.goals)||1),
+                goals: 1,
                 goals_conceded: 0,
                 minute: (ev.minute !== '' && ev.minute !== null && !isNaN(parseInt(ev.minute))) ? parseInt(ev.minute) : null,
             }));
