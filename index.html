@@ -5972,7 +5972,7 @@ async function saveMatchEdit() {
         if(conceded>0) goalsConceded[name]=conceded;
     });
 
-    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, goals };
+    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals };
 
     const h = db.history[matchEditorIdx];
     const dbId = h._dbId;
@@ -7091,7 +7091,7 @@ function parseDateToObj(dateStr) {
 }
 
 function recalculateAllPlayerStats() {
-    db.players.forEach(p => { p.wins = 0; p.games = 0; p.matchHistory = []; });
+    db.players.forEach(p => { p.wins = 0; p.games = 0; p.matchHistory = []; p.totalGoals = 0; });
 
     // Sortează după data reală a meciului, cel mai vechi primul
     const sortedHistory = [...db.history].sort((a, b) =>
@@ -7133,6 +7133,14 @@ function recalculateAllPlayerStats() {
             if (blackWon) p.wins++;
             p.matchHistory.push(blackWon ? 'W' : 'L');
         });
+
+        // Goluri — sumate din playerGoals al fiecărui meci (sursă: match_goals, mereu suprascris corect la editare)
+        if (h.playerGoals) {
+            Object.entries(h.playerGoals).forEach(([name, g]) => {
+                const p = db.players.find(x => x.name === name);
+                if (p) p.totalGoals += (g || 0);
+            });
+        }
     });
 
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
