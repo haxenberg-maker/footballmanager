@@ -1649,19 +1649,24 @@ function renderLobby(){
     }
 
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
-    const totalMatches = db.history.length;
-    const showStats = totalMatches >= 3; // sub 3 meciuri, procentul e prea zgomotos
+    // Prezență recentă — ultimele N meciuri (db.history e deja sortat, cel mai recent primul)
+    const RECENT_WINDOW = 6;
+    const recentMatches = db.history.slice(0, RECENT_WINDOW);
+    const recentTotal = recentMatches.length;
+    const showStats = recentTotal >= 3; // sub 3 meciuri recente, procentul e prea zgomotos
+    const playedIn = (p,h) => (h.orangePlayers||[]).includes(p.name) || (h.greenPlayers||[]).includes(p.name) || (h.blackPlayers||[]).includes(p.name);
     const withRate = db.players.map(p=>{
-        const rate = totalMatches>0 ? Math.min(1, (p.games||0)/totalMatches) : 0;
-        return {p, rate};
+        const recentCount = recentMatches.filter(h=>playedIn(p,h)).length;
+        const rate = recentTotal>0 ? recentCount/recentTotal : 0;
+        return {p, rate, recentCount};
     });
-    // A. Sortare după frecvență de joc (meciuri jucate), apoi alfabetic
+    // A. Sortare după cât de recent/des a jucat (ultimele meciuri), apoi alfabetic
     const sortedPlayers = withRate
-        .sort((a,b)=> (b.p.games||0)-(a.p.games||0) || a.p.name.localeCompare(b.p.name,'ro'));
+        .sort((a,b)=> b.recentCount-a.recentCount || (b.p.games||0)-(a.p.games||0) || a.p.name.localeCompare(b.p.name,'ro'));
 
     let dividerShown = false;
-    sortedPlayers.forEach(({p,rate})=>{
-        // E. Separator vizual între „nucleul dur" (≥70% prezență) și restul
+    sortedPlayers.forEach(({p,rate,recentCount})=>{
+        // E. Separator vizual între „nucleul dur" (≥70% din meciurile recente) și restul
         if(showStats && !dividerShown && rate < 0.7 && sortedPlayers.some(x=>x.rate>=0.7)){
             const divider=document.createElement('div');
             divider.style.cssText='width:100%;display:flex;align-items:center;gap:8px;margin:4px 0 2px;';
@@ -1683,9 +1688,9 @@ function renderLobby(){
             dotHtml = '<span style="font-size:0.75rem;line-height:1;">✕</span>';
         }
         chip.className = chipClass;
-        // C. Badge de regularitate — % din meciurile sezonului curent la care a jucat
+        // C. Badge de regularitate — câte din ultimele meciuri a jucat
         const rateBadge = showStats
-            ? `<span title="${p.games||0}/${totalMatches} meciuri jucate în sezonul curent" style="font-size:.6rem;color:${rate>=0.7?'#1b7a43':rate>=0.4?'#9c4f00':'#b71c1c'};margin-left:3px;">${Math.round(rate*100)}%</span>`
+            ? `<span title="${recentCount}/${recentTotal} din ultimele meciuri" style="font-size:.6rem;color:${rate>=0.7?'#1b7a43':rate>=0.4?'#9c4f00':'#b71c1c'};margin-left:3px;">${recentCount}/${recentTotal}</span>`
             : '';
         chip.innerHTML = dotHtml + nameHtml + `<span style="font-size:0.68rem;color:${confirmed?'#5c8aff':absent?'#c62828':'#333'};margin-left:2px;">${getGeneralAvg(p).toFixed(1)}</span>` + rateBadge;
         // Admin can toggle anyone; players can only toggle themselves
