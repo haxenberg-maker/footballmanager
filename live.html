@@ -11,7 +11,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html{overflow-x:clip;max-width:100vw;}
-html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min-height:100vh;overscroll-behavior-y:contain;}
+html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min-height:100vh;min-height:100dvh;overscroll-behavior-y:contain;}
 :root{--o:#ff8c00;--g:#28a745;--b:#e3d3ac;--accent:#3d5afe;}
 
 .hd{background:#f3e6cf;border-bottom:1px solid var(--b);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;}
@@ -85,7 +85,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#3a2f1f;}
 
-.universal-undo-btn{position:fixed;right:14px;bottom:18px;z-index:500;display:none;flex-direction:column;align-items:flex-end;gap:2px;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;max-width:min(78vw,320px);}
+.universal-undo-btn{position:fixed;right:14px;bottom:calc(64px + max(8px,env(safe-area-inset-bottom)));z-index:500;display:none;flex-direction:column;align-items:flex-end;gap:2px;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;max-width:min(78vw,320px);}
 .universal-undo-btn.show{display:flex;}
 .universal-undo-btn .uu-main{font-size:.82rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
 .universal-undo-btn .uu-sub{font-size:.62rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
@@ -103,7 +103,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .pr-name{flex:1;font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .pr-cnt{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:18px;text-align:center;color:#dcc89a;transition:color .15s;flex-shrink:0;}
 .pr-cnt.has{color:#3a2f1f;}
-.pr-minus{width:24px;height:42px;background:none;border:none;color:#7d6849;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;}
+.pr-minus{width:34px;height:42px;background:none;border:none;color:#7d6849;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;touch-action:manipulation;}
 .pr-minus.show{display:flex;}
 .pr-minus:active{background:#fdf3df;color:#b71c1c;}
 .pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
@@ -135,7 +135,7 @@ main, body{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog-overlay.show{display:flex;}
-.dialog-box{background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #d3bd8c;padding:20px;max-height:88vh;overflow-y:auto;}
+.dialog-box{background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #d3bd8c;padding:20px;max-height:88vh;max-height:88dvh;overflow-y:auto;}
 .dialog-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin-bottom:4px;}
 .dialog-score{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;margin:8px 0;}
 .dialog-section{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin:12px 0 6px;}
@@ -233,12 +233,12 @@ main, body{padding-bottom:80px;}
 .uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;}
 .add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
 .add-temp-overlay.show{display:flex;}
-.add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+.add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
 .add-temp-hd{padding:12px 16px;border-bottom:1px solid #e3d3ac;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .add-temp-body{overflow-y:auto;padding:10px 12px;}
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
-.round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;display:flex;flex-direction:column;}
+.round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;}
 .rd-hd{background:linear-gradient(135deg,#1a0050,#3d006a);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
 .rd-hd-left{flex:1;}
 .rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
@@ -319,6 +319,33 @@ main, body{padding-bottom:80px;}
 .pen-start-btn{width:100%;padding:12px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#7b1010,#c62828);border:1px solid #c62828;color:#fff;margin-top:8px;}
 .pen-result-banner{text-align:center;padding:20px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
 
+/* ── Telefoane mici (≤360px lățime) — fonturi mari Bebas Neue puțin mai mici ── */
+@media(max-width:360px){
+    .sc-n{font-size:4rem;}
+    .sc-sep{font-size:1.6rem;}
+    .penalty-kicker-name{font-size:2.3rem;}
+    .uf-score{font-size:2.7rem;}
+    .rd-team-score{font-size:2.4rem;}
+    .pen-score-num{font-size:1.9rem;}
+    .dialog-score{font-size:1.8rem;}
+}
+
+/* ── Landscape / înălțime mică (telefon culcat, tabletă mică) ──
+   Header-ul + timer-bar + score-wrap + bottom-bar fixe lasă puțin loc
+   pe verticală pentru lista de jucători — le comprimăm puțin. */
+@media(orientation:landscape) and (max-height:500px){
+    .timer-bar{padding:5px 14px;}
+    .timer-btn{padding:6px 14px;font-size:.85rem;min-height:36px;}
+    .timer-display{font-size:1.2rem;}
+    .score-wrap{padding:6px 12px 2px;}
+    .sc-n{font-size:2.6rem;}
+    .sc-sep{font-size:1.3rem;}
+    .score-sub{padding:1px 0 3px;min-height:14px;}
+    .pr{min-height:38px;}
+    main, body{padding-bottom:64px;}
+    .bottom-bar{padding:5px 12px;}
+    .btn-finalize{padding:9px;min-height:38px;}
+}
 </style>
 </head>
 <body>
@@ -2627,7 +2654,7 @@ init();
 
 <!-- Rotation Confirm Overlay -->
 <div id="rotConfirmOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:350;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;overflow-y:auto;">
+  <div style="background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;max-height:88dvh;overflow-y:auto;">
     <div style="background:linear-gradient(135deg,#ede3fa,#8e3a9e);padding:14px 18px;border-radius:16px 16px 0 0;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#3a2f1f;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
       <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
