@@ -1,5 +1,5 @@
-const CACHE_NAME = 'arena-fc-v1';
-const OFFLINE_ASSETS = ['/', '/index.html', '/manifest.json'];
+const CACHE_NAME = 'arena-fc-v2';
+const OFFLINE_ASSETS = ['/', '/index.html', '/app.js', '/manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -26,8 +26,19 @@ self.addEventListener('fetch', event => {
   // NU intercepta POST/PUT/DELETE — doar GET
   if (event.request.method !== 'GET') return;
 
+  // Network-first, dar cu {cache:'no-store'} — altfel fetch() poate fi
+  // servit din cache-ul HTTP normal al browserului (nu din Cache Storage),
+  // ceea ce înseamnă că un update la index.html/app.js poate rămâne
+  // "invizibil" pentru utilizator chiar dacă fișierele de pe server sunt noi.
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    fetch(event.request, { cache: 'no-store' })
+      .then(res => {
+        // Ține cache-ul offline la zi cu ultima versiune reușită
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 
