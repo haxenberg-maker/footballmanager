@@ -497,11 +497,7 @@
         .algo-val{font-size:0.78rem;color:#4a3c28;font-weight:700;width:28px;text-align:right;}
         .algo-weight{font-size:0.68rem;color:#6b5840;width:30px;text-align:right;}
         .chart-section{margin-bottom:10px;}
-        .chart-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:10px 14px;cursor:pointer;user-select:none;}
-        .chart-toggle:hover{background:#f1e4c8;}
         .chart-toggle-label{font-size:0.78rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
-        .chart-toggle-icon{transition:transform 0.25s;color:#6b5840;font-size:0.8rem;}
-        .chart-toggle-icon.open{transform:rotate(180deg);}
         .chart-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .chart-body.open{max-height:320px;}
         .chart-body-inner{background:#f1e4c8;border:1px solid #e3d3ac;border-top:none;border-radius:0 0 10px 10px;padding:12px;}
@@ -1112,32 +1108,36 @@
                         <span class="modal-streak-big" id="modalStreak"></span>
                         <span style="font-size:.72rem;color:rgba(255,255,255,.4);" id="modalWinRate"></span>
                     </div>
-                    <div class="modal-nemesis" id="modalNemesis"></div>
                 </div>
             </div>
+            <div class="modal-nemesis" id="modalNemesis" style="width:100%;margin-top:4px;"></div>
         </div>
     </div>
 
     <!-- FIFA Tabs -->
     <div class="modal-tabs" id="modalTabs">
-        <button class="modal-tab active" onclick="switchModalTab('stats')">📊 Stats</button>
+        <button class="modal-tab active" onclick="switchModalTab('stats')">👑 Rating</button>
+        <button class="modal-tab" onclick="switchModalTab('evolution')">📈 Evoluție</button>
         <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Hex</button>
         <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
         <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
     </div>
 
-    <!-- Tab: Stats -->
+    <!-- Tab: Stats/Rating -->
     <div class="modal-tab-panel active" id="tabStats">
+        <div id="modalQuickGlance" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
         <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#7d6849;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
-        <div class="chart-section" style="margin-top:8px;">
-            <div class="chart-toggle" onclick="toggleChart()">
-                <div class="chart-toggle-label" id="chartLabel">📈 Evoluție Rating</div>
-                <div class="chart-toggle-icon" id="chartIcon">▼</div>
-            </div>
-            <div class="chart-body" id="chartBody">
+        <div id="modalChemPreview" style="margin-top:10px;"></div>
+    </div>
+
+    <!-- Tab: Evoluție (grafic rating în timp) -->
+    <div class="modal-tab-panel" id="tabEvolution">
+        <div class="chart-section">
+            <div class="chart-toggle-label" id="chartLabel" style="padding:2px 0 8px;font-size:.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">📈 Evoluție Rating</div>
+            <div class="chart-body open" id="chartBody">
                 <div class="chart-body-inner">
                     <div class="cat-tabs" id="catTabs"></div>
                     <canvas id="ratingChart" height="90"></canvas>
