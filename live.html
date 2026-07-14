@@ -1304,8 +1304,6 @@ function render() {
         }).join('');
 
         const makeAddBtn = (team, hex) => {
-            const available = bench.filter(b => !players.some(p => p._temp && p._sourceName === b.name && p.status === team));
-            if (!available.length) return '';
             return `<div style="padding:4px 2px 2px;">
                 <button onclick="openAddTempPlayer('${team}')"
                     style="width:100%;padding:7px 4px;border-radius:8px;border:1px dashed ${hex}44;background:${hex}0a;color:${hex};font-size:.68rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:5px;">
@@ -1314,8 +1312,11 @@ function render() {
             </div>`;
         };
 
-        const oAddBtn = isLiveAdmin && bench.length && orange.length < green.length ? makeAddBtn('orange', oHex) : '';
-        const gAddBtn = isLiveAdmin && bench.length && green.length < orange.length ? makeAddBtn('green', gHex) : '';
+        // Apare la ORICE discrepanță numerică între echipe (3v4, 4v5, 6v5 etc.),
+        // indiferent dacă există jucători pe bancă — la 2 echipe se poate adăuga
+        // și un nume nou (vezi openAddTempPlayer).
+        const oAddBtn = isLiveAdmin && orange.length < green.length ? makeAddBtn('orange', oHex) : '';
+        const gAddBtn = isLiveAdmin && green.length < orange.length ? makeAddBtn('green', gHex) : '';
 
         const oBadge = mode ? `<span class="round-badge">${conc.orange}/${st.goal_threshold||2} prim.</span>` : '';
         const gBadge = mode ? `<span class="round-badge">${conc.green}/${st.goal_threshold||2} prim.</span>`  : '';
@@ -2160,12 +2161,10 @@ function openAddTempPlayer(team) {
     const already = players.filter(p => p._temp && p.status === team).map(p => p._sourceName);
     const available = bench.filter(b => !already.includes(b.name));
 
-    if (!available.length) { showToast('⚠️ Nu sunt jucători disponibili pe bancă!'); return; }
-
     const teamHex  = getTeamHex(team);
     const teamName = getTeamName(team);
 
-    document.getElementById('addTempBody').innerHTML = available.map(p => {
+    const benchListHtml = available.length ? available.map(p => {
         const cnt = goalsMap()[p.name] || 0;
         const cntLbl = cnt ? ` <span style="color:#1b7a43;font-size:.65rem;">⚽${cnt}</span>` : '';
         return `<div onclick="addTempPlayer('${p.id}','${p.name}')"
@@ -2179,11 +2178,48 @@ function openAddTempPlayer(team) {
             </div>
             <span style="color:#7d6849;font-size:.8rem;">›</span>
         </div>`;
-    }).join('');
+    }).join('') : `<div style="font-size:.72rem;color:#7d6849;margin-bottom:4px;">Nu sunt jucători pe bancă momentan.</div>`;
+
+    const customHtml = `
+        <div style="margin-top:${available.length ? '12px' : '0'};padding-top:${available.length ? '12px' : '0'};${available.length ? 'border-top:1px dashed #e3d3ac;' : ''}">
+            <div style="font-size:.65rem;color:#7d6849;margin-bottom:6px;">Sau adaugă un jucător nou (nume):</div>
+            <div style="display:flex;gap:6px;">
+                <input id="customTempName" type="text" placeholder="Nume jucător" autocomplete="off"
+                    style="flex:1;padding:9px 10px;border-radius:8px;border:1px solid #e3d3ac;background:#fffaf0;font-size:.85rem;"
+                    onkeydown="if(event.key==='Enter'){addCustomTempPlayer();}">
+                <button onclick="addCustomTempPlayer()"
+                    style="padding:9px 14px;border-radius:8px;border:1px solid ${teamHex}66;background:${teamHex}15;color:${teamHex};font-weight:700;cursor:pointer;white-space:nowrap;">+ Adaugă</button>
+            </div>
+        </div>`;
+
+    document.getElementById('addTempBody').innerHTML = benchListHtml + customHtml;
 
     document.getElementById('addTempTitle').style.color = teamHex;
     document.getElementById('addTempTitle').textContent = '+ Adaugă în ' + teamName;
     document.getElementById('addTempOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('customTempName')?.focus(), 50);
+}
+
+function addCustomTempPlayer() {
+    if (!_addTempTeam) return;
+    const input = document.getElementById('customTempName');
+    const name = (input?.value || '').trim();
+    if (!name) { showToast('⚠️ Scrie un nume!'); return; }
+    if (players.some(p => p._temp && p._sourceName === name && p.status === _addTempTeam)) {
+        showToast('⚠️ Jucătorul e deja adăugat temporar!');
+        return;
+    }
+    const tempId = 'temp_' + Date.now() + '_custom';
+    players.push({
+        id: tempId,
+        name: name,
+        status: _addTempTeam,
+        _temp: true,
+        _sourceName: name,
+    });
+    showToast(`✓ ${name} adăugat temporar în ${getTeamName(_addTempTeam)}`);
+    closeAddTemp();
+    render();
 }
 
 function closeAddTemp() {
