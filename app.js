@@ -227,7 +227,7 @@ let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,
 let currentPlayerId = null;
 let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
 let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
-let chartOpen=false, statsOpen=false, detailsOpen=false, ratingsListOpen=false;
+let detailsOpen=false, ratingsListOpen=false;
 let qvVotes = {}, confirmCallback = null;
 let statsVisible = localStorage.getItem('dash_stats_visible') !== 'false';
 let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
@@ -3061,6 +3061,8 @@ function openModal(id){
 
     // Build tabs
     buildModalStats(p);
+    buildModalQuickGlance(p);
+    buildModalChemPreview(p);
     buildHexChart(p);
     buildPlayerMatchHistory(p);
     buildChemistry(p);
@@ -3073,18 +3075,19 @@ function openModal(id){
     modal.style.animation='none';
     modal.offsetHeight; // reflow
     modal.style.animation='';
-    chartOpen=false;
-    document.getElementById('chartBody').classList.remove('open');
-    document.getElementById('chartIcon').textContent='▼';
 }
 function switchModalTab(tab){
     document.querySelectorAll('.modal-tab').forEach((t,i)=>{
-        const tabs=['stats','radar','history','chemistry'];
+        const tabs=['stats','evolution','radar','history','chemistry'];
         t.classList.toggle('active',tabs[i]===tab);
     });
     document.querySelectorAll('.modal-tab-panel').forEach(p=>p.classList.remove('active'));
-    const panels={stats:'tabStats',radar:'tabRadar',history:'tabHistory',chemistry:'tabChemistry'};
+    const panels={stats:'tabStats',evolution:'tabEvolution',radar:'tabRadar',history:'tabHistory',chemistry:'tabChemistry'};
     document.getElementById(panels[tab])?.classList.add('active');
+    if(tab==='evolution'){
+        const p=db.players.find(x=>x.id==currentPlayerId);
+        if(p){ buildCatTabs(p); buildRatingChart(p,activeCatTab); }
+    }
 }
 
 // ── buildModalStats — with Live Preview Editor ───────────────────
@@ -3298,6 +3301,64 @@ function buildModalStats(p){
         gridHtml;
 
     buildCatTabs(p);
+}
+
+// ── Sumar rapid — o privire, fără să dai click prin taburi ────────
+function buildModalQuickGlance(p){
+    const el = document.getElementById('modalQuickGlance');
+    if(!el) return;
+    const chip = (label,color)=>`<span style="font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:8px;background:${color}18;border:1px solid ${color}44;color:${color};">${label}</span>`;
+    const chips = [];
+    chips.push(chip(`⚽ ${p.totalGoals||0} goluri sezon`, '#1b7a43'));
+    const tagCount = getPlayerActiveTagObjects(p).length;
+    if(tagCount>0) chips.push(chip(`👑 ${tagCount} status${tagCount!==1?'uri':''}`, '#9c4f00'));
+    chips.push(chip(`🎮 ${p.games||0} meciuri`, '#1554b3'));
+    el.innerHTML = chips.join('');
+}
+
+// ── Preview chimie — cel mai bun & cel mai slab partener, direct în tab Rating ──
+function buildModalChemPreview(p){
+    const el = document.getElementById('modalChemPreview');
+    if(!el) return;
+    const myMatches = db.history.filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name));
+    if(myMatches.length===0){ el.innerHTML=''; return; }
+    const chemMap={};
+    myMatches.forEach(h=>{
+        const inOrange=(h.orangePlayers||[]).includes(p.name);
+        const inBlack=(h.blackPlayers||[]).includes(p.name);
+        const myTeam=inOrange?h.orangePlayers:inBlack?(h.blackPlayers||[]):h.greenPlayers;
+        const won = playerWonMatch(h, p.name) === true;
+        (myTeam||[]).forEach(name=>{
+            if(name===p.name)return;
+            if(!chemMap[name])chemMap[name]={together:0,wins:0};
+            chemMap[name].together++;
+            if(won)chemMap[name].wins++;
+        });
+    });
+    const total=myMatches.length;
+    const results=Object.entries(chemMap)
+        .map(([name,d])=>{
+            const freq=d.together/total, wr=d.together>0?d.wins/d.together:0;
+            return {name, score:(freq*0.4+wr*0.6)*10, together:d.together};
+        })
+        .filter(r=>r.together>=2) // sub 2 meciuri împreună e prea zgomotos ca semnal
+        .sort((a,b)=>b.score-a.score);
+    if(results.length<2){ el.innerHTML=''; return; }
+    const best = results[0], worst = results[results.length-1];
+    el.innerHTML = `<div style="font-size:.6rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🤝 Chimie — pe scurt</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:140px;background:#f3e6cf;border:1px solid rgba(46,125,50,.3);border-radius:9px;padding:8px 10px;">
+                <div style="font-size:.6rem;color:#2e7d32;font-weight:700;text-transform:uppercase;">💚 Cea mai bună chimie</div>
+                <div style="font-weight:700;color:#3a2f1f;font-size:.85rem;margin-top:2px;">${best.name}</div>
+                <div style="font-size:.65rem;color:#6b5840;">${best.together} meciuri împreună · ${best.score.toFixed(1)}/10</div>
+            </div>
+            <div style="flex:1;min-width:140px;background:#f3e6cf;border:1px solid rgba(183,28,28,.25);border-radius:9px;padding:8px 10px;">
+                <div style="font-size:.6rem;color:#b71c1c;font-weight:700;text-transform:uppercase;">🧊 Cea mai slabă chimie</div>
+                <div style="font-weight:700;color:#3a2f1f;font-size:.85rem;margin-top:2px;">${worst.name}</div>
+                <div style="font-size:.65rem;color:#6b5840;">${worst.together} meciuri împreună · ${worst.score.toFixed(1)}/10</div>
+            </div>
+        </div>
+        <div onclick="switchModalTab('chemistry')" style="margin-top:6px;text-align:center;font-size:.65rem;color:#1554b3;cursor:pointer;text-decoration:underline;">Vezi toată chimia →</div>`;
 }
 
 // ── Live Stats Editor ────────────────────────────────────────────
@@ -3676,9 +3737,8 @@ function openTableView(){
     document.getElementById('tableOverlay').style.display='flex';
 }
 function closeTableView(){document.getElementById('tableOverlay').style.display='none';}
-function toggleChart(){chartOpen=!chartOpen;document.getElementById('chartBody').classList.toggle('open',chartOpen);document.getElementById('chartIcon').classList.toggle('open',chartOpen);if(chartOpen){const p=db.players.find(x=>x.id==currentPlayerId);if(p)buildRatingChart(p,activeCatTab);}}
 function buildCatTabs(p){document.getElementById('catTabs').innerHTML=CATS.map(c=>`<div class="cat-tab ${c===activeCatTab?'active':''}" onclick="switchCatTab('${c}')">${CAT_LABELS[c]}</div>`).join('');}
-function switchCatTab(cat){activeCatTab=cat;const p=db.players.find(x=>x.id==currentPlayerId);buildCatTabs(p);if(chartOpen&&statsOpen)buildRatingChart(p,cat);document.getElementById('chartLabel').textContent=`📈 Evoluție Rating — ${CAT_LABELS[cat]}`;}
+function switchCatTab(cat){activeCatTab=cat;const p=db.players.find(x=>x.id==currentPlayerId);buildCatTabs(p);buildRatingChart(p,cat);document.getElementById('chartLabel').textContent=`📈 Evoluție Rating — ${CAT_LABELS[cat]}`;}
 function buildRatingChart(p,cat){
     if(ratingChartInstance){ratingChartInstance.destroy();ratingChartInstance=null;}
     const ctx=document.getElementById('ratingChart').getContext('2d');
