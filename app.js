@@ -3992,6 +3992,12 @@ function renderMatchRounds(h){
         if(r.loser_name){
             subLines += `<div style="font-size:.62rem;color:#7d6849;margin-top:2px;">↩ <b>${r.loser_name}</b> iese — ${outReasonText[r.end_reason]||''}</div>`;
         }
+        let penScoreHtml = '';
+        if(r.end_reason==='penalty' && Array.isArray(r.penalty_shots) && r.penalty_shots.length){
+            const penA = r.penalty_shots.filter(s=>s.team==='orange'&&s.state==='goal').length;
+            const penB = r.penalty_shots.filter(s=>s.team==='green' &&s.state==='goal').length;
+            penScoreHtml = ` <span style="color:#7d6849;font-weight:400;">(pen ${penA}-${penB})</span>`;
+        }
         if(r.end_reason==='penalty' && r.penalty_winner_name){
             subLines += `<div style="font-size:.62rem;color:#7d6849;margin-top:2px;">🏆 <b style="color:#1b7a43;">${r.penalty_winner_name}</b> câștigă la penalty</div>`;
         }
@@ -3999,7 +4005,7 @@ function renderMatchRounds(h){
         return `<div style="padding:6px 0;border-bottom:1px solid #e3d3ac;">
             <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;">
                 <span style="color:#6b5840;min-width:44px;">Tur ${r.num}</span>
-                <span style="color:#3a2f1f;font-weight:700;flex:1;">${r.score_a}-${r.score_b}</span>
+                <span style="color:#3a2f1f;font-weight:700;flex:1;">${r.score_a}-${r.score_b}${penScoreHtml}</span>
                 <span style="color:#7d6849;font-weight:700;">${icon} ${label}</span>
                 <span style="color:#7d6849;font-size:.65rem;min-width:38px;text-align:right;">⏲ ${durStr}</span>
             </div>
