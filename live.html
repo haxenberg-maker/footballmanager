@@ -2064,6 +2064,14 @@ async function finalizeMatch3Team(pairs) {
                                  : r.loser_team_id === pair.team_b_id ? nB : null;
                 const penWinnerName = r.penalty_winner_id === pair.team_a_id ? nA
                                      : r.penalty_winner_id === pair.team_b_id ? nB : null;
+                // Loviturile de departajare se joacă mereu între cele 2 echipe aflate
+                // pe teren în acea tură (etichetate 'orange'/'green' în timp real).
+                // Remapăm la culoarea CANONICĂ a acestui rând de istoric (colA/colB),
+                // ca să se potrivească exact cu orange_players/green_players de mai sus.
+                const remapPenTeam = (shotTeam) => {
+                    if (shotTeam === 'orange') return aIsA ? colA : colB;
+                    return aIsA ? colB : colA; // 'green'
+                };
                 return {
                     num: r.num,
                     score_a: aIsA ? r.score_a : r.score_b,
@@ -2072,7 +2080,9 @@ async function finalizeMatch3Team(pairs) {
                     duration_sec: r.duration_sec || 0,
                     loser_name: loserName,
                     penalty_winner_name: r.end_reason === 'penalty' ? penWinnerName : null,
-                    penalty_shots: r.end_reason === 'penalty' ? (r.penalty_shots || null) : null,
+                    penalty_shots: r.end_reason === 'penalty' && Array.isArray(r.penalty_shots)
+                        ? r.penalty_shots.map(s => ({ ...s, team: remapPenTeam(s.team) }))
+                        : null,
                 };
             });
 
