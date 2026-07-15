@@ -540,7 +540,7 @@ function getFormIndex(p){
 function computeLbPeriodStats(period){
     const cutoff = period==='month' ? new Date(Date.now()-30*86400000) : null;
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyWins:0});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
     db.history.forEach(h=>{
         if (cutoff){ const d=parseDateToObj(h.date); if(!d || d<cutoff) return; }
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
@@ -548,8 +548,15 @@ function computeLbPeriodStats(period){
         (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
         (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
         if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        // Goluri marcate la loviturile de departajare — per JUCĂTOR (nu per echipă),
+        // derivate din penalty_shots (stocate per tură în rounds_detail). Complet
+        // separate de golurile normale (h.playerGoals) de mai sus.
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
-            if (r.penalty_winner_name) ensure(r.penalty_winner_name).penaltyWins++;
+            if (Array.isArray(r.penalty_shots)) {
+                r.penalty_shots.forEach(s=>{
+                    if (s.state === 'goal') ensure(s.player_name).penaltyGoals++;
+                });
+            }
         });
     });
     return stats;
@@ -560,7 +567,7 @@ function computeLbPeriodStats(period){
 // singura sursă de adevăr pentru sezoanele trecute e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyWins:0});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
@@ -569,7 +576,11 @@ function computeSeasonStats(seasonName){
         (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
         if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
-            if (r.penalty_winner_name) ensure(r.penalty_winner_name).penaltyWins++;
+            if (Array.isArray(r.penalty_shots)) {
+                r.penalty_shots.forEach(s=>{
+                    if (s.state === 'goal') ensure(s.player_name).penaltyGoals++;
+                });
+            }
         });
     });
     return stats;
@@ -743,10 +754,10 @@ function renderLeaderboard(){
             bigColor='#8a6800';
             break;
         case 'pen':
-            sorted=[...db.players, ...ghostPlayers].filter(p=>(periodStats[p.name]?.penaltyWins||0)>0)
-                .sort((a,b)=>(periodStats[b.name]?.penaltyWins||0)-(periodStats[a.name]?.penaltyWins||0));
-            getValue=p=>'🥅'+(periodStats[p.name]?.penaltyWins||0);
-            subLabel=p=>(periodStats[p.name]?.penaltyWins||0)+' câștigate la penalty';
+            sorted=[...db.players, ...ghostPlayers].filter(p=>(periodStats[p.name]?.penaltyGoals||0)>0)
+                .sort((a,b)=>(periodStats[b.name]?.penaltyGoals||0)-(periodStats[a.name]?.penaltyGoals||0));
+            getValue=p=>'🥅'+(periodStats[p.name]?.penaltyGoals||0);
+            subLabel=p=>(periodStats[p.name]?.penaltyGoals||0)+' goluri la penalty';
             bigColor='#b71c1c';
             break;
         default:
@@ -758,7 +769,7 @@ function renderLeaderboard(){
             ? `Niciun jucător cu date în sezonul „${currentSeason}".`
             : usesPeriodStats && currentLbPeriod==='month'
                 ? 'Niciun meci în ultimele 30 de zile.'
-                : (currentLbTab==='pen' ? 'Nicio tură decisă la penalty încă.' : 'Fără date disponibile.');
+                : (currentLbTab==='pen' ? 'Niciun gol la penalty încă.' : 'Fără date disponibile.');
         content.innerHTML=`<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
         return;
     }
