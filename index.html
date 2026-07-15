@@ -916,13 +916,13 @@
         <div class="col-body" id="list-orange"></div>
     </div>
     <div class="balance-col admin-only" style="position:relative;">
-        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Reechilibrează echipele">⚖️</button>
+        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Echipe: balans & instrumente">⚖️</button>
         <button class="btn-3team" id="btn3team" onclick="toggleThreeTeamIndex()" title="Mod 3 Echipe (bancă = Echipa 3)">3️⃣</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#1b7a43;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
-            <div class="balance-popup-title">⚖️ Echilibrare Echipe</div>
+            <div class="balance-popup-title">⚖️ Echipe: Balans &amp; Instrumente</div>
 
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🧠 Algoritm</div>
+            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🧠 Algoritm de Echilibrare</div>
             <div class="balance-opt" onclick="doBalance('smart')">
                 <span class="balance-opt-icon">★</span>
                 <span>Smart Balans
@@ -954,7 +954,7 @@
             </div>
 
             <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🔧 Gestionare</div>
+            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🔧 Alte Instrumente</div>
             <div class="balance-opt" onclick="openDraftMode()" style="color:#8e3a9e;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
             <div class="balance-opt" onclick="doRotation()" style="color:#2e7d32;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#1554b3;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
@@ -1055,6 +1055,7 @@
             <span class="lobby-datetime no-date" id="lobbyDatetime">Niciun meci programat</span>
             <button class="btn-edit-schedule admin-only" onclick="openScheduleModal()">✏️</button>
             <button class="admin-only" onclick="resetPrezenta()" title="Resetează prezența tuturor" style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);color:#b71c1c;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;">🔄 Reset Prezență</button>
+            <button class="admin-only" onclick="copyConfirmedPresence()" title="Copiază lista alfabetică a jucătorilor confirmați (fără echipă)" style="background:rgba(61,90,254,.1);border:1px solid rgba(61,90,254,.3);color:#1c2d8a;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📋 Copiază Prezența</button>
             <button class="btn-form-teams admin-only" onclick="formTeamsFromLobby()">⚡ Echipe</button>
         </div>
         <div class="lobby-body">
