@@ -1445,6 +1445,15 @@ function renderTureHistory() {
             subHtml += `<div class="tur-sub">🏆 <b style="color:${winHex}">${winName}</b> câștigă la penalty</div>`;
         }
 
+        // Scor la lovituri de departajare (dacă runda s-a decis la penalty) —
+        // se afișează separat, în paranteză, lângă scorul din timpul regulamentar.
+        let penScoreHtml = '';
+        if (r.end_reason === 'penalty' && Array.isArray(r.penalty_shots) && r.penalty_shots.length) {
+            const penA = r.penalty_shots.filter(s => s.team === 'orange' && s.state === 'goal').length;
+            const penB = r.penalty_shots.filter(s => s.team === 'green'  && s.state === 'goal').length;
+            penScoreHtml = `<span style="font-size:.62rem;color:#7d6849;margin-left:3px;">(pen ${penA}-${penB})</span>`;
+        }
+
         return `<div class="tur-item">
             <div class="tur-row" onclick="showRoundDetail('${rId}')">
                 <span class="tur-num">Tur ${r.num}</span>
@@ -1453,6 +1462,7 @@ function renderTureHistory() {
                     <span style="color:${cA}">${sA}</span>
                     <span style="color:#7d6849;font-size:.7rem;margin:0 2px">-</span>
                     <span style="color:${cB}">${sB}</span>
+                    ${penScoreHtml}
                 </span>
                 <span class="tur-meta">${min}<span class="tur-reason ${r.end_reason||''}">${rLabel}</span></span>
                 <span style="color:#7d6849;font-size:.7rem;">›</span>
@@ -1493,7 +1503,9 @@ function showRoundDetail(roundId) {
     const outName = r.loser_team_id ? getTeamNameById(r.loser_team_id) : null;
     if (outName) endLabel += ` · ↩ ${outName} iese`;
     if (r.end_reason === 'penalty' && r.penalty_winner_id) {
-        endLabel += ` · 🏆 ${getTeamNameById(r.penalty_winner_id)} câștigă`;
+        const penA = Array.isArray(r.penalty_shots) ? r.penalty_shots.filter(s=>s.team==='orange'&&s.state==='goal').length : 0;
+        const penB = Array.isArray(r.penalty_shots) ? r.penalty_shots.filter(s=>s.team==='green' &&s.state==='goal').length : 0;
+        endLabel += ` (${penA}-${penB}) · 🏆 ${getTeamNameById(r.penalty_winner_id)} câștigă`;
     }
     const durMin = r.duration_sec ? Math.floor(r.duration_sec/60)+"'"+String(r.duration_sec%60).padStart(2,'0')+"\"" : '—';
 
@@ -1774,6 +1786,20 @@ function buildPairs(allRounds) {
             pair.all_goals.push({ ...g, canon_team: canonTeam });
         });
 
+        // Golurile marcate la loviturile de departajare (penalty) se adaugă și ele
+        // la marcatori — jucătorul primește credit ca la orice alt gol (contează
+        // pentru total_goals, MVP, clasament). Scorul de goluri al rundei (rA/rB,
+        // pair.goals_a/b) rămâne NEATINS — acela e strict din timpul de joc normal;
+        // penalty-urile decid doar cine câștigă tura, nu golurile marcate.
+        if (r.end_reason === 'penalty' && Array.isArray(r.penalty_shots)) {
+            r.penalty_shots.filter(s => s.state === 'goal').forEach(s => {
+                let canonTeam;
+                if (s.team === 'orange') canonTeam = isStrictA ? 'a' : 'b';
+                else canonTeam = isStrictA ? 'b' : 'a';
+                pair.all_goals.push({ player_name: s.player_name, team: s.team, minute: null, is_penalty: true, canon_team: canonTeam });
+            });
+        }
+
         pair.rounds.push({ ...r, _isStrictA: isStrictA });
     });
 
@@ -1891,9 +1917,17 @@ function renderFinalize3Team() {
             const m = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
             const s = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${m}:${String(s).padStart(2,'0')}` : '—';
+            let penStr = '';
+            if (r.end_reason === 'penalty' && Array.isArray(r.penalty_shots) && r.penalty_shots.length) {
+                const penOrange = r.penalty_shots.filter(s=>s.team==='orange'&&s.state==='goal').length;
+                const penGreen  = r.penalty_shots.filter(s=>s.team==='green' &&s.state==='goal').length;
+                const penA = aIsOrange ? penOrange : penGreen;
+                const penB = aIsOrange ? penGreen  : penOrange;
+                penStr = ` <span style="color:#7d6849;">(pen ${penA}-${penB})</span>`;
+            }
             return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:.66rem;border-bottom:1px solid #14161f;">
                 <span style="color:#6b5840;min-width:38px;">Tur ${r.num}</span>
-                <span style="color:#7d6849;flex:1;">${rA}-${rB}</span>
+                <span style="color:#7d6849;flex:1;">${rA}-${rB}${penStr}</span>
                 <span style="color:${winCol};font-weight:700;min-width:62px;">${icon} ${label}</span>
                 <span style="color:#7d6849;min-width:42px;text-align:right;">⏲ ${durStr}</span>
             </div>`;
