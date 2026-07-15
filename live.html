@@ -1740,6 +1740,7 @@ function buildPairs(allRounds) {
                 a_players: new Set(),
                 b_players: new Set(),
                 all_goals: [],
+                all_penalty_goals: [], // separat de all_goals — NU se amestecă cu golurile normale
                 rounds: []
             };
         }
@@ -1786,17 +1787,16 @@ function buildPairs(allRounds) {
             pair.all_goals.push({ ...g, canon_team: canonTeam });
         });
 
-        // Golurile marcate la loviturile de departajare (penalty) se adaugă și ele
-        // la marcatori — jucătorul primește credit ca la orice alt gol (contează
-        // pentru total_goals, MVP, clasament). Scorul de goluri al rundei (rA/rB,
-        // pair.goals_a/b) rămâne NEATINS — acela e strict din timpul de joc normal;
-        // penalty-urile decid doar cine câștigă tura, nu golurile marcate.
+        // Golurile marcate la loviturile de departajare (penalty) se țin STRICT
+        // separat de golurile normale — NU intră în pair.all_goals, deci nu ating
+        // deloc match_goals / total_goals / MVP / clasamentul de goluri. Rămân
+        // disponibile doar în pair.all_penalty_goals, pentru afișare separată.
         if (r.end_reason === 'penalty' && Array.isArray(r.penalty_shots)) {
             r.penalty_shots.filter(s => s.state === 'goal').forEach(s => {
                 let canonTeam;
                 if (s.team === 'orange') canonTeam = isStrictA ? 'a' : 'b';
                 else canonTeam = isStrictA ? 'b' : 'a';
-                pair.all_goals.push({ player_name: s.player_name, team: s.team, minute: null, is_penalty: true, canon_team: canonTeam });
+                pair.all_penalty_goals.push({ player_name: s.player_name, team: s.team, canon_team: canonTeam });
             });
         }
 
@@ -1901,6 +1901,15 @@ function renderFinalize3Team() {
                 return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n} ⚽${c}</span>`;
             }).join('<span style="color:#7d6849;margin:0 4px;">·</span>');
 
+        // Marcatori la penalty — STRICT separat de golurile normale (nu se adună cu ele)
+        const pairPenSc = {};
+        (pair.all_penalty_goals||[]).forEach(g => { pairPenSc[g.player_name]=(pairPenSc[g.player_name]||0)+1; });
+        const penScorersList = Object.entries(pairPenSc).sort((a,b)=>b[1]-a[1])
+            .map(([n,c]) => {
+                const isA = pair.a_players.includes(n);
+                return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n} 🥅${c}</span>`;
+            }).join('<span style="color:#7d6849;margin:0 4px;">·</span>');
+
         // Rounds detail — scor, mod încheiere, durată
         const roundsDetail = pair.rounds.map(r => {
             const aIsOrange = (r.team_a_id === pair.team_a_id);
@@ -1956,6 +1965,7 @@ function renderFinalize3Team() {
             </div>
             <!-- Scorers -->
             ${scorersList ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;">${scorersList}</div>` : ''}
+            ${penScorersList ? `<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;"><span style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:.5px;">Penalty:</span>${penScorersList}</div>` : ''}
             <!-- Rounds detail -->
             <div style="border-top:1px solid #1a1d28;padding-top:4px;">${roundsDetail}</div>
         </div>`;
