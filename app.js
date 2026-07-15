@@ -1579,15 +1579,29 @@ function renderHistory(){
         const gN = h.greenPlayers?.length  || 0;
         const bN = h.blackPlayers?.length  || 0;
 
+        // Goluri la penalty, cumulate pe toate turele meciului, per culoarea echipei
+        // (complet separat de goluri normale — afișat doar în paranteză, informativ).
+        const penG = { orange:0, green:0, black:0 };
+        if (Array.isArray(h.roundsDetail)) {
+            h.roundsDetail.forEach(r=>{
+                if (Array.isArray(r.penalty_shots)) {
+                    r.penalty_shots.forEach(s=>{
+                        if (s.state==='goal' && penG[s.team]!==undefined) penG[s.team]++;
+                    });
+                }
+            });
+        }
+
         const makeTeamScore = (names, teamKey, color, label) => {
             if (!names?.length) return '';
             const g = tg[teamKey] || 0;
+            const pen = penG[teamKey] || 0;
             const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
             return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
                 <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
                 <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#3a2f1f'};">${label}</span>
                 <span style="font-size:.72rem;color:#7d6849;">(${names.length} juc.)</span>
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:#7d6849;">(pen ${pen})</span>`:''}</span>
             </div>`;
         };
 
