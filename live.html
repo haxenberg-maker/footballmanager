@@ -637,11 +637,11 @@ async function withRetry(fn, { retries = 3, label = 'salvare' } = {}) {
         }
     }
 }
-function showRotationToast(msg) {
+function showRotationToast(msg, durationMs = 3000) {
     const el = document.getElementById('rotationToast');
     if (!el) return;
     el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), 3000);
+    setTimeout(() => el.classList.remove('show'), durationMs);
 }
 function bump(team) {
     const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
@@ -1124,7 +1124,14 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
         // Echipa care intră apare cu numele și culoarea ei corectă
         render();
 
-        showRotationToast(`${exitingName} IESE · ${enteringName} INTRĂ`);
+        let rotMsg = `${exitingName} IESE · ${enteringName} INTRĂ`;
+        if (reason === 'penalty' && penaltyWinnerId) {
+            const penWinnerName = getTeamNameById(penaltyWinnerId);
+            rotMsg = `🏆 ${penWinnerName} câștigă la penalty · ` + rotMsg;
+            showRotationToast(rotMsg, 4500);
+        } else {
+            showRotationToast(rotMsg);
+        }
         scheduleRoundTimeout({ ...liveState, color_map: newColorMap, round_start_sec: newRoundStartSec });
 
         lastAction = { type:'rotation', label:`Ultima rotație: ${exitingName} → bancă`, undo: () => undoRotation(preSnapshot) };
@@ -2090,11 +2097,27 @@ async function finalizeMatch3Team(pairs) {
                 if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
             }
 
+            // Golurile de la penalty se salvează SEPARAT, marcate cu is_penalty:true —
+            // rămân în match_goals (pentru istoric/clasament), dar tăgăduite ca să nu
+            // se adune la golurile normale nicăieri. Insert separat, best-effort: dacă
+            // baza de date nu are încă migrarea pentru coloana is_penalty, eșuează
+            // silențios fără să afecteze salvarea golurilor normale de mai sus.
+            if (mh?.id && pair.all_penalty_goals && pair.all_penalty_goals.length) {
+                try {
+                    await sb.from('match_goals').insert(pair.all_penalty_goals.map(g => ({
+                        match_id: mh.id, player_name: g.player_name,
+                        team: g.canon_team === 'a' ? colA : colB,
+                        goals: 1, goals_conceded: 0, minute: null, is_penalty: true,
+                    })));
+                } catch(e) { console.warn('penalty goals not saved (migrarea is_penalty?):', e.message); }
+            }
+
             for (const name of [...pair.a_players, ...pair.b_players]) {
                 const p = players.find(x=>x.name===name); if(!p) continue;
                 const inA = pair.a_players.includes(name);
                 const won = inA ? aWon : bWon;
                 const pGoals = pair.all_goals.filter(g=>g.player_name===name).length;
+                const pPenGoals = (pair.all_penalty_goals||[]).filter(g=>g.player_name===name).length;
                 const pConceded = inA ? pair.goals_b : pair.goals_a;
                 try {
                     const {data:cur} = await sb.from('players')
@@ -2112,6 +2135,13 @@ async function finalizeMatch3Team(pairs) {
                         }).eq('id',p.id);
                     }
                 } catch(e){}
+                // Statistică SEPARATĂ pentru goluri la penalty — best-effort, nu atinge total_goals.
+                if (pPenGoals > 0) {
+                    try {
+                        const {data:curP} = await sb.from('players').select('total_penalty_goals').eq('id',p.id).single();
+                        await sb.from('players').update({ total_penalty_goals: (curP?.total_penalty_goals||0) + pPenGoals }).eq('id',p.id);
+                    } catch(e) { console.warn('total_penalty_goals not updated (migrarea?):', e.message); }
+                }
             }
             savedCount++;
         }
