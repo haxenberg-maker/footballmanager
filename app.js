@@ -1842,15 +1842,38 @@ async function viewSeasons(){
         overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:20px;max-width:360px;width:100%;max-height:80vh;overflow:auto;">
             <h3 style="margin:0 0 12px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;color:#7d6849;">📂 Sezoane Anterioare</h3>
             <div style="display:flex;flex-direction:column;gap:8px;">
-                ${names.map(n=>`<button data-season="${n.replace(/"/g,'&quot;')}" style="text-align:left;padding:11px 14px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">🗓️ ${n}</button>`).join('')}
+                ${names.map(n=>`<div style="display:flex;gap:6px;">
+                    <button data-season="${n.replace(/"/g,'&quot;')}" style="flex:1;text-align:left;padding:11px 14px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">🗓️ ${n}</button>
+                    <button data-rename="${n.replace(/"/g,'&quot;')}" title="Redenumește sezonul" style="width:40px;flex-shrink:0;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.9rem;">✏️</button>
+                </div>`).join('')}
             </div>
             <button id="seasonListCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
         </div>`;
         overlay.querySelectorAll('button[data-season]').forEach(btn=>{
             btn.onclick = ()=>{ overlay.remove(); openSeasonArchive(btn.dataset.season); };
         });
+        overlay.querySelectorAll('button[data-rename]').forEach(btn=>{
+            btn.onclick = (e)=>{ e.stopPropagation(); renameSeason(btn.dataset.rename, names, overlay); };
+        });
         overlay.querySelector('#seasonListCloseBtn').onclick = ()=>overlay.remove();
         document.body.appendChild(overlay);
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function renameSeason(oldName, existingNames, overlay){
+    if(!isAdmin()){ showToast('⚠️ Doar adminul poate face asta!'); return; }
+    const newName = prompt('Nume nou pentru sezonul „'+oldName+'":', oldName);
+    if(newName===null) return;
+    const trimmed = newName.trim();
+    if(!trimmed){ showToast('⚠️ Numele sezonului nu poate fi gol.'); return; }
+    if(trimmed === oldName){ return; }
+    if((existingNames||[]).includes(trimmed)){ showToast('⚠️ Există deja un sezon cu acest nume!'); return; }
+    try{
+        const { error } = await sb.from('match_history').update({season: trimmed}).eq('season', oldName);
+        if(error) throw error;
+        showToast(`✅ Sezon redenumit: „${oldName}" → „${trimmed}"`);
+        if(overlay) overlay.remove();
+        viewSeasons();
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
@@ -4808,6 +4831,21 @@ function getEligiblePlayers(){
     return db.players.filter(p => ['bench','orange','green'].includes(p.status));
 }
 
+// Copiază în clipboard lista alfabetică a jucătorilor confirmați/activi,
+// FĂRĂ nicio referire la echipă (Portocaliu/Verde/Bancă) — utilă pentru
+// a trimite rapid „cine vine" într-un grup, fără să dai spoiler la echipe.
+function copyConfirmedPresence(){
+    const players = getEligiblePlayers();
+    if(!players.length){ showToast('⚠️ Niciun jucător confirmat momentan!'); return; }
+    const sortedNames = [...players].map(p=>p.name).sort((a,b)=>a.localeCompare(b,'ro'));
+    const text = sortedNames.map((n,i)=>`${i+1}. ${n}`).join('\n');
+    navigator.clipboard.writeText(text).then(()=>{
+        showToast(`✅ Copiat! ${sortedNames.length} jucători confirmați (ordine alfabetică).`);
+    }).catch(()=>{
+        showToast('⚠️ Nu am putut copia în clipboard — verifică permisiunile browserului.');
+    });
+}
+
 function snapshotTeams(){
     return {
         orange: db.players.filter(p=>p.status==='orange').map(p=>p.name),
@@ -5055,19 +5093,30 @@ function doBalance(mode) {
         // Anti-synergy cost
         const oAnti = !oFull ? countAntiSynergyInTeam([...oArr, p]) * 0.3 : 999;
         const gAnti = !gFull ? countAntiSynergyInTeam([...gArr, p]) * 0.3 : 999;
-        // Synergy-aware rating (for smart mode)
-        const rO = !oFull ? getRating(p, mode==='smart'?{teammates:oArr}:{}) : 0;
-        const rG = !gFull ? getRating(p, mode==='smart'?{teammates:gArr}:{}) : 0;
+        // Rating de sinergie (ține cont de coechipierii deja aleși, doar la 'smart')
+        const rO = !oFull ? getRating(p, mode==='smart'?{teammates:oArr}:{}) : Infinity;
+        const rG = !gFull ? getRating(p, mode==='smart'?{teammates:gArr}:{}) : Infinity;
 
-        const scoreO = oFull ? Infinity : (oSum + oAnti - rO * 0);
-        const scoreG = gFull ? Infinity : (gSum + gAnti - rG * 0);
+        // Scor = ce s-ar întâmpla cu suma echipei dacă p intră acolo + penalizare anti-sinergie.
+        // (Înainte rO/rG erau calculate dar anulate cu "* 0" — bug, sinergia nu conta deloc.)
+        const scoreO = oFull ? Infinity : (oSum + rO + oAnti);
+        const scoreG = gFull ? Infinity : (gSum + rG + gAnti);
 
-        if (!oFull && (gFull || oSum + oAnti <= gSum + gAnti)) {
+        if (!oFull && (gFull || scoreO <= scoreG)) {
             p.status = 'orange'; oArr.push(p); oSum += getRating(p);
         } else {
             p.status = 'green'; gArr.push(p); gSum += getRating(p);
         }
     });
+
+    // ── Rafinare finală: căutare locală (2-opt) ────────────────────
+    // Împărțirea greedy de mai sus e un bun punct de plecare, dar nu garantează
+    // cel mai mic decalaj posibil între echipe. Încercăm sistematic swap-uri
+    // 1-la-1 între echipe și le acceptăm doar dacă reduc decalajul de rating
+    // ȘI nu cresc numărul de perechi cu anti-sinergie din aceeași echipă.
+    refineTeamSplit(oArr, gArr, getRating);
+    oSum = oArr.reduce((s,p) => s + getRating(p), 0);
+    gSum = gArr.reduce((s,p) => s + getRating(p), 0);
 
     render();
     Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
@@ -5075,6 +5124,52 @@ function doBalance(mode) {
     showToast(`⚖️ ${teamNames.orange}:${oArr.length} (★${oAvg}) vs ${teamNames.green}:${gArr.length} (★${gAvg})`);
     const reportSG = buildBalanceReport(oArr, gArr, mode);
     _showImbalanceAlert(reportSG);
+}
+
+// Căutare locală: încearcă să reducă decalajul de rating dintre cele două echipe
+// prin schimbarea unor perechi de jucători (unul din fiecare echipă), atâta timp
+// cât schimbarea nu crește numărul de perechi cu "anti-sinergie" din aceeași echipă.
+// Mutează direct p.status pe obiectele din oArr/gArr (aceleași referințe ca în `active`).
+function refineTeamSplit(oArr, gArr, getRating) {
+    let oSum = oArr.reduce((s,p) => s + getRating(p), 0);
+    let gSum = gArr.reduce((s,p) => s + getRating(p), 0);
+    const antiBaseline = () => countAntiSynergyInTeam(oArr) + countAntiSynergyInTeam(gArr);
+
+    let iterations = 0;
+    let improved = true;
+    while (improved && iterations < 60) {
+        improved = false;
+        iterations++;
+        let bestGain = 0.05; // prag minim ca să nu oscilăm pe zecimale nesemnificative
+        let bestI = -1, bestJ = -1;
+        const antiBefore = antiBaseline();
+
+        for (let i = 0; i < oArr.length; i++) {
+            for (let j = 0; j < gArr.length; j++) {
+                const rO = getRating(oArr[i]), rG = getRating(gArr[j]);
+                const newOSum = oSum - rO + rG;
+                const newGSum = gSum - rG + rO;
+                const gainGap = Math.abs(oSum - gSum) - Math.abs(newOSum - newGSum);
+                if (gainGap <= bestGain) continue;
+
+                const swappedO = oArr.slice(); swappedO[i] = gArr[j];
+                const swappedG = gArr.slice(); swappedG[j] = oArr[i];
+                const antiAfter = countAntiSynergyInTeam(swappedO) + countAntiSynergyInTeam(swappedG);
+                if (antiAfter > antiBefore) continue; // nu acceptăm swap-uri care strică sinergia
+
+                bestGain = gainGap; bestI = i; bestJ = j;
+            }
+        }
+
+        if (bestI >= 0) {
+            const pO = oArr[bestI], pG = gArr[bestJ];
+            oArr[bestI] = pG; pG.status = 'orange';
+            gArr[bestJ] = pO; pO.status = 'green';
+            oSum = oSum - getRating(pO) + getRating(pG);
+            gSum = gSum - getRating(pG) + getRating(pO);
+            improved = true;
+        }
+    }
 }
 
 function _showImbalanceAlert(report) {
