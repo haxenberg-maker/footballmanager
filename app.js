@@ -461,6 +461,7 @@ function rowToPlayer(p) {
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
         totalGoals: p.total_goals||0,
         totalGoalsConceded: p.total_goals_conceded||0,
+        totalPenaltyGoals: p.total_penalty_goals||0,
         lastImbalanceLoss: p.last_imbalance_loss||0,
         ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
             _dbId: r.id, rater:r.rater, date:r.date, tags:r.tags||'',
@@ -1247,7 +1248,8 @@ function render(){
                 return `<span class="ptag ${cls}" style="font-size:.55rem;padding:1px 5px;">${t.tag.emoji} ${t.tag.label}</span>`;
             }).join('');
             const goalsLine = (p.totalGoals||0)>0
-                ? `<div class="fifa-stat" style="color:#1b7a43;">⚽<span>${p.totalGoals}</span></div>` : '';
+                ? `<div class="fifa-stat" style="color:#1b7a43;">⚽<span>${p.totalGoals}</span>${(p.totalPenaltyGoals||0)>0?` <span style="font-size:.55rem;color:#7d6849;">(🥅${p.totalPenaltyGoals} pen)</span>`:''}</div>`
+                : ((p.totalPenaltyGoals||0)>0 ? `<div class="fifa-stat" style="color:#7d6849;font-size:.55rem;">🥅${p.totalPenaltyGoals} pen</div>` : '');
             const gcLine = (p.totalGoalsConceded||0)>0
                 ? `<div class="fifa-stat" style="color:#b71c1c;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
             card.innerHTML=`
@@ -1819,8 +1821,9 @@ async function saveSeason(){
         try{
             const { error: upErr } = await sb.from('match_history').update({season: seasonName}).is('season', null);
             if(upErr) throw new Error('Ai rulat migrarea SQL pentru coloana "season"? Detalii: ' + upErr.message);
-            db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];p.totalGoals=0;p.totalGoalsConceded=0;});
+            db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];p.totalGoals=0;p.totalGoalsConceded=0;p.totalPenaltyGoals=0;});
             await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
+            try{ await sb.from('players').update({total_penalty_goals:0}).neq('id',0); }catch(_){ /* coloana nu există încă — vezi nota de migrare */ }
             db.history = [];
             db.nextMatch.confirmedIds=[]; db.nextMatch.absentIds=[];
             await dbSaveNextMatch();
@@ -1919,12 +1922,13 @@ async function resetAllGoals(){
             try{
                 // Reset player goal counters
                 await sb.from('players').update({total_goals:0, total_goals_conceded:0}).neq('id',0);
+                try{ await sb.from('players').update({total_penalty_goals:0}).neq('id',0); }catch(_){}
                 // Delete all match_goals entries
                 await sb.from('match_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
                 // Also clear live_goals if any
                 try{ await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'); }catch(_){}
                 // Update local state
-                db.players.forEach(p=>{ p.totalGoals=0; p.totalGoalsConceded=0; });
+                db.players.forEach(p=>{ p.totalGoals=0; p.totalGoalsConceded=0; p.totalPenaltyGoals=0; });
                 render();
                 showToast('✅ Goluri resetate pentru toți jucătorii!');
             }catch(e){ showToast('⚠️ '+e.message); }
@@ -3333,6 +3337,7 @@ function buildModalQuickGlance(p){
     const chip = (label,color)=>`<span style="font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:8px;background:${color}18;border:1px solid ${color}44;color:${color};">${label}</span>`;
     const chips = [];
     chips.push(chip(`⚽ ${p.totalGoals||0} goluri sezon`, '#1b7a43'));
+    if((p.totalPenaltyGoals||0)>0) chips.push(chip(`🥅 ${p.totalPenaltyGoals} goluri penalty`, '#7d6849'));
     const tagCount = getPlayerActiveTagObjects(p).length;
     if(tagCount>0) chips.push(chip(`👑 ${tagCount} status${tagCount!==1?'uri':''}`, '#9c4f00'));
     chips.push(chip(`🎮 ${p.games||0} meciuri`, '#1554b3'));
