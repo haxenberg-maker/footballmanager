@@ -2085,11 +2085,6 @@ function updateAllTeamLabels() {
     if (mOT2) mOT2.textContent = o;
     if (mGT2) mGT2.textContent = g;
 
-    // Balance popup swap options text
-    const swapOpts = document.querySelectorAll('.balance-opt span:last-child');
-    if (swapOpts[0]) swapOpts[0].textContent = o + ' ↔ Bancă';
-    if (swapOpts[1]) swapOpts[1].textContent = g + ' ↔ Bancă';
-
     // Export/snapshot team headers in modals
     document.querySelectorAll('.snap-team-o').forEach(el => { el.textContent = o; el.style.color = oH; });
     document.querySelectorAll('.snap-team-g').forEach(el => { el.textContent = g; el.style.color = gH; });
@@ -4889,7 +4884,7 @@ function updateScenarioBadge(){
     if(!el) return;
     const eligible = getEligiblePlayers();
     const hasCon = (db.nextMatch?.confirmedIds||[]).length > 0;
-    el.innerHTML = '⚖️ Fă Echipele'+(hasCon?` <span style="font-size:.55rem;color:#1b7a43;font-family:'Rajdhani',sans-serif;">(${eligible.length} confirmați)</span>`:'');
+    el.innerHTML = '⚖️ Echipe: Balans &amp; Instrumente'+(hasCon?` <span style="font-size:.55rem;color:#1b7a43;font-family:'Rajdhani',sans-serif;">(${eligible.length} confirmați)</span>`:'');
 }
 
 async function resetScenarios(){
@@ -4965,7 +4960,87 @@ function openVoteTeamsLink(){
 }
 
 
-function doBalance(mode) {
+// La meciuri de 10 la 10, echilibrarea pe rating nu mai e suficientă — contează
+// și să nu ajungi cu toți fundașii/atacanții într-o singură echipă. Această
+// rafinare încearcă swap-uri care reduc diferența de posturi (GK/DEF/MID/FWD)
+// dintre echipe, atâta timp cât nu strică prea mult echilibrul de rating deja
+// obținut în refineTeamSplit().
+function refinePositionBalance(oArr, gArr, getRating) {
+    const groups = ['GK','DEF','MID','FWD'];
+    const countBy = (arr) => {
+        const c = {GK:0,DEF:0,MID:0,FWD:0};
+        arr.forEach(p => { const g = getPlayerPrimaryGroup(p); if (g && c[g] !== undefined) c[g]++; });
+        return c;
+    };
+    const imbalance = (oC,gC) => groups.reduce((s,g) => s + Math.abs(oC[g]-gC[g]), 0);
+
+    let oSum = oArr.reduce((s,p) => s + getRating(p), 0);
+    let gSum = gArr.reduce((s,p) => s + getRating(p), 0);
+
+    let iterations = 0, improved = true;
+    while (improved && iterations < 40) {
+        improved = false;
+        iterations++;
+        const oC = countBy(oArr), gC = countBy(gArr);
+        const curImb = imbalance(oC, gC);
+        if (curImb <= 1) break; // deja suficient de echilibrat pe posturi (diferență ≤1 per post)
+
+        let bestI = -1, bestJ = -1, bestImb = curImb;
+        for (let i = 0; i < oArr.length; i++) {
+            for (let j = 0; j < gArr.length; j++) {
+                const giGroup = getPlayerPrimaryGroup(oArr[i]);
+                const gjGroup = getPlayerPrimaryGroup(gArr[j]);
+                if (giGroup === gjGroup) continue; // fără efect pe distribuția de posturi
+
+                const rO = getRating(oArr[i]), rG = getRating(gArr[j]);
+                const newOSum = oSum - rO + rG, newGSum = gSum - rG + rO;
+                // Nu lăsăm rating-ul să se strice semnificativ doar ca să echilibrăm posturile
+                if (Math.abs(newOSum - newGSum) > Math.abs(oSum - gSum) + 0.6) continue;
+
+                const testOC = {...oC}, testGC = {...gC};
+                if (giGroup) { testOC[giGroup]--; testGC[giGroup]++; }
+                if (gjGroup) { testGC[gjGroup]--; testOC[gjGroup]++; }
+                const newImb = imbalance(testOC, testGC);
+                if (newImb < bestImb) { bestImb = newImb; bestI = i; bestJ = j; }
+            }
+        }
+
+        if (bestI >= 0) {
+            const pO = oArr[bestI], pG = gArr[bestJ];
+            oArr[bestI] = pG; pG.status = 'orange';
+            gArr[bestJ] = pO; pO.status = 'green';
+            oSum = oSum - getRating(pO) + getRating(pG);
+            gSum = gSum - getRating(pG) + getRating(pO);
+            improved = true;
+        }
+    }
+}
+
+// Întreabă pe ce format se joacă înainte de a echilibra (Smart / Rating General) —
+// la 10 la 10 aplicăm și rafinarea pe posturi, la 6/7 la 7 nu (nu are sens).
+function askFormatThenBalance(mode) {
+    document.getElementById('balancePopup').classList.remove('show');
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:20px;max-width:320px;width:100%;">
+        <h3 style="margin:0 0 6px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;color:#7d6849;">⚽ Pe ce format jucați?</h3>
+        <div style="font-size:.72rem;color:#7d6849;margin-bottom:14px;">La 10 la 10 echilibrez și pe posturi (portar / fundaș / mijlocaș / atacant). La 6 la 6 sau 7 la 7 nu e nevoie.</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            <button data-fmt="6"  style="padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;cursor:pointer;">6 la 6</button>
+            <button data-fmt="7"  style="padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;cursor:pointer;">7 la 7</button>
+            <button data-fmt="10" style="padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #dcc89a;color:#3a2f1f;font-weight:700;cursor:pointer;">10 la 10 <span style="font-size:.65rem;color:#7d6849;">(și pe posturi)</span></button>
+        </div>
+        <button id="fmtCancelBtn" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Anulează</button>
+    </div>`;
+    overlay.querySelectorAll('button[data-fmt]').forEach(btn => {
+        btn.onclick = () => { overlay.remove(); doBalance(mode, btn.dataset.fmt); };
+    });
+    overlay.querySelector('#fmtCancelBtn').onclick = () => overlay.remove();
+    document.body.appendChild(overlay);
+}
+
+function doBalance(mode, format) {
     document.getElementById('balancePopup').classList.remove('show');
     const eligible = getEligiblePlayers();
     const active = eligible.length >= 2
@@ -4973,6 +5048,10 @@ function doBalance(mode) {
         : db.players.filter(p => p.status === 'orange' || p.status === 'green' || p.status === 'bench');
     if (active.length < 2) { showToast('⚠️ Minim 2 jucători confirmați!'); return; }
     active.forEach(p => { if (p.status === 'active') p.status = 'bench'; });
+
+    // La 10 la 10 contează și distribuția pe posturi (portar/fundaș/mijlocaș/atacant);
+    // la 6 la 6 / 7 la 7, per cererea ta, nu mai e nevoie.
+    const usePositionBalance = format === '10';
 
     // Pre-compute anti-synergy pairs once per balance call
     _antiSynergyPairs = getAntiSynergyPairs();
@@ -5115,6 +5194,7 @@ function doBalance(mode) {
     // 1-la-1 între echipe și le acceptăm doar dacă reduc decalajul de rating
     // ȘI nu cresc numărul de perechi cu anti-sinergie din aceeași echipă.
     refineTeamSplit(oArr, gArr, getRating);
+    if (usePositionBalance) refinePositionBalance(oArr, gArr, getRating);
     oSum = oArr.reduce((s,p) => s + getRating(p), 0);
     gSum = gArr.reduce((s,p) => s + getRating(p), 0);
 
