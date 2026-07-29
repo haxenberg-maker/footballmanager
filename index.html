@@ -1060,6 +1060,13 @@
         </div>
         <div class="lobby-body">
             <div class="lobby-hint">Click pe jucător pentru a marca prezența:</div>
+            <div class="lobby-search-wrap" style="position:relative;margin-bottom:10px;">
+                <input type="text" id="lobbySearch" placeholder="🔎 Caută jucător…" autocomplete="off"
+                    oninput="filterLobbySearch(this.value)"
+                    style="width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:8px;border:1px solid #dcc89a;background:#fffaf0;font-size:.82rem;color:#3a2f1f;">
+                <button id="lobbySearchClear" onclick="clearLobbySearch()" title="Șterge căutarea"
+                    style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:#7d6849;font-size:.9rem;cursor:pointer;padding:4px 6px;line-height:1;">✕</button>
+            </div>
             <div class="lobby-players" id="lobbyPlayers"></div>
             <div class="lobby-confirmed-count" id="lobbyCount"></div>
         </div>
