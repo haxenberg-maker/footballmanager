@@ -224,6 +224,7 @@ const today = new Date().toLocaleDateString('ro-RO');
 
 // ── App State ──
 let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[],absentIds:[]} };
+let lobbySearchQuery = ''; // filtrul de căutare din secțiunea de prezență
 let currentPlayerId = null;
 let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
 let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
@@ -1641,6 +1642,25 @@ function renderHistory(){
     }).join('');
 }
 
+// Elimină diacriticele ca să caute "Stefan" -> "Ștefan", "Barbu" -> "Bărbu" etc.
+function normalizeSearchStr(s){
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function filterLobbySearch(value){
+    lobbySearchQuery = value;
+    const clearBtn = document.getElementById('lobbySearchClear');
+    if(clearBtn) clearBtn.style.display = value ? 'block' : 'none';
+    renderLobby();
+}
+function clearLobbySearch(){
+    lobbySearchQuery = '';
+    const input = document.getElementById('lobbySearch');
+    if(input){ input.value = ''; input.focus(); }
+    const clearBtn = document.getElementById('lobbySearchClear');
+    if(clearBtn) clearBtn.style.display = 'none';
+    renderLobby();
+}
+
 function renderLobby(){
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
@@ -1677,13 +1697,24 @@ function renderLobby(){
         return {p, rate, recentCount};
     });
     // A. Sortare după cât de recent/des a jucat (ultimele meciuri), apoi alfabetic
-    const sortedPlayers = withRate
+    let sortedPlayers = withRate
         .sort((a,b)=> b.recentCount-a.recentCount || (b.p.games||0)-(a.p.games||0) || a.p.name.localeCompare(b.p.name,'ro'));
+
+    // Filtrare după căutare (fără diacritice, insensibil la majuscule)
+    const searchQ = normalizeSearchStr(lobbySearchQuery.trim());
+    if (searchQ) {
+        sortedPlayers = sortedPlayers.filter(({p}) => normalizeSearchStr(p.name).includes(searchQ));
+    }
+
+    if (searchQ && !sortedPlayers.length) {
+        container.innerHTML = `<div style="width:100%;text-align:center;padding:14px 0;font-size:.78rem;color:#7d6849;">Niciun jucător găsit pentru „${lobbySearchQuery.trim()}".</div>`;
+    }
 
     let dividerShown = false;
     sortedPlayers.forEach(({p,rate,recentCount})=>{
         // E. Separator vizual între „nucleul dur" (≥70% din meciurile recente) și restul
-        if(showStats && !dividerShown && rate < 0.7 && sortedPlayers.some(x=>x.rate>=0.7)){
+        // (sărit peste când e activă o căutare — n-are sens cu o listă deja filtrată)
+        if(!searchQ && showStats && !dividerShown && rate < 0.7 && sortedPlayers.some(x=>x.rate>=0.7)){
             const divider=document.createElement('div');
             divider.style.cssText='width:100%;display:flex;align-items:center;gap:8px;margin:4px 0 2px;';
             divider.innerHTML = `<div style="flex:1;height:1px;background:#dcc89a;"></div><span style="font-size:.62rem;color:#9a8663;white-space:nowrap;">restul grupului</span><div style="flex:1;height:1px;background:#dcc89a;"></div>`;
