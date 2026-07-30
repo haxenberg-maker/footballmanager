@@ -194,6 +194,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('tags')" id="sb-tags">
             <span class="sb-icon">🏷️</span><span class="sb-label">Tag-uri</span>
         </div>
+        <div class="sb-item" onclick="switchSection('milestones')" id="sb-milestones">
+            <span class="sb-icon">🎖️</span><span class="sb-label">Milestone-uri</span>
+        </div>
         <div class="sb-divider"></div>
         <div class="sb-item" onclick="switchSection('data')" id="sb-data">
             <span class="sb-icon">📦</span><span class="sb-label">Date</span>
@@ -216,6 +219,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab active" onclick="switchSection('players')">👤 Jucători</div>
     <div class="mobile-tab" onclick="switchSection('algorithm')">⚙️ Algoritm</div>
     <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
+    <div class="mobile-tab" onclick="switchSection('milestones')">🎖️ Milestone</div>
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
     <div class="mobile-tab" onclick="switchSection('poll')">🗳️ Sondaj</div>
@@ -365,6 +369,23 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             <button onclick="openAddTag()" style="background:var(--accent);color:#fff;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;">+ Tag Nou</button>
         </div>
         <div id="tagsList"></div>
+    </div>
+</div>
+
+
+<!-- ── MILESTONE-URI ─────────────────────────────────────────── -->
+<div class="section" id="sec-milestones">
+    <div class="panel-header">
+        <div class="panel-title">Milestone-uri</div>
+        <div class="panel-sub">Praguri, emoji și denumiri pentru insignele jucătorilor</div>
+    </div>
+    <div class="panel-body">
+        <div style="font-size:.72rem;color:#555;margin-bottom:14px;line-height:1.6;">
+            Fiecare jucător primește automat cea mai înaltă insignă atinsă din fiecare categorie
+            (ex: la 30 de goluri, arată „25 Goluri", nu și „10 Goluri"). Modifică pragul, emoji-ul
+            sau denumirea direct în listă — se salvează automat.
+        </div>
+        <div id="milestonesList"></div>
     </div>
 </div>
 
@@ -605,7 +626,7 @@ function switchSection(name){
     document.querySelectorAll('.sb-item').forEach(s=>s.classList.remove('active'));
     const sb=document.getElementById('sb-'+name);if(sb)sb.classList.add('active');
     document.querySelectorAll('.mobile-tab').forEach((t,i)=>{
-        const names=['players','algorithm','tags','data','season','poll','compare'];
+        const names=['players','algorithm','tags','milestones','data','season','poll','compare'];
         t.classList.toggle('active',names[i]===name);
     });
     // Show/hide save bar
@@ -614,6 +635,7 @@ function switchSection(name){
     if(name==='players') buildPlayerEditList();
     if(name==='algorithm') buildAlgorithmPanel();
     if(name==='tags') buildTagsPanel();
+    if(name==='milestones') buildMilestonesPanel();
     if(name==='poll') initPollSection();
     if(name==='compare') buildComparePanel();
 }
@@ -624,6 +646,17 @@ async function loadAll(){
     const{data:tc}=await sb.from('tags_config').select('*').order('sort_order');
     tagsConfig=tc||[];
     TW={};tagsConfig.forEach(t=>{TW[String(t.id)]=parseFloat(t.tw_weight)||0;});
+    // Milestone-uri (seed cu praguri implicite dacă tabela e goală, prima rulare)
+    try{
+        const{data:mc,error}=await sb.from('milestone_config').select('*').order('category').order('threshold');
+        if(error) throw error;
+        if(!mc || !mc.length){
+            const{data:seeded}=await sb.from('milestone_config').insert(DEFAULT_MILESTONE_CONFIG).select();
+            milestoneConfig=seeded||[];
+        } else {
+            milestoneConfig=mc;
+        }
+    }catch(e){ console.warn('milestone_config load failed (ai rulat migrarea SQL?):',e.message); }
     // Algo settings
     const{data:as}=await sb.from('algo_settings').select('key,value');
     (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);if(r.key==='tag_bonus_cap')TAG_BONUS_CAP=parseFloat(r.value)||2;});
@@ -992,6 +1025,89 @@ async function deleteTag(id){
         await sb.from('tags_config').delete().eq('id',id);
         tagsConfig=tagsConfig.filter(t=>t.id!==id);invalidateTagsCache();buildTagsPanel();
         showToast('✅ Tag șters!');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+// ── MILESTONE-URI ───────────────────────────────────────────────────
+let milestoneConfig=[];
+const DEFAULT_MILESTONE_CONFIG=[
+    {category:'goals',  threshold:10,  emoji:'⚽',   label:'10 Goluri',              sort_order:1},
+    {category:'goals',  threshold:25,  emoji:'🎯',   label:'25 Goluri',              sort_order:2},
+    {category:'goals',  threshold:50,  emoji:'🔱',   label:'50 Goluri',              sort_order:3},
+    {category:'goals',  threshold:100, emoji:'💯',   label:'100 Goluri',             sort_order:4},
+    {category:'wins',   threshold:10,  emoji:'🏆',   label:'10 Victorii',            sort_order:1},
+    {category:'wins',   threshold:25,  emoji:'🥇',   label:'25 Victorii',            sort_order:2},
+    {category:'wins',   threshold:50,  emoji:'👑',   label:'50 Victorii',            sort_order:3},
+    {category:'games',  threshold:25,  emoji:'📅',   label:'25 Meciuri',             sort_order:1},
+    {category:'games',  threshold:50,  emoji:'🏟️',  label:'50 Meciuri',             sort_order:2},
+    {category:'games',  threshold:100, emoji:'💼',   label:'100 Meciuri',            sort_order:3},
+    {category:'streak', threshold:5,   emoji:'🔥',   label:'5 Victorii la rând',     sort_order:1},
+    {category:'streak', threshold:10,  emoji:'🚀',   label:'10 Victorii la rând',    sort_order:2},
+    {category:'best_match_goals', threshold:3, emoji:'🎩',  label:'Hat-trick',       sort_order:1},
+    {category:'best_match_goals', threshold:4, emoji:'🎩🎩', label:'Poker de goluri', sort_order:2},
+];
+const MILESTONE_CAT_LABELS={
+    goals:'⚽ Goluri Totale',
+    wins:'🏆 Victorii',
+    games:'📅 Meciuri Jucate',
+    streak:'🔥 Victorii Consecutive',
+    best_match_goals:'🎩 Goluri Într-un Singur Meci',
+};
+const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals'];
+
+function buildMilestonesPanel(){
+    const el=document.getElementById('milestonesList');if(!el)return;
+    const cats=[...new Set([...MILESTONE_CAT_ORDER, ...milestoneConfig.map(t=>t.category)])]
+        .filter(c=>milestoneConfig.some(t=>t.category===c) || MILESTONE_CAT_ORDER.includes(c));
+    el.innerHTML=cats.map(cat=>{
+        const tiers=milestoneConfig.filter(t=>t.category===cat).sort((a,b)=>a.threshold-b.threshold);
+        const catLabel=MILESTONE_CAT_LABELS[cat]||cat;
+        return `<div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border);">
+                <span>${catLabel}</span>
+                <button onclick="addMilestoneTier('${cat}')" style="background:none;border:1px solid var(--accent);color:#82b1ff;padding:2px 8px;border-radius:6px;font-size:.62rem;cursor:pointer;text-transform:none;letter-spacing:0;">+ Prag Nou</button>
+            </div>
+            ${tiers.length ? tiers.map(t=>`
+                <div class="tag-row">
+                    <div class="tag-row-main">
+                        <input type="number" value="${t.threshold}" class="tag-input-sm" style="width:56px;text-align:center;" onchange="updateMilestoneField(${t.id},'threshold',parseInt(this.value)||0)">
+                        <input type="text" value="${t.emoji}" maxlength="6" class="tag-input-sm" style="width:44px;text-align:center;" onchange="updateMilestoneField(${t.id},'emoji',this.value)">
+                        <input type="text" value="${t.label}" class="tag-input-sm" style="flex:1;min-width:100px;" onchange="updateMilestoneField(${t.id},'label',this.value)">
+                        <button onclick="deleteMilestoneTier(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
+                    </div>
+                </div>`).join('')
+              : `<div style="font-size:.68rem;color:#333;padding:6px 0;">Niciun prag încă.</div>`}
+        </div>`;
+    }).join('');
+}
+
+async function addMilestoneTier(category){
+    try{
+        const existing=milestoneConfig.filter(t=>t.category===category);
+        const maxThreshold=existing.length?Math.max(...existing.map(t=>t.threshold)):0;
+        const payload={category, threshold:maxThreshold+10, emoji:'⭐', label:'Prag Nou'};
+        const{data,error}=await sb.from('milestone_config').insert(payload).select().single();
+        if(error)throw error;
+        milestoneConfig.push(data);
+        buildMilestonesPanel();
+        showToast('✅ Prag adăugat — editează-l mai jos!');
+    }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function updateMilestoneField(id,field,value){
+    const t=milestoneConfig.find(x=>x.id===id);if(!t)return;
+    t[field]=value;
+    try{await sb.from('milestone_config').update({[field]:value}).eq('id',id);}
+    catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function deleteMilestoneTier(id){
+    if(!confirm('Ștergi acest prag? Irecuperabil.')) return;
+    try{
+        await sb.from('milestone_config').delete().eq('id',id);
+        milestoneConfig=milestoneConfig.filter(t=>t.id!==id);
+        buildMilestonesPanel();
+        showToast('✅ Prag șters!');
     }catch(e){showToast('⚠️ '+e.message);}
 }
 
