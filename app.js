@@ -1727,8 +1727,30 @@ function renderSessionRow(rows, admin){
     chrono.forEach(h => {
         Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; });
     });
-    const totalSorted = Object.entries(totalGoals).sort((a,b)=>b[1]-a[1]);
-    const sessionTop = totalSorted[0] ? {name:totalSorted[0][0], goals:totalSorted[0][1]} : null;
+
+    // Minute jucate per jucător, cumulate pe toată sesiunea — suma duratelor turelor
+    // (roundsDetail[].duration_sec) din FIECARE pereche în care a fost pe teren.
+    // Un jucător care a jucat mult mai multe minute e mai valoros la MVP, la goluri
+    // egale sau apropiate, decât unul care a marcat similar dar a stat mult pe bancă.
+    const totalSeconds = {};
+    chrono.forEach(h => {
+        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[])]);
+        playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
+    });
+
+    // Scor compus: goluri + bonus proporțional cu minutele jucate (90 min jucate =
+    // echivalentul unui gol în plus). Golurile rămân factorul principal — bonusul de
+    // minute contează mai ales la goluri egale sau apropiate, nu răstoarnă un
+    // decalaj mare de goluri.
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const mvpCandidates = [...allNames].map(name => {
+        const goals = totalGoals[name] || 0;
+        const minutes = Math.round((totalSeconds[name]||0) / 60);
+        const score = goals + minutes / 90;
+        return { name, goals, minutes, score };
+    }).sort((a,b) => b.score - a.score);
+    const sessionTop = mvpCandidates[0] || null;
 
     // Penalty — cel mai bun marcator la penalty pe toată sesiunea (separat, informativ)
     const totalPenGoals = {};
@@ -1796,7 +1818,7 @@ function renderSessionRow(rows, admin){
                 <div style="font-size:.72rem;color:#4a3a26;margin-bottom:10px;line-height:1.6;">${storyHTML}</div>
 
                 <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-                    ${sessionTop ? `<div style="padding:4px 10px;background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);border-radius:7px;font-size:.72rem;color:#1b7a43;font-weight:700;">⭐ MVP sesiune: ${sessionTop.name} (${sessionTop.goals} goluri)</div>` : ''}
+                    ${sessionTop ? `<div style="padding:4px 10px;background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);border-radius:7px;font-size:.72rem;color:#1b7a43;font-weight:700;">⭐ MVP sesiune: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
                     ${sessionPenTop ? `<div style="padding:4px 10px;background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);border-radius:7px;font-size:.72rem;color:#7d6849;font-weight:700;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
                     ${hattricks.map(ht => `<div style="padding:4px 10px;background:rgba(156,39,176,.1);border:1px solid rgba(156,39,176,.3);border-radius:7px;font-size:.72rem;color:#8e3a9e;font-weight:700;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
                 </div>
