@@ -1107,14 +1107,25 @@ function computeDerbyOfWeek(){
     return best;
 }
 
+// Marcatorul ULTIMEI PARTIDE — poate fi un meci normal (2 echipe) sau o
+// sesiune întreagă de 3 echipe (mai multe perechi jucate în aceeași seară).
+// Foloseste aceeași grupare pe sesiuni ca la istoricul de meciuri, ca golgheterul
+// să fie corect cumulat pe toată seara, nu doar pe ultima pereche salvată.
 function computeLastMatchTopScorer(){
     if(!db.history.length) return null;
-    const h = db.history[0]; // cel mai recent meci (db.history e sortat descrescător)
-    if(!h.playerGoals || !Object.keys(h.playerGoals).length) return null;
-    const entries = Object.entries(h.playerGoals).sort((a,b)=>b[1]-a[1]);
+    const groups = groupHistoryForDisplay(db.history);
+    if(!groups.length) return null;
+    const last = groups[0];
+    const rows = last.rows;
+
+    const totalGoals = {};
+    rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const entries = Object.entries(totalGoals).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length) return null;
     const topGoals = entries[0][1];
     const topScorers = entries.filter(([,g])=>g===topGoals).map(([name])=>name);
-    return { h, topScorers, goals: topGoals };
+    const h = rows[0]; // pentru dată — toate rândurile sesiunii au aceeași zi
+    return { h, topScorers, goals: topGoals, isSession: last.type==='session' };
 }
 
 function renderWeeklyCards(){
@@ -1158,10 +1169,10 @@ function renderWeeklyCards(){
     let scorerHtml = '';
     const topScorer = computeLastMatchTopScorer();
     if(topScorer){
-        const { h, topScorers, goals } = topScorer;
+        const { h, topScorers, goals, isSession } = topScorer;
         const isTie = topScorers.length > 1;
         scorerHtml = `<div class="week-card">
-            <div class="week-card-title">⚽ Marcatorul Ultimului Meci</div>
+            <div class="week-card-title">⚽ Marcatorul Ultimei Partide</div>
             ${topScorers.map(name=>{
                 const p = db.players.find(x=>x.name===name);
                 return `<div class="week-player-row" onclick="${p?`openModal(${p.id})`:''}">
@@ -1170,7 +1181,7 @@ function renderWeeklyCards(){
                     <span class="week-player-sub">${goals} gol${goals!==1?'uri':''}</span>
                 </div>`;
             }).join('')}
-            <div class="derby-date">${h.date||''}</div>
+            <div class="derby-date">${h.date||''}${isSession?' · sesiune 3 echipe':''}</div>
         </div>`;
     }
 
