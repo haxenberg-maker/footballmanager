@@ -133,21 +133,18 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <button class="page-tab" id="pgt-matches" onclick="setPageTab('matches')">⚽ Meciuri</button>
     </div>
 
+    <div id="lbSeasonRow" style="display:none;gap:4px;flex-wrap:wrap;margin-bottom:10px;"></div>
+    <div id="lbSeasonBanner"></div>
+
     <div class="stats-section" id="leaderboardSection">
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
-        <div id="lbSeasonRow" style="display:none;gap:4px;flex-wrap:wrap;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
-        <div id="lbPeriodRow" style="display:flex;gap:4px;margin-bottom:10px;">
-            <button class="lb-period-btn active" id="lbp-all"   onclick="setLbPeriod('all')"  >Tot timpul</button>
-            <button class="lb-period-btn"        id="lbp-month" onclick="setLbPeriod('month')">Ultimele 30 zile</button>
-        </div>
-        <div id="lbSeasonBanner"></div>
         <div id="lbContent"></div>
         <div id="seasonMatchesWrap" style="display:none;"></div>
     </div>
@@ -191,7 +188,6 @@ const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentali
 const DEFAULT_W = {winrate:0.40,borda:0.30,general:0.10,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0,mvpWin:0.0,mvpLoss:0.0};
 let W = {...DEFAULT_W};
 let currentLbTab = 'wins';
-let currentLbPeriod = 'all';
 let lbExpanded = false;
 let currentSeason = null; // null = sezonul curent (nearhivat); altfel numele sezonului arhivat
 let seasonsList = [];     // nume sezoane arhivate, cele mai recente primele
@@ -460,7 +456,10 @@ function renderMatchesFeed(){
     const feed = document.getElementById('matchesFeed');
     if(!feed) return;
 
-    const sorted = [...db.history].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+    // Doar meciurile din sezonul selectat (implicit sezonul curent, nearhivat) —
+    // la fel ca la clasament, sezonul e singurul filtru de timp.
+    const seasonScoped = db.history.filter(h => h.season === currentSeason);
+    const sorted = [...seasonScoped].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
     let items = groupHistoryForDisplay(sorted);
 
     // Filtru echipă
@@ -478,7 +477,8 @@ function renderMatchesFeed(){
     }
 
     if (!items.length) {
-        feed.innerHTML = `<div class="match-empty">${q || matchTeamFilter!=='all' ? 'Niciun meci găsit pentru acest filtru.' : 'Niciun meci înregistrat încă.'}</div>`;
+        const seasonLabel = currentSeason ? `sezonul „${currentSeason}"` : 'sezonul curent';
+        feed.innerHTML = `<div class="match-empty">${q || matchTeamFilter!=='all' ? 'Niciun meci găsit pentru acest filtru.' : `Niciun meci înregistrat încă în ${seasonLabel}.`}</div>`;
         return;
     }
 
@@ -869,34 +869,10 @@ function getFormIndex(p){
     return { last5, wins, total, label, color };
 }
 
-function computeLbPeriodStats(period){
-    const cutoff = period==='month' ? new Date(Date.now()-30*86400000) : null;
-    const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
-    db.history.forEach(h=>{
-        if (cutoff){ const d=parseDateToObj(h.date); if(!d || d<cutoff) return; }
-        const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
-        (h.orangePlayers||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winO) s.wins++; });
-        (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
-        (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
-        if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
-        // Goluri marcate la loviturile de departajare — per JUCĂTOR (nu per echipă),
-        // derivate din penalty_shots (stocate per tură în rounds_detail). Complet
-        // separate de golurile normale (h.playerGoals) de mai sus.
-        if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
-            if (Array.isArray(r.penalty_shots)) {
-                r.penalty_shots.forEach(s=>{
-                    if (s.state === 'goal') ensure(s.player_name).penaltyGoals++;
-                });
-            }
-        });
-    });
-    return stats;
-}
-
-// Statistici derivate STRICT din meciurile unui sezon arhivat (h.season === seasonName).
-// Necesar pentru că wins/games/totalGoals de pe player se resetează la arhivarea sezonului —
-// singura sursă de adevăr pentru sezoanele trecute e tabela match_history (+ match_goals).
+// Statistici derivate STRICT din meciurile unui sezon (h.season === seasonName).
+// seasonName = null înseamnă sezonul curent (nearhivat). Necesar pentru că
+// wins/games/totalGoals de pe player se resetează la arhivarea sezonului —
+// singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
     const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
@@ -933,13 +909,10 @@ function renderSeasonTabs(){
 }
 
 function updateSeasonUI(){
-    const periodRow = document.getElementById('lbPeriodRow');
     const banner = document.getElementById('lbSeasonBanner');
     if(currentSeason){
-        if(periodRow) periodRow.style.display='none';
         if(banner) banner.innerHTML = `<div class="season-banner">🗓️ Vezi statistici din sezonul arhivat <strong>${currentSeason}</strong> · ${getSeasonMatches(currentSeason).length} meciuri</div>`;
     } else {
-        if(periodRow) periodRow.style.display = LB_PERIODLESS_TABS.includes(currentLbTab) ? 'none' : 'flex';
         if(banner) banner.innerHTML = '';
     }
 }
@@ -952,6 +925,7 @@ function setSeason(seasonName){
     updateSeasonUI();
     renderLeaderboard();
     renderSeasonMatchesList();
+    if (pageTab === 'matches') renderMatchesFeed();
 }
 
 function toggleSeasonMatches(){ seasonMatchesOpen = !seasonMatchesOpen; renderSeasonMatchesList(); }
@@ -979,16 +953,6 @@ function setLbTab(tab){
     lbExpanded=false;
     document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));
     const btn=document.getElementById('lbt-'+tab);
-    if(btn) btn.classList.add('active');
-    const periodRow = document.getElementById('lbPeriodRow');
-    if(periodRow) periodRow.style.display = (currentSeason || LB_PERIODLESS_TABS.includes(tab)) ? 'none' : 'flex';
-    renderLeaderboard();
-}
-function setLbPeriod(period){
-    currentLbPeriod=period;
-    lbExpanded=false;
-    document.querySelectorAll('.lb-period-btn').forEach(b=>b.classList.remove('active'));
-    const btn=document.getElementById('lbp-'+period);
     if(btn) btn.classList.add('active');
     renderLeaderboard();
 }
@@ -1018,11 +982,8 @@ function renderLeaderboard(){
     if(!content) return;
 
     const viewingPastSeason = !!currentSeason;
-    const periodApplies = !LB_PERIODLESS_TABS.includes(currentLbTab);
-    const usesPeriodStats = viewingPastSeason || (periodApplies && (currentLbPeriod==='month' || currentLbTab==='pen'));
-    const periodStats = usesPeriodStats
-        ? (viewingPastSeason ? computeSeasonStats(currentSeason) : computeLbPeriodStats(currentLbPeriod))
-        : null;
+    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen';
+    const periodStats = usesPeriodStats ? computeSeasonStats(currentSeason) : null;
 
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
@@ -1082,7 +1043,7 @@ function renderLeaderboard(){
             sorted=[...withGames].filter(p=>gamesOf(p)>=LB_MIN_GAMES && goalsOf(p)>0)
                 .sort((a,b)=>(goalsOf(b)/gamesOf(b))-(goalsOf(a)/gamesOf(a)));
             getValue=p=>(goalsOf(p)/gamesOf(p)).toFixed(2);
-            subLabel=p=>goalsOf(p)+' goluri'+(viewingPastSeason ? ' (sezon)' : usesPeriodStats && currentLbPeriod==='month' ? ' (30 zile)' : ' total');
+            subLabel=p=>goalsOf(p)+' goluri'+(viewingPastSeason ? ' (sezon)' : ' sezon curent');
             bigColor='#8a6800';
             break;
         case 'pen':
@@ -1099,9 +1060,7 @@ function renderLeaderboard(){
     if(!sorted.length){
         const emptyMsg = viewingPastSeason
             ? `Niciun jucător cu date în sezonul „${currentSeason}".`
-            : usesPeriodStats && currentLbPeriod==='month'
-                ? 'Niciun meci în ultimele 30 de zile.'
-                : (currentLbTab==='pen' ? 'Niciun gol la penalty încă.' : 'Fără date disponibile.');
+            : (currentLbTab==='pen' ? 'Niciun gol la penalty încă.' : 'Fără date disponibile.');
         content.innerHTML=`<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
         return;
     }
