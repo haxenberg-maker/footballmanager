@@ -396,9 +396,19 @@ async function loadAll() {
         }
 
         // Load match_goals in bulk — one query for all matches
+        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
+        // cele normale în topScorer/playerGoals); dacă migrarea nu a fost rulată încă,
+        // cădem defensiv pe interogarea veche, fără is_penalty.
         let goalsPerMatch = {};
         try {
-            const { data: allGoals } = await sb.from('match_goals').select('match_id,player_name,team,goals');
+            let allGoals = null;
+            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
+            if (withPen.error) {
+                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
+                allGoals = noPen.data;
+            } else {
+                allGoals = withPen.data;
+            }
             (allGoals || []).forEach(g => {
                 if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
                 goalsPerMatch[g.match_id].push(g);
@@ -407,16 +417,25 @@ async function loadAll() {
 
         db.history = (histRaw || []).map(h => {
             const goals = goalsPerMatch[h.id] || [];
-            // Aggregate goals per player for top scorer
+            // Aggregate goals per player for top scorer — golurile de penalty (is_penalty:true)
+            // se țin STRICT separat, nu se adună la golurile normale.
             const playerGoals = {};
-            goals.forEach(g => { playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1); });
+            const playerPenaltyGoals = {};
+            goals.forEach(g => {
+                if (g.is_penalty) {
+                    playerPenaltyGoals[g.player_name] = (playerPenaltyGoals[g.player_name]||0) + (g.goals||1);
+                } else {
+                    playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1);
+                }
+            });
             const topEntries = Object.entries(playerGoals).sort((a,b)=>b[1]-a[1]);
             const topScorer = topEntries[0] ? { name: topEntries[0][0], goals: topEntries[0][1] } : null;
-            // Goals per team
+            // Goals per team (goluri normale — fără penalty)
             const teamGoals = { orange:0, green:0, black:0 };
-            goals.forEach(g => { if(teamGoals[g.team]!==undefined) teamGoals[g.team] += (g.goals||1); });
+            goals.forEach(g => { if(!g.is_penalty && teamGoals[g.team]!==undefined) teamGoals[g.team] += (g.goals||1); });
             return {
                 _dbId: h.id,
+                createdAt: h.created_at || null, // pentru ordonarea cronologică a sesiunilor de 3 echipe
                 date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null,
@@ -425,6 +444,7 @@ async function loadAll() {
                 blackPlayers:  h.black_players  || [],
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
                 playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
+                playerPenaltyGoals, // { playerName: goluriPenalty } — SEPARAT de playerGoals
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -1550,6 +1570,47 @@ function renderLeaderboard(){
         (sorted.length>10 ? `<button class="lb-more-btn" onclick="toggleLbExpand()">${lbExpanded?'▲ Arată doar top 10':'▼ Vezi tot clasamentul ('+sorted.length+')'}</button>` : '')
         +'</div>';
 }
+// Returnează numele echipelor (Portocaliu/Verde/Negru) prezente într-un rând de istoric
+// (fiecare rând de tip pereche are exact 2 din cele 3 populate).
+function getRowTeamNames(h){
+    const names = [];
+    if ((h.orangePlayers||[]).length) names.push('Portocaliu');
+    if ((h.greenPlayers ||[]).length) names.push('Verde');
+    if ((h.blackPlayers ||[]).length) names.push('Negru');
+    return names;
+}
+
+// Grupează rândurile de istoric: meciurile de 3 echipe (au roundsDetail) provenite din
+// aceeași sesiune live (aceeași dată + created_at apropiat, la câteva minute distanță,
+// pentru că toate perechile unei sesiuni se salvează în același apel, la rând) sunt
+// puse laolaltă într-un singur "card de sesiune". Meciurile de 2 echipe rămân ca rânduri
+// individuale, ca înainte.
+function groupHistoryForDisplay(sorted){
+    const SESSION_GAP_MS = 10*60*1000; // 10 minute — generos, dar separă sesiuni diferite din aceeași zi
+    const items = [];
+    let i = 0;
+    while (i < sorted.length) {
+        const h = sorted[i];
+        const is3Team = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+        if (!is3Team) { items.push({type:'single', rows:[h]}); i++; continue; }
+        const group = [h];
+        let j = i+1;
+        while (j < sorted.length) {
+            const next = sorted[j];
+            const nextIs3 = Array.isArray(next.roundsDetail) && next.roundsDetail.length > 0;
+            if (!nextIs3 || next.date !== h.date) break;
+            const tA = group[group.length-1].createdAt ? new Date(group[group.length-1].createdAt).getTime() : null;
+            const tB = next.createdAt ? new Date(next.createdAt).getTime() : null;
+            if (tA===null || tB===null || Math.abs(tA-tB) > SESSION_GAP_MS) break;
+            group.push(next);
+            j++;
+        }
+        items.push({type:'session', rows: group});
+        i = j;
+    }
+    return items;
+}
+
 function renderHistory(){
     const admin = isAdmin();
     document.getElementById('th-actions').style.display = admin ? '' : 'none';
@@ -1563,83 +1624,187 @@ function renderHistory(){
         return;
     }
 
-    document.querySelector('#match-history tbody').innerHTML = sorted.map(h => {
-        const origIdx = db.history.indexOf(h);
-        const hasBlack = (h.blackPlayers||[]).length > 0;
-        const _ws = getWinnerSideFromScore(h); // 'orange'|'green'|'black'|'draw'|null
-        const winColor = _ws === 'orange' ? teamColors.orange
-                       : _ws === 'green'  ? teamColors.green
-                       : _ws === 'black'  ? '#3d3d3d'
-                       : '#7d6849'; // draw
-        const winnerBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${winColor};color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap;">${h.winner||'Egal'}</span>`;
-        const imbalBadge = h.imbalanced ? `<span title="Dezechilibru 3+ goluri" style="font-size:.65rem;color:#b71c1c;margin-left:4px;">⚠️</span>` : '';
+    const items = groupHistoryForDisplay(sorted);
 
-        // ── Scoruri per echipă ──
-        const tg = h.teamGoals || { orange:0, green:0, black:0 };
-        const oN = h.orangePlayers?.length || 0;
-        const gN = h.greenPlayers?.length  || 0;
-        const bN = h.blackPlayers?.length  || 0;
-
-        // Goluri la penalty, cumulate pe toate turele meciului, per culoarea echipei
-        // (complet separat de goluri normale — afișat doar în paranteză, informativ).
-        const penG = { orange:0, green:0, black:0 };
-        if (Array.isArray(h.roundsDetail)) {
-            h.roundsDetail.forEach(r=>{
-                if (Array.isArray(r.penalty_shots)) {
-                    r.penalty_shots.forEach(s=>{
-                        if (s.state==='goal' && penG[s.team]!==undefined) penG[s.team]++;
-                    });
-                }
-            });
-        }
-
-        const makeTeamScore = (names, teamKey, color, label) => {
-            if (!names?.length) return '';
-            const g = tg[teamKey] || 0;
-            const pen = penG[teamKey] || 0;
-            const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
-            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
-                <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#3a2f1f'};">${label}</span>
-                <span style="font-size:.72rem;color:#7d6849;">(${names.length} juc.)</span>
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:#7d6849;">(pen ${pen})</span>`:''}</span>
-            </div>`;
-        };
-
-        const teamsHTML = [
-            makeTeamScore(h.orangePlayers, 'orange', teamColors.orange, 'Portocaliu'),
-            makeTeamScore(h.greenPlayers,  'green',  teamColors.green,  'Verde'),
-            hasBlack ? makeTeamScore(h.blackPlayers, 'black', '#555', 'Negru') : '',
-        ].filter(Boolean).join('<div style="height:1px;background:#e3d3ac;margin:1px 0;"></div>');
-
-        // ── Golgheter ──
-        const topScorerHTML = h.topScorer
-            ? `<div style="margin-top:5px;padding:3px 8px;background:#fdf3df;border-radius:6px;border:1px solid #e3d3ac;font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
-                ⚽ <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}
-               </div>`
-            : '';
-
-        // ── Acțiuni admin ──
-        const adminBtns = admin ? `<button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
-            <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>` : '';
-
-        return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
-            <td style="vertical-align:top;padding-top:10px;">
-                <div style="font-weight:700;font-size:.82rem;color:#3a2f1f;">${h.date||'—'}</div>
-            </td>
-            <td style="padding:8px 12px 8px 6px;">
-                <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
-                    ${winnerBadge}${imbalBadge}
-                    ${h.score ? `<span style="font-size:.72rem;color:#7d6849;">ture: ${h.score}</span>` : ''}
-                </div>
-                <div style="background:#fffaf0;border-radius:8px;padding:6px 10px;border:1px solid #e3d3ac;min-width:220px;">
-                    ${teamsHTML}
-                </div>
-                ${topScorerHTML}
-            </td>
-            <td style="white-space:nowrap;vertical-align:top;padding-top:10px;">${adminBtns}</td>
-        </tr>`;
+    document.querySelector('#match-history tbody').innerHTML = items.map(item => {
+        if (item.type === 'session') return renderSessionRow(item.rows, admin);
+        return renderSingleMatchRow(item.rows[0], admin);
     }).join('');
+}
+
+// ── Un singur meci (2 echipe, sau 3 echipe fără altă pereche în aceeași sesiune) ──
+function renderSingleMatchRow(h, admin){
+    const origIdx = db.history.indexOf(h);
+    const hasBlack = (h.blackPlayers||[]).length > 0;
+    const _ws = getWinnerSideFromScore(h); // 'orange'|'green'|'black'|'draw'|null
+    const winColor = _ws === 'orange' ? teamColors.orange
+                   : _ws === 'green'  ? teamColors.green
+                   : _ws === 'black'  ? '#3d3d3d'
+                   : '#7d6849'; // draw
+    const winnerBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:20px;background:${winColor};color:#fff;font-size:.68rem;font-weight:700;white-space:nowrap;">${h.winner||'Egal'}</span>`;
+    const imbalBadge = h.imbalanced ? `<span title="Dezechilibru 3+ goluri" style="font-size:.65rem;color:#b71c1c;margin-left:4px;">⚠️</span>` : '';
+
+    const { teamsHTML, topScorerHTML } = renderPairBody(h);
+
+    const adminBtns = admin ? `<button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
+        <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>` : '';
+
+    return `<tr onclick="openMatchModal(${origIdx})" style="cursor:pointer;">
+        <td style="vertical-align:top;padding-top:10px;">
+            <div style="font-weight:700;font-size:.82rem;color:#3a2f1f;">${h.date||'—'}</div>
+        </td>
+        <td style="padding:8px 12px 8px 6px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+                ${winnerBadge}${imbalBadge}
+                ${h.score ? `<span style="font-size:.72rem;color:#7d6849;">ture: ${h.score}</span>` : ''}
+            </div>
+            <div style="background:#fffaf0;border-radius:8px;padding:6px 10px;border:1px solid #e3d3ac;min-width:220px;">
+                ${teamsHTML}
+            </div>
+            ${topScorerHTML}
+        </td>
+        <td style="white-space:nowrap;vertical-align:top;padding-top:10px;">${adminBtns}</td>
+    </tr>`;
+}
+
+// Construiește markup-ul comun (scoruri per echipă + golgheter) pentru o pereche —
+// reutilizat atât de rândul individual, cât și de fiecare sub-secțiune dintr-o sesiune.
+function renderPairBody(h){
+    const hasBlack = (h.blackPlayers||[]).length > 0;
+    const tg = h.teamGoals || { orange:0, green:0, black:0 };
+
+    const penG = { orange:0, green:0, black:0 };
+    if (Array.isArray(h.roundsDetail)) {
+        h.roundsDetail.forEach(r=>{
+            if (Array.isArray(r.penalty_shots)) {
+                r.penalty_shots.forEach(s=>{
+                    if (s.state==='goal' && penG[s.team]!==undefined) penG[s.team]++;
+                });
+            }
+        });
+    }
+
+    const makeTeamScore = (names, teamKey, color, label) => {
+        if (!names?.length) return '';
+        const g = tg[teamKey] || 0;
+        const pen = penG[teamKey] || 0;
+        const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+            <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#3a2f1f'};">${label}</span>
+            <span style="font-size:.72rem;color:#7d6849;">(${names.length} juc.)</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:#7d6849;">(pen ${pen})</span>`:''}</span>
+        </div>`;
+    };
+
+    const teamsHTML = [
+        makeTeamScore(h.orangePlayers, 'orange', teamColors.orange, 'Portocaliu'),
+        makeTeamScore(h.greenPlayers,  'green',  teamColors.green,  'Verde'),
+        hasBlack ? makeTeamScore(h.blackPlayers, 'black', '#555', 'Negru') : '',
+    ].filter(Boolean).join('<div style="height:1px;background:#e3d3ac;margin:1px 0;"></div>');
+
+    const hattrick = h.topScorer && h.topScorer.goals >= 3;
+    const topScorerHTML = h.topScorer
+        ? `<div style="margin-top:5px;padding:3px 8px;background:${hattrick?'rgba(156,39,176,.1)':'#fdf3df'};border-radius:6px;border:1px solid ${hattrick?'rgba(156,39,176,.35)':'#e3d3ac'};font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
+            ${hattrick?'🎩':'⚽'} <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#8e3a9e;font-weight:700;">HATTRICK!</span>':''}
+           </div>`
+        : '';
+
+    return { teamsHTML, topScorerHTML, hattrick };
+}
+
+// ── Card de sesiune: mai multe perechi (Portocaliu vs Verde, Verde vs Negru, ...)
+// din același meci de 3 echipe, agregate cu golgheter total, MVP, hattrick-uri și
+// "povestea" în ordine cronologică. ──
+function renderSessionRow(rows, admin){
+    // Cronologic: cel mai vechi rând primul (rows vine în ordine descrescătoare)
+    const chrono = [...rows].reverse();
+    const first = chrono[0];
+    const origIdxFirst = db.history.indexOf(first);
+
+    // Golgheter + MVP total pe sesiune (sumă peste toate perechile, EXCLUZÂND penalty)
+    const totalGoals = {};
+    chrono.forEach(h => {
+        Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; });
+    });
+    const totalSorted = Object.entries(totalGoals).sort((a,b)=>b[1]-a[1]);
+    const sessionTop = totalSorted[0] ? {name:totalSorted[0][0], goals:totalSorted[0][1]} : null;
+
+    // Penalty — cel mai bun marcator la penalty pe toată sesiunea (separat, informativ)
+    const totalPenGoals = {};
+    chrono.forEach(h => {
+        Object.entries(h.playerPenaltyGoals||{}).forEach(([n,g]) => { totalPenGoals[n]=(totalPenGoals[n]||0)+g; });
+    });
+    const totalPenSorted = Object.entries(totalPenGoals).sort((a,b)=>b[1]-a[1]);
+    const sessionPenTop = totalPenSorted[0] ? {name:totalPenSorted[0][0], goals:totalPenSorted[0][1]} : null;
+
+    // Hattrick-uri — orice jucător cu ≥3 goluri într-o SINGURĂ poveste de pereche
+    const hattricks = [];
+    chrono.forEach(h => {
+        if (h.topScorer && h.topScorer.goals >= 3) {
+            hattricks.push({ name: h.topScorer.name, goals: h.topScorer.goals, teams: getRowTeamNames(h) });
+        }
+    });
+
+    // Bilanț per echipă în sesiune: victorii / meciuri jucate în cadrul sesiunii
+    const teamPlayed = {}, teamWon = {};
+    chrono.forEach(h => {
+        getRowTeamNames(h).forEach(t => { teamPlayed[t]=(teamPlayed[t]||0)+1; });
+        if (h.winner) teamWon[h.winner]=(teamWon[h.winner]||0)+1;
+    });
+    const standingColor = { Portocaliu: teamColors.orange, Verde: teamColors.green, Negru: '#555' };
+    const standingHTML = Object.keys(teamPlayed).map(t =>
+        `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span>`
+    ).join('<span style="color:#c9b587;margin:0 6px;">·</span>');
+
+    // Poveste cronologică: "Portocaliu vs Verde → Verde vs Negru → ..."
+    const storyHTML = chrono.map((h,idx) => {
+        const [tA,tB] = getRowTeamNames(h);
+        return `<span style="white-space:nowrap;">${idx===0?'<b>Start:</b> ':'→ '}${tA||'?'} vs ${tB||'?'} <span style="color:#7d6849;">(${h.score||'—'}, câștigă ${h.winner||'—'})</span></span>`;
+    }).join(' ');
+
+    // Sub-secțiuni pentru fiecare pereche, în ordine cronologică
+    const pairSections = chrono.map((h) => {
+        const origIdx = db.history.indexOf(h);
+        const { teamsHTML, topScorerHTML } = renderPairBody(h);
+        const [tA,tB] = getRowTeamNames(h);
+        const editBtns = admin ? `<button class="match-edit-btn" onclick="event.stopPropagation();openMatchEditor(${origIdx})" title="Editează">✏️</button>
+            <button class="match-edit-btn" onclick="event.stopPropagation();confirmDeleteMatch(${origIdx})" title="Șterge" style="color:#c62828;">🗑️</button>` : '';
+        return `<div onclick="openMatchModal(${origIdx})" style="cursor:pointer;background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <span style="font-size:.68rem;color:#7d6849;font-weight:700;text-transform:uppercase;letter-spacing:.4px;">${tA||'?'} vs ${tB||'?'} <span style="font-weight:400;text-transform:none;">· ture ${h.score||'—'}</span></span>
+                <span onclick="event.stopPropagation()">${editBtns}</span>
+            </div>
+            ${teamsHTML}
+            ${topScorerHTML}
+        </div>`;
+    }).join('');
+
+    return `<tr>
+        <td colspan="3" style="padding:10px 4px;">
+            <div style="background:linear-gradient(135deg,#fdf3df,#f5e9d4);border:1px solid #dcc89a;border-radius:12px;padding:12px 14px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#7d6849;">🎮 SESIUNE 3 ECHIPE</span>
+                        <span style="font-weight:700;font-size:.82rem;color:#3a2f1f;">${first.date||'—'}</span>
+                    </div>
+                    <span style="font-size:.68rem;color:#7d6849;">${chrono.length} meciuri jucate</span>
+                </div>
+
+                <div style="font-size:.68rem;margin-bottom:8px;">${standingHTML}</div>
+
+                <div style="font-size:.72rem;color:#4a3a26;margin-bottom:10px;line-height:1.6;">${storyHTML}</div>
+
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                    ${sessionTop ? `<div style="padding:4px 10px;background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);border-radius:7px;font-size:.72rem;color:#1b7a43;font-weight:700;">⭐ MVP sesiune: ${sessionTop.name} (${sessionTop.goals} goluri)</div>` : ''}
+                    ${sessionPenTop ? `<div style="padding:4px 10px;background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);border-radius:7px;font-size:.72rem;color:#7d6849;font-weight:700;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
+                    ${hattricks.map(ht => `<div style="padding:4px 10px;background:rgba(156,39,176,.1);border:1px solid rgba(156,39,176,.3);border-radius:7px;font-size:.72rem;color:#8e3a9e;font-weight:700;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
+                </div>
+
+                ${pairSections}
+            </div>
+        </td>
+    </tr>`;
 }
 
 // Elimină diacriticele ca să caute "Stefan" -> "Ștefan", "Barbu" -> "Bărbu" etc.
