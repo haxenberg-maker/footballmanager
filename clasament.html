@@ -140,8 +140,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
-            <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
+            <button class="lb-tab" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
+            <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
@@ -187,7 +187,7 @@ let TAG_BONUS_CAP = 10.0;
 const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
 const DEFAULT_W = {winrate:0.40,borda:0.30,general:0.10,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0,mvpWin:0.0,mvpLoss:0.0};
 let W = {...DEFAULT_W};
-let currentLbTab = 'wins';
+let currentLbTab = 'goals';
 let lbExpanded = false;
 let currentSeason = null; // null = sezonul curent (nearhivat); altfel numele sezonului arhivat
 let seasonsList = [];     // nume sezoane arhivate, cele mai recente primele
@@ -794,12 +794,18 @@ function computeDerbyOfWeek(){
 }
 function computeLastMatchTopScorer(){
     if(!db.history.length) return null;
-    const h = db.history[0];
-    if(!h.playerGoals || !Object.keys(h.playerGoals).length) return null;
-    const entries = Object.entries(h.playerGoals).sort((a,b)=>b[1]-a[1]);
+    const groups = groupHistoryForDisplay(db.history);
+    if(!groups.length) return null;
+    const last = groups[0];
+    const rows = last.rows;
+    const totalGoals = {};
+    rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const entries = Object.entries(totalGoals).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length) return null;
     const topGoals = entries[0][1];
     const topScorers = entries.filter(([,g])=>g===topGoals).map(([name])=>name);
-    return { h, topScorers, goals: topGoals };
+    const h = rows[0];
+    return { h, topScorers, goals: topGoals, isSession: last.type==='session' };
 }
 function renderWeeklyCards(){
     const wrap = document.getElementById('weeklyCards');
@@ -838,16 +844,16 @@ function renderWeeklyCards(){
     let scorerHtml = '';
     const topScorer = computeLastMatchTopScorer();
     if(topScorer){
-        const { h, topScorers, goals } = topScorer;
+        const { h, topScorers, goals, isSession } = topScorer;
         const isTie = topScorers.length > 1;
         scorerHtml = `<div class="week-card">
-            <div class="week-card-title">⚽ Marcatorul Ultimului Meci</div>
+            <div class="week-card-title">⚽ Marcatorul Ultimei Partide</div>
             ${topScorers.map(name=>`<div class="week-player-row">
                 <span class="week-player-rank">${isTie?'🤝':'👑'}</span>
                 <span class="week-player-name">${name}</span>
                 <span class="week-player-sub">${goals} gol${goals!==1?'uri':''}</span>
             </div>`).join('')}
-            <div class="derby-date">${h.date||''}</div>
+            <div class="derby-date">${h.date||''}${isSession?' · sesiune 3 echipe':''}</div>
         </div>`;
     }
 
