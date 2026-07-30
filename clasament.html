@@ -707,23 +707,42 @@ function getBestSingleMatchGoals(p){
     db.history.forEach(h=>{ const g=(h.playerGoals&&h.playerGoals[p.name])||0; if(g>max) max=g; });
     return max;
 }
-const MILESTONE_TIERS = {
-    goals:  [{n:10,emoji:'⚽',label:'10 Goluri'},{n:25,emoji:'🎯',label:'25 Goluri'},{n:50,emoji:'🔱',label:'50 Goluri'},{n:100,emoji:'💯',label:'100 Goluri'}],
-    wins:   [{n:10,emoji:'🏆',label:'10 Victorii'},{n:25,emoji:'🥇',label:'25 Victorii'},{n:50,emoji:'👑',label:'50 Victorii'}],
-    games:  [{n:25,emoji:'📅',label:'25 Meciuri'},{n:50,emoji:'🏟️',label:'50 Meciuri'},{n:100,emoji:'💼',label:'100 Meciuri'}],
-    streak: [{n:5,emoji:'🔥',label:'5 Victorii la rând'},{n:10,emoji:'🚀',label:'10 Victorii la rând'}],
-};
-function _pickTier(arr,val){ let best=null; arr.forEach(t=>{ if(val>=t.n) best=t; }); return best; }
+const DEFAULT_MILESTONE_CONFIG = [
+    {category:'goals',  threshold:10,  emoji:'⚽',   label:'10 Goluri',              sort_order:1},
+    {category:'goals',  threshold:25,  emoji:'🎯',   label:'25 Goluri',              sort_order:2},
+    {category:'goals',  threshold:50,  emoji:'🔱',   label:'50 Goluri',              sort_order:3},
+    {category:'goals',  threshold:100, emoji:'💯',   label:'100 Goluri',             sort_order:4},
+    {category:'wins',   threshold:10,  emoji:'🏆',   label:'10 Victorii',            sort_order:1},
+    {category:'wins',   threshold:25,  emoji:'🥇',   label:'25 Victorii',            sort_order:2},
+    {category:'wins',   threshold:50,  emoji:'👑',   label:'50 Victorii',            sort_order:3},
+    {category:'games',  threshold:25,  emoji:'📅',   label:'25 Meciuri',             sort_order:1},
+    {category:'games',  threshold:50,  emoji:'🏟️',  label:'50 Meciuri',             sort_order:2},
+    {category:'games',  threshold:100, emoji:'💼',   label:'100 Meciuri',            sort_order:3},
+    {category:'streak', threshold:5,   emoji:'🔥',   label:'5 Victorii la rând',     sort_order:1},
+    {category:'streak', threshold:10,  emoji:'🚀',   label:'10 Victorii la rând',    sort_order:2},
+    {category:'best_match_goals', threshold:3, emoji:'🎩',  label:'Hat-trick',       sort_order:1},
+    {category:'best_match_goals', threshold:4, emoji:'🎩🎩', label:'Poker de goluri', sort_order:2},
+];
+let milestoneConfig = DEFAULT_MILESTONE_CONFIG; // suprascris de loadMilestoneConfig() dacă există în DB
+async function loadMilestoneConfig(){
+    try{
+        const { data, error } = await sb.from('milestone_config').select('*').order('category').order('threshold');
+        if(error) throw error;
+        if(data && data.length) milestoneConfig = data;
+    }catch(e){ console.warn('milestone_config load failed, using defaults:', e.message); }
+}
+function _pickTier(arr,val){ let best=null; arr.forEach(t=>{ if(val>=t.threshold) best=t; }); return best; }
+function _milestoneTiersFor(category){
+    return milestoneConfig.filter(t=>t.category===category).sort((a,b)=>a.threshold-b.threshold);
+}
 function getPlayerMilestones(p){
     const badges=[];
     let b;
-    b=_pickTier(MILESTONE_TIERS.goals,(p.totalGoals||0));      if(b) badges.push(b);
-    b=_pickTier(MILESTONE_TIERS.wins,(p.wins||0));              if(b) badges.push(b);
-    b=_pickTier(MILESTONE_TIERS.games,(p.games||0));            if(b) badges.push(b);
-    b=_pickTier(MILESTONE_TIERS.streak,getLongestWinStreak(p)); if(b) badges.push(b);
-    const bestGoals = getBestSingleMatchGoals(p);
-    if(bestGoals>=4) badges.push({emoji:'🎩🎩',label:'Poker de goluri'});
-    else if(bestGoals>=3) badges.push({emoji:'🎩',label:'Hat-trick'});
+    b=_pickTier(_milestoneTiersFor('goals'),(p.totalGoals||0));      if(b) badges.push(b);
+    b=_pickTier(_milestoneTiersFor('wins'),(p.wins||0));              if(b) badges.push(b);
+    b=_pickTier(_milestoneTiersFor('games'),(p.games||0));            if(b) badges.push(b);
+    b=_pickTier(_milestoneTiersFor('streak'),getLongestWinStreak(p)); if(b) badges.push(b);
+    b=_pickTier(_milestoneTiersFor('best_match_goals'), getBestSingleMatchGoals(p)); if(b) badges.push(b);
     return badges;
 }
 function renderMilestoneBadges(p){
@@ -1125,6 +1144,8 @@ async function loadAll(){
         const { data: tagsData } = await sb.from('tags_config').select('*').order('sort_order');
         tagsConfig = tagsData || [];
         buildPTById(); buildTWFromConfig();
+
+        await loadMilestoneConfig();
 
         // algo_settings
         const { data: algoData } = await sb.from('algo_settings').select('key,value');
