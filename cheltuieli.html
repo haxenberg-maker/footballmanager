@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Management Buget Arena</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0f131c;
+            --panel-bg: #151b26;
+            --accent-gold: #f1d483;
+            --border-color: #232d3f;
+            --text-light: #e2e8f0;
+            --success-green: #10b981;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header-area {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        h1, h2, h3 {
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+
+        .btn-back {
+            background: #1c2433;
+            color: var(--text-light);
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            font-weight: bold;
+        }
+
+        .btn-report-icon {
+            background: #1c2433;
+            color: var(--accent-gold);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .btn-report-icon:hover {
+            background: rgba(241, 212, 131, 0.1);
+            border-color: var(--accent-gold);
+        }
+
+        .total-budget-box {
+            background: linear-gradient(135deg, #1e293b 0%, #151b26 100%);
+            border: 2px solid var(--accent-gold);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .total-budget-box .suma {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            display: block;
+            margin-top: 5px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        .budget-form {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .form-group input, .form-group select {
+            background: #1c2433;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .btn-add {
+            background: var(--accent-gold);
+            color: #0b0e14;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+        
+        .btn-add-payment {
+            background: var(--success-green);
+            color: #fff;
+        }
+
+        .wishlist-item {
+            background: #1c2433;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .item-name { font-size: 1.15rem; font-weight: 700; }
+        
+        .priority-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .prio-mare { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; }
+        .prio-medie { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid #f59e0b; }
+        .prio-mica { background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid #3b82f6; }
+
+        .item-finances {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #0f131c;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #232d3f;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #cca03a 0%, var(--accent-gold) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .completed .progress-bar {
+            background: var(--success-green);
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-left: 8px;
+        }
+        .delete-btn:hover { color: #ef4444; }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .player-row {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+        .player-row:last-child { border-bottom: none; }
+        
+        .player-row-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        .player-row-details {
+            font-size: 0.9rem;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        .amount-paid { color: var(--success-green); font-weight: 700; }
+
+        /* ── Login gate ── */
+        #loginGate {
+            position: fixed; inset: 0; background: var(--bg-dark);
+            display: flex; align-items: center; justify-content: center; z-index: 999;
+        }
+        .login-box {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 28px; width: 90%; max-width: 340px;
+        }
+        .login-box h2 { margin-bottom: 6px; font-size: 1.1rem; }
+        .login-box p { color: #94a3b8; font-size: 0.85rem; margin: 0 0 18px; }
+        .login-box .form-group { margin-bottom: 12px; }
+        .login-error { color: #ef4444; font-size: 0.82rem; margin-top: 10px; display: none; }
+        #appContent { display: none; }
+        .btn-logout {
+            background: transparent; border: 1px solid var(--border-color); color: #94a3b8;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loginGate">
+        <div class="login-box">
+            <h2>🔒 Acces Buget</h2>
+            <p>Autentifică-te cu contul tău din aplicație pentru a vedea și gestiona bugetul.</p>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="email@exemplu.com">
+            </div>
+            <div class="form-group">
+                <label>Parolă</label>
+                <input type="password" id="loginPassword" placeholder="••••••••">
+            </div>
+            <button class="btn-add" style="width:100%;" onclick="autentifica()">Intră</button>
+            <div class="login-error" id="loginError">Email sau parolă greșită.</div>
+        </div>
+    </div>
+
+    <div id="appContent">
+    <div class="container">
+        <div class="header-area">
+            <h1>💰 Management Buget & Încasări</h1>
+            <div class="header-actions">
+                <button class="btn-report-icon" title="Copiază Raport Grup" onclick="genereazaTabelaRaport()">📋</button>
+                <button class="btn-logout" onclick="delogare()">Ieși din cont</button>
+                <a href="index.html" class="btn-back">← Înapoi</a>
+            </div>
+        </div>
+
+        <div class="total-budget-box">
+            <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - ALOCĂRI CHELTUIELI)</span>
+            <span class="suma" id="totalColectat">0 RON</span>
+        </div>
+
+        <div class="main-layout">
+            <!-- COLOANA STÂNGA -->
+            <div>
+                <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Ce trebuie cumpărat? (Produs)</label>
+                        <input type="text" id="itemName" placeholder="Ex: Minge WC26 Trionda Pro">
+                    </div>
+                    <div class="form-group">
+                        <label>Preț Total Necesar (RON)</label>
+                        <input type="number" id="itemTarget" placeholder="Ex: 470">
+                    </div>
+                    <div class="form-group">
+                        <label>Prioritate</label>
+                        <select id="itemPriority">
+                            <option value="mare">Mare 🔥</option>
+                            <option value="medie" selected>Medie ⚡</option>
+                            <option value="mica">Mică 💤</option>
+                        </select>
+                    </div>
+                    <div style="font-size:0.8rem;color:#64748b;">💡 Suma se alocă automat din sold, în ordinea priorității — nu mai trebuie introdusă manual.</div>
+                    <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă în Wishlist</button>
+                </div>
+
+                <h2>📋 Listă Achiziții & Progres</h2>
+                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
+            </div>
+
+            <!-- COLOANA DREAPTĂ -->
+            <div>
+                <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Selectează Jucătorul</label>
+                        <select id="paymentPlayer">
+                            <option value="">Se încarcă jucătorii...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Suma Plătită (RON)</label>
+                        <input type="number" id="paymentAmount" placeholder="Ex: 50">
+                    </div>
+                    <div class="form-group">
+                        <label>Detalii Plată</label>
+                        <input type="text" id="paymentDetails" placeholder="Ex: Cotizatie minge / Rest sintetic">
+                    </div>
+                    <button class="btn-add btn-add-payment" onclick="salveazaPlata()">Adaugă Plată</button>
+                </div>
+
+                <div class="panel">
+                    <h2>👥 Istoric Încasări Jucători</h2>
+                    <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let globalIncasari = 0;
+        let globalCheltuieliAlocate = 0;
+        let dateRaportIncasari = [];
+        let dateRaportWishlist = [];
+
+        function actualizeazaSoldFinal() {
+            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            document.getElementById('totalColectat').textContent = `${soldFinal.toFixed(2)} RON`;
+        }
+
+        async function incarcaJucatoriDropdown() {
+            try {
+                const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
+                if (error) throw error;
+                const select = document.getElementById('paymentPlayer');
+                select.innerHTML = '<option value="">-- Alege Jucător --</option>';
+                if(data && data.length > 0) {
+                    data.forEach(j => { select.innerHTML += `<option value="${j.id}">${j.name}</option>`; });
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        async function incarcaBugetSiJucatori() {
+            try {
+                const { data: incasari, error } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
+                if (error) throw error;
+
+                const container = document.getElementById('playersContributions');
+                container.innerHTML = '';
+
+                globalIncasari = 0;
+                dateRaportIncasari = [];
+                if(incasari && incasari.length > 0) {
+                    incasari.forEach(i => {
+                        const numeJucator = i.players ? i.players.name : 'Jucător Necunoscut';
+                        const sumaIncasata = parseFloat(i.suma || 0);
+                        const detaliiMeci = i.detalii || 'Fără detalii';
+                        
+                        globalIncasari += sumaIncasata;
+                        dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
+                        
+                        container.innerHTML += `
+                            <div class="player-row">
+                                <div class="player-row-top">
+                                    <span>${numeJucator}</span>
+                                    <div>
+                                        <span class="amount-paid">+${sumaIncasata} RON</span>
+                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
+                                    </div>
+                                </div>
+                                <div class="player-row-details">
+                                    ${detaliiMeci} (${i.data || ''})
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
+                }
+                await incarcaWishlist();
+            } catch (e) { console.error(e); }
+        }
+
+        async function salveazaPlata() {
+            const jucatorId = document.getElementById('paymentPlayer').value;
+            const suma = parseFloat(document.getElementById('paymentAmount').value);
+            const detalii = document.getElementById('paymentDetails').value.trim();
+
+            if(!jucatorId || isNaN(suma) || suma <= 0) {
+                alert("Te rog selectează un jucător și introdu o sumă validă!");
+                return;
+            }
+
+            try {
+                const azi = new Date().toISOString().split('T')[0];
+                const { error } = await sb.from('incasari').insert([{ jucator_id: jucatorId, suma: suma, detalii: detalii || 'Cotizație', data: azi }]);
+                if (error) throw error;
+                document.getElementById('paymentAmount').value = '';
+                document.getElementById('paymentDetails').value = '';
+                await incarcaBugetSiJucatori();
+            } catch(e) { alert(e.message); }
+        }
+
+        // Ordinea de alocare automată: prioritate mare → medie → mică, iar la
+        // aceeași prioritate, cel adăugat primul (id mai mic) e servit primul.
+        const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
+
+        async function incarcaWishlist() {
+            try {
+                const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data').order('id', { ascending: true });
+                if (error) throw error;
+
+                const container = document.getElementById('wishlistContainer');
+                dateRaportWishlist = [];
+
+                if(!cheltuieli || cheltuieli.length === 0) {
+                    container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
+                    globalCheltuieliAlocate = 0;
+                    actualizeazaSoldFinal();
+                    return;
+                }
+
+                // Parsăm targetul și prioritatea fiecărui produs (fără suma alocată —
+                // aia se calculează automat mai jos, nu mai vine din DB).
+                const items = cheltuieli.map(item => {
+                    let numeProdus = item.descriere;
+                    let tinta = parseFloat(item.suma || 0);
+                    let prioritate = 'medie';
+                    if (item.descriere && item.descriere.startsWith('{"isWishlist"')) {
+                        try {
+                            const parsed = JSON.parse(item.descriere);
+                            numeProdus = parsed.produs;
+                            tinta = parseFloat(parsed.pret_total);
+                            prioritate = parsed.prioritate;
+                        } catch(e) { console.error(e); }
+                    }
+                    return { id: item.id, numeProdus, tinta, prioritate };
+                });
+
+                // Sortăm după prioritate, apoi după ordinea în care au fost adăugate
+                const sortedItems = [...items].sort((a, b) =>
+                    (PRIO_RANK[a.prioritate]||2) - (PRIO_RANK[b.prioritate]||2) || a.id - b.id
+                );
+
+                // Alocare automată: tot ce s-a strâns (globalIncasari) curge, în ordine,
+                // către produse până se umple fiecare la ținta lui, apoi trece la
+                // următorul. Ce rămâne necheltuit e "Sold Disponibil".
+                let pool = globalIncasari;
+                const allocatedById = {};
+                sortedItems.forEach(it => {
+                    const alloc = Math.max(0, Math.min(pool, it.tinta));
+                    allocatedById[it.id] = alloc;
+                    pool -= alloc;
+                });
+
+                globalCheltuieliAlocate = 0;
+                container.innerHTML = '';
+
+                // Afișăm în ordinea de prioritate (nu ordinea brută din DB), ca să fie
+                // clar vizual "ce e la coadă acum" pentru următorul ban care intră.
+                sortedItems.forEach(it => {
+                    const curent = allocatedById[it.id];
+                    const tinta = it.tinta;
+                    globalCheltuieliAlocate += curent;
+                    let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
+                    if(procent > 100) procent = 100;
+                    const rest = tinta - curent;
+                    const eComplet = procent === 100;
+
+                    dateRaportWishlist.push({ produs: it.numeProdus, tinta, curent, procent, complet: eComplet, prioritate: it.prioritate });
+
+                    container.innerHTML += `
+                        <div class="wishlist-item ${eComplet ? 'completed' : ''}">
+                            <div class="item-header">
+                                <div>
+                                    <span class="item-name">${it.numeProdus}</span>
+                                    <button class="delete-btn" onclick="stergeObiectiv(${it.id})">🗑️</button>
+                                </div>
+                                <span class="priority-badge prio-${it.prioritate}">${it.prioritate}</span>
+                            </div>
+                            <div class="item-finances">
+                                <span>Alocat automat: <strong>${curent.toFixed(2)} RON</strong> din ${tinta} RON</span>
+                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest.toFixed(2)} RON (${procent}%)`}</span>
+                            </div>
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${procent}%"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                actualizeazaSoldFinal();
+            } catch(e) { console.error(e); }
+        }
+
+        async function salveazaCheltuiala() {
+            const nume = document.getElementById('itemName').value.trim();
+            const tinta = parseFloat(document.getElementById('itemTarget').value);
+            const prioritate = document.getElementById('itemPriority').value;
+
+            if(!nume || isNaN(tinta) || tinta <= 0) {
+                alert("Te rog adaugă un nume de produs și prețul lui total!");
+                return;
+            }
+
+            // pret_alocat nu se mai folosește la citire (se recalculează automat din
+            // sold la fiecare încărcare) — îl păstrăm 0 doar pentru compatibilitate
+            // cu formatul vechi de date.
+            const wishlistPayload = { isWishlist: true, produs: nume, pret_total: tinta, pret_alocat: 0, prioritate: prioritate };
+
+            try {
+                const azi = new Date().toISOString().split('T')[0];
+                const { error } = await sb.from('cheltuieli').insert([{ descriere: JSON.stringify(wishlistPayload), suma: tinta, data: azi }]);
+                if (error) throw error;
+                document.getElementById('itemName').value = '';
+                document.getElementById('itemTarget').value = '';
+                await incarcaBugetSiJucatori();
+            } catch(e) { alert(e.message); }
+        }
+
+        async function stergeObiectiv(id) {
+            if(!confirm("Sigur vrei să ștergi acest produs din listă?")) return;
+            try {
+                const { error } = await sb.from('cheltuieli').delete().eq('id', id);
+                if (error) throw error;
+                await incarcaBugetSiJucatori();
+            } catch(e) { alert("Eroare"); }
+        }
+
+        async function stergePlata(id) {
+            if(!confirm("Vrei să ștergi această înregistrare de plată?")) return;
+            try {
+                const { error } = await sb.from('incasari').delete().eq('id', id);
+                if (error) throw error;
+                await incarcaBugetSiJucatori();
+            } catch(e) { alert("Eroare"); }
+        }
+
+        // Generează un format mult mai jmeker, curat și aerisit pentru WhatsApp
+        function genereazaTabelaRaport() {
+            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            
+            let text = `👑 *UPDATE FINANCIAR - ARENA FC* 👑\n`;
+            text += `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n`;
+            
+            text += `💰 *STARE CASIERIE:*\n`;
+            text += `└ Sold Disponibil: *${soldFinal.toFixed(2)} RON*\n`;
+            text += `└ Total Strâns: _${globalIncasari.toFixed(2)} RON_\n`;
+            text += `└ Total Alocat: _${globalCheltuieliAlocate.toFixed(2)} RON_\n\n`;
+
+            text += `🎯 *CE VREM SĂ CUMPĂRĂM / WISHLIST:*\n`;
+            if(dateRaportWishlist.length === 0) {
+                text += `└ _Fără produse adăugate în acest moment._\n`;
+            } else {
+                dateRaportWishlist.forEach(w => {
+                    if (w.complet) {
+                        text += `✅ *${w.produs}* → Strâns complet! (*${w.tinta} RON*)\n`;
+                    } else {
+                        const lipsa = w.tinta - w.curent;
+                        text += `⏳ *${w.produs}* \n`;
+                        text += `   └ Progres: *${w.curent}* / *${w.tinta} RON* (${w.procent}%)\n`;
+                        text += `   └ Mai trebuie: *${lipsa.toFixed(2)} RON*\n`;
+                    }
+                });
+            }
+
+            text += `\n👥 *CINE A DAT BANI RECENT:*\n`;
+            if(dateRaportIncasari.length === 0) {
+                text += `└ _Nicio plată înregistrată în baza de date._\n`;
+            } else {
+                // Grupăm contribuțiile pe jucători pentru a nu repeta numele aiurea în mesaj
+                const sumePeJucator = {};
+                dateRaportIncasari.forEach(i => {
+                    if(!sumePeJucator[i.nume]) sumePeJucator[i.nume] = [];
+                    sumePeJucator[i.nume].push(`${i.suma} RON (${i.detalii})`);
+                });
+
+                for (const jucator in sumePeJucator) {
+                    text += `• *${jucator}* : ${sumePeJucator[jucator].join(' + ')}\n`;
+                }
+            }
+            
+            text += `\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n`;
+            text += `⚡ _Raport actualizat în timp real din aplicație._`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                alert("📋 Raportul formatat „jmeker” a fost copiat! Dă Paste direct pe grupul de WhatsApp.");
+            }).catch(err => {
+                alert("Eroare la copiere.");
+            });
+        }
+
+        async function init() {
+            await incarcaJucatoriDropdown();
+            await incarcaBugetSiJucatori();
+        }
+
+        async function autentifica() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errEl = document.getElementById('loginError');
+            errEl.style.display = 'none';
+            if (!email || !password) return;
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) {
+                errEl.textContent = 'Email sau parolă greșită.';
+                errEl.style.display = 'block';
+                return;
+            }
+            afiseazaApp();
+        }
+
+        async function delogare() {
+            await sb.auth.signOut();
+            document.getElementById('appContent').style.display = 'none';
+            document.getElementById('loginGate').style.display = 'flex';
+        }
+
+        function afiseazaApp() {
+            document.getElementById('loginGate').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            init();
+        }
+
+        async function verificaSesiune() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                afiseazaApp();
+            } else {
+                document.getElementById('loginGate').style.display = 'flex';
+            }
+        }
+        verificaSesiune();
+    </script>
+</body>
+</html>

@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Generator Carduri FC 26 Arena</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root { 
+            --dark-bg: #0b0e14;
+            --panel-bg: #151b26;
+            --gold-gradient: linear-gradient(180deg, #ffe89e 0%, #cca03a 60%, #705113 100%);
+            --silver-gradient: linear-gradient(180deg, #ffffff 0%, #b0b5bc 60%, #52565d 100%);
+            --bronze-gradient: linear-gradient(180deg, #e29b7a 0%, #9c5939 60%, #471f0f 100%);
+        }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Rajdhani', sans-serif; 
+            background: #0f131c; 
+            color: #fff; 
+            margin: 0; 
+            padding: 0; 
+        }
+        
+        .main-header { 
+            text-align: center; 
+            padding: 20px; 
+            border-bottom: 1px solid #1e293b; 
+            background: #090d14; 
+            position: relative; 
+        }
+        .main-header h1 { 
+            font-family: 'Bebas Neue', sans-serif; 
+            font-size: 2.5rem; 
+            letter-spacing: 3px; 
+            color: #f1d483; 
+            margin: 0; 
+        }
+        .btn-back { 
+            position: absolute; 
+            left: 20px; 
+            top: 26px; 
+            background: #f1d483; 
+            color: #0c101b; 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            text-decoration: none; 
+            font-weight: bold; 
+            font-size: 0.85rem; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
+        
+        .workspace {
+            display: flex;
+            max-width: 1200px;
+            margin: 30px auto;
+            gap: 30px;
+            padding: 0 20px;
+        }
+        
+        .players-panel {
+            flex: 1;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #232d3f;
+            padding: 20px;
+            max-height: 750px;
+            overflow-y: auto;
+        }
+        .panel-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #94a3b8;
+            border-bottom: 1px solid #232d3f;
+            padding-bottom: 8px;
+        }
+        .player-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #1c2433;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .player-row:hover {
+            background: #253147;
+            border-color: #f1d483;
+        }
+        .player-row.selected {
+            background: linear-gradient(90deg, #253147 0%, #1e293b 100%);
+            border-color: #f1d483;
+            box-shadow: inset 4px 0 0 #f1d483;
+        }
+        .player-info-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .player-row-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #334155;
+        }
+        .player-row-name {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+        .player-row-rating {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.3rem;
+            color: #f1d483;
+            background: rgba(0,0,0,0.3);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        .card-preview-panel {
+            width: 420px;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #232d3f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 30px 20px;
+            min-height: 550px;
+        }
+        .no-selection-msg {
+            color: #64748b;
+            text-align: center;
+            font-size: 1.1rem;
+            margin-y: auto;
+            padding-top: 100px;
+        }
+
+        /* CARD FC26 FUT STYLE */
+        .fc26-card {
+            position: relative;
+            width: 250px;
+            height: 365px;
+            background: linear-gradient(180deg, #2a354d 0%, #0d131f 100%);
+            border: 2px solid #475569;
+            clip-path: polygon(0% 0%, 100% 0%, 100% 86%, 50% 100%, 0% 86%);
+            color: #e2e8f0;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            animation: cardAppear 0.3s ease-out;
+            margin-bottom: 25px;
+            flex-shrink: 0;
+        }
+
+        .fc26-card.gold { background: var(--gold-gradient); border-color: #ffe082; color: #0b0e14; }
+        .fc26-card.silver { background: var(--silver-gradient); border-color: #e2e8f0; color: #0b0e14; }
+        .fc26-card.bronze { background: var(--bronze-gradient); border-color: #bd7351; color: #fff; }
+        
+        @keyframes cardAppear {
+            from { transform: scale(0.92); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .badge-section {
+            position: absolute;
+            top: 28px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 0.85;
+            z-index: 2;
+        }
+        .overall-rating {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 3.6rem;
+            font-weight: 800;
+            margin: 0;
+        }
+        .position-label {
+            font-size: 1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        .player-photo-container {
+            width: 150px;
+            height: 170px;
+            position: absolute;
+            top: 15px;
+            right: 12px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .player-photo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
+        }
+
+        .player-card-name {
+            font-family: 'Bebas Neue', sans-serif;
+            position: absolute;
+            top: 195px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.8rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 0 10px;
+        }
+
+        .card-divider {
+            position: absolute;
+            top: 235px;
+            left: 25px;
+            right: 25px;
+            height: 1px;
+            background: rgba(255,255,255,0.15);
+        }
+        .gold .card-divider, .silver .card-divider {
+            background: rgba(0,0,0,0.15);
+        }
+
+        .stats-section {
+            position: absolute;
+            top: 248px;
+            left: 0;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding: 0 30px;
+            column-gap: 25px;
+            row-gap: 8px;
+        }
+        .stat-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .stat-number {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.75;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        
+        /* Caseta Explicații sub Card */
+        .explanation-box {
+            width: 100%;
+            background: #1c2433;
+            border-radius: 8px;
+            border: 1px solid #2d394e;
+            padding: 15px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: #cbd5e1;
+            animation: cardAppear 0.4s ease-out;
+        }
+        .explanation-box h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
+            color: #f1d483;
+        }
+        .explanation-box ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .explanation-box li {
+            margin-bottom: 6px;
+        }
+        .stat-highlight {
+            color: #f1d483;
+            font-weight: 700;
+        }
+
+        .loading { text-align: center; font-size: 1.2rem; color: #f1d483; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-header">
+        <a href="index.html" class="btn-back">← Înapoi</a>
+        <h1>EA SPORTS FC 26 CARDS</h1>
+    </div>
+
+    <div class="workspace">
+        <div class="players-panel">
+            <div class="panel-title">Alege un jucător</div>
+            <div id="loading" class="loading">Se încarcă baza de date...</div>
+            <div id="playersList"></div>
+        </div>
+
+        <div class="card-preview-panel" id="cardPreviewPanel">
+            <div class="no-selection-msg">Selectează un jucător din listă pentru a-i genera cardul oficial FC 26</div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let localPlayers = [];
+
+        // Funcție aliniată la structura reală a bazei de date (adminRating, camelCase)
+        function calculeazaRatingFifa(p) {
+            // 1. Verificare Override din admin
+            if (p.adminRating != null) {
+                let r = parseFloat(p.adminRating);
+                if (r <= 10) r = r * 10;
+                return { rating: Math.max(45, Math.min(99, Math.round(r))), tip: 'admin' };
+            }
+
+            // 2. Fallback pe algoritmul Smart Rating bazat pe performanțele salvate în profil
+            let base = 5.0;
+            const games = p.games || 0;
+            const wins = p.wins || 0;
+            const wrRaw = games > 0 ? wins / games : 0.5;
+
+            base += (wrRaw - 0.5) * 4; // winrate weighting
+            if (wrRaw > 0.60 && games >= 3) base += 0.2;
+
+            const goluri = p.total_goals || p.totalGoals || 0;
+            if (goluri > 0 && games > 0) {
+                const gpg = Math.min(goluri / games, 3);
+                base += Math.min(gpg * 0.33, 1.0);
+            }
+
+            // 3. Integrare medii de voturi din tabelul relaționat (ratings) dacă există
+            let areVoturi = false;
+            if (p.ratings && Array.isArray(p.ratings) && p.ratings.length > 0) {
+                areVoturi = true;
+                let sum = 0;
+                p.ratings.forEach(r => {
+                    const g = r.general != null ? r.general : 5;
+                    const v = r.viteza != null ? r.viteza : 5;
+                    const t = r.tehnica != null ? r.tehnica : 5;
+                    const s = r.strategie != null ? r.strategie : 5;
+                    const a = r.aparare != null ? r.aparare : 5;
+                    sum += (g + v + t + s + a) / 5;
+                });
+                let mediaVote = sum / p.ratings.length;
+                base = (base + mediaVote) / 2;
+            }
+
+            let finalScore = Math.round(base * 10);
+            if (isNaN(finalScore) || finalScore < 45 || games === 0) {
+                return { rating: 75, tip: 'default' }; // Jucător nou sau fără meciuri introduse
+            }
+            return { rating: Math.max(45, Math.min(99, finalScore)), tip: areVoturi ? 'smart+voturi' : 'smart' };
+        }
+
+        async function incarcajucatori() {
+            try {
+                const { data: players, error } = await sb.from('players').select('*, ratings(*)').order('name', { ascending: true });
+                if (error) throw error;
+
+                localPlayers = players;
+                document.getElementById('loading').style.display = 'none';
+                
+                const listContainer = document.getElementById('playersList');
+                listContainer.innerHTML = '';
+
+                players.forEach(p => {
+                    const res = calculeazaRatingFifa(p);
+                    const avatarUrl = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+                    
+                    listContainer.innerHTML += `
+                        <div class="player-row" id="player-row-${p.id}" onclick="selecteazaJucator(${p.id})">
+                            <div class="player-info-left">
+                                <img src="${avatarUrl}" class="player-row-avatar">
+                                <span class="player-row-name">${p.name}</span>
+                            </div>
+                            <span class="player-row-rating">${res.rating}</span>
+                        </div>
+                    `;
+                });
+
+            } catch (e) {
+                document.getElementById('loading').textContent = "Eroare la încărcare: " + e.message;
+            }
+        }
+
+        function selecteazaJucator(id) {
+            document.querySelectorAll('.player-row').forEach(row => row.classList.remove('selected'));
+            
+            const selectedRow = document.getElementById(`player-row-${id}`);
+            if(selectedRow) selectedRow.classList.add('selected');
+
+            const p = localPlayers.find(x => x.id === id);
+            if (!p) return;
+
+            const resCalcule = calculeazaRatingFifa(p);
+            const ratingOVR = resCalcule.rating;
+
+            const goluri = p.total_goals || p.totalGoals || 0;
+            const meciuri = p.games || 0;
+            const victorii = p.wins || 0;
+            const eficienta = meciuri > 0 ? goluri / meciuri : 0;
+            const winrate = meciuri > 0 ? Math.round((victorii / meciuri) * 100) : 0;
+
+            // Atribute relative calculate curat în raport cu OVR-ul
+            const pac = Math.max(45, Math.min(99, Math.round(ratingOVR - 3 + (id % 6))));
+            const sho = Math.max(45, Math.min(99, Math.round(ratingOVR - 8 + (eficienta * 25))));
+            const pas = Math.max(45, Math.min(99, Math.round(ratingOVR - 2 + (victorii % 4))));
+            const dri = Math.max(45, Math.min(99, Math.round(ratingOVR + 2 - (id % 3))));
+            const def = Math.max(45, Math.min(99, Math.round(ratingOVR - 6 + (p.id % 5))));
+            const phy = Math.max(45, Math.min(99, Math.round(ratingOVR - 4 + ((goluri + meciuri) % 6))));
+
+            let clasaCard = 'fc26-card';
+            if (ratingOVR >= 75) {
+                clasaCard += ' gold';
+            } else if (ratingOVR >= 65) {
+                clasaCard += ' silver';
+            } else {
+                clasaCard += ' bronze';
+            }
+
+            const pozitie = p.position_primary || p.position || (eficienta > 0.4 ? "ST" : "CM");
+            const pozaCard = p.avatar_url || p.avatar || "https://www.w3schools.com/howto/img_avatar.png";
+
+            // Construirea explicației text personalizată pentru fiecare caz
+            let explicatieText = "";
+            if (resCalcule.tip === 'admin') {
+                explicatieText = `Acest card are un rating forțat de un administrator în panoul de control (<span class="stat-highlight">OVR ${ratingOVR}</span>). Statisticile de meci nu îi modifică valoarea curentă.`;
+            } else if (resCalcule.tip === 'default') {
+                explicatieText = `Jucătorul are <span class="stat-highlight">0 meciuri active</span> înregistrate în istoric sau date lipsă. Din acest motiv, algoritmul aplică automat valoarea neutră standard de pornire de <span class="stat-highlight">75 OVR</span>.`;
+            } else {
+                explicatieText = `Rating generat dinamic prin formula Smart Rating:<br>
+                <ul>
+                    <li>Meciuri jucate: <span class="stat-highlight">${meciuri}</span></li>
+                    <li>Procentaj Victorii: <span class="stat-highlight">${winrate}%</span> (${victorii} W)</li>
+                    <li>Goluri înscrise: <span class="stat-highlight">${goluri}</span> (Medie: ${eficienta.toFixed(2)} goluri/meci)</li>
+                    <li>${resCalcule.tip === 'smart+voturi' ? 'Formula include și <span class="stat-highlight">media voturilor live</span> de la coechipieri.' : 'Nu s-au găsit voturi în istoric, se bazează doar pe statisticile de meci.'}</li>
+                </ul>`;
+            }
+
+            // Notă specifică pentru Andrei Stan dacă el este cel selectat
+            if (p.name.toLowerCase().includes("stan") || p.name.toLowerCase().includes("andrei stan")) {
+                explicatieText += `<br><strong style="color:#ff8c00;">De ce are Andrei Stan ratingul acesta?</strong> Dacă valoarea este fix 75, înseamnă că nu are meciuri salvate corect în baza de date Supabase sub acest profil sau nu i s-a acordat un rating de override de către Admin.`;
+            }
+
+            const previewPanel = document.getElementById('cardPreviewPanel');
+            previewPanel.innerHTML = `
+                <div class="${clasaCard}">
+                    <div class="badge-section">
+                        <span class="overall-rating">${ratingOVR}</span>
+                        <span class="position-label">${pozitie}</span>
+                    </div>
+                    <div class="player-photo-container">
+                        <img src="${pozaCard}" class="player-photo" alt="${p.name}">
+                    </div>
+                    <div class="player-card-name">${p.name}</div>
+                    <div class="card-divider"></div>
+                    <div class="stats-section">
+                        <div class="stat-block"><span class="stat-number">${pac}</span><span class="stat-label">PAC</span></div>
+                        <div class="stat-block"><span class="stat-number">${dri}</span><span class="stat-label">DRI</span></div>
+                        <div class="stat-block"><span class="stat-number">${sho}</span><span class="stat-label">SHO</span></div>
+                        <div class="stat-block"><span class="stat-number">${def}</span><span class="stat-label">DEF</span></div>
+                        <div class="stat-block"><span class="stat-number">${pas}</span><span class="stat-label">PAS</span></div>
+                        <div class="stat-block"><span class="stat-number">${phy}</span><span class="stat-label">PHY</span></div>
+                    </div>
+                </div>
+                
+                <div class="explanation-box">
+                    <h3>📊 Diagnostic Calcul Rating</h3>
+                    <p>${explicatieText}</p>
+                </div>
+            `;
+        }
+
+        incarcajucatori();
+    </script>
+</body>
+</html>

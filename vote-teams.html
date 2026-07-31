@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Votează Echipele · Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
+:root{--orange:#ff8c00;--green:#28a745;--accent:#3d5afe;--star:#ffcc00;--border:#1e2130;}
+.vt-header{background:#080a12;border-bottom:1px solid var(--border);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+.vt-logo{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;}
+.vt-sub{font-size:.72rem;color:#555;margin-top:2px;}
+.rt-dot{width:7px;height:7px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;display:inline-block;margin-left:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.admin-badge{font-size:.62rem;padding:2px 8px;border-radius:5px;background:rgba(255,140,0,.15);border:1px solid rgba(255,140,0,.3);color:var(--orange);}
+.id-bar{background:#0d0f18;border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.id-label{font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;}
+.id-name{font-weight:700;color:var(--star);font-size:.88rem;}
+.id-change{font-size:.65rem;color:#333;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}
+.id-change:hover{color:#82b1ff;}
+.id-screen{max-width:420px;margin:50px auto;padding:0 20px;}
+.id-screen-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;margin-bottom:4px;}
+.id-screen-sub{font-size:.8rem;color:#555;margin-bottom:16px;line-height:1.5;}
+.id-select{width:100%;background:#141720;border:1px solid var(--border);color:#fff;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;margin-bottom:8px;}
+.id-select:focus{border-color:var(--accent);}
+.id-note{font-size:.7rem;color:#444;margin-bottom:14px;line-height:1.5;}
+.id-confirm-btn{width:100%;padding:13px;border-radius:10px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;cursor:pointer;}
+.id-confirm-btn:disabled{opacity:.35;cursor:not-allowed;}
+.winner-screen{max-width:540px;margin:0 auto;padding:20px 16px 40px;}
+.winner-banner{background:linear-gradient(135deg,rgba(255,204,0,.1),rgba(255,140,0,.07));border:1px solid rgba(255,204,0,.25);border-radius:14px;padding:20px;text-align:center;margin-bottom:20px;}
+.winner-icon{font-size:2.5rem;margin-bottom:8px;}
+.winner-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:var(--star);}
+.winner-sub{font-size:.82rem;color:#888;margin-top:4px;}
+.vt-main{max-width:600px;margin:0 auto;padding:14px 14px 90px;}
+.vt-stitle{font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:#555;margin:14px 0 8px;}
+.sc-card{background:#0d0f18;border-radius:14px;border:1px solid var(--border);overflow:hidden;margin-bottom:12px;transition:all .2s;}
+.sc-card.is-winner{border-color:var(--star);box-shadow:0 0 24px rgba(255,204,0,.12);}
+.sc-card-hd{padding:10px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.sc-card-title{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;}
+.sc-vcount{font-size:.72rem;color:#555;}
+.sc-teams{display:grid;grid-template-columns:1fr 1fr;}
+.sc-team{padding:10px 12px;}
+.sc-team:first-child{border-right:1px solid var(--border);}
+.sc-team-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;font-weight:700;}
+.sc-team-lbl.o{color:var(--orange);}
+.sc-team-lbl.g{color:var(--green);}
+.sc-pill{font-size:.75rem;color:#888;padding:3px 8px;border-radius:5px;background:#141720;border:1px solid #1a1d2a;margin-bottom:3px;}
+.sc-pill.me{border-color:var(--accent);color:#82b1ff;}
+.sc-footer{padding:10px 14px;border-top:1px solid var(--border);}
+.sc-prog-wrap{background:#1e2130;border-radius:6px;height:5px;overflow:hidden;margin-bottom:5px;}
+.sc-prog-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--accent),#a78bfa);transition:width .5s;}
+.sc-prog-fill.lead{background:linear-gradient(90deg,var(--star),var(--orange));}
+.sc-prog-lbl{display:flex;justify-content:space-between;font-size:.62rem;color:#444;margin-bottom:8px;}
+.sc-vote-btn{width:100%;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid;transition:all .15s;}
+.btn-default{background:rgba(61,90,254,.1);border-color:var(--accent);color:#82b1ff;}
+.btn-default:hover{background:rgba(61,90,254,.2);}
+.btn-mine{background:rgba(40,167,69,.15);border-color:var(--green);color:#69f0ae;cursor:default;}
+.btn-locked{opacity:.4;cursor:not-allowed;background:transparent;border-color:#252836;color:#444;}
+.not-in-match{background:#0d0f18;border:1px solid #1e2130;border-radius:12px;padding:18px;text-align:center;margin-bottom:14px;}
+.not-in-match-icon{font-size:2rem;margin-bottom:6px;}
+.not-in-match-text{font-size:.82rem;color:#555;line-height:1.6;}
+.admin-bar{position:fixed;bottom:0;left:0;right:0;background:#080a12;border-top:1px solid rgba(255,140,0,.2);padding:10px 14px;display:none;z-index:100;align-items:center;gap:8px;flex-wrap:wrap;}
+.admin-bar.show{display:flex;}
+.ab-label{font-size:.7rem;color:var(--orange);flex:1;min-width:80px;}
+.ab-btn{padding:7px 12px;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.empty-state{text-align:center;padding:50px 20px;color:#333;}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1f2b;border:1px solid #3d5afe;color:#fff;padding:10px 20px;border-radius:10px;font-size:.85rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.show{opacity:1;}
+@media(max-width:380px){.sc-teams{grid-template-columns:1fr;}.sc-team:first-child{border-right:none;border-bottom:1px solid var(--border);}}
+</style>
+</head>
+<body>
+
+<div class="vt-header">
+  <div>
+    <div class="vt-logo">⚽ Arena Friends FC</div>
+    <div class="vt-sub">Votează Echipele <span class="rt-dot" id="rtDot" style="display:none;"></span></div>
+  </div>
+  <span class="admin-badge" id="adminBadge" style="display:none;">👑 Admin</span>
+</div>
+
+<div class="id-bar" id="idBar" style="display:none;">
+  <span class="id-label">Votezi ca:</span>
+  <span class="id-name" id="idBarName"></span>
+  <span class="id-change" onclick="logout()">· schimbă</span>
+</div>
+
+<!-- Identity screen -->
+<div class="id-screen" id="idScreen">
+  <div class="id-screen-title">👤 Cine ești?</div>
+  <div class="id-screen-sub">Doar jucătorii din meciul de azi pot vota.</div>
+  <select class="id-select" id="playerSelect">
+    <option value="">— Selectează —</option>
+  </select>
+  <div class="id-note" id="idNote">Se încarcă...</div>
+  <button class="id-confirm-btn" id="confirmBtn" onclick="confirmIdentity()" disabled>⚡ Intră și Votează</button>
+</div>
+
+<!-- Winner screen -->
+<div id="winnerScreen" style="display:none;">
+  <div class="winner-screen">
+    <div class="winner-banner">
+      <div class="winner-icon">🏆</div>
+      <div class="winner-title">Variantă Aplicată!</div>
+      <div class="winner-sub" id="winnerSub"></div>
+    </div>
+    <div id="winnerCard"></div>
+  </div>
+</div>
+
+<!-- Main voting -->
+<div class="vt-main" id="vtMain" style="display:none;">
+  <div class="vt-stitle">Variante de Echipe</div>
+  <div id="notInMatchNotice" style="display:none;">
+    <div class="not-in-match">
+      <div class="not-in-match-icon">👀</div>
+      <div class="not-in-match-text">Nu ești în niciun scenariu al meciului de azi —<br>poți urmări voturile, dar nu poți vota.</div>
+    </div>
+  </div>
+  <div id="scenariosList"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <div style="font-size:2rem;margin-bottom:8px;">⏳</div>
+    <div>Niciun scenariu publicat momentan.</div>
+    <div style="font-size:.75rem;color:#333;margin-top:6px;">Adminul nu a salvat încă variantele de echipe.</div>
+  </div>
+</div>
+
+<!-- Admin bar -->
+<div class="admin-bar" id="adminBar">
+  <span class="ab-label">👑 Admin</span>
+  <button class="ab-btn" style="background:rgba(40,167,69,.12);border:1px solid var(--green);color:#69f0ae;" onclick="finalizeWinner()">✅ Aplică Câștigătorul</button>
+  <button class="ab-btn" style="background:rgba(198,40,40,.08);border:1px solid #c62828;color:#ef9a9a;" onclick="clearVotes()">🗑️ Reset Voturi</button>
+  <button class="ab-btn" style="background:rgba(61,90,254,.08);border:1px solid var(--accent);color:#82b1ff;" onclick="clearWinner()">↺ Redeschide</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SB_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const LS_KEY='vote_identity';
+let myName=null, isAdmin=false, isInMatch=false;
+let scenarios=[], votes={}, myVote=null, appliedWinner=null, eligibleNames=[];
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);}
+
+// Admin = only real Supabase Auth session with role=admin in profiles
+async function checkAdmin(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session) return false;
+  const {data:prof}=await sb.from('profiles').select('role').eq('id',session.user.id).maybeSingle();
+  return prof?.role==='admin';
+}
+
+async function loadScenarios(){
+  const {data}=await sb.from('match_scenarios').select('*').order('scenario_id');
+  scenarios=data||[];
+  const nameSet=new Set();
+  scenarios.forEach(sc=>{
+    (sc.orange_players||[]).forEach(n=>nameSet.add(n));
+    (sc.green_players||[]).forEach(n=>nameSet.add(n));
+  });
+  eligibleNames=[...nameSet].sort();
+  // Check applied winner
+  const winRow=scenarios.find(s=>s.applied_winner!=null);
+  appliedWinner=winRow?winRow.applied_winner:null;
+}
+
+async function loadPlayers(){
+  await loadScenarios();
+  const sel=document.getElementById('playerSelect');
+  sel.innerHTML='<option value="">— Selectează —</option>';
+  if(!eligibleNames.length){
+    document.getElementById('idNote').textContent='Nu există scenarii publicate momentan.';
+    document.getElementById('confirmBtn').disabled=true;
+    return;
+  }
+  eligibleNames.forEach(name=>{
+    const o=document.createElement('option');o.value=name;o.textContent=name;sel.appendChild(o);
+  });
+  document.getElementById('idNote').textContent=eligibleNames.length+' jucători eligibili din meciul de azi.';
+  document.getElementById('confirmBtn').disabled=false;
+}
+
+function confirmIdentity(){
+  const name=document.getElementById('playerSelect').value.trim();
+  if(!name){showToast('⚠️ Selectează un jucător!');return;}
+  myName=name;localStorage.setItem(LS_KEY,name);enterApp();
+}
+
+function logout(){
+  myName=null;myVote=null;isInMatch=false;
+  localStorage.removeItem(LS_KEY);
+  document.getElementById('idBar').style.display='none';
+  document.getElementById('vtMain').style.display='none';
+  document.getElementById('winnerScreen').style.display='none';
+  document.getElementById('idScreen').style.display='block';
+  document.getElementById('adminBar').classList.remove('show');
+  document.getElementById('adminBadge').style.display='none';
+}
+
+async function enterApp(){
+  document.getElementById('idScreen').style.display='none';
+  document.getElementById('idBarName').textContent=myName;
+  document.getElementById('idBar').style.display='flex';
+  // Admin = real Auth session only
+  isAdmin=await checkAdmin();
+  if(isAdmin){
+    document.getElementById('adminBadge').style.display='inline-block';
+    document.getElementById('adminBar').classList.add('show');
+  }
+  isInMatch=eligibleNames.includes(myName);
+  await loadVotes();
+  if(appliedWinner!==null){showWinnerScreen();}
+  else{
+    document.getElementById('vtMain').style.display='block';
+    if(!isInMatch) document.getElementById('notInMatchNotice').style.display='block';
+    renderScenarios();subscribeRealtime();
+  }
+  document.getElementById('rtDot').style.display='inline-block';
+}
+
+async function loadVotes(){
+  const {data}=await sb.from('team_votes').select('scenario_id');
+  votes={};(data||[]).forEach(v=>{votes[v.scenario_id]=(votes[v.scenario_id]||0)+1;});
+  if(myName){
+    const {data:myV}=await sb.from('team_votes').select('scenario_id').eq('voter_name',myName).maybeSingle();
+    myVote=myV?myV.scenario_id:null;
+  }
+}
+
+function renderScenarios(){
+  const container=document.getElementById('scenariosList');
+  if(!scenarios.length){document.getElementById('emptyState').style.display='block';return;}
+  document.getElementById('emptyState').style.display='none';
+  const total=Object.values(votes).reduce((s,v)=>s+v,0);
+  const leaderId=total>0?parseInt(Object.entries(votes).sort((a,b)=>b[1]-a[1])[0][0]):null;
+  const titles=['Varianta A','Varianta B','Varianta C'];
+  container.innerHTML=scenarios.map((sc,idx)=>{
+    const vc=votes[sc.scenario_id]||0;
+    const pct=total>0?Math.round((vc/total)*100):0;
+    const isLead=sc.scenario_id===leaderId&&total>0;
+    const iVoted=myVote===sc.scenario_id;
+    const votedElse=myVote!==null&&!iVoted;
+    const orange=sc.orange_players||[], green=sc.green_players||[];
+    let btnCls,btnTxt;
+    if(!isInMatch&&!isAdmin){btnCls='btn-locked';btnTxt='👀 Spectator';}
+    else if(iVoted){btnCls='btn-mine';btnTxt='✅ Ai votat această variantă';}
+    else if(votedElse){btnCls='btn-locked';btnTxt='🔒 Ai votat deja '+(titles[(myVote||1)-1]||'Varianta '+myVote);}
+    else{btnCls='btn-default';btnTxt='🗳️ Votează '+titles[idx];}
+    const pills=names=>names.map(n=>'<div class="sc-pill'+(n===myName?' me':'')+'">'+n+'</div>').join('');
+    return '<div class="sc-card'+(isLead?' is-winner':'')+'" id="scard-'+sc.scenario_id+'">'+
+      '<div class="sc-card-hd"><span class="sc-card-title">'+titles[idx]+(isLead?' 🏆':'')+'</span><span class="sc-vcount">'+vc+' vot'+(vc!==1?'uri':'')+'</span></div>'+
+      '<div class="sc-teams">'+
+        '<div class="sc-team"><div class="sc-team-lbl o">🟠 Portocaliu ('+orange.length+')</div>'+pills(orange)+'</div>'+
+        '<div class="sc-team"><div class="sc-team-lbl g">🟢 Verde ('+green.length+')</div>'+pills(green)+'</div>'+
+      '</div>'+
+      '<div class="sc-footer">'+
+        '<div class="sc-prog-wrap"><div class="sc-prog-fill'+(isLead?' lead':'')+'" style="width:'+pct+'%"></div></div>'+
+        '<div class="sc-prog-lbl"><span>'+pct+'%</span><span>'+total+' total</span></div>'+
+        '<button class="sc-vote-btn '+btnCls+'" onclick="'+(btnCls==='btn-default'?'castVote('+sc.scenario_id+')':'')+'">'+btnTxt+'</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function showWinnerScreen(){
+  document.getElementById('vtMain').style.display='none';
+  document.getElementById('winnerScreen').style.display='block';
+  const winSc=scenarios.find(s=>s.scenario_id===appliedWinner);
+  if(!winSc) return;
+  const idx=scenarios.indexOf(winSc);
+  const titles=['Varianta A','Varianta B','Varianta C'];
+  document.getElementById('winnerSub').textContent=(titles[idx]||'Varianta '+appliedWinner)+' a câștigat votul și a fost aplicată oficial.';
+  const orange=winSc.orange_players||[], green=winSc.green_players||[];
+  const pills=names=>names.map(n=>'<div class="sc-pill'+(n===myName?' me':'')+'">'+n+'</div>').join('');
+  document.getElementById('winnerCard').innerHTML=
+    '<div class="sc-card is-winner">'+
+    '<div class="sc-card-hd"><span class="sc-card-title">🏆 '+(titles[idx]||'Varianta '+appliedWinner)+'</span><span class="sc-vcount" style="color:var(--star);">Aplicată oficial</span></div>'+
+    '<div class="sc-teams">'+
+      '<div class="sc-team"><div class="sc-team-lbl o">🟠 Echipa Portocalie ('+orange.length+')</div>'+pills(orange)+'</div>'+
+      '<div class="sc-team"><div class="sc-team-lbl g">🟢 Echipa Verde ('+green.length+')</div>'+pills(green)+'</div>'+
+    '</div></div>';
+}
+
+async function castVote(sid){
+  if(myVote!==null){showToast('⚠️ Ai votat deja!');return;}
+  if(!isInMatch&&!isAdmin){showToast('⚠️ Nu ești în meci!');return;}
+  try{
+    const {error}=await sb.from('team_votes').insert({voter_name:myName,scenario_id:sid,voted_at:new Date().toISOString()});
+    if(error) throw error;
+    myVote=sid;votes[sid]=(votes[sid]||0)+1;renderScenarios();showToast('✅ Vot înregistrat!');
+  }catch(e){showToast(e.code==='23505'?'⚠️ Ai votat deja!':'⚠️ '+e.message);}
+}
+
+async function finalizeWinner(){
+  const total=Object.values(votes).reduce((s,v)=>s+v,0);
+  if(!total){showToast('⚠️ Niciun vot!');return;}
+  const [winnerId]=Object.entries(votes).sort((a,b)=>b[1]-a[1])[0];
+  const wid=parseInt(winnerId);
+  const winSc=scenarios.find(s=>s.scenario_id===wid);
+  if(!winSc){showToast('⚠️ Scenariu negăsit!');return;}
+  const idx=scenarios.indexOf(winSc);
+  const titles=['Varianta A','Varianta B','Varianta C'];
+  if(!confirm('Aplici '+(titles[idx]||'Varianta '+wid)+'?\n🟠 '+(winSc.orange_players||[]).join(', ')+'\n🟢 '+(winSc.green_players||[]).join(', '))) return;
+  try{
+    await sb.from('match_scenarios').update({applied_winner:wid}).neq('scenario_id',0);
+    const allNames=[...(winSc.orange_players||[]),...(winSc.green_players||[])];
+    if(allNames.length){
+      await sb.from('players').update({status:'bench'}).in('name',allNames);
+      if((winSc.orange_players||[]).length) await sb.from('players').update({status:'orange'}).in('name',winSc.orange_players);
+      if((winSc.green_players||[]).length) await sb.from('players').update({status:'green'}).in('name',winSc.green_players);
+    }
+    appliedWinner=wid;showToast('✅ Câștigător aplicat!');
+    setTimeout(showWinnerScreen,800);
+  }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function clearVotes(){
+  if(!confirm('Șterge toate voturile?')) return;
+  try{
+    await sb.from('team_votes').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    votes={};myVote=null;renderScenarios();showToast('✅ Voturi resetate!');
+  }catch(e){showToast('⚠️ '+e.message);}
+}
+
+async function clearWinner(){
+  if(!confirm('Redeschide votarea?')) return;
+  try{
+    await sb.from('match_scenarios').update({applied_winner:null}).neq('scenario_id',0);
+    appliedWinner=null;
+    document.getElementById('winnerScreen').style.display='none';
+    document.getElementById('vtMain').style.display='block';
+    renderScenarios();showToast('✅ Votare redeschisă!');
+  }catch(e){showToast('⚠️ '+e.message);}
+}
+
+function subscribeRealtime(){
+  sb.channel('tvrt')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'team_votes'},p=>{
+      votes[p.new.scenario_id]=(votes[p.new.scenario_id]||0)+1;
+      if(appliedWinner===null) renderScenarios();
+    })
+    .on('postgres_changes',{event:'DELETE',schema:'public',table:'team_votes'},async()=>{
+      await loadVotes();if(appliedWinner===null) renderScenarios();
+    })
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'match_scenarios'},async p=>{
+      if(p.new&&p.new.applied_winner!=null&&appliedWinner===null){
+        appliedWinner=p.new.applied_winner;await loadScenarios();showWinnerScreen();
+      }
+    })
+    .subscribe();
+}
+
+async function init(){
+  await loadPlayers();
+  const saved=localStorage.getItem(LS_KEY);
+  if(saved&&eligibleNames.includes(saved)){
+    document.getElementById('playerSelect').value=saved;myName=saved;enterApp();
+  } else {
+    if(saved) localStorage.removeItem(LS_KEY);
+    document.getElementById('idScreen').style.display='block';
+  }
+}
+init();
+</script>
+</body>
+</html>

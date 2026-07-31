@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablă Tactică — Arena Friends FC</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+    --orange:#ff8c00; --green:#28a745; --bench:#111111;
+    --dark:#1e1e24; --pitch:#2a6634;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Rajdhani',sans-serif;background:#121214;color:#eee;padding:16px;display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+h1{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:2px;margin-bottom:4px;color:var(--orange);}
+.subtitle{font-size:.95rem;color:#999;margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;}
+
+.controls-wrapper{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;justify-content:center;}
+.btn{background:#25252b;color:#fff;border:1px solid #444;padding:10px 16px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.9rem;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;touch-action:manipulation;}
+.btn:hover{background:var(--orange);border-color:var(--orange);color:#121214;}
+.btn-sort{background:#1b5e20;border-color:#28a745;}
+.btn-sort:hover{background:#28a745;border-color:#28a745;color:#fff;}
+.btn-danger{background:#7b1010;border-color:#c62828;}
+.btn-danger:hover{background:#c62828;border-color:#c62828;color:#fff;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.stats-bar{display:flex;justify-content:space-between;width:100%;max-width:1250px;background:#1a1a1e;padding:14px 22px;border-radius:10px;margin-bottom:18px;border:1px solid #2d2d35;align-items:center;flex-wrap:wrap;gap:10px;}
+.team-stat{display:flex;flex-direction:column;gap:4px;}
+.team-stat.orj{color:var(--orange);}
+.team-stat.grn{color:var(--green);text-align:right;}
+.team-stat.bnc{color:#aaa;text-align:center;}
+.stat-val{font-size:1.6rem;font-weight:700;}
+
+.main-layout{display:flex;width:100%;max-width:1250px;gap:16px;flex-wrap:wrap;}
+.bench{width:340px;background:#1a1a1e;border-radius:12px;padding:14px;border:1px solid #2d2d35;max-height:720px;overflow-y:auto;flex-shrink:0;}
+.bench h3{font-size:1.05rem;margin-bottom:12px;text-transform:uppercase;border-bottom:2px solid #2d2d35;padding-bottom:5px;color:#bbb;}
+.player-card{background:#25252b;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid #32323c;}
+.player-card-header{display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-bottom:7px;gap:6px;}
+.player-card-header .pname{font-size:.92rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.player-rating-pill{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#ffca28;background:#121214;border:1px solid #444;border-radius:5px;padding:2px 7px;flex-shrink:0;}
+.player-controls{display:flex;align-items:center;gap:8px;font-size:.8rem;color:#aaa;flex-wrap:wrap;}
+.current-pos-label{background:#121214;padding:3px 7px;border-radius:4px;font-weight:700;color:#fff;border:1px solid #444;font-size:.75rem;}
+.speed-edit-box{display:flex;align-items:center;gap:3px;color:#64b5f6;margin-left:auto;}
+.speed-input{width:38px;background:#121214;border:1px solid #2196f3;color:#64b5f6;padding:2px;border-radius:4px;font-weight:700;text-align:center;font-size:.8rem;}
+
+.field-container{flex:1;min-width:300px;position:relative;height:620px;background-color:var(--pitch);border:4px solid #fff;border-radius:12px;background-image:linear-gradient(90deg,rgba(255,255,255,.05) 50%,transparent 50%),linear-gradient(to right,#2e7d32 50%,#276b2b 50%);background-size:100% 100%,10% 100%;box-shadow:0 10px 30px rgba(0,0,0,.6);overflow:hidden;}
+.midline{position:absolute;left:50%;top:0;bottom:0;width:4px;background:rgba(255,255,255,.5);}
+.center-circle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:120px;height:120px;border:4px solid rgba(255,255,255,.5);border-radius:50%;}
+.box-left{position:absolute;left:0;top:20%;width:15%;height:60%;border:4px solid rgba(255,255,255,.5);border-left:none;}
+.box-right{position:absolute;right:0;top:20%;width:15%;height:60%;border:4px solid rgba(255,255,255,.5);border-right:none;}
+
+.field-player{position:absolute;display:flex;flex-direction:column;align-items:center;width:84px;transform:translate(-50%,-50%);cursor:move;z-index:10;touch-action:none;user-select:none;}
+.player-badge{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:.82rem;border:2px solid #fff;box-shadow:0 4px 8px rgba(0,0,0,.4);}
+.field-player.team-orange .player-badge{background:radial-gradient(circle,#ffb74d,#9c4f00);}
+.field-player.team-green .player-badge{background:radial-gradient(circle,#81c784,#1b7a35);}
+.field-player.team-bench .player-badge{background:radial-gradient(circle,#888,#222);}
+.player-label{background:rgba(0,0,0,.85);color:#fff;font-size:.7rem;padding:3px 5px;border-radius:4px;margin-top:4px;white-space:nowrap;text-align:center;border:1px solid #444;}
+.player-tags{font-size:.66rem;display:flex;justify-content:center;gap:5px;margin-top:1px;}
+.player-rating-tag{color:#ffca28;font-weight:700;}
+.player-speed-tag{color:#64b5f6;font-weight:700;}
+
+.hide-ratings .player-tags,
+.hide-ratings .stat-val,
+.hide-ratings .player-rating-pill{display:none!important;}
+
+.empty-bench-msg{color:#666;font-size:.85rem;text-align:center;padding:20px 10px;}
+.loading-msg{color:#888;font-size:1rem;padding:40px;text-align:center;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:14px;font-size:.78rem;color:#999;}
+.legend span{display:flex;align-items:center;gap:5px;}
+.legend .dot{width:10px;height:10px;border-radius:50%;}
+</style>
+</head>
+<body>
+
+<h1>⚽ TABLĂ TACTICĂ</h1>
+<div class="subtitle" id="subtitleLine">Se încarcă jucătorii din Arena Friends FC...</div>
+
+<div class="controls-wrapper">
+    <button class="btn" id="toggleRatingsBtn" onclick="toggleRatings()"><span>👁️</span> Ascunde Statistici</button>
+    <button class="btn btn-sort" id="sortBtn" onclick="balanceTeamsAndSort()" disabled><span>⚖️</span> Echilibrare Inteligentă (Smart Rating)</button>
+    <button class="btn" onclick="resetToTeams()"><span>🔄</span> Resetează la echipele reale</button>
+    <button class="btn btn-danger" onclick="clearLayout()"><span>🗑️</span> Șterge poziții (toți pe bancă)</button>
+</div>
+
+<div class="stats-bar">
+    <div class="team-stat orj">
+        <span>🟠 PORTOCALIU</span>
+        <span class="stat-val" id="orangeRatingVal">0.00</span>
+    </div>
+    <div class="team-stat bnc">
+        <span>⚫ BANCĂ / NEALOCAT</span>
+        <span class="stat-val" id="benchCountVal">0</span>
+    </div>
+    <div class="team-stat grn">
+        <span>🟢 VERDE</span>
+        <span class="stat-val" id="greenRatingVal">0.00</span>
+    </div>
+</div>
+
+<div class="main-layout">
+    <div class="bench">
+        <h3>Lot Jucători</h3>
+        <div id="playersList"><div class="loading-msg">⏳ Se încarcă...</div></div>
+    </div>
+    <div class="field-container" id="footballField">
+        <div class="midline"></div>
+        <div class="center-circle"></div>
+        <div class="box-left"></div>
+        <div class="box-right"></div>
+    </div>
+</div>
+
+<div class="legend">
+    <span><div class="dot" style="background:#8e3a9e;"></div> GK Portar</span>
+    <span><div class="dot" style="background:#1b7a43;"></div> DEF Fundaș</span>
+    <span><div class="dot" style="background:#1554b3;"></div> MID Mijlocaș</span>
+    <span><div class="dot" style="background:#9c4f00;"></div> FWD Atacant</span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// ── SUPABASE ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+// ═══════════════════════════════════════════════════════════════════
+// ── POZIȚII (identic cu index.html / setari.html) ──────────────────
+// ═══════════════════════════════════════════════════════════════════
+const POSITIONS = {
+    GK:  { label:'Portar',            group:'GK',  color:'#8e3a9e' },
+    CB:  { label:'Fundaș Central',    group:'DEF', color:'#1b7a43' },
+    LB:  { label:'Fundaș Stânga',     group:'DEF', color:'#1b7a43' },
+    RB:  { label:'Fundaș Dreapta',    group:'DEF', color:'#1b7a43' },
+    CDM: { label:'Mijlocaș Defensiv', group:'MID', color:'#1554b3' },
+    CM:  { label:'Mijlocaș Central',  group:'MID', color:'#1554b3' },
+    CAM: { label:'Mijlocaș Ofensiv',  group:'MID', color:'#1554b3' },
+    LM:  { label:'Mijlocaș Stânga',   group:'MID', color:'#1554b3' },
+    RM:  { label:'Mijlocaș Dreapta',  group:'MID', color:'#1554b3' },
+    LW:  { label:'Extremă Stânga',    group:'FWD', color:'#9c4f00' },
+    RW:  { label:'Extremă Dreapta',   group:'FWD', color:'#9c4f00' },
+    ST:  { label:'Vârf',              group:'FWD', color:'#9c4f00' },
+    FW:  { label:'Atacant',           group:'FWD', color:'#9c4f00' },
+};
+const LEGACY_ROLE_MAP = { portar:'GK', fundas:'CB', mijlocas:'CM', atacant:'ST' };
+function getPlayerPrimaryPos(p){
+    if (p.positionPrimary && POSITIONS[p.positionPrimary]) return p.positionPrimary;
+    if (p.role && LEGACY_ROLE_MAP[p.role]) return LEGACY_ROLE_MAP[p.role];
+    return null;
+}
+
+// Coordonate tactice standard per poziție (identice cu fișierul original)
+const tacticalPositionsMap = {
+    orange: {
+        GK:{x:6,y:50}, CB:{x:16,y:50}, LB:{x:16,y:20}, RB:{x:16,y:80},
+        CDM:{x:26,y:50}, CM:{x:28,y:35}, RM:{x:28,y:75}, LM:{x:28,y:25},
+        CAM:{x:38,y:50}, LW:{x:38,y:30}, RW:{x:38,y:70}, ST:{x:46,y:50}, FW:{x:46,y:50},
+    },
+    green: {
+        GK:{x:94,y:50}, CB:{x:84,y:50}, LB:{x:84,y:80}, RB:{x:84,y:20},
+        CDM:{x:74,y:50}, CM:{x:72,y:65}, RM:{x:72,y:25}, LM:{x:72,y:75},
+        CAM:{x:64,y:50}, LW:{x:64,y:70}, RW:{x:64,y:30}, ST:{x:54,y:50}, FW:{x:54,y:50},
+    }
+};
+
+function calculateDynamicPosition(team, pctX, pctY) {
+    let progressX = (team === 'orange') ? (pctX / 50) * 100 : ((100 - pctX) / 50) * 100;
+    if (progressX <= 12) return "GK";
+    if (progressX > 12 && progressX <= 42) {
+        if (pctY < 33) return "LB";
+        if (pctY > 67) return "RB";
+        return "CB";
+    }
+    if (progressX > 42 && progressX <= 78) {
+        if (pctY < 25) return "LM";
+        if (pctY > 75) return "RM";
+        if (progressX < 60) return "CDM";
+        if (progressX > 68) return "CAM";
+        return "CM";
+    }
+    if (pctY < 30) return "LW";
+    if (pctY > 70) return "RW";
+    return "ST";
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ── SMART RATING — replică fidelă din index.html ───────────────────
+// ═══════════════════════════════════════════════════════════════════
+const DEFAULT_W = {winrate:0.40, borda:0.0, general:0.10, mvpWin:0.0, mvpLoss:0.0};
+let W = {...DEFAULT_W};
+
+function getWinnerSideFromScore(h) {
+    const parts = (h.score||'').split(':').map(s => parseInt(s.trim()));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        if (parts[0] > parts[1]) return 'orange';
+        if (parts[1] > parts[0]) return 'green';
+        return 'draw';
+    }
+    return null;
+}
+function playerWonMatch(h, playerName) {
+    const inOrange = (h.orangePlayers||[]).includes(playerName);
+    const inGreen  = (h.greenPlayers||[]).includes(playerName);
+    if (!inOrange && !inGreen) return null;
+    const side = getWinnerSideFromScore(h);
+    if (!side || side === 'draw') return false;
+    return (inOrange && side === 'orange') || (inGreen && side === 'green');
+}
+
+let matchHistory = []; // populat din Supabase la load
+
+// #1 SINERGIE REALĂ — win-rate când p joacă cu mate
+function getSynergyScore(pName, mateName) {
+    let together = 0, wins = 0;
+    matchHistory.forEach(h => {
+        const inOrange = (h.orangePlayers||[]).includes(pName) && (h.orangePlayers||[]).includes(mateName);
+        const inGreen  = (h.greenPlayers||[]).includes(pName)  && (h.greenPlayers||[]).includes(mateName);
+        if (!inOrange && !inGreen) return;
+        together++;
+        if (playerWonMatch(h, pName) === true) wins++;
+    });
+    if (together < 2) return 0.5;
+    return wins / together;
+}
+function getTeamSynergyBonus(playerName, teammates) {
+    if (!teammates.length) return 0;
+    const scores = teammates.map(m => getSynergyScore(playerName, m.name));
+    const avg = scores.reduce((s,v) => s+v, 0) / scores.length;
+    return (avg - 0.5) * 1.0;
+}
+// #2 PENALIZARE ABSENȚE
+function getActivityMultiplier(p) {
+    const recent = matchHistory.slice(0, 8);
+    if (recent.length < 3) return 1.0;
+    let absent = 0;
+    recent.forEach(h => {
+        const played = (h.orangePlayers||[]).includes(p.name) || (h.greenPlayers||[]).includes(p.name);
+        if (!played) absent++;
+    });
+    return Math.max(0.80, 1.0 - absent * 0.06);
+}
+
+function getSmartRating(p, context = {}) {
+    if (p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
+    let base = 5.0;
+    const wrRaw = p.games > 0 ? p.wins / p.games : 0.5;
+    base += (wrRaw - 0.5) * 4 * W.winrate;
+    if (wrRaw > 0.60 && p.games >= 3) base += 0.2;
+    if ((p.totalGoals||0) > 0 && p.games > 0) {
+        const gpg = Math.min(p.totalGoals / p.games, 3);
+        base += Math.min(gpg * 0.33, 1.0);
+    }
+    base -= Math.min((p.lastImbalanceLoss||0), 3) * 0.20;
+    const actMult = getActivityMultiplier(p);
+    base = base * actMult + 5.0 * (1 - actMult);
+    let synergyBonus = 0;
+    if (context.teammates && context.teammates.length) {
+        synergyBonus = getTeamSynergyBonus(p.name, context.teammates) * 0.4;
+    }
+    const raw = base + synergyBonus;
+    return parseFloat(Math.max(1, Math.min(10, raw)).toFixed(2));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ── DATE & STARE ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+let players = [];       // din Supabase: {id, name, status, wins, games, totalGoals, positionPrimary...}
+let assignments = {};   // {playerId: {team, position, posX, posY, speed}}
+let showRatings = true;
+const listContainer = document.getElementById('playersList');
+const field = document.getElementById('footballField');
+
+const SPEED_KEY = 'tactic_speeds_v1'; // local-only, nu există coloană în DB
+
+function loadSpeeds() {
+    try { return JSON.parse(localStorage.getItem(SPEED_KEY)) || {}; }
+    catch(e) { return {}; }
+}
+function saveSpeeds(speeds) {
+    localStorage.setItem(SPEED_KEY, JSON.stringify(speeds));
+}
+
+async function init() {
+    try {
+        const [{ data: pl }, { data: mh }] = await Promise.all([
+            sb.from('players').select('*').order('name'),
+            sb.from('match_history').select('orange_players,green_players,score').order('id',{ascending:false}),
+        ]);
+        matchHistory = (mh||[]).map(h => ({
+            orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], score: h.score||'',
+        }));
+        const speeds = loadSpeeds();
+        players = (pl||[]).map(p => ({
+            id: p.id, name: p.name, status: p.status || 'bench',
+            wins: p.wins||0, games: p.games||0, totalGoals: p.total_goals||0,
+            lastImbalanceLoss: p.last_imbalance_loss||0,
+            adminRating: p.admin_rating!=null ? parseFloat(p.admin_rating) : null,
+            role: p.role||null,
+            positionPrimary: p.position_primary||null,
+            positionSecondary: p.position_secondary||null,
+            speed: speeds[p.id] || 3,
+        }));
+        resetToTeams(); // populează assignments din statusul real
+        document.getElementById('sortBtn').disabled = false;
+        document.getElementById('subtitleLine').textContent =
+            `${players.length} jucători încărcați · Smart Rating live din Supabase`;
+    } catch(e) {
+        document.getElementById('subtitleLine').textContent = '⚠️ Eroare la încărcare: ' + e.message;
+        listContainer.innerHTML = '<div class="empty-bench-msg">Nu s-au putut încărca jucătorii.</div>';
+    }
+}
+
+// Populează assignments din echipele REALE din DB (status orange/green/bench)
+window.resetToTeams = function() {
+    assignments = {};
+    players.forEach(p => {
+        const team = (p.status === 'orange' || p.status === 'green') ? p.status : 'bench';
+        const pos = getPlayerPrimaryPos(p) || 'CM';
+        let x, y;
+        if (team === 'bench') {
+            x = 50; y = 50; // centru, va fi ascuns din teren oricum (vezi render)
+        } else {
+            const coords = tacticalPositionsMap[team][pos] || tacticalPositionsMap[team].CM;
+            x = coords.x; y = coords.y;
+        }
+        assignments[p.id] = { team, position: pos, posX: x, posY: y, speed: p.speed };
+    });
+    renderBench();
+    updateFieldAndRatings();
+};
+
+window.clearLayout = function() {
+    if (!confirm('Muți toți jucătorii pe bancă (nealocați)?')) return;
+    players.forEach(p => { assignments[p.id].team = 'bench'; });
+    renderBench();
+    updateFieldAndRatings();
+};
+
+function renderBench() {
+    if (!players.length) return;
+    const sorted = [...players].sort((a,b) => getSmartRating(b) - getSmartRating(a));
+    listContainer.innerHTML = '';
+    sorted.forEach(p => {
+        const current = assignments[p.id];
+        if (!current) return;
+        const rating = getSmartRating(p);
+        const teamColor = current.team==='orange' ? 'var(--orange)' : current.team==='green' ? 'var(--green)' : '#888';
+        const teamLabel = current.team==='orange' ? '🟠 Portocaliu' : current.team==='green' ? '🟢 Verde' : '⚫ Bancă';
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        card.innerHTML = `
+            <div class="player-card-header">
+                <span class="pname" style="color:${teamColor}">${p.name}</span>
+                <span class="player-rating-pill">★${rating.toFixed(1)}</span>
+            </div>
+            <div class="player-controls">
+                <span>${teamLabel}</span>
+                <span class="current-pos-label" id="list-pos-${p.id}">${current.position}</span>
+                <div class="speed-edit-box">
+                    <span>⚡</span>
+                    <input type="number" class="speed-input" min="1" max="5"
+                        id="input-speed-${p.id}" value="${current.speed}"
+                        oninput="updatePlayerSpeed(${p.id}, this.value)">
+                </div>
+            </div>`;
+        listContainer.appendChild(card);
+    });
+}
+
+function getPerformanceScore(id, context) {
+    const p = players.find(x => x.id === id);
+    if (!p) return 5;
+    const a = assignments[id];
+    return getSmartRating(p, context) + (a.speed - 3) * 0.25;
+}
+
+// ── Echilibrare inteligentă: Smart Rating + sinergie reală ─────────
+window.balanceTeamsAndSort = function() {
+    if (!players.length) return;
+    const sorted = [...players].sort((a,b) => getSmartRating(b) - getSmartRating(a));
+    const maxSize = Math.ceil(sorted.length / 2);
+    const orangeTeam = [], greenTeam = [];
+    let oSum = 0, gSum = 0;
+
+    sorted.forEach(p => {
+        const oFull = orangeTeam.length >= maxSize, gFull = greenTeam.length >= maxSize;
+        const rO = !oFull ? getSmartRating(p, { teammates: orangeTeam }) : 0;
+        const rG = !gFull ? getSmartRating(p, { teammates: greenTeam }) : 0;
+        if (!oFull && (gFull || oSum + rO <= gSum + rG)) {
+            orangeTeam.push(p); assignments[p.id].team = 'orange'; oSum += rO;
+        } else {
+            greenTeam.push(p); assignments[p.id].team = 'green'; gSum += rG;
+        }
+    });
+
+    // Reașează automat toți jucătorii pe coordonate tactice curate, după poziția lor primary
+    players.forEach(p => {
+        const team = assignments[p.id].team;
+        const pos = getPlayerPrimaryPos(p) || assignments[p.id].position || 'CM';
+        assignments[p.id].position = pos;
+        const coords = tacticalPositionsMap[team][pos] || tacticalPositionsMap[team].CM;
+        assignments[p.id].posX = coords.x;
+        assignments[p.id].posY = coords.y;
+    });
+
+    renderBench();
+    updateFieldAndRatings();
+};
+
+window.updatePlayerSpeed = function(id, val) {
+    let num = parseInt(val); if (isNaN(num) || num < 1) num = 1; if (num > 5) num = 5;
+    assignments[id].speed = num;
+    const p = players.find(x => x.id === id);
+    if (p) p.speed = num;
+    const speeds = loadSpeeds(); speeds[id] = num; saveSpeeds(speeds);
+    recalculateAveragesOnly();
+};
+
+window.toggleRatings = function() {
+    showRatings = !showRatings;
+    const btn = document.getElementById('toggleRatingsBtn');
+    if (showRatings) {
+        document.body.classList.remove('hide-ratings');
+        btn.innerHTML = '<span>👁️</span> Ascunde Statistici';
+    } else {
+        document.body.classList.add('hide-ratings');
+        btn.innerHTML = '<span>👁️‍🗨️</span> Afișează Statistici';
+    }
+};
+
+function updateFieldAndRatings() {
+    field.querySelectorAll('.field-player').forEach(el => el.remove());
+    players.forEach(p => {
+        const config = assignments[p.id];
+        if (!config || config.team === 'bench') return; // banca nu apare pe teren
+        const rating = getSmartRating(p);
+        const el = document.createElement('div');
+        el.className = `field-player team-${config.team}`;
+        el.style.left = config.posX + '%';
+        el.style.top = config.posY + '%';
+        el.dataset.id = p.id;
+        el.innerHTML = `
+            <div class="player-badge" id="badge-${p.id}">${config.position}</div>
+            <div class="player-label">
+                ${p.name}<br/>
+                <div class="player-tags">
+                    <span class="player-rating-tag">★${rating.toFixed(1)}</span>
+                    <span class="player-speed-tag">⚡${config.speed}</span>
+                </div>
+            </div>`;
+        el.addEventListener('mousedown', startDrag);
+        el.addEventListener('touchstart', startDrag, { passive:false });
+        field.appendChild(el);
+    });
+    recalculateAveragesOnly();
+}
+
+function recalculateAveragesOnly() {
+    let oSum=0,oCnt=0, gSum=0,gCnt=0, benchCnt=0;
+    players.forEach(p => {
+        const config = assignments[p.id];
+        if (!config) return;
+        const rating = getSmartRating(p);
+        if (config.team === 'orange') { oSum += rating; oCnt++; }
+        else if (config.team === 'green') { gSum += rating; gCnt++; }
+        else benchCnt++;
+    });
+    document.getElementById('orangeRatingVal').textContent = oCnt ? (oSum/oCnt).toFixed(2) : '0.00';
+    document.getElementById('greenRatingVal').textContent  = gCnt ? (gSum/gCnt).toFixed(2) : '0.00';
+    document.getElementById('benchCountVal').textContent   = benchCnt;
+}
+
+// ── Drag & drop — DOAR vizual, NU modifică DB ──────────────────────
+let activeElement = null;
+function startDrag(e) {
+    activeElement = e.currentTarget;
+    activeElement.style.zIndex = '1000';
+    if (e.type === 'mousedown') e.preventDefault();
+}
+window.addEventListener('mousemove', doDrag);
+window.addEventListener('touchmove', doDrag, { passive:false });
+
+function doDrag(e) {
+    if (!activeElement) return;
+    const rect = field.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let x = clientX - rect.left, y = clientY - rect.top;
+    if (x < 25) x = 25; if (x > rect.width - 25) x = rect.width - 25;
+    if (y < 25) y = 25; if (y > rect.height - 25) y = rect.height - 25;
+    const pctX = (x / rect.width) * 100;
+    const pctY = (y / rect.height) * 100;
+    activeElement.style.left = pctX + '%';
+    activeElement.style.top = pctY + '%';
+
+    const pId = parseInt(activeElement.dataset.id);
+    assignments[pId].posX = pctX;
+    assignments[pId].posY = pctY;
+
+    const oldTeam = assignments[pId].team;
+    const newTeam = (pctX < 50) ? 'orange' : 'green';
+    if (oldTeam !== newTeam) {
+        assignments[pId].team = newTeam;
+        activeElement.className = `field-player team-${newTeam}`;
+    }
+
+    const computedPos = calculateDynamicPosition(newTeam, pctX, pctY);
+    if (assignments[pId].position !== computedPos) {
+        assignments[pId].position = computedPos;
+        const badge = document.getElementById('badge-' + pId);
+        if (badge) badge.textContent = computedPos;
+        const listLbl = document.getElementById('list-pos-' + pId);
+        if (listLbl) listLbl.textContent = computedPos;
+    }
+    recalculateAveragesOnly();
+    if (e.type === 'touchmove') e.preventDefault();
+}
+
+window.addEventListener('mouseup', endDrag);
+window.addEventListener('touchend', endDrag);
+function endDrag() {
+    if (activeElement) {
+        activeElement.style.zIndex = '10';
+        // NOTĂ: pozițiile sunt doar vizuale, în memorie — NU se salvează în Supabase
+        // (drag-ul nu schimbă echipa reală a jucătorului, conform cerinței)
+        activeElement = null;
+    }
+}
+
+init();
+</script>
+</body>
+</html>

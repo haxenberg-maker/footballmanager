@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MVP · Arena Friends FC</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root{--orange:#ff8c00;--green:#28a745;--dark:#0a0c10;--card:#141720;--star:#ffcc00;--accent:#3d5afe;--border:#252836;--purple:#9c27b0;}
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#e0e0e0;min-height:100vh;display:flex;flex-direction:column;}
+        .spinner{width:40px;height:40px;border:3px solid #252836;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .loading{position:fixed;inset:0;background:#0a0c10;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+        .loading.hidden{display:none;}
+        .loading-text{font-size:.82rem;color:#555;letter-spacing:2px;text-transform:uppercase;}
+
+        .header{background:linear-gradient(135deg,#1a0030,#2a0050);border-bottom:1px solid #3d1a7a;padding:16px 20px;text-align:center;}
+        .header h1{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:4px;color:#fff;}
+        .header-sub{font-size:.72rem;color:#7c4dff;letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+
+        .page{flex:1;display:flex;flex-direction:column;align-items:center;padding:20px 16px;max-width:520px;margin:0 auto;width:100%;}
+
+        /* Match info */
+        .match-banner{width:100%;background:linear-gradient(135deg,#0d2040,#1a3060);border:1px solid #2a4a80;border-radius:14px;padding:16px 20px;margin-bottom:20px;text-align:center;}
+        .match-date{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#82b1ff;}
+        .match-winner{font-size:.88rem;font-weight:700;margin-top:4px;}
+        .match-winner.o{color:var(--orange);}
+        .match-winner.g{color:#4caf50;}
+
+        /* Step: who are you */
+        .sec-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;margin-bottom:5px;width:100%;}
+        .sec-sub{font-size:.78rem;color:#555;margin-bottom:14px;width:100%;}
+
+        .player-item{width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s;margin-bottom:7px;}
+        .player-item:hover{border-color:var(--accent);transform:translateX(4px);}
+        .p-avatar{width:38px;height:38px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#555;flex-shrink:0;}
+        .p-name{font-weight:700;color:#fff;font-size:.95rem;flex:1;}
+        .p-avg{font-size:.72rem;color:var(--star);}
+        .tbadge{font-size:.65rem;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap;}
+        .to{background:rgba(255,140,0,.15);color:var(--orange);border:1px solid rgba(255,140,0,.3);}
+        .tg{background:rgba(40,167,69,.15);color:#4caf50;border:1px solid rgba(40,167,69,.3);}
+
+        /* MVP vote grid */
+        .mvp-title{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#ce93d8;margin-bottom:4px;width:100%;text-align:center;}
+        .mvp-sub{font-size:.75rem;color:#555;margin-bottom:16px;width:100%;text-align:center;}
+        .mvp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-bottom:20px;}
+        .mvp-card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:16px 12px;cursor:pointer;text-align:center;transition:all .2s;position:relative;}
+        .mvp-card:hover{border-color:#9c27b0;transform:translateY(-2px);box-shadow:0 6px 20px rgba(156,39,176,.3);}
+        .mvp-card.selected{border-color:#ce93d8;background:rgba(156,39,176,.15);box-shadow:0 6px 24px rgba(156,39,176,.4);}
+        .mvp-card .avatar{width:52px;height:52px;border-radius:50%;background:#1c1f2b;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#555;margin:0 auto 10px;border:2px solid #252836;transition:all .2s;}
+        .mvp-card.selected .avatar{background:rgba(156,39,176,.3);border-color:#ce93d8;color:#ce93d8;}
+        .mvp-card-name{font-weight:700;font-size:.9rem;color:#ccc;line-height:1.2;}
+        .mvp-card.selected .mvp-card-name{color:#fff;}
+        .mvp-card-avg{font-size:.7rem;color:#555;margin-top:3px;}
+        .mvp-card .check{position:absolute;top:8px;right:8px;font-size:1rem;opacity:0;transition:opacity .2s;}
+        .mvp-card.selected .check{opacity:1;}
+        .mvp-card-badge{font-size:.62rem;padding:2px 7px;border-radius:6px;font-weight:700;margin-top:5px;display:inline-block;}
+
+        .submit-btn{width:100%;padding:14px;border-radius:12px;background:linear-gradient(135deg,#4a0080,#9c27b0);border:1px solid #ce93d8;color:#fff;font-size:1rem;font-weight:700;letter-spacing:2px;font-family:'Bebas Neue',sans-serif;cursor:pointer;transition:all .2s;margin-bottom:10px;}
+        .submit-btn:hover{filter:brightness(1.15);transform:translateY(-1px);}
+        .submit-btn:disabled{opacity:.3;cursor:not-allowed;}
+
+        .back-btn{background:none;border:1px solid var(--border);color:#555;padding:8px 18px;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;}
+        .back-btn:hover{border-color:#555;color:#aaa;}
+
+        /* Done */
+        .done-wrap{text-align:center;padding:20px 0;width:100%;}
+        .done-icon{font-size:4rem;margin-bottom:14px;}
+        .done-title{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#ce93d8;margin-bottom:8px;}
+        .done-mvp{font-size:1.1rem;color:#fff;font-weight:700;margin-bottom:6px;}
+        .done-sub{font-size:.85rem;color:#555;line-height:1.5;}
+
+        /* Results */
+        .results-section{width:100%;margin-top:20px;}
+        .result-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--card);border-radius:10px;border:1px solid var(--border);margin-bottom:6px;}
+        .result-rank{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#555;width:24px;}
+        .result-name{font-weight:700;flex:1;}
+        .result-votes{font-size:.8rem;color:#ce93d8;font-weight:700;}
+        .result-bar-wrap{flex:2;height:4px;background:#1c1f2b;border-radius:2px;overflow:hidden;}
+        .result-bar{height:100%;background:linear-gradient(90deg,#7c4dff,#ce93d8);border-radius:2px;transition:width .5s ease;}
+
+        .screen{display:none;width:100%;}
+        .screen.active{display:block;}
+
+        .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#1c1f2b;border:1px solid var(--accent);color:#fff;padding:10px 20px;border-radius:12px;font-size:.88rem;font-weight:700;z-index:9999;box-shadow:0 8px 28px rgba(0,0,0,.7);transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s;opacity:0;pointer-events:none;white-space:nowrap;}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+
+        .id-bar{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:#0a0f1a;border-bottom:1px solid #1a2a4a;font-size:.74rem;}
+        .id-bar-left{display:flex;align-items:center;gap:7px;color:#5c8aff;font-weight:700;}
+        .id-bar-av{width:22px;height:22px;border-radius:50%;background:rgba(41,121,255,.2);border:1px solid #2979ff;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.62rem;color:#82b1ff;flex-shrink:0;}
+        .id-bar-nm{color:#fff;}
+        .id-bar-chg{color:#333;cursor:pointer;text-decoration:underline;margin-left:4px;}
+        .id-bar-chg:hover{color:#555;}
+        .id-bar-login{font-size:.7rem;color:#3d5afe;text-decoration:none;padding:3px 10px;border:1px solid rgba(61,90,254,.5);border-radius:6px;font-weight:700;}
+        @media(max-width:400px){.mvp-grid{grid-template-columns:1fr;}}
+    
+        .not-found-btn{width:100%;margin-top:6px;background:none;border:1px dashed #252836;color:#444;padding:11px;border-radius:11px;font-size:.82rem;font-family:'Rajdhani',sans-serif;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+        .not-found-btn:hover{border-color:#555;color:#888;}
+        .name-input-wrap{display:none;width:100%;background:#141720;border:1px solid #2a2d40;border-radius:13px;padding:16px;margin-top:8px;}
+        .name-input-wrap.show{display:block;}
+        .name-input-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;color:#fff;margin-bottom:3px;}
+        .name-input-sub{font-size:.72rem;color:#555;margin-bottom:12px;}
+        .name-field{width:100%;background:#1c1f2b;border:1px solid #2a2d40;color:white;padding:11px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:.95rem;outline:none;margin-bottom:10px;}
+        .name-field:focus{border-color:var(--accent);}
+        .name-submit{width:100%;padding:11px;border-radius:10px;background:var(--accent);color:#fff;font-size:.9rem;font-weight:700;border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;letter-spacing:1px;}
+        .name-submit:hover{filter:brightness(1.15);}
+    </style>
+</head>
+<body>
+<div class="id-bar" id="idBar" style="display:none;">
+    <div class="id-bar-left"><div class="id-bar-av" id="idBarAv"></div>Votezi ca: <span class="id-bar-nm" id="idBarNm"></span><span class="id-bar-chg" onclick="clearIdentity()">· schimbă</span></div>
+    <a class="id-bar-login" href="https://dezmembrarufootball.netlify.app">🔑 Login</a>
+</div>
+<div class="loading" id="loading"><div class="spinner"></div><div class="loading-text">Se încarcă...</div></div>
+<div class="toast" id="toast"></div>
+
+<div class="header">
+    <h1>🏆 MVP Vote</h1>
+    <div class="header-sub">Cel mai bun jucător al meciului</div>
+</div>
+
+<div class="page">
+    <!-- S1: Who are you -->
+    <div class="screen active" id="s1">
+        <div class="match-banner" id="matchBanner"></div>
+        <div class="sec-title">Cine ești tu?</div>
+        <div class="sec-sub">Selectează-te pentru a vota</div>
+        <div id="voterList"></div>
+        <button class="not-found-btn" id="nfBtn" onclick="showNameInput('nfInput','nfWrap','nfBtn')">👤 Nu mă regăsesc în listă →</button>
+        <div class="name-input-wrap" id="nfWrap">
+            <div class="name-input-title">Introdu numele tău</div>
+            <div class="name-input-sub">Poți vota MVP și fără cont sau fără să fii în lista de jucători</div>
+            <input class="name-field" id="nfInput" type="text" placeholder="ex: Ion Popescu" onkeydown="if(event.key==='Enter')useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">
+            <button class="name-submit" onclick="useCustomName('nfInput','nfWrap','nfBtn',selectVoter)">Continuă →</button>
+        </div>
+    </div>
+
+    <!-- S2: Vote MVP -->
+    <div class="screen" id="s2">
+        <div class="match-banner" id="matchBanner2"></div>
+        <div class="mvp-title">ALEGE MVP-UL</div>
+        <div class="mvp-sub" id="voteAs"></div>
+        <div class="mvp-grid" id="mvpGrid"></div>
+        <button class="submit-btn" id="submitBtn" onclick="submitMVP()" disabled>🏆 Votează MVP</button>
+        <button class="back-btn" onclick="show('s1')">← Înapoi</button>
+    </div>
+
+    <!-- S3: Done -->
+    <div class="screen" id="s3">
+        <div class="done-wrap">
+            <div class="done-icon">🏆</div>
+            <div class="done-title">Mulțumim!</div>
+            <div class="done-mvp" id="doneMvp"></div>
+            <div class="done-sub" id="doneSub"></div>
+        </div>
+        <div class="results-section" id="resultsSection"></div>
+        <button class="back-btn" onclick="location.reload()" style="margin-top:16px;">← Votează din nou</button>
+    </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+let lastMatch=null, allPlayers=[], myName=null, selectedMvpId=null;
+
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id)?.classList.add('active');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;requestAnimationFrame(()=>{t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3200);});}
+function ini(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function parseDate(s){if(!s)return new Date(0);if(s.includes('.')){const[d,m,y]=s.split('.');return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}T12:00:00`);}return new Date(s);}
+
+async function init(){
+    const now=new Date();now.setHours(0,0,0,0);
+    const[mr,pr]=await Promise.all([
+        sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(30),
+        sb.from('players').select('id,name').select('*, ratings(general)')
+    ]);
+    // Filter past matches then sort by actual match DATE descending (not created_at)
+    const pastMatches=(mr.data||[])
+        .filter(m=>parseDate(m.date)<now)
+        .sort((a,b)=>parseDate(b.date)-parseDate(a.date));
+    if(!pastMatches.length){document.querySelector('.page').innerHTML='<div style="text-align:center;padding:40px;color:#444;">Nu există meciuri în baza de date.</div>';document.getElementById('loading').classList.add('hidden');return;}
+    lastMatch=pastMatches[0];
+    allPlayers=(pr.data||[]).map(p=>({id:p.id,name:p.name,avg:p.ratings?.length?(p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length).toFixed(1):'5.0'}));
+
+    renderBanners();
+    const savedId = localStorage.getItem(LS_PLAYER);
+    if (savedId) {
+        const alreadyVoted = localStorage.getItem(`mvp_${savedId}_${lastMatch.id}`);
+        if (!alreadyVoted) {
+            await selectVoter(savedId);
+            showIdBar(savedId);
+            document.getElementById('loading').classList.add('hidden');
+            return;
+        }
+    }
+    await renderVoterList();
+    document.getElementById('loading').classList.add('hidden');
+}
+
+function renderBanners(){
+    const html=`<div class="match-date">${lastMatch.date}</div><div class="match-winner ${lastMatch.winner==='Portocaliu'?'o':'g'}">🏆 ${lastMatch.winner}</div>`;
+    document.getElementById('matchBanner').innerHTML=html;
+    document.getElementById('matchBanner2').innerHTML=html;
+}
+
+async function renderVoterList(){
+    const allIn=[...(lastMatch.orange_players||[]),...(lastMatch.green_players||[])];
+    const candidates=allIn.length?allPlayers.filter(p=>allIn.includes(p.name)):allPlayers;
+    const o=lastMatch.orange_players||[];
+
+    // Check DB who already voted MVP for this match
+    let dbVoted = new Set();
+    try {
+        const{data:votes}=await sb.from('mvp_votes').select('voter').eq('match_id',lastMatch.id);
+        dbVoted = new Set((votes||[]).map(v=>v.voter));
+    } catch(e) { /* table may not exist yet */ }
+
+    const unvoted = candidates.filter(p => {
+        const key = `mvp_${p.name}_${lastMatch.id}`;
+        return !dbVoted.has(p.name) && !localStorage.getItem(key);
+    }).sort((a,b)=>a.name.localeCompare(b.name));
+
+    if (!unvoted.length) {
+        document.getElementById('voterList').innerHTML = '<div style="text-align:center;padding:24px;color:#444;font-size:.9rem;">✅ Toată lumea din meci a votat deja MVP!</div>';
+        return;
+    }
+
+    document.getElementById('voterList').innerHTML=unvoted.map(p=>{
+        const inO=o.includes(p.name);
+        const badge=allIn.length?`<span class="tbadge ${inO?'to':'tg'}">${inO?'🟠':'🟢'}</span>`:'';
+        return `<div class="player-item" onclick="selectVoter('${p.name}')">
+            <div class="p-avatar">${ini(p.name)}</div>
+            <div class="p-name">${p.name}</div>
+            ${badge}
+        </div>`;
+    }).join('');
+}
+
+async function selectVoter(name){
+    myName=name;
+    saveIdentity(name);
+
+    // Check if already voted MVP for this match
+    const key=`mvp_${name}_${lastMatch.id}`;
+    if(localStorage.getItem(key)){toast('✅ Ai votat deja MVP pentru acest meci!');return;}
+
+    // Check DB
+    const{data:existing}=await sb.from('mvp_votes').select('id').eq('match_id',lastMatch.id).eq('voter',name).limit(1);
+    if(existing?.length){localStorage.setItem(key,'1');toast('✅ Ai votat deja MVP pentru acest meci!');return;}
+
+    renderMvpGrid();
+    document.getElementById('voteAs').textContent=`Votezi ca: ${name}`;
+    selectedMvpId=null;
+    document.getElementById('submitBtn').disabled=true;
+    show('s2');
+}
+
+function renderMvpGrid(){
+    const allIn=[...(lastMatch.orange_players||[]),...(lastMatch.green_players||[])];
+    const candidates=allIn.length
+        ?allPlayers.filter(p=>allIn.includes(p.name)&&p.name!==myName)
+        :allPlayers.filter(p=>p.name!==myName);
+    const o=lastMatch.orange_players||[];
+
+    document.getElementById('mvpGrid').innerHTML=candidates.map(p=>{
+        const inO=o.includes(p.name);
+        const badgeHtml=allIn.length?`<div class="mvp-card-badge ${inO?'to':'tg'}">${inO?'🟠 Portocaliu':'🟢 Verde'}</div>`:'';
+        return `<div class="mvp-card" id="mvp-${p.id}" onclick="pickMvp(${p.id})">
+            <span class="check">✅</span>
+            <div class="avatar">${ini(p.name)}</div>
+            <div class="mvp-card-name">${p.name}</div>
+            ${badgeHtml}
+        </div>`;
+    }).join('');
+}
+
+function pickMvp(id){
+    selectedMvpId=id;
+    document.querySelectorAll('.mvp-card').forEach(c=>c.classList.remove('selected'));
+    document.getElementById(`mvp-${id}`)?.classList.add('selected');
+    document.getElementById('submitBtn').disabled=false;
+    if(navigator.vibrate)navigator.vibrate(30);
+}
+
+async function submitMVP(){
+    if(!selectedMvpId||!myName)return;
+    const mvpPlayer=allPlayers.find(p=>p.id==selectedMvpId);
+    if(!mvpPlayer)return;
+
+    try{
+        const{error}=await sb.from('mvp_votes').insert({
+            match_id:lastMatch.id,
+            voter:myName,
+            mvp_player_id:selectedMvpId,
+            mvp_player_name:mvpPlayer.name,
+            match_date:lastMatch.date
+        });
+        if(error)throw error;
+    }catch(e){
+        // Table might not exist — create it with a note
+        if(e.message.includes('does not exist')){
+            toast('⚠️ Tabelul mvp_votes nu există! Rulează SQL-ul din documentație.');
+        } else {
+            toast('⚠️ '+e.message);
+        }
+        return;
+    }
+
+    localStorage.setItem(`mvp_${myName}_${lastMatch.id}`,'1');
+    if(navigator.vibrate)navigator.vibrate([100,50,100]);
+
+    // Load results
+    const{data:results}=await sb.from('mvp_votes').select('mvp_player_name').eq('match_id',lastMatch.id);
+    const counts={};
+    (results||[]).forEach(r=>{counts[r.mvp_player_name]=(counts[r.mvp_player_name]||0)+1;});
+    const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+    const maxVotes=sorted[0]?.[1]||1;
+
+    document.getElementById('doneMvp').textContent=`MVP: ${mvpPlayer.name} 🏆`;
+    document.getElementById('doneSub').textContent=`Votul tău a fost înregistrat, ${myName}!`;
+
+    const medals=['🥇','🥈','🥉'];
+    document.getElementById('resultsSection').innerHTML=`<div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;">Rezultate MVP</div>`
+        +sorted.map(([name,votes],i)=>`
+        <div class="result-item">
+            <div class="result-rank">${medals[i]||`${i+1}.`}</div>
+            <div class="result-name">${name}</div>
+            <div class="result-bar-wrap"><div class="result-bar" style="width:${(votes/maxVotes)*100}%"></div></div>
+            <div class="result-votes">${votes} ${votes===1?'vot':'voturi'}</div>
+        </div>`).join('');
+
+    show('s3');
+}
+
+
+function showNameInput(inputId, wrapId, btnId) {
+    document.getElementById(wrapId).classList.add('show');
+    document.getElementById(btnId).style.display = 'none';
+    setTimeout(() => document.getElementById(inputId)?.focus(), 100);
+}
+function useCustomName(inputId, wrapId, btnId, callback) {
+    const val = document.getElementById(inputId)?.value.trim();
+    if (!val || val.length < 2) { toast('⚠️ Introdu prenume și nume (minim 2 caractere)!'); return; }
+    document.getElementById(wrapId).classList.remove('show');
+    document.getElementById(btnId).style.display = '';
+    callback(val);
+}
+
+
+const LS_PLAYER='vote_identity';
+function ini2(n){return n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function showIdBar(name){const b=document.getElementById('idBar');if(!b)return;b.style.display='flex';document.getElementById('idBarAv').textContent=ini2(name);document.getElementById('idBarNm').textContent=name;}
+function clearIdentity(){localStorage.removeItem(LS_PLAYER);location.reload();}
+function saveIdentity(name){localStorage.setItem(LS_PLAYER,name);showIdBar(name);}
+
+init();
+</script>
+</body>
+</html>

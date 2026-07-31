@@ -1,3 +1,47 @@
+const CACHE_NAME = 'arena-fc-v2';
+const OFFLINE_ASSETS = ['/', '/index.html', '/app.js', '/manifest.json'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(OFFLINE_ASSETS))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+    ))
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // NU intercepta request-uri externe — Supabase, Google Fonts, CDN-uri
+  if (url.origin !== self.location.origin) return;
+
+  // NU intercepta POST/PUT/DELETE — doar GET
+  if (event.request.method !== 'GET') return;
+
+  // Network-first, dar cu {cache:'no-store'} — altfel fetch() poate fi
+  // servit din cache-ul HTTP normal al browserului (nu din Cache Storage),
+  // ceea ce înseamnă că un update la index.html/app.js poate rămâne
+  // "invizibil" pentru utilizator chiar dacă fișierele de pe server sunt noi.
+  event.respondWith(
+    fetch(event.request, { cache: 'no-store' })
+      .then(res => {
+        // Ține cache-ul offline la zi cu ultima versiune reușită
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+
 self.addEventListener('push', event => {
   const data = event.data?.json() || {};
   event.waitUntil(
@@ -12,5 +56,5 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data.url));
+  event.waitUntil(clients.openWindow(event.notification.data?.url || '/'));
 });

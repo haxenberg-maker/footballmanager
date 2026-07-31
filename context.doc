@@ -1,0 +1,32 @@
+ARENA FRIENDS FC — Context pentru chat nou
+
+Stack: HTML single-file pages, Supabase backend
+URL: https://dezmembrarufootball.netlify.app
+Supabase: https://lfnumwbjikiyngdxsgrk.supabase.co
+Admin: evoluttionofall@gmail.com
+
+PAGINI:
+- index.html — dashboard principal (echipe, clasamente, lobby prezență)
+- live.html — meci live (timer, goluri, 3 echipe, penaltyuri, rotații)
+- vote.html — votare MVP cu cod secret
+- vote-jucatori.html — sondaj jucători cu cod secret
+- vote-compari.html — comparații 1v1
+- setari.html — algoritm rating, taguri, admin
+
+FEATURES IMPLEMENTATE:
+- 3-team mode (teamA/B/C permanente, salvate în live_state)
+- Penalty shootout modal (select lovitori → alternativ → sudden death)
+- Popup confirmare rotație (nu auto-swap)
+- Round timer cu countdown vizual
+- Start Meci din index → scrie live_state → deschide live.html?match=ID
+- Reset prezență → mută toți la 'active'
+- is_live flag → drag&drop blocat
+- Clasamente cu 7 taburi
+- Smart Rating 3.0 cu tag bonus
+- Cod secret login pe toate paginile de vot
+
+DB TABLES: players, ratings, match_history, match_goals, live_goals, live_rounds, live_state, borda_votes, mvp_votes, next_match, compare_configs, compare_votes, player_poll, player_poll_votes, algo_settings, tags_config, profiles
+
+PENDING / TODO:
+- Spectator mode read-only pe /live
+- shared.js cu config Supabase comun
