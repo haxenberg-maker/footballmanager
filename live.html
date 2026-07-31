@@ -2005,8 +2005,41 @@ function deleteEditRound(idx) {
     if (getThreeTeamMode()) { editPairs = buildPairs(editRounds); renderFinalize3Team(); }
     else renderFinalizeDialog();
 }
+// ── Backup complet, brut, al meciului — independent de salvarea "oficială" ──
+// Se declanșează la fiecare apăsare de "Finalizează Meciul", ÎNAINTE de procesarea
+// normală. Nu blochează și nu poate strica fluxul de finalizare (best-effort,
+// fire-and-forget): dacă tabela match_backups nu există încă (migrare nerulată)
+// sau insert-ul eșuează, doar loghează un warning și continuă normal.
+async function backupMatchData(payload) {
+    try {
+        await sb.from('match_backups').insert({ payload });
+    } catch(e) {
+        console.warn('⚠️ Backup meci eșuat (ai rulat migrarea SQL pentru match_backups?):', e.message);
+    }
+}
+
 function confirmFinalize() {
-    if (getThreeTeamMode()) finalizeMatch3Team(editPairs);
+    const mode = getThreeTeamMode();
+
+    // Backup complet — izolat total de fluxul real: orice eroare aici (chiar și la
+    // construirea payload-ului) e prinsă și ignorată, ca finalizarea meciului să
+    // meargă mereu înainte, indiferent ce se întâmplă cu backup-ul.
+    try {
+        backupMatchData({
+            savedAt: new Date().toISOString(),
+            mode: mode ? '3team' : '2team',
+            date: new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.'),
+            threeTeamPairs: mode ? editPairs : null,
+            twoTeamRounds: mode ? null : editRounds,
+            players: players,
+            rounds: rounds,
+            goals: goals,
+            liveState: liveState,
+            teamNames: { orange: getTeamName('orange'), green: getTeamName('green'), bench: getTeamName('bench') },
+        });
+    } catch(e) { console.warn('⚠️ Backup meci: eroare la pregătirea datelor:', e.message); }
+
+    if (mode) finalizeMatch3Team(editPairs);
     else finalizeMatch2Team(editRounds);
 }
 function closeDialog() { document.getElementById('dialogOverlay').classList.remove('show'); }
