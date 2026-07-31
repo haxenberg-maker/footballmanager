@@ -283,7 +283,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 </div>
             </div>
             <div class="algo-panel-grid weights-grid" id="weightsList"></div>
-            <div id="mvpToggleSection"></div>
             <!-- Tag cap -->
             <div class="cap-row">
                 <span class="cap-lbl">🏷️ Net maxim tag-uri</span>
@@ -557,7 +556,7 @@ const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit'
 // ── State ─────────────────────────────────────────────────────────
 let db={players:[],history:[]};
 let tagsConfig=[];
-const DEFAULT_W={winrate:0.40,borda:0.30,general:0.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0};
+const DEFAULT_W={winrate:0.35,general:0.35,goals:0.30,viteza:0,tehnica:0,strategie:0,aparare:0};
 let W={...DEFAULT_W};
 let TW={};
 let TAG_BONUS_CAP=2.0;
@@ -578,11 +577,11 @@ const PROFILE_ATTR_META={
     pozitionare:{label:'📍 Poziționare',color:'#80deea'},
 };
 const CAT_LABELS_CONFIG={atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',mentalitate:'💡 Mentalitate / IQ',fizic:'💪 Profil Fizic',executie:'🎯 Execuție',pozitionare:'📍 Poziționare',negativ:'❌ Negative'};
-const W_LABELS={winrate:'📈 Win Rate',borda:'🏆 Vot Borda',general:'⭐ Voturi colegi'};
+const W_LABELS={winrate:'📈 Win Rate',goals:'⚽ Goluri (poziție)',general:'⭐ Voturi colegi'};
 const PRESETS={
-    balanced:{winrate:.40,borda:.30,general:.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0},
-    defensive:{winrate:.30,borda:.40,general:.10,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0},
-    performance:{winrate:.50,borda:.35,general:.05,viteza:0,tehnica:0,strategie:0,aparare:0,mvpWin:0,mvpLoss:0}
+    balanced:{winrate:.35,general:.35,goals:.30,viteza:0,tehnica:0,strategie:0,aparare:0},
+    defensive:{winrate:.30,general:.50,goals:.20,viteza:0,tehnica:0,strategie:0,aparare:0},
+    performance:{winrate:.35,general:.25,goals:.40,viteza:0,tehnica:0,strategie:0,aparare:0}
 };
 
 // ── Utilities ─────────────────────────────────────────────────────
@@ -605,13 +604,55 @@ const POSITIONS = {
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showConfirm(icon,title,msg,yesLabel,yesBg,cb){if(confirm(icon+' '+title+'\n'+msg))cb();}
+
+function getPlayerPrimaryGroup(p){
+    return (p.positionPrimary && POSITIONS[p.positionPrimary]) ? POSITIONS[p.positionPrimary].group : null;
+}
+// Media goluri/meci a unui grup — bază de comparație pt scorul de goluri relativ la poziție.
+function getGroupAvgGoalsPerGame(pool){
+    const withGames=pool.filter(pl=>pl.games>0);
+    if(!withGames.length) return 0;
+    return withGames.reduce((s,pl)=>s+(pl.totalGoals||0)/pl.games,0)/withGames.length;
+}
+// Scor 0-10 (centrat pe 5) pt goluri, relativ la media jucătorilor din același grup de
+// poziție (GK/DEF/MID/FWD) — nu un bonus fix, ca să nu penalizeze nedrept fundașii/portarii.
+function getGoalsScoreRelative(p){
+    if(!p.games) return 5;
+    const gpg=(p.totalGoals||0)/p.games;
+    const group=getPlayerPrimaryGroup(p);
+    let pool=group?db.players.filter(pl=>getPlayerPrimaryGroup(pl)===group):[];
+    if(pool.filter(pl=>pl.games>0).length<3) pool=db.players;
+    const avgGpg=getGroupAvgGoalsPerGame(pool);
+    const scale=Math.max(avgGpg,0.3);
+    const diff=(gpg-avgGpg)/scale;
+    return 5+Math.max(-3,Math.min(3,diff*2.5));
+}
+// Winrate cu shrinkage bayesian spre 50%, proporțional cu nr. de meciuri — un jucător cu
+// 1 meci/1 victorie nu mai primește același bonus ca unul cu 20 din 25.
+const WINRATE_PRIOR_GAMES=8;
+function getWinrateShrunk(p){ return (p.wins+WINRATE_PRIOR_GAMES*0.5)/(p.games+WINRATE_PRIOR_GAMES); }
+// Notă medie pe categorie cu shrinkage spre 5, proporțional cu nr. de voturi — un singur
+// vot extrem nu mai poate muta ratingul brusc.
+const RATING_PRIOR_VOTES=3;
+function getCatScoreShrunk(p,cat){
+    const n=p.ratings.length;
+    if(!n) return 5;
+    const sum=p.ratings.reduce((s,r)=>s+(r[cat]||5),0);
+    return (sum+RATING_PRIOR_VOTES*5)/(n+RATING_PRIOR_VOTES);
+}
 function getSmartRating(p){
     if(p.adminRating!=null) return parseFloat(p.adminRating.toFixed(2));
-    const wrRaw=p.games>0?p.wins/p.games:0.5;
-    let base=5+(wrRaw-.5)*4*W.winrate;
-    if(wrRaw>.6&&p.games>=3) base+=.2;
-    if((p.totalGoals||0)>0&&p.games>0) base+=Math.min(Math.min(p.totalGoals/p.games,3)*.33,1);
-    if(p.ratings.length>0&&W.general>0){const n=p.ratings.length;const g=p.ratings.reduce((s,r)=>s+(r.general||5),0)/n;base+=((g-5)/5)*4*W.general;}
+    const parts=[
+        {score:5+(getWinrateShrunk(p)-0.5)*10, w:W.winrate||0},
+        {score:getGoalsScoreRelative(p),        w:W.goals||0},
+        {score:getCatScoreShrunk(p,'general'),   w:W.general||0},
+        {score:getCatScoreShrunk(p,'viteza'),    w:W.viteza||0},
+        {score:getCatScoreShrunk(p,'tehnica'),   w:W.tehnica||0},
+        {score:getCatScoreShrunk(p,'strategie'), w:W.strategie||0},
+        {score:getCatScoreShrunk(p,'aparare'),   w:W.aparare||0},
+    ];
+    const wSum=parts.reduce((s,c)=>s+c.w,0);
+    const base=wSum>0 ? 5+parts.reduce((s,c)=>s+(c.score-5)*c.w,0)/wSum : 5;
     return parseFloat(Math.max(1,Math.min(10,base)).toFixed(2));
 }
 function getGeneralAvg(p){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length:5;}
@@ -660,6 +701,9 @@ async function loadAll(){
     // Algo settings
     const{data:as}=await sb.from('algo_settings').select('key,value');
     (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);if(r.key==='tag_bonus_cap')TAG_BONUS_CAP=parseFloat(r.value)||2;});
+    // Migrare: configurări salvate înainte de introducerea componentei de goluri
+    // raportate la poziție nu au deloc cheia 'goals' — îi dăm o valoare implicită.
+    if(W.goals==null) W.goals=DEFAULT_W.goals;
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -797,19 +841,6 @@ function buildAlgorithmPanel(){
             </div>
         </div>`;
     }).join('');
-    // MVP toggle
-    const mvpEnabled=W.mvpWin>0||W.mvpLoss>0;
-    const mvpEl=document.getElementById('mvpToggleSection');
-    if(mvpEl){
-        mvpEl.innerHTML=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--border);margin-top:6px;">
-            <span style="font-size:.7rem;color:#555;flex:1;">🏆 MVP în algoritm</span>
-            <button onclick="toggleMvpAlgo()" style="padding:4px 12px;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;background:${mvpEnabled?'rgba(255,204,0,.15)':'rgba(255,255,255,.04)'};border:1px solid ${mvpEnabled?'var(--star)':'#252836'};color:${mvpEnabled?'var(--star)':'#444'};">${mvpEnabled?'✅ Activat':'○ Dezactivat'}</button>
-        </div>
-        ${mvpEnabled?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px 0;">
-            ${['mvpWin','mvpLoss'].map(k=>{const lbl=k==='mvpWin'?'🏆 MVP câștig':'⚔️ MVP pierdere';const pct=Math.round((W[k]||0)*100);
-            return '<div class="w-cell"><span class="w-lbl" style="font-size:.55rem;">'+lbl+'</span><div class="w-ctrl"><button class="w-btn" onclick="stepWeight(\''+k+'\',-5)">−</button><input class="w-num" type="number" id="wnum-'+k+'" value="'+pct+'" min="0" max="50" oninput="syncWeightNum(\''+k+'\')"><button class="w-btn" onclick="stepWeight(\''+k+'\',+5)">+</button><span class="w-pct">%</span></div></div>';}).join('')}
-        </div>`:''}`;
-    }
     updateWeightsSum();
     const tcEl=document.getElementById('tagCapVal');if(tcEl)tcEl.textContent=TAG_BONUS_CAP===0?'∞':TAG_BONUS_CAP.toFixed(1);
     setTimeout(renderFormulaPreview,50);
@@ -831,10 +862,9 @@ function buildAlgorithmPanel(){
 function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
 function syncWeightNum(key){let v=parseInt(document.getElementById('wnum-'+key).value)||0;v=Math.max(0,Math.min(100,v));W[key]=v/100;updateWeightsSum();}
 function stepTagCap(delta){if(delta>0&&TAG_BONUS_CAP>=5)TAG_BONUS_CAP=0;else if(delta<0&&TAG_BONUS_CAP<=0)TAG_BONUS_CAP=5;else TAG_BONUS_CAP=parseFloat(Math.max(0,Math.min(5,TAG_BONUS_CAP+delta)).toFixed(1));const el=document.getElementById('tagCapVal');if(el)el.textContent=TAG_BONUS_CAP===0?'∞':TAG_BONUS_CAP.toFixed(1);updateWeightsSum();}
-function toggleMvpAlgo(){const en=W.mvpWin>0||W.mvpLoss>0;if(en){W.mvpWin=0;W.mvpLoss=0;}else{W.mvpWin=0.05;W.mvpLoss=0.03;}buildAlgorithmPanel();}
 function stepTagWeight(tid,delta){let cur=Math.round((TW[tid]||0)*100)+delta;cur=Math.max(-50,Math.min(50,cur));TW[tid]=cur/100;const t=tagsConfig.find(x=>String(x.id)===tid);if(t)t.tw_weight=TW[tid];const el=document.getElementById('twval-'+tid);if(el){el.textContent=cur>0?'+'+cur:cur;el.style.color=cur>0?'#69f0ae':cur<0?'#ef9a9a':'#555';}}
 function updateWeightsSum(){
-    const allKeys=['winrate','borda','general','mvpWin','mvpLoss'];
+    const allKeys=['winrate','general','goals'];
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
     const pct=Math.round(sum*100);
     const ring=document.getElementById('algoRing');const pw=document.getElementById('algoPower');
@@ -848,9 +878,9 @@ function applyPreset(name){
     buildAlgorithmPanel();showToast('✅ Presetare aplicată!');
 }
 async function saveAlgorithm(){
-    const allKeys=['winrate','borda','general','mvpWin','mvpLoss'];
+    const allKeys=['winrate','general','goals'];
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
-    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma = ${Math.round(sum*100)}% — trebuie 100%! (incl. MVP dacă e activ)`);return;}
+    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma (Win Rate + Rating + Goluri) = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
     try{
         await sb.from('algo_settings').upsert([{key:'weights',value:W},{key:'tag_bonus_cap',value:TAG_BONUS_CAP}],{onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:TW[String(t.id)]||0}).eq('id',t.id)));
@@ -871,20 +901,14 @@ async function resetAlgorithm(){
 function renderFormulaPreview(){
     const el=document.getElementById('formulaPreview');
     if(!el) return;
-    const mvpActive=W.mvpWin>0||W.mvpLoss>0;
     const capStr=TAG_BONUS_CAP===0?'∞':('±'+TAG_BONUS_CAP.toFixed(1));
     const rows=[
         {color:'#888',icon:'🎯',label:'Punct de start',formula:'5.0',detail:''},
-        {color:W.winrate>0?'#ffcc00':'#333',icon:'📈',label:'Win Rate',formula:`${W.winrate>0?'+'+'':''}`+`(WR−50%)×${(W.winrate*4).toFixed(2)}`,detail:`max ±${(W.winrate*2).toFixed(2)} pt (pondere ${Math.round(W.winrate*100)}%)`},
-        {color:W.borda>0?'#a78bfa':'#333',icon:'🏆',label:'Borda Votes',formula:`${W.borda>0?'+':''}`+`(Borda−5)/5×${(W.borda*4).toFixed(2)}`,detail:`max ±${(W.borda*2).toFixed(2)} pt (${Math.round(W.borda*100)}%)`},
-        {color:W.general>0?'var(--star)':'#333',icon:'⭐',label:'Voturi colegi',formula:`${W.general>0?'+':''}`+`(Nota−5)/5×${(W.general*4).toFixed(2)}`,detail:`max ±${(W.general*2).toFixed(2)} pt (${Math.round(W.general*100)}%)`},
-        ...(mvpActive?[
-            {color:'#69f0ae',icon:'🥇',label:'MVP câștig',formula:`+mvpRate×${W.mvpWin.toFixed(2)}×0.5`,detail:`(${Math.round(W.mvpWin*100)}%)`},
-            {color:'#ef9a9a',icon:'⚔️',label:'MVP pierdere',formula:`+mvpRate×${W.mvpLoss.toFixed(2)}×0.3`,detail:`(${Math.round(W.mvpLoss*100)}%)`},
-        ]:[]),
-        {color:'#69f0ae',icon:'⚽',label:'Goluri/meci',formula:'+min(gpg×0.33, 1.0)',detail:'max +1.0 pt'},
-        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.15',detail:'max −0.45 pt'},
-        {color:'#82b1ff',icon:'🏷️',label:'Tag-uri active',formula:`+Σ tags`,detail:`clamped ${capStr} pt`},
+        {color:W.winrate>0?'#ffcc00':'#333',icon:'📈',label:'Win Rate',formula:`(WR ajustat−50%)×${(W.winrate*10).toFixed(2)}`,detail:`shrinkage spre 50% · pondere ${Math.round(W.winrate*100)}%`},
+        {color:W.goals>0?'#69f0ae':'#333',icon:'⚽',label:'Goluri (poziție)',formula:`(gpg−medie poziție)×2.5`,detail:`relativ la grupul GK/DEF/MID/FWD · ${Math.round((W.goals||0)*100)}%`},
+        {color:W.general>0?'var(--star)':'#333',icon:'⭐',label:'Voturi colegi',formula:`(Nota ajustată−5)×${(W.general).toFixed(2)}`,detail:`shrinkage spre 5 · ${Math.round(W.general*100)}%`},
+        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.20',detail:'max −0.60 pt · calculat de app.js'},
+        {color:'#82b1ff',icon:'🏷️',label:'Tag-uri active',formula:`+Σ tags`,detail:`clamped ${capStr} pt · calculat de app.js`},
     ];
     el.innerHTML=rows.map(r=>`<div style="display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px solid #0a0c14;">
         <span style="font-size:.72rem;min-width:16px;">${r.icon}</span>
