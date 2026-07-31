@@ -252,15 +252,53 @@
         }
 
         .amount-paid { color: var(--success-green); font-weight: 700; }
+
+        /* ── Login gate ── */
+        #loginGate {
+            position: fixed; inset: 0; background: var(--bg-dark);
+            display: flex; align-items: center; justify-content: center; z-index: 999;
+        }
+        .login-box {
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 28px; width: 90%; max-width: 340px;
+        }
+        .login-box h2 { margin-bottom: 6px; font-size: 1.1rem; }
+        .login-box p { color: #94a3b8; font-size: 0.85rem; margin: 0 0 18px; }
+        .login-box .form-group { margin-bottom: 12px; }
+        .login-error { color: #ef4444; font-size: 0.82rem; margin-top: 10px; display: none; }
+        #appContent { display: none; }
+        .btn-logout {
+            background: transparent; border: 1px solid var(--border-color); color: #94a3b8;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
 
+    <div id="loginGate">
+        <div class="login-box">
+            <h2>🔒 Acces Buget</h2>
+            <p>Autentifică-te cu contul tău din aplicație pentru a vedea și gestiona bugetul.</p>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="loginEmail" placeholder="email@exemplu.com">
+            </div>
+            <div class="form-group">
+                <label>Parolă</label>
+                <input type="password" id="loginPassword" placeholder="••••••••">
+            </div>
+            <button class="btn-add" style="width:100%;" onclick="autentifica()">Intră</button>
+            <div class="login-error" id="loginError">Email sau parolă greșită.</div>
+        </div>
+    </div>
+
+    <div id="appContent">
     <div class="container">
         <div class="header-area">
             <h1>💰 Management Buget & Încasări</h1>
             <div class="header-actions">
                 <button class="btn-report-icon" title="Copiază Raport Grup" onclick="genereazaTabelaRaport()">📋</button>
+                <button class="btn-logout" onclick="delogare()">Ieși din cont</button>
                 <a href="index.html" class="btn-back">← Înapoi</a>
             </div>
         </div>
@@ -284,10 +322,6 @@
                         <input type="number" id="itemTarget" placeholder="Ex: 470">
                     </div>
                     <div class="form-group">
-                        <label>Suma Alocată Deja (RON)</label>
-                        <input type="number" id="itemCurrent" placeholder="Ex: 100">
-                    </div>
-                    <div class="form-group">
                         <label>Prioritate</label>
                         <select id="itemPriority">
                             <option value="mare">Mare 🔥</option>
@@ -295,6 +329,7 @@
                             <option value="mica">Mică 💤</option>
                         </select>
                     </div>
+                    <div style="font-size:0.8rem;color:#64748b;">💡 Suma se alocă automat din sold, în ordinea priorității — nu mai trebuie introdusă manual.</div>
                     <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă în Wishlist</button>
                 </div>
 
@@ -329,6 +364,7 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -419,58 +455,86 @@
             } catch(e) { alert(e.message); }
         }
 
+        // Ordinea de alocare automată: prioritate mare → medie → mică, iar la
+        // aceeași prioritate, cel adăugat primul (id mai mic) e servit primul.
+        const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
+
         async function incarcaWishlist() {
             try {
-                const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data');
+                const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data').order('id', { ascending: true });
                 if (error) throw error;
 
                 const container = document.getElementById('wishlistContainer');
-                container.innerHTML = '';
-
-                globalCheltuieliAlocate = 0;
                 dateRaportWishlist = [];
+
                 if(!cheltuieli || cheltuieli.length === 0) {
                     container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
+                    globalCheltuieliAlocate = 0;
                     actualizeazaSoldFinal();
                     return;
                 }
 
-                cheltuieli.forEach(item => {
+                // Parsăm targetul și prioritatea fiecărui produs (fără suma alocată —
+                // aia se calculează automat mai jos, nu mai vine din DB).
+                const items = cheltuieli.map(item => {
                     let numeProdus = item.descriere;
                     let tinta = parseFloat(item.suma || 0);
-                    let curent = parseFloat(item.suma || 0);
                     let prioritate = 'medie';
-
                     if (item.descriere && item.descriere.startsWith('{"isWishlist"')) {
                         try {
                             const parsed = JSON.parse(item.descriere);
                             numeProdus = parsed.produs;
                             tinta = parseFloat(parsed.pret_total);
-                            curent = parseFloat(parsed.pret_alocat);
                             prioritate = parsed.prioritate;
                         } catch(e) { console.error(e); }
                     }
-                    
+                    return { id: item.id, numeProdus, tinta, prioritate };
+                });
+
+                // Sortăm după prioritate, apoi după ordinea în care au fost adăugate
+                const sortedItems = [...items].sort((a, b) =>
+                    (PRIO_RANK[a.prioritate]||2) - (PRIO_RANK[b.prioritate]||2) || a.id - b.id
+                );
+
+                // Alocare automată: tot ce s-a strâns (globalIncasari) curge, în ordine,
+                // către produse până se umple fiecare la ținta lui, apoi trece la
+                // următorul. Ce rămâne necheltuit e "Sold Disponibil".
+                let pool = globalIncasari;
+                const allocatedById = {};
+                sortedItems.forEach(it => {
+                    const alloc = Math.max(0, Math.min(pool, it.tinta));
+                    allocatedById[it.id] = alloc;
+                    pool -= alloc;
+                });
+
+                globalCheltuieliAlocate = 0;
+                container.innerHTML = '';
+
+                // Afișăm în ordinea de prioritate (nu ordinea brută din DB), ca să fie
+                // clar vizual "ce e la coadă acum" pentru următorul ban care intră.
+                sortedItems.forEach(it => {
+                    const curent = allocatedById[it.id];
+                    const tinta = it.tinta;
                     globalCheltuieliAlocate += curent;
                     let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
                     if(procent > 100) procent = 100;
                     const rest = tinta - curent;
                     const eComplet = procent === 100;
 
-                    dateRaportWishlist.push({ produs: numeProdus, tinta: tinta, curent: curent, procent: procent, complet: eComplet, prioritate: prioritate });
+                    dateRaportWishlist.push({ produs: it.numeProdus, tinta, curent, procent, complet: eComplet, prioritate: it.prioritate });
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
                             <div class="item-header">
                                 <div>
-                                    <span class="item-name">${numeProdus}</span>
-                                    <button class="delete-btn" onclick="stergeObiectiv(${item.id})">🗑️</button>
+                                    <span class="item-name">${it.numeProdus}</span>
+                                    <button class="delete-btn" onclick="stergeObiectiv(${it.id})">🗑️</button>
                                 </div>
-                                <span class="priority-badge prio-${prioritate}">${prioritate}</span>
+                                <span class="priority-badge prio-${it.prioritate}">${it.prioritate}</span>
                             </div>
                             <div class="item-finances">
-                                <span>Alocat: <strong>${curent} RON</strong> din ${tinta} RON</span>
-                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest} RON (${procent}%)`}</span>
+                                <span>Alocat automat: <strong>${curent.toFixed(2)} RON</strong> din ${tinta} RON</span>
+                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest.toFixed(2)} RON (${procent}%)`}</span>
                             </div>
                             <div class="progress-container">
                                 <div class="progress-bar" style="width: ${procent}%"></div>
@@ -485,7 +549,6 @@
         async function salveazaCheltuiala() {
             const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
-            const curent = parseFloat(document.getElementById('itemCurrent').value) || 0;
             const prioritate = document.getElementById('itemPriority').value;
 
             if(!nume || isNaN(tinta) || tinta <= 0) {
@@ -493,15 +556,17 @@
                 return;
             }
 
-            const wishlistPayload = { isWishlist: true, produs: nume, pret_total: tinta, pret_alocat: curent, prioritate: prioritate };
+            // pret_alocat nu se mai folosește la citire (se recalculează automat din
+            // sold la fiecare încărcare) — îl păstrăm 0 doar pentru compatibilitate
+            // cu formatul vechi de date.
+            const wishlistPayload = { isWishlist: true, produs: nume, pret_total: tinta, pret_alocat: 0, prioritate: prioritate };
 
             try {
                 const azi = new Date().toISOString().split('T')[0];
-                const { error } = await sb.from('cheltuieli').insert([{ descriere: JSON.stringify(wishlistPayload), suma: curent, data: azi }]);
+                const { error } = await sb.from('cheltuieli').insert([{ descriere: JSON.stringify(wishlistPayload), suma: tinta, data: azi }]);
                 if (error) throw error;
                 document.getElementById('itemName').value = '';
                 document.getElementById('itemTarget').value = '';
-                document.getElementById('itemCurrent').value = '';
                 await incarcaBugetSiJucatori();
             } catch(e) { alert(e.message); }
         }
@@ -582,7 +647,43 @@
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
         }
-        init();
+
+        async function autentifica() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errEl = document.getElementById('loginError');
+            errEl.style.display = 'none';
+            if (!email || !password) return;
+            const { error } = await sb.auth.signInWithPassword({ email, password });
+            if (error) {
+                errEl.textContent = 'Email sau parolă greșită.';
+                errEl.style.display = 'block';
+                return;
+            }
+            afiseazaApp();
+        }
+
+        async function delogare() {
+            await sb.auth.signOut();
+            document.getElementById('appContent').style.display = 'none';
+            document.getElementById('loginGate').style.display = 'flex';
+        }
+
+        function afiseazaApp() {
+            document.getElementById('loginGate').style.display = 'none';
+            document.getElementById('appContent').style.display = 'block';
+            init();
+        }
+
+        async function verificaSesiune() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                afiseazaApp();
+            } else {
+                document.getElementById('loginGate').style.display = 'flex';
+            }
+        }
+        verificaSesiune();
     </script>
 </body>
 </html>
