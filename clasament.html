@@ -904,6 +904,25 @@ function getFormIndex(p){
     return { last5, wins, total, label, color };
 }
 
+// Istoricul loviturilor de departajare ale unui jucător (gol/ratare), cronologic,
+// scopat pe sezonul afișat curent — folosit pentru bulinele de pe tab-ul Penalty
+// (verde = gol, roșu = ratare), diferit de bulinele generice victorie/înfrângere.
+function getPlayerPenaltyShots(p){
+    const scoped = db.history.filter(h => h.season === currentSeason);
+    const sortedHist = [...scoped].sort((a,b)=>parseDateToObj(a.date)-parseDateToObj(b.date));
+    const shots = [];
+    sortedHist.forEach(h=>{
+        if(!Array.isArray(h.roundsDetail)) return;
+        h.roundsDetail.forEach(r=>{
+            if(!Array.isArray(r.penalty_shots)) return;
+            r.penalty_shots.forEach(s=>{
+                if(s.player_name===p.name) shots.push(s.state); // 'goal' | 'miss'
+            });
+        });
+    });
+    return shots;
+}
+
 // Statistici derivate STRICT din meciurile unui sezon (h.season === seasonName).
 // seasonName = null înseamnă sezonul curent (nearhivat). Necesar pentru că
 // wins/games/totalGoals de pe player se resetează la arhivarea sezonului —
@@ -1118,8 +1137,14 @@ function renderLeaderboard(){
             const isMe = highlightPlayer && p.name===highlightPlayer;
             const bg=isMe?'rgba(61,90,254,.10)':i===0?`rgba(167,139,250,.06)`:i===1?`rgba(192,192,192,.03)`:i===2?`rgba(205,127,50,.03)`:'transparent';
             const nameColor=i<3?'#3a2f1f':'#7d6849';
-            const form=viewingPastSeason ? {last5:[]} : getFormIndex(p);
-            const dots=form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#a52020'};"></span>`).join('');
+            let dots;
+            if (currentLbTab === 'pen') {
+                const shots = getPlayerPenaltyShots(p).slice(-5);
+                dots = shots.map(s=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${s==='goal'?'#4caf50':'#a52020'};" title="${s==='goal'?'Gol':'Ratare'}"></span>`).join('');
+            } else {
+                const form = viewingPastSeason ? {last5:[]} : getFormIndex(p);
+                dots = form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#a52020'};"></span>`).join('');
+            }
             return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #e3d3ac;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#7d6849'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
