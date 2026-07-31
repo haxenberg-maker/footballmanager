@@ -140,8 +140,8 @@ body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;marg
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
+            <button class="lb-tab" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
         </div>
@@ -910,7 +910,7 @@ function getFormIndex(p){
 // singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0, penaltyAttempts:0});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
@@ -921,7 +921,10 @@ function computeSeasonStats(seasonName){
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
             if (Array.isArray(r.penalty_shots)) {
                 r.penalty_shots.forEach(s=>{
-                    if (s.state === 'goal') ensure(s.player_name).penaltyGoals++;
+                    if (!s.player_name) return;
+                    const st = ensure(s.player_name);
+                    st.penaltyAttempts++;
+                    if (s.state === 'goal') st.penaltyGoals++;
                 });
             }
         });
@@ -1085,7 +1088,12 @@ function renderLeaderboard(){
             sorted=[...db.players, ...ghostPlayers].filter(p=>(periodStats[p.name]?.penaltyGoals||0)>0)
                 .sort((a,b)=>(periodStats[b.name]?.penaltyGoals||0)-(periodStats[a.name]?.penaltyGoals||0));
             getValue=p=>'🥅'+(periodStats[p.name]?.penaltyGoals||0);
-            subLabel=p=>(periodStats[p.name]?.penaltyGoals||0)+' goluri la penalty';
+            subLabel=p=>{
+                const st = periodStats[p.name] || {};
+                const goals = st.penaltyGoals||0, att = st.penaltyAttempts||0;
+                const pct = att>0 ? Math.round((goals/att)*100)+'%' : '—';
+                return goals+'/'+att+' · '+pct;
+            };
             bigColor='#b71c1c';
             break;
         default:
