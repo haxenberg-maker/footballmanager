@@ -5684,10 +5684,13 @@ function applyThreeTeamUI(){
 
 
 // ── Start Match Modal ─────────────────────────────────────────────
+let startBenchChoice = null; // ce echipă (orange/green/bench) stă pe bancă la acest meci — alegere temporară, NU schimbă echipele din dashboard
+
 function openStartMatch(){
     if(!isAdmin()) return;
     const bP = db.players.filter(p=>p.status==='bench');
     const has3 = bP.length > 0; // auto-detect from bench players
+    startBenchChoice = 'bench'; // implicit: echipa deja pe bancă rămâne pe bancă, dacă adminul nu alege alta
 
     if (has3) {
         renderStartTeamPicker();
@@ -5726,48 +5729,51 @@ function renderStartTeamPicker(){
         `<button onclick="closeStartMatch()" style="padding:12px;border-radius:10px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;">✕ Anulează</button>`;
 }
 
-// Utilizatorul a ales ce echipă stă pe bancă → mută grupul ales pe 'bench'
-// și grupul care era pe bancă preia locul rămas liber (orange/green).
+// Utilizatorul a ales ce echipă stă pe bancă → reținem alegerea (fără să mutăm
+// jucătorii sau să le schimbăm identitatea/culoarea în dashboard). Alegerea
+// contează doar pentru mapping-ul teamA/teamB/teamC la lansarea meciului live.
 function selectStartingBench(key){
-    if (key !== 'bench') {
-        const chosen   = db.players.filter(p => p.status === key);
-        const wasBench = db.players.filter(p => p.status === 'bench');
-        chosen.forEach(p => p.status = 'bench');
-        wasBench.forEach(p => p.status = key);
-        render();
-        Promise.all([...chosen, ...wasBench].map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
-    }
+    startBenchChoice = key;
     renderStartMatchSummary();
 }
 
 // ── Step 2: rezumat final + buton de start ──────────────────────────────
 function renderStartMatchSummary(){
-    const oP = db.players.filter(p=>p.status==='orange');
-    const gP = db.players.filter(p=>p.status==='green');
-    const bP = db.players.filter(p=>p.status==='bench');
-    const has3 = bP.length > 0; // auto-detect from bench players
+    const groups = {
+        orange: { name: teamNames.orange,          color: teamColors.orange,          players: db.players.filter(p=>p.status==='orange') },
+        green:  { name: teamNames.green,            color: teamColors.green,           players: db.players.filter(p=>p.status==='green')  },
+        bench:  { name: teamNames.bench||'Echipa 3', color: teamColors.bench||'#111111', players: db.players.filter(p=>p.status==='bench') },
+    };
+    const has3 = groups.bench.players.length > 0;
+    const benchKey = has3 ? (startBenchChoice || 'bench') : null;
 
-    const teamBlock = (title, color, players) => {
-        if(!players.length) return '';
-        return `<div style="background:#fffaf0;border-radius:10px;border:1px solid ${color}33;padding:10px 12px;margin-bottom:8px;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:${color};margin-bottom:6px;">${title} (${players.length})</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">${players.map(p=>`<span style="background:${color}11;border:1px solid ${color}33;color:${color};padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;">${p.name}</span>`).join('')}</div>
+    const teamBlock = (key) => {
+        const g = groups[key];
+        if(!g.players.length) return '';
+        const sitsOut = key === benchKey;
+        return `<div style="background:#fffaf0;border-radius:10px;border:1px solid ${g.color}33;padding:10px 12px;margin-bottom:8px;${sitsOut?'opacity:.7;':''}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:${g.color};">${g.name} (${g.players.length})</div>
+                ${sitsOut ? '<span style="font-size:.62rem;color:#7d6849;background:#f1e4c8;border:1px solid #dcc89a;border-radius:6px;padding:1px 6px;">🪑 pe bancă</span>' : ''}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${g.players.map(p=>`<span style="background:${g.color}11;border:1px solid ${g.color}33;color:${g.color};padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;">${p.name}</span>`).join('')}</div>
         </div>`;
     };
 
+    const playingKeys = ['orange','green','bench'].filter(k=>k!==benchKey);
     const warnings = [];
-    if(!oP.length) warnings.push('⚠️ Echipa Portocalie e goală');
-    if(!gP.length) warnings.push('⚠️ Echipa Verde e goală');
-    if(has3 && !bP.length) warnings.push('⚠️ Nicio echipă pe bancă (mod 3 echipe activ)');
+    if(!groups[playingKeys[0]].players.length) warnings.push(`⚠️ Echipa ${groups[playingKeys[0]].name} e goală`);
+    if(!groups[playingKeys[1]].players.length) warnings.push(`⚠️ Echipa ${groups[playingKeys[1]].name} e goală`);
+    if(has3 && !groups[benchKey].players.length) warnings.push('⚠️ Nicio echipă pe bancă (mod 3 echipe activ)');
 
     document.getElementById('startMatchBody').innerHTML =
-        `<div style="font-size:.72rem;color:#7d6849;margin-bottom:12px;">Mod: <strong style="color:${has3?'#8e3a9e':'#1554b3'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong>${has3?' · pe bancă prima repriză: <strong>'+(teamNames.bench||'Echipa 3')+'</strong>':''}</div>`
+        `<div style="font-size:.72rem;color:#7d6849;margin-bottom:12px;">Mod: <strong style="color:${has3?'#8e3a9e':'#1554b3'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong>${has3?' · pe bancă prima repriză: <strong>'+groups[benchKey].name+'</strong>':''}</div>`
         + (warnings.length ? `<div style="background:rgba(198,40,40,.1);border:1px solid #c6282855;border-radius:8px;padding:8px 12px;margin-bottom:12px;">${warnings.map(w=>`<div style="font-size:.75rem;color:#b71c1c;">${w}</div>`).join('')}</div>` : '')
-        + teamBlock(teamNames.orange, teamColors.orange, oP)
-        + teamBlock(teamNames.green,  teamColors.green,  gP)
-        + (has3 ? teamBlock(teamNames.bench||'Echipa 3', teamColors.bench||'#111111', bP) : '');
+        + teamBlock('orange')
+        + teamBlock('green')
+        + (has3 ? teamBlock('bench') : '');
 
-    const canStart = oP.length > 0 && gP.length > 0;
+    const canStart = groups[playingKeys[0]].players.length > 0 && groups[playingKeys[1]].players.length > 0;
     document.getElementById('startMatchActions').innerHTML =
         `<button id="launchLiveBtn" onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
             style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;">
@@ -5782,10 +5788,10 @@ async function launchLive(){
     const btn = document.getElementById('launchLiveBtn');
     if(btn){ btn.disabled=true; btn.textContent='⏳ Se pregătește...'; }
 
-    const oP = db.players.filter(p=>p.status==='orange');
-    const gP = db.players.filter(p=>p.status==='green');
     const bP = db.players.filter(p=>p.status==='bench');
     const has3 = bP.length > 0; // auto-detect from bench players
+    const benchKey = has3 ? (startBenchChoice || 'bench') : null;
+    const playKeys = has3 ? ['orange','green','bench'].filter(k=>k!==benchKey) : [];
 
     try{
         const patch = {
@@ -5794,7 +5800,10 @@ async function launchLive(){
             timer_started_at: null,
             round_start_sec: 0,
             three_team_mode: has3,
-            color_map: has3 ? { orange:'teamA', green:'teamB', bench:'teamC' } : {},
+            // Echipa aleasă să stea pe bancă la acest meci devine teamC (indiferent
+            // dacă e orange/green/bench) — celelalte două ocupă teamA/teamB.
+            // Identitatea (culoarea/numele) echipelor NU se schimbă în dashboard.
+            color_map: has3 ? { [playKeys[0]]:'teamA', [playKeys[1]]:'teamB', [benchKey]:'teamC' } : {},
             match_started_at: null,
         };
 
