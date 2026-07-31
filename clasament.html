@@ -223,7 +223,18 @@ function setPageTab(tab){
     document.getElementById('pgt-matches').classList.toggle('active', tab==='matches');
     document.getElementById('leaderboardSection').style.display = tab==='leaderboard' ? 'block' : 'none';
     document.getElementById('matchesSection').style.display = tab==='matches' ? 'block' : 'none';
-    if (tab === 'matches') renderMatchesFeed();
+    // Selectorul de sezon (arhive) e relevant doar la Clasament — la Meciuri arătăm
+    // mereu strict sezonul curent, indiferent ce sezon arhivat era selectat înainte.
+    const seasonRow = document.getElementById('lbSeasonRow');
+    const seasonBanner = document.getElementById('lbSeasonBanner');
+    if (tab === 'matches') {
+        if (seasonRow) seasonRow.style.display = 'none';
+        if (seasonBanner) seasonBanner.innerHTML = '';
+        renderMatchesFeed();
+    } else {
+        renderSeasonTabs();
+        updateSeasonUI();
+    }
 }
 
 function filterMatchSearch(value){
@@ -456,9 +467,9 @@ function renderMatchesFeed(){
     const feed = document.getElementById('matchesFeed');
     if(!feed) return;
 
-    // Doar meciurile din sezonul selectat (implicit sezonul curent, nearhivat) —
-    // la fel ca la clasament, sezonul e singurul filtru de timp.
-    const seasonScoped = db.history.filter(h => h.season === currentSeason);
+    // Meciurile afișate aici sunt ÎNTOTDEAUNA din sezonul curent (nearhivat),
+    // indiferent ce sezon arhivat e selectat eventual la Clasament.
+    const seasonScoped = db.history.filter(h => h.season === null);
     const sorted = [...seasonScoped].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
     let items = groupHistoryForDisplay(sorted);
 
@@ -477,8 +488,7 @@ function renderMatchesFeed(){
     }
 
     if (!items.length) {
-        const seasonLabel = currentSeason ? `sezonul „${currentSeason}"` : 'sezonul curent';
-        feed.innerHTML = `<div class="match-empty">${q || matchTeamFilter!=='all' ? 'Niciun meci găsit pentru acest filtru.' : `Niciun meci înregistrat încă în ${seasonLabel}.`}</div>`;
+        feed.innerHTML = `<div class="match-empty">${q || matchTeamFilter!=='all' ? 'Niciun meci găsit pentru acest filtru.' : 'Niciun meci înregistrat încă în sezonul curent.'}</div>`;
         return;
     }
 
