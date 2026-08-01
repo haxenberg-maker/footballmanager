@@ -1320,7 +1320,8 @@ function render(){
                 ? `<div class="fifa-stat" style="color:#b71c1c;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
-                <div class="fifa-card-body">
+                ${admin?`<button class="move-btn" onclick="event.stopPropagation();openMoveSheet(${p.id})" title="Mută în altă echipă">⇄</button>`:''}
+                <div class="fifa-card-body${admin?' has-move-btn':''}">
                     <div class="fifa-rating-col">
                         <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.5rem;">👑</span>':''}</div>
                         <div class="fifa-rating-lbl" style="color:${smartColor};font-size:.45rem;letter-spacing:.8px;">SMART</div>
@@ -2286,6 +2287,52 @@ function copyTeams(){
         .then(()=>showToast('📋 Echipe copiate cu rating și șanse!'))
         .catch(()=>showToast('❌ Eroare clipboard'));
 }
+
+// ── Tap-to-move sheet ── mobile-friendly alternative to drag & drop.
+// Drag & drop (adminDrop/adminAllowDrop below) still works on desktop with a mouse,
+// but HTML5 drag events don't fire reliably on touch devices, so on phones admins
+// use this bottom sheet instead: tap the ⇄ button on a card, tap the destination team.
+let _moveSheetPlayerId = null;
+function openMoveSheet(id){
+    if(!isAdmin()) return;
+    if(window._isLive){ showToast("⚠️ Meciul e live — echipele sunt blocate!"); return; }
+    const p = db.players.find(x=>x.id==id);
+    if(!p) return;
+    _moveSheetPlayerId = id;
+    const nameEl = document.getElementById('moveSheetPlayerName');
+    if(nameEl) nameEl.textContent = p.name;
+    const destinations = [
+        {key:'orange', label:teamNames.orange,   emoji:'🟠', color:'var(--orange)'},
+        {key:'green',  label:teamNames.green,    emoji:'🟢', color:'var(--green)'},
+        {key:'bench',  label: threeTeamMode ? teamNames.bench : 'Bancă', emoji: threeTeamMode?'⚫':'🪑', color: threeTeamMode?'#555':'#82b1ff'},
+        {key:'active', label:'Jucători (fără echipă)', emoji:'👤', color:'#3d5afe'},
+    ];
+    const optsEl = document.getElementById('moveSheetOptions');
+    if(optsEl){
+        optsEl.innerHTML = destinations.map(d=>`
+            <div class="move-opt ${p.status===d.key?'move-opt-current':''}" onclick="movePlayerTo('${d.key}')">
+                <span class="move-opt-dot" style="background:${d.color};"></span>
+                <span>${d.emoji} ${d.label}</span>
+            </div>`).join('');
+    }
+    const ov = document.getElementById('moveSheetOverlay');
+    if(ov) ov.style.display='flex';
+}
+function closeMoveSheet(){
+    const ov = document.getElementById('moveSheetOverlay');
+    if(ov) ov.style.display='none';
+    _moveSheetPlayerId = null;
+}
+async function movePlayerTo(team){
+    const p = db.players.find(x=>x.id==_moveSheetPlayerId);
+    closeMoveSheet();
+    if(!p || p.status===team) return;
+    p.status = team;
+    render();
+    showToast(`✅ ${p.name} mutat!`);
+    await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
+}
+function scrollToTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
 
 function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
 async function adminDrop(e){
