@@ -6137,6 +6137,23 @@ function recalculateAllPlayerStats() {
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
 }
 
+// Wrapper apelabil dintr-un buton din UI: recalculează golurile/victoriile/meciurile TUTUROR
+// jucătorilor direct din istoricul real al meciurilor (sursa de adevăr), suprascriind orice
+// valoare editată manual sau rămasă desincronizată. Cere confirmare explicită, pentru că
+// suprascrie total_goals/wins/games pentru toată lumea.
+function recalculateStatsFromUI(){
+    if(!isAdmin()) return;
+    showConfirm('🔄','Recalculează statisticile?',
+        'Golurile, victoriile și meciurile jucate ale TUTUROR jucătorilor vor fi recalculate strict din istoricul meciurilor salvate — orice valoare editată manual va fi suprascrisă. Numele jucătorului trebuie să fie scris identic în meciuri și pe card, altfel golurile acelea nu se vor aduna.',
+        'Recalculează','#1a4a7a', () => {
+            try{
+                recalculateAllPlayerStats();
+                render();
+                showToast('✅ Statistici recalculate din istoricul meciurilor!');
+            }catch(e){ showToast('⚠️ '+e.message); }
+        });
+}
+
 function confirmDeleteMatch(idx) {
     const h = db.history[idx];
     showConfirm('🗑️', `Șterge meciul din ${h.date}?`, 'Meciul va fi șters definitiv din istoric.', 'Șterge', '#c62828', async () => {
