@@ -658,6 +658,16 @@ function getTagProfileNet(tag){
  * Voturi colegi, cu propria pondere W.tags — nu mai există un "cap" separat
  * în puncte; cât de mult contează tag-urile se decide 100% din W.tags.
  */
+/**
+ * computeTagBonus 5.1 — Un singur cadran per tag pentru rating
+ *
+ * Contribuția unui tag la Smart Rating depinde EXCLUSIV de "Coeficient rating"
+ * (tw_weight, −50%..+50%) — nimic altceva. Profilul de impact (9 sliders)
+ * NU mai influențează ratingul deloc; el rămâne folosit doar pentru
+ * echilibrarea echipelor / afișarea profilului de atribute (computeTeamAttrProfile),
+ * un calcul complet separat. Așa nu mai există două cadrane care fac cam
+ * același lucru pentru rating — un singur % de setat per tag.
+ */
 function computeTagBonus(activeTags){
     if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
 
@@ -667,33 +677,10 @@ function computeTagBonus(activeTags){
     activeTags.forEach(obj=>{
         const tag = obj.tag;
         const tw = TW[String(obj.id)] || 0;
-
-        // Puterea profilului: suma abs a tuturor axelor (0 → ~27 max)
-        const strength = getTagProfileStrength(tag); // există deja
-        // Normalizat 0→1 (9 = "tag puternic pe 3 axe la max 3")
-        const scaledStrength = Math.min(strength / 9, 1.0);
-
-        // Direcția din tip
         const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
-
-        if(dir === 0){
-            // Neutru: contribuție mică dată de profilul net
-            const net = getTagProfileNet(tag);
-            const contrib = (net / 27) * 0.2 + tw * 0.1;
-            signals.push({id:obj.id, tag, raw:contrib, dir:0});
-            totalBonus += contrib;
-            return;
-        }
-
-        // Baza: 0.25 (tag slab, fără profil) → 0.50 (tag puternic)
-        const base = dir * (0.25 + scaledStrength * 0.25);
-
-        // tw fine-tune: ±0.5 admin coef → contribuție ±0.15 extra
-        // tw pozitiv = boost indiferent de direcție
-        const twContrib = tw * 0.30;
-
-        const contrib = base + twContrib;
-        signals.push({id:obj.id, tag, raw:contrib, dir, strength, scaledStrength});
+        // Coeficientul E contribuția, direct — +20% înseamnă +0.20pt, simplu.
+        const contrib = tw;
+        signals.push({id:obj.id, tag, raw:contrib, dir});
         totalBonus += contrib;
     });
 
@@ -2892,20 +2879,21 @@ function buildTagsPanel(){
                             onchange="updateTagField(${t.id},'category',this.value)">
                             ${['atac','aparare','efort','portar','negativ'].map(a=>`<option value="${a}" ${t.category===a?'selected':''}>${a}</option>`).join('')}
                         </select>
-                        <button onclick="toggleTagProfile('${expandId}')" title="Editează profil impact"
-                            style="padding:3px 8px;border-radius:6px;background:rgba(61,90,254,.1);border:1px solid #d3bd8c;color:#1554b3;font-size:.65rem;cursor:pointer;">📊 Profil</button>
+                        <button onclick="toggleTagProfile('${expandId}')" title="Profil echilibrare echipe: ${profileStr} (NU afectează ratingul)"
+                            style="padding:3px 8px;border-radius:6px;background:rgba(61,90,254,.1);border:1px solid #d3bd8c;color:#1554b3;font-size:.65rem;cursor:pointer;">📊 Profil echipă</button>
                         <button onclick="deleteTag(${t.id})"
                             style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
                     </div>
-                    <div style="font-size:.6rem;color:#6b5840;padding:2px 4px;">Impact: ${profileStr}</div>
                     <div class="tw-row" style="margin-top:2px;">
                         <span class="tw-emoji" style="color:#7d6849;font-size:.62rem;">🎚️ Coeficient rating</span>
                         <button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button>
                         <span class="tw-val" id="twval-${tid}" style="color:${twNumColor};width:44px;">${twCur>0?'+'+twCur:twCur}%</span>
                         <button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button>
+                        <span style="font-size:.55rem;color:#9c7a4a;margin-left:4px;">→ singurul lucru care contează pentru Smart Rating</span>
                     </div>
                     <div id="${expandId}" style="display:none;background:#f3e6cf;border-radius:8px;padding:10px;margin-top:6px;border:1px solid #e3d3ac;">
-                        <div style="font-size:.6rem;color:#7d6849;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📊 Profil Impact (−3 → +3)</div>
+                        <div style="font-size:.6rem;color:#7d6849;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">📊 Profil pentru echilibrare echipe (−3 → +3)</div>
+                        <div style="font-size:.58rem;color:#9c7a4a;margin-bottom:6px;">Nu afectează ratingul — folosit doar când se formează echipe echilibrate. Poți sări peste asta.</div>
                         <div id="ipSliders-${t.id}"></div>
                     </div>
                 </div>`;
@@ -2938,13 +2926,16 @@ async function saveNewTag(){
     const type=document.getElementById('ntType').value;
     const category=document.getElementById('ntCat').value;
     const impact_profile=getNewTagProfile();
+    // Coeficient implicit, ca tag-ul să aibă un efect din start (adminul poate ajusta oricând)
+    const tw_weight = type==='pos' ? 0.20 : type==='neg' ? -0.20 : 0;
     if(!label){showToast('⚠️ Introdu un label!');return;}
     try{
         const{data,error}=await sb.from('tags_config')
-            .insert({emoji,label,type,category,impact_profile,sort_order:tagsConfig.length+1})
+            .insert({emoji,label,type,category,impact_profile,tw_weight,sort_order:tagsConfig.length+1})
             .select().single();
         if(error)throw error;
         tagsConfig.push(data);
+        TW[String(data.id)] = tw_weight;
         buildPTById();buildTWFromConfig();invalidateTagsCache();
         document.getElementById('addTagForm').style.display='none';
         document.getElementById('ntEmoji').value='';document.getElementById('ntLabel').value='';
@@ -3546,13 +3537,8 @@ function buildModalStats(p){
                 const dir = tag.type==='pos'?1:tag.type==='neg'?-1:0;
                 const tw = TW[tid]||0;
                 // Contribuție: aceeași formulă ca în computeTagBonus (o singură
-                // sursă de adevăr), afișată aici per-tag individual.
-                const profileStrength = getTagProfileStrength(tag);
-                const profileNet = getTagProfileNet(tag);
-                const scaledStrength = Math.min(profileStrength/9, 1.0);
-                const contribNet = dir===0
-                    ? (profileNet/27)*0.2 + tw*0.1
-                    : dir*(0.25+scaledStrength*0.25) + tw*0.30;
+                // sursă de adevăr) — depinde EXCLUSIV de coeficientul (tw) tag-ului.
+                const contribNet = tw;
                 const contribColor = contribNet>0?'#1b7a43':contribNet<0?'#b71c1c':'#555';
                 const twLabel = `<span style="font-size:.58rem;color:${contribColor};margin-left:3px;">${contribNet>=0?'+':''}${contribNet.toFixed(2)}pt</span>`;
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
