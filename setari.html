@@ -543,6 +543,8 @@ let db={players:[],history:[]};
 let tagsConfig=[];
 const DEFAULT_W={winrate:0.30,goals:0.30,tags:0.30,chemistry:0.10};
 let W={...DEFAULT_W};
+let BASE_RATING=5.0;
+let ACTIVITY_INTENSITY=1.0;
 let TW={};
 let csvParsed=null;
 const CATS=['general','viteza','tehnica','strategie','aparare'];
@@ -601,7 +603,7 @@ function getGroupAvgGoalsPerGame(pool){
 // Scor 0-10 (centrat pe 5) pt goluri, relativ la media jucătorilor din același grup de
 // poziție (GK/DEF/MID/FWD) — nu un bonus fix, ca să nu penalizeze nedrept fundașii/portarii.
 function getGoalsScoreRelative(p){
-    if(!p.games) return 5;
+    if(!p.games) return BASE_RATING;
     const gpg=(p.totalGoals||0)/p.games;
     const group=getPlayerPrimaryGroup(p);
     let pool=group?db.players.filter(pl=>getPlayerPrimaryGroup(pl)===group):[];
@@ -609,7 +611,7 @@ function getGoalsScoreRelative(p){
     const avgGpg=getGroupAvgGoalsPerGame(pool);
     const scale=Math.max(avgGpg,0.3);
     const diff=(gpg-avgGpg)/scale;
-    return 5+Math.max(-3,Math.min(3,diff*2.5));
+    return BASE_RATING+Math.max(-3,Math.min(3,diff*2.5));
 }
 // Winrate cu shrinkage bayesian spre 50%, proporțional cu nr. de meciuri — un jucător cu
 // 1 meci/1 victorie nu mai primește același bonus ca unul cu 20 din 25.
@@ -662,7 +664,7 @@ function computeTagNetSum(activeTags){
 }
 function getTagsScore(p){
     const {net}=computeTagNetSum(getPlayerActiveTagObjects(p));
-    return 5+net;
+    return BASE_RATING+net;
 }
 // Coechipierii ACTUALI ai unui jucător (status orange/green/bench) — folosiți
 // pentru componenta de Chimie. Se recalculează automat de îndată ce jucătorul
@@ -692,17 +694,31 @@ function getTeamSynergyBonus(playerName,teammates){
     const avg=scores.reduce((s,v)=>s+v,0)/scores.length;
     return (avg-0.5)*1.0;
 }
+function getActivityMultiplier(p){
+    const recentMatches=db.history.slice(0,8);
+    if(recentMatches.length<3) return 1.0;
+    let absent=0;
+    recentMatches.forEach(h=>{
+        const played=(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name);
+        if(!played) absent++;
+    });
+    return Math.max(0.80,1.0-absent*0.06);
+}
 function getSmartRating(p){
     if(p.adminRating!=null) return parseFloat(p.adminRating.toFixed(2));
     const teammates=getCurrentTeammates(p);
     const parts=[
-        {score:5+(getWinrateShrunk(p)-0.5)*10,               w:W.winrate||0},
-        {score:getGoalsScoreRelative(p),                     w:W.goals||0},
-        {score:getTagsScore(p),                              w:W.tags||0},
-        {score:5+getTeamSynergyBonus(p.name,teammates)*10,   w:W.chemistry||0},
+        {score:BASE_RATING+(getWinrateShrunk(p)-0.5)*10,               w:W.winrate||0},
+        {score:getGoalsScoreRelative(p),                                w:W.goals||0},
+        {score:getTagsScore(p),                                        w:W.tags||0},
+        {score:BASE_RATING+getTeamSynergyBonus(p.name,teammates)*10,   w:W.chemistry||0},
     ];
     const wSum=parts.reduce((s,c)=>s+c.w,0);
-    const base=wSum>0 ? 5+parts.reduce((s,c)=>s+(c.score-5)*c.w,0)/wSum : 5;
+    let base=wSum>0 ? BASE_RATING+parts.reduce((s,c)=>s+(c.score-BASE_RATING)*c.w,0)/wSum : BASE_RATING;
+    base -= Math.min((p.lastImbalanceLoss||0),3)*0.20;
+    const actMultRaw=getActivityMultiplier(p);
+    const actMult=1-(1-actMultRaw)*ACTIVITY_INTENSITY;
+    base=base*actMult+BASE_RATING*(1-actMult);
     return parseFloat(Math.max(1,Math.min(10,base)).toFixed(2));
 }
 function getGeneralAvg(p){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length:5;}
@@ -750,7 +766,13 @@ async function loadAll(){
     }catch(e){ console.warn('milestone_config load failed (ai rulat migrarea SQL?):',e.message); }
     // Algo settings
     const{data:as}=await sb.from('algo_settings').select('key,value');
-    (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);});
+    (as||[]).forEach(r=>{
+        if(r.key==='weights')Object.assign(W,r.value);
+        if(r.key==='base_rating')BASE_RATING=parseFloat(r.value);
+        if(r.key==='activity_intensity')ACTIVITY_INTENSITY=parseFloat(r.value);
+    });
+    if(isNaN(BASE_RATING))BASE_RATING=5.0;
+    if(isNaN(ACTIVITY_INTENSITY))ACTIVITY_INTENSITY=1.0;
     // Migrare: "Voturi colegi" (Rating/Borda/MVP) a fost eliminat complet din
     // formulă — nu mai contează deloc în Smart Rating.
     W.general=0; W.viteza=0; W.tehnica=0; W.strategie=0; W.aparare=0;
@@ -888,7 +910,7 @@ function addNewPlayerFromSettings(){
 
 // ── ALGORITHM SECTION ─────────────────────────────────────────────
 function buildAlgorithmPanel(){
-    document.getElementById('weightsList').innerHTML=Object.entries(W_LABELS).map(([k,lbl])=>{
+    const weightsHtml=Object.entries(W_LABELS).map(([k,lbl])=>{
         const pct=Math.round((W[k]||0)*100);
         return `<div class="w-cell">
             <span class="w-lbl">${lbl}</span>
@@ -900,8 +922,48 @@ function buildAlgorithmPanel(){
             </div>
         </div>`;
     }).join('');
+    const modifiersHtml=`
+        <div class="w-cell" style="border-top:1px dashed #2a2d3a;margin-top:8px;padding-top:12px;">
+            <span class="w-lbl">🎯 Rating de bază <span style="font-size:.62em;color:#666;">(de unde pornește toată lumea)</span></span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepBaseRating(-0.5)">−</button>
+                <input class="w-num" type="number" id="baseRatingNum" value="${BASE_RATING.toFixed(1)}" min="1" max="10" step="0.5" oninput="syncBaseRating()">
+                <button class="w-btn" onclick="stepBaseRating(0.5)">+</button>
+                <span class="w-pct">pt</span>
+            </div>
+        </div>
+        <div class="w-cell">
+            <span class="w-lbl">📅 Intensitate activitate recentă <span style="font-size:.62em;color:#666;">(0%=ignorată, 100%=normal)</span></span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepActivityIntensity(-10)">−</button>
+                <input class="w-num" type="number" id="activityIntensityNum" value="${Math.round(ACTIVITY_INTENSITY*100)}" min="0" max="200" step="10" oninput="syncActivityIntensity()">
+                <button class="w-btn" onclick="stepActivityIntensity(10)">+</button>
+                <span class="w-pct">%</span>
+            </div>
+        </div>`;
+    document.getElementById('weightsList').innerHTML=weightsHtml+modifiersHtml;
     updateWeightsSum();
     setTimeout(renderFormulaPreview,50);
+}
+function stepBaseRating(delta){
+    BASE_RATING=Math.max(1,Math.min(10,parseFloat((BASE_RATING+delta).toFixed(1))));
+    const el=document.getElementById('baseRatingNum');if(el)el.value=BASE_RATING.toFixed(1);
+    renderFormulaPreview();
+}
+function syncBaseRating(){
+    let v=parseFloat(document.getElementById('baseRatingNum').value);if(isNaN(v))v=5.0;
+    BASE_RATING=Math.max(1,Math.min(10,v));
+    renderFormulaPreview();
+}
+function stepActivityIntensity(delta){
+    ACTIVITY_INTENSITY=Math.max(0,Math.min(2,parseFloat(((ACTIVITY_INTENSITY*100+delta)/100).toFixed(2))));
+    const el=document.getElementById('activityIntensityNum');if(el)el.value=Math.round(ACTIVITY_INTENSITY*100);
+    renderFormulaPreview();
+}
+function syncActivityIntensity(){
+    let v=parseInt(document.getElementById('activityIntensityNum').value);if(isNaN(v))v=100;
+    ACTIVITY_INTENSITY=Math.max(0,Math.min(2,v/100));
+    renderFormulaPreview();
 }
 
 function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
@@ -935,15 +997,24 @@ async function saveAlgorithm(){
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
     if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma (Win Rate + Goluri + Tag-uri + Chimie) = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
     try{
-        await sb.from('algo_settings').upsert([{key:'weights',value:W}],{onConflict:'key'});
+        await sb.from('algo_settings').upsert([
+            {key:'weights',value:W},
+            {key:'base_rating',value:BASE_RATING},
+            {key:'activity_intensity',value:ACTIVITY_INTENSITY}
+        ],{onConflict:'key'});
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){showToast('⚠️ '+e.message);}
 }
 async function resetAlgorithm(){
     Object.assign(W,DEFAULT_W);
+    BASE_RATING=5.0;ACTIVITY_INTENSITY=1.0;
     tagsConfig.forEach(t=>{TW[String(t.id)]=0;t.tw_weight=0;});
     try{
-        await sb.from('algo_settings').upsert([{key:'weights',value:DEFAULT_W}],{onConflict:'key'});
+        await sb.from('algo_settings').upsert([
+            {key:'weights',value:DEFAULT_W},
+            {key:'base_rating',value:5.0},
+            {key:'activity_intensity',value:1.0}
+        ],{onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
     }catch(e){console.warn(e);}
     buildAlgorithmPanel();buildTagsPanel();showToast('↺ Algoritm resetat (inclusiv coeficienții tag-urilor)!');
@@ -954,12 +1025,13 @@ function renderFormulaPreview(){
     const el=document.getElementById('formulaPreview');
     if(!el) return;
     const rows=[
-        {color:'#888',icon:'🎯',label:'Punct de start',formula:'5.0',detail:''},
+        {color:'#888',icon:'🎯',label:'Punct de start',formula:BASE_RATING.toFixed(1),detail:'setabil din panou'},
         {color:W.winrate>0?'#ffcc00':'#333',icon:'📈',label:'Win Rate',formula:`(WR ajustat−50%)×${(W.winrate*10).toFixed(2)}`,detail:`shrinkage spre 50% · pondere ${Math.round(W.winrate*100)}%`},
         {color:W.goals>0?'#69f0ae':'#333',icon:'⚽',label:'Goluri (poziție)',formula:`(gpg−medie poziție)×2.5`,detail:`relativ la grupul GK/DEF/MID/FWD · ${Math.round((W.goals||0)*100)}%`},
         {color:W.tags>0?'#82b1ff':'#333',icon:'🏷️',label:'Tag-uri',formula:`(coeficient×14)`,detail:`max ±7pt per tag · pondere ${Math.round((W.tags||0)*100)}%`},
         {color:W.chemistry>0?'#ff8c69':'#333',icon:'🧪',label:'Chimie',formula:`(WR cu echipa−50%)×10`,detail:`auto-calculat din coechipierii actuali · ${Math.round((W.chemistry||0)*100)}%`},
-        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.20',detail:'max −0.60 pt · calculat de app.js'},
+        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.20',detail:'max −0.60 pt'},
+        {color:ACTIVITY_INTENSITY>0?'#ce93d8':'#333',icon:'📅',label:'Activitate recentă',formula:`blend spre ${BASE_RATING.toFixed(1)}`,detail:`intensitate ${Math.round(ACTIVITY_INTENSITY*100)}% · max −20% din multiplicator`},
     ];
     el.innerHTML=rows.map(r=>`<div style="display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px solid #0a0c14;">
         <span style="font-size:.72rem;min-width:16px;">${r.icon}</span>
