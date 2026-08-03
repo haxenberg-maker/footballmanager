@@ -176,7 +176,7 @@ function getPlayerArchetype(p){
         adminSet: false
     };
 }
-const DEFAULT_W = {winrate:0.25,general:0.25,goals:0.25,tags:0.25,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0};
+const DEFAULT_W = {winrate:0.30,goals:0.30,tags:0.30,chemistry:0.10};
 let W = {...DEFAULT_W};
 function saveWeights(){ /* now saved to Supabase in saveAlgorithm */ }
 
@@ -187,10 +187,10 @@ async function loadAlgoSettings(){
         data.forEach(row=>{
             if(row.key==='weights') Object.assign(W, row.value);
         });
-        // Migrare: sistemul de voturi (Borda/MVP) a fost eliminat — ponderea
-        // veche de Borda se mută în "general" ca suma să rămână validă (100%).
-        if(W.borda){ W.general = (W.general||0) + W.borda; }
+        // Migrare: sistemul de voturi pe colegi (Borda/MVP/"Voturi colegi") a fost
+        // eliminat complet din formulă — nu mai contează deloc în Smart Rating.
         W.borda = 0; W.mvpWin = 0; W.mvpLoss = 0;
+        W.general = 0; W.viteza = 0; W.tehnica = 0; W.strategie = 0; W.aparare = 0;
         // Migrare: configurări salvate înainte de introducerea componentei de
         // goluri raportate la poziție nu au deloc cheia 'goals' — îi dăm o
         // valoare implicită rezonabilă în loc să rămână 0 (invizibilă).
@@ -199,6 +199,9 @@ async function loadAlgoSettings(){
         // ponderat (înainte foloseau un "cap" separat în puncte, nu procent) —
         // îi dăm o valoare implicită; admin o poate ajusta oricând din panou.
         if(W.tags == null) W.tags = DEFAULT_W.tags;
+        // Migrare: configurări salvate înainte de introducerea Chimiei —
+        // îi dăm o valoare implicită (~10%); admin o poate ajusta oricând.
+        if(W.chemistry == null) W.chemistry = DEFAULT_W.chemistry;
     }catch(e){ console.warn('loadAlgoSettings:', e.message); }
 }
 
@@ -668,6 +671,11 @@ function getTagProfileNet(tag){
  * un calcul complet separat. Așa nu mai există două cadrane care fac cam
  * același lucru pentru rating — un singur % de setat per tag.
  */
+// Coeficientul (−50%..+50%) se scalează ×14, ca un singur tag la maxim să
+// poată muta ratingul cu până la ±7 puncte — suficient de puternic încât
+// câteva tag-uri bune să conteze vizibil, fără să fie nevoie de zeci de tag-uri.
+const TAG_COEF_SCALE = 14;
+
 function computeTagBonus(activeTags){
     if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
 
@@ -678,15 +686,16 @@ function computeTagBonus(activeTags){
         const tag = obj.tag;
         const tw = TW[String(obj.id)] || 0;
         const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
-        // Coeficientul E contribuția, direct — +20% înseamnă +0.20pt, simplu.
-        const contrib = tw;
+        // Coeficientul E contribuția (scalat) — la ±50% → ±7pt.
+        const contrib = tw * TAG_COEF_SCALE;
         signals.push({id:obj.id, tag, raw:contrib, dir});
         totalBonus += contrib;
     });
 
-    // Clamp defensiv ±5 doar ca să încadreze scorul rezultat (5+bonus) în 0-10 —
-    // impactul REAL asupra ratingului final e controlat de W.tags, nu de acest clamp.
-    const bonus = Math.max(-5, Math.min(5, totalBonus));
+    // Clamp defensiv generos — un singur tag poate ajunge deja la ±7, deci
+    // plafonul de siguranță trebuie să lase loc pentru câteva tag-uri suprapuse
+    // fără să taie artificial din efectul lor.
+    const bonus = Math.max(-20, Math.min(20, totalBonus));
     return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets:{}};
 }
 
@@ -774,6 +783,17 @@ function getWinrateShrunk(p){
  * pas). Are UN SINGUR loc unde trăiește formula, ca să nu mai apară decalaje
  * între ce se calculează și ce se explică în UI.
  */
+/**
+ * Coechipierii ACTUALI ai unui jucător — folosiți implicit pentru componenta
+ * de Chimie când nu se dă un context explicit (ex: în timpul balansării de
+ * echipe). Se bazează pe statusul curent (orange/green/bench) din dashboard,
+ * deci se recalculează automat de îndată ce muți jucătorul din echipă în echipă.
+ */
+function getCurrentTeammates(p){
+    if(!p.status || !['orange','green','bench'].includes(p.status)) return [];
+    return db.players.filter(pl => pl.status===p.status && pl.name!==p.name);
+}
+
 function computeSmartRatingComponents(p, context = {}){
     // ── Blend ponderat (medie ponderată, auto-normalizată) ────────────
     // Fiecare componentă e un scor 0-10 centrat pe 5; media ponderată se
@@ -782,13 +802,7 @@ function computeSmartRatingComponents(p, context = {}){
     const wrShrunk     = getWinrateShrunk(p);
     const winrateScore = 5 + (wrShrunk - 0.5) * 10;
     const goalsScore   = getGoalsScoreRelative(p);
-    const catScores    = {
-        general:   getCatScoreShrunk(p,'general'),
-        viteza:    getCatScoreShrunk(p,'viteza'),
-        tehnica:   getCatScoreShrunk(p,'tehnica'),
-        strategie: getCatScoreShrunk(p,'strategie'),
-        aparare:   getCatScoreShrunk(p,'aparare'),
-    };
+
     // Tag-urile devin un scor 0-10 (5 + suma netă a contribuțiilor per tag),
     // exact ca celelalte componente — cu propria pondere W.tags în ACELAȘI
     // blend, nu un strat aditiv separat cu "cap" fix cum era înainte.
@@ -796,15 +810,18 @@ function computeSmartRatingComponents(p, context = {}){
     const { bonus: tagsNetSum, signals: tagSignals } = computeTagBonus(activeTags);
     const tagsScore = 5 + tagsNetSum;
 
+    // Chimia — win-rate real alături de coechipierii ACTUALI, ca scor 0-10
+    // (5 + delta), exact ca Win Rate-ul individual. Se recalculează singură
+    // de fiecare dată când jucătorul schimbă echipa (status orange/green/bench).
+    const teammates = (context.teammates && context.teammates.length) ? context.teammates : getCurrentTeammates(p);
+    const chemistryRaw   = getTeamSynergyBonus(p.name, teammates); // ±0.5
+    const chemistryScore = 5 + chemistryRaw * 10; // 0-10
+
     const parts = [
-        { key:'winrate',   icon:'📈', label:'Win Rate',      score:winrateScore,      w:W.winrate||0 },
-        { key:'goals',     icon:'⚽', label:'Goluri (poziție)', score:goalsScore,       w:W.goals||0 },
-        { key:'general',   icon:'⭐', label:'Rating (statusuri)', score:catScores.general,   w:W.general||0 },
-        { key:'tags',      icon:'🏷️', label:'Tag-uri',       score:tagsScore,         w:W.tags||0 },
-        { key:'viteza',    icon:'⚡', label:'Viteză',        score:catScores.viteza,    w:W.viteza||0 },
-        { key:'tehnica',   icon:'🎯', label:'Tehnică',       score:catScores.tehnica,   w:W.tehnica||0 },
-        { key:'strategie', icon:'🧠', label:'Strategie',     score:catScores.strategie, w:W.strategie||0 },
-        { key:'aparare',   icon:'🛡️', label:'Apărare',       score:catScores.aparare,   w:W.aparare||0 },
+        { key:'winrate',   icon:'📈', label:'Win Rate',   score:winrateScore,   w:W.winrate||0 },
+        { key:'goals',     icon:'⚽', label:'Goluri (poziție)', score:goalsScore, w:W.goals||0 },
+        { key:'tags',      icon:'🏷️', label:'Tag-uri',    score:tagsScore,      w:W.tags||0 },
+        { key:'chemistry', icon:'🧪', label:'Chimie',      score:chemistryScore, w:W.chemistry||0 },
     ];
     const wSum = parts.reduce((s,c)=>s+c.w, 0);
     parts.forEach(c => { c.delta = wSum>0 ? (c.score-5) * c.w / wSum : 0; });
@@ -819,22 +836,17 @@ function computeSmartRatingComponents(p, context = {}){
     const afterActivity  = afterImbal*actMult + 5.0*(1-actMult);
     const deltaActivity  = afterActivity - afterImbal;
 
-    // ── Sinergie cu coechipierii actuali (doar în context de balansare) ──
-    let synergyBonus = 0;
-    if (context.teammates && context.teammates.length) {
-        synergyBonus = getTeamSynergyBonus(p.name, context.teammates) * 0.4;
-    }
-
-    const final = parseFloat(Math.max(1, Math.min(10, afterActivity + synergyBonus)).toFixed(2));
+    const final = parseFloat(Math.max(1, Math.min(10, afterActivity)).toFixed(2));
 
     return {
         parts, wSum, blendBase,
         wrShrunk, wrRaw: p.games>0 ? p.wins/p.games : 0.5,
         goalsScore, gpg: p.games>0 ? (p.totalGoals||0)/p.games : 0,
-        catScores, tagsScore, tagsNetSum, tagSignals,
+        tagsScore, tagsNetSum, tagSignals,
+        chemistryScore, chemistryRaw, teammates,
         imbalPen, afterImbal,
         actMult, afterActivity, deltaActivity,
-        synergyBonus, final,
+        final,
     };
 }
 
@@ -2969,18 +2981,17 @@ function invalidateTagsCache(){
     localStorage.removeItem('tags_config_ts');
 }
 
-// W_LABELS_MAIN = shown in grid; MVP is optional toggle
 const W_LABELS = {
     winrate:'📈 Win Rate',
-    general:'⭐ Rating (statusuri)',
     goals:'⚽ Goluri (relativ la poziție)',
     tags:'🏷️ Tag-uri',
+    chemistry:'🧪 Chimie (coechipieri actuali)',
 };
 
 const PRESETS = {
-    balanced:    {winrate:.25,general:.25,goals:.25,tags:.25,viteza:0,tehnica:0,strategie:0,aparare:0},
-    defensive:   {winrate:.20,general:.35,goals:.15,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0},
-    performance: {winrate:.25,general:.15,goals:.30,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0}
+    balanced:    {winrate:.30,goals:.30,tags:.30,chemistry:.10},
+    defensive:   {winrate:.25,goals:.20,tags:.40,chemistry:.15},
+    performance: {winrate:.30,goals:.40,tags:.25,chemistry:.05}
 };
 
 function buildAlgorithmPanel(){
@@ -3059,7 +3070,7 @@ function applyPreset(name){
 }
 
 function updateWeightsSum(){
-    const sum = ['winrate','general','goals','tags'].reduce((s,k)=>s+(W[k]||0),0);
+    const sum = ['winrate','goals','tags','chemistry'].reduce((s,k)=>s+(W[k]||0),0);
     const pct = Math.round(sum*100);
     const ok  = Math.abs(pct-100) <= 1;
 
@@ -3082,10 +3093,10 @@ function updateWeightsSum(){
 }
 
 async function saveAlgorithm(){
-    const mainKeys = ['winrate','general','goals','tags'];
+    const mainKeys = ['winrate','goals','tags','chemistry'];
     const sum = mainKeys.reduce((s,k)=>s+(W[k]||0),0);
     if (Math.abs(sum-1) > 0.02) {
-        showToast(`⚠️ Suma ponderi (Win Rate + Rating + Goluri + Tag-uri) = ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
+        showToast(`⚠️ Suma ponderi (Win Rate + Goluri + Tag-uri + Chimie) = ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
         return;
     }
     try{
@@ -3538,7 +3549,7 @@ function buildModalStats(p){
                 const tw = TW[tid]||0;
                 // Contribuție: aceeași formulă ca în computeTagBonus (o singură
                 // sursă de adevăr) — depinde EXCLUSIV de coeficientul (tw) tag-ului.
-                const contribNet = tw;
+                const contribNet = tw * TAG_COEF_SCALE;
                 const contribColor = contribNet>0?'#1b7a43':contribNet<0?'#b71c1c':'#555';
                 const twLabel = `<span style="font-size:.58rem;color:${contribColor};margin-left:3px;">${contribNet>=0?'+':''}${contribNet.toFixed(2)}pt</span>`;
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
