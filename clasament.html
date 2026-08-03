@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Clasament Live · Arena Friends FC</title>
+<title>Clasament Live · Bârladul pe Fugă · updated on 3rd of August </title>
 <meta name="theme-color" content="#f7ecd9">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -223,7 +223,22 @@ function setPageTab(tab){
     document.getElementById('pgt-matches').classList.toggle('active', tab==='matches');
     document.getElementById('leaderboardSection').style.display = tab==='leaderboard' ? 'block' : 'none';
     document.getElementById('matchesSection').style.display = tab==='matches' ? 'block' : 'none';
-    if (tab === 'matches') renderMatchesFeed();
+
+    // Selectorul de sezon (Sezon curent / sezoane arhivate) e vizibil DOAR pe tabul
+    // Clasament. Pe tabul Meciuri se ascunde complet — jucătorii nu trebuie să poată
+    // răsfoi meciurile din sezoanele vechi, deci acolo se văd mereu doar meciurile
+    // sezonului curent, indiferent ce era selectat pe Clasament.
+    if (tab === 'matches') {
+        const row = document.getElementById('lbSeasonRow');
+        const banner = document.getElementById('lbSeasonBanner');
+        if (row) row.style.display = 'none';
+        if (banner) banner.innerHTML = '';
+        currentSeason = null;
+        renderMatchesFeed();
+    } else {
+        renderSeasonTabs();
+        updateSeasonUI();
+    }
 }
 
 function filterMatchSearch(value){
