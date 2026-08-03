@@ -900,7 +900,7 @@ function getFormIndex(p){
 // singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
@@ -911,7 +911,11 @@ function computeSeasonStats(seasonName){
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
             if (Array.isArray(r.penalty_shots)) {
                 r.penalty_shots.forEach(s=>{
-                    if (s.state === 'goal') ensure(s.player_name).penaltyGoals++;
+                    const scored = s.state === 'goal';
+                    const st = ensure(s.player_name);
+                    st.penaltyAttempts++;
+                    st.penaltyShots.push(scored); // ordinea în care apar în db.history (cel mai nou meci primul)
+                    if (scored) st.penaltyGoals++;
                 });
             }
         });
@@ -1075,7 +1079,12 @@ function renderLeaderboard(){
             sorted=[...db.players, ...ghostPlayers].filter(p=>(periodStats[p.name]?.penaltyGoals||0)>0)
                 .sort((a,b)=>(periodStats[b.name]?.penaltyGoals||0)-(periodStats[a.name]?.penaltyGoals||0));
             getValue=p=>'🥅'+(periodStats[p.name]?.penaltyGoals||0);
-            subLabel=p=>(periodStats[p.name]?.penaltyGoals||0)+' goluri la penalty';
+            subLabel=p=>{
+                const s=periodStats[p.name]||{};
+                const att=s.penaltyAttempts||0, g=s.penaltyGoals||0;
+                const pct=att>0 ? Math.round((g/att)*100)+'% reușită' : '';
+                return g+' goluri la penalty'+(pct?' · '+pct:'');
+            };
             bigColor='#b71c1c';
             break;
         default:
@@ -1101,7 +1110,12 @@ function renderLeaderboard(){
             const bg=isMe?'rgba(61,90,254,.10)':i===0?`rgba(167,139,250,.06)`:i===1?`rgba(192,192,192,.03)`:i===2?`rgba(205,127,50,.03)`:'transparent';
             const nameColor=i<3?'#3a2f1f':'#7d6849';
             const form=viewingPastSeason ? {last5:[]} : getFormIndex(p);
-            const dots=form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#a52020'};"></span>`).join('');
+            // Pe tab-ul Penalty, bulinele arată ultimele penalty-uri ale jucătorului
+            // (verde = gol, roșu = ratat) — NU forma victorii/înfrângeri ca la celelalte tab-uri.
+            const dots = currentLbTab==='pen'
+                ? (periodStats[p.name]?.penaltyShots||[]).slice(0,5).reverse()
+                    .map(scored=>`<span title="${scored?'Gol':'Ratat'}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${scored?'#2e7d32':'#a52020'};"></span>`).join('')
+                : form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#a52020'};"></span>`).join('');
             return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #e3d3ac;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#7d6849'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
