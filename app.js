@@ -3510,9 +3510,7 @@ function buildModalStats(p){
     }
 
     // ── Formula info line ─────────────────────────────────────────
-    const wTot = (W.general+W.viteza+W.tehnica+W.strategie+W.aparare)*100;
-
-    let formulaHtml = `<strong>Smart Rating</strong>: WinRate×${(W.winrate*100).toFixed(0)}% + Goluri×${((W.goals||0)*100).toFixed(0)}% + Rating×${wTot.toFixed(0)}% + Tag-uri×${((W.tags||0)*100).toFixed(0)}%`;
+    let formulaHtml = `<strong>Smart Rating</strong>: WinRate×${(W.winrate*100).toFixed(0)}% + Goluri×${((W.goals||0)*100).toFixed(0)}% + Tag-uri×${((W.tags||0)*100).toFixed(0)}% + Chimie×${((W.chemistry||0)*100).toFixed(0)}%`;
     const _activeTags = getPlayerActiveTagObjects(p);
     if(_activeTags.length>0){
         const {bonus:_tb, signals:_sigs} = computeTagBonus(_activeTags);
@@ -3589,6 +3587,7 @@ function buildModalStats(p){
         let icon = part.icon, label = part.label, note;
         if (part.key === 'winrate') note = Math.round(rc.wrRaw*100)+'% WR (ajustat: '+Math.round(rc.wrShrunk*100)+'%)';
         else if (part.key === 'goals') note = (p.totalGoals||0)+' goluri · '+(Math.round(rc.gpg*100)/100)+'/meci vs media poziției';
+        else if (part.key === 'chemistry') note = rc.teammates.length ? 'win-rate cu ' + rc.teammates.length + ' coechipieri actuali: ' + Math.round((rc.chemistryRaw+0.5)*100) + '%' : 'fără coechipieri actuali (neutru 5.0)';
         else if (part.key === 'tags') {
             if (!rc.tagSignals.length) { note = 'Fără tag-uri active (neutru 5.0)'; }
             else {
@@ -3599,7 +3598,6 @@ function buildModalStats(p){
                 note = tagDetails + (tagDetails?' → ':'') + `net ${rc.tagsNetSum>=0?'+':''}${rc.tagsNetSum.toFixed(2)}`;
             }
         }
-        else note = p.ratings.length ? 'Nota medie '+part.score.toFixed(1)+'/10 ('+p.ratings.length+' voturi)' : 'Fără voturi încă (neutru 5.0)';
         steps.push({icon, label, val:null, note, color:col(part.delta), delta:part.delta});
     });
     if (rc.imbalPen > 0) steps.push({icon:'⚠️', label:'Dezechilibru echipă', val:null, note:(p.lastImbalanceLoss||0)+' meci(uri) pierdut cu 3+ goluri', color:'#b71c1c', delta:-rc.imbalPen});
