@@ -176,7 +176,7 @@ function getPlayerArchetype(p){
         adminSet: false
     };
 }
-const DEFAULT_W = {winrate:0.40,general:0.40,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0};
+const DEFAULT_W = {winrate:0.25,general:0.25,goals:0.25,tags:0.25,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0};
 let W = {...DEFAULT_W};
 function saveWeights(){ /* now saved to Supabase in saveAlgorithm */ }
 
@@ -186,14 +186,22 @@ async function loadAlgoSettings(){
         if(!data?.length) return;
         data.forEach(row=>{
             if(row.key==='weights') Object.assign(W, row.value);
-            if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||10.0;
         });
         // Migrare: sistemul de voturi (Borda/MVP) a fost eliminat — ponderea
         // veche de Borda se mută în "general" ca suma să rămână validă (100%).
         if(W.borda){ W.general = (W.general||0) + W.borda; }
         W.borda = 0; W.mvpWin = 0; W.mvpLoss = 0;
+        // Migrare: configurări salvate înainte de introducerea componentei de
+        // goluri raportate la poziție nu au deloc cheia 'goals' — îi dăm o
+        // valoare implicită rezonabilă în loc să rămână 0 (invizibilă).
+        if(W.goals == null) W.goals = DEFAULT_W.goals;
+        // Migrare: configurări salvate înainte ca tag-urile să devină un slot
+        // ponderat (înainte foloseau un "cap" separat în puncte, nu procent) —
+        // îi dăm o valoare implicită; admin o poate ajusta oricând din panou.
+        if(W.tags == null) W.tags = DEFAULT_W.tags;
     }catch(e){ console.warn('loadAlgoSettings:', e.message); }
 }
+
 
 // Tag weights: {tagId → float, range -0.5..+0.5}
 // These are ADDITIVE bonuses per active tag, not part of the 100% sum
@@ -397,23 +405,18 @@ async function loadAll() {
         }
 
         // Load match_goals in bulk — one query for all matches
-        // Încercăm întâi CU player_id + is_penalty (cea mai bogată variantă — player_id
-        // face legătura goluri↔jucător rezistentă la redenumiri); dacă migrarea SQL nu a
-        // fost rulată încă, cădem defensiv, în etape, pe interogări mai vechi.
+        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
+        // cele normale în topScorer/playerGoals); dacă migrarea nu a fost rulată încă,
+        // cădem defensiv pe interogarea veche, fără is_penalty.
         let goalsPerMatch = {};
         try {
             let allGoals = null;
-            const withIdAndPen = await sb.from('match_goals').select('match_id,player_id,player_name,team,goals,is_penalty');
-            if (!withIdAndPen.error) {
-                allGoals = withIdAndPen.data;
+            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
+            if (withPen.error) {
+                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
+                allGoals = noPen.data;
             } else {
-                const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
-                if (!withPen.error) {
-                    allGoals = withPen.data;
-                } else {
-                    const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
-                    allGoals = noPen.data;
-                }
+                allGoals = withPen.data;
             }
             (allGoals || []).forEach(g => {
                 if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
@@ -449,11 +452,8 @@ async function loadAll() {
                 greenPlayers:  h.green_players  || [],
                 blackPlayers:  h.black_players  || [],
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
-                playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului / afișare
+                playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
                 playerPenaltyGoals, // { playerName: goluriPenalty } — SEPARAT de playerGoals
-                // Rândurile brute (cu player_id când există) — sursa de adevăr pentru recalcularea
-                // statisticilor per jucător, rezistentă la redenumiri (vezi recalculateAllPlayerStats).
-                goalRows: goals.filter(g => !g.is_penalty && (g.goals||0) > 0),
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -621,9 +621,6 @@ function getPlayerPrimaryGroup(p) {
     return pos ? POSITIONS[pos].group : null;
 }
 
-// ── Tag Intensity: 1=Scăzut 2=Mediu 3=Ridicat 4=Critic ─────────
-let TAG_BONUS_CAP = 10.0; // loaded from algo_settings in Supabase
-
 // Profile attrs used in multi-impact system
 const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
 
@@ -645,42 +642,21 @@ function getTagProfileNet(tag){
 }
 
 /**
- * computeTagBonus 3.0 — 4 bucket-uri dimensionale
- *
- * TEHNIC   = tehnica + executie
- * TACTIC   = strategie + pozitionare + mentalitate
- * FIZIC    = viteza + efort + fizic
- * DEFENSIV = aparare + pozitionare
- *
- * Fiecare bucket: suma valorilor active / max posibil → [-1,+1]
- * Bonus per bucket: ±(TAG_BONUS_CAP / 4)
- * Total: ±TAG_BONUS_CAP
- */
-const TAG_BUCKETS = {
-    tehnic:   {axes:['tehnica','executie'],        weight:0.25},
-    tactic:   {axes:['strategie','pozitionare','mentalitate'], weight:0.25},
-    fizic:    {axes:['viteza','efort','fizic'],     weight:0.25},
-    defensiv: {axes:['aparare','pozitionare'],      weight:0.25},
-};
-
-/**
- * computeTagBonus 4.0 — Model pur aditiv
+ * computeTagBonus 5.0 — Model pur aditiv, fără cap separat
  *
  * Fiecare tag activ contribuie INDEPENDENT:
  *   pos tag: +0.25 .. +0.50 (în funcție de puterea profilului)
  *   neg tag: −0.25 .. −0.50
  *   neu tag: ±0.10 (mic)
  *
- * tw_weight (coeficient admin, −50%..+50%) ajustează fin contribuția:
+ * tw_weight (coeficient admin, −50%..+50%) ajustează fin contribuția per-tag:
  *   tw pozitiv = întărește contribuția (pos devine mai bun, neg mai puțin sever)
  *   tw negativ = slăbește contribuția
  *
- * Total clamped la ±TAG_BONUS_CAP (default ±2.0)
- *
- * Exemplu cu TAG_BONUS_CAP=2.0:
- *   4 tag-uri pos puternice = ~+1.6 → clar pozitiv
- *   4 pos + 2 neg = ~+0.8  → net pozitiv
- *   5 neg = ~−2.0 → cap negativ
+ * Suma tuturor tag-urilor active devine un scor 0-10 (5 + sumă, clamped
+ * defensiv la ±5) care intră în ACELAȘI blend ponderat ca Win Rate/Goluri/
+ * Voturi colegi, cu propria pondere W.tags — nu mai există un "cap" separat
+ * în puncte; cât de mult contează tag-urile se decide 100% din W.tags.
  */
 function computeTagBonus(activeTags){
     if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
@@ -721,7 +697,9 @@ function computeTagBonus(activeTags){
         totalBonus += contrib;
     });
 
-    const bonus = TAG_BONUS_CAP <= 0 ? totalBonus : Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
+    // Clamp defensiv ±5 doar ca să încadreze scorul rezultat (5+bonus) în 0-10 —
+    // impactul REAL asupra ratingului final e controlat de W.tags, nu de acest clamp.
+    const bonus = Math.max(-5, Math.min(5, totalBonus));
     return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets:{}};
 }
 
@@ -746,42 +724,136 @@ function computeTeamAttrProfile(teamPlayers){
 // base(5) + performanță(±2.5) + goluri(+1) + bucket tags(±CAP)
 // Buckets: TEHNIC · TACTIC · FIZIC · DEFENSIV (fiecare ±CAP/4)
 //
-function getSmartRating(p, context = {}) {
-    if (p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
 
-    let base = 5.0;
+/**
+ * Media de goluri/meci a unui grup de jucători (folosit ca bază de comparație
+ * pentru componenta de goluri raportată la poziție). Ignoră jucătorii fără
+ * meciuri jucate.
+ */
+function getGroupAvgGoalsPerGame(pool){
+    const withGames = pool.filter(pl => pl.games > 0);
+    if (!withGames.length) return 0;
+    return withGames.reduce((s,pl) => s + (pl.totalGoals||0) / pl.games, 0) / withGames.length;
+}
 
-    // ── A. PERFORMANȚĂ ────────────────────────────────────────────
-    const wrRaw = p.games > 0 ? p.wins / p.games : 0.5;
-    base += (wrRaw - 0.5) * 4 * W.winrate;
-    if (wrRaw > 0.60 && p.games >= 3) base += 0.2;
+/**
+ * Scor 0-10 (centrat pe 5) pentru golurile unui jucător, calculat RELATIV la
+ * media jucătorilor din același grup de poziție (GK/DEF/MID/FWD) — nu un
+ * bonus fix, ca să nu penalizeze nedrept fundașii/portarii față de atacanți.
+ * Dacă jucătorul nu are poziție setată sau grupul are prea puțini jucători
+ * cu date, se raportează la media tuturor jucătorilor activi.
+ */
+function getGoalsScoreRelative(p){
+    if (!p.games) return 5;
+    const gpg = (p.totalGoals||0) / p.games;
+    const group = getPlayerPrimaryGroup(p);
+    let pool = group ? db.players.filter(pl => getPlayerPrimaryGroup(pl) === group) : [];
+    if (pool.filter(pl=>pl.games>0).length < 3) pool = db.players; // fallback: prea puțini jucători cu poziție/date în grup
+    const avgGpg = getGroupAvgGoalsPerGame(pool);
+    const scale = Math.max(avgGpg, 0.3); // evită împărțire la ~0 când media grupului e minusculă
+    const diff = (gpg - avgGpg) / scale;
+    const delta = Math.max(-3, Math.min(3, diff * 2.5));
+    return 5 + delta;
+}
 
-    // Goals per game (max +1.0)
-    if ((p.totalGoals || 0) > 0 && p.games > 0) {
-        const gpg = Math.min(p.totalGoals / p.games, 3);
-        base += Math.min(gpg * 0.33, 1.0);
-    }
+/**
+ * Notă medie a unei categorii (general/viteza/tehnica/strategie/aparare) cu
+ * shrinkage bayesian spre 5 — proporțional cu numărul de voturi primite.
+ * Un singur vot extrem (ex: un 9 sau un 1) nu mai poate muta ratingul brusc;
+ * cu multe voturi, media reflectă aproape integral notele reale.
+ */
+const RATING_PRIOR_VOTES = 3; // "voturi virtuale" de 5, echivalentul unui prior neutru
+function getCatScoreShrunk(p, cat){
+    const n = p.ratings.length;
+    if (!n) return 5;
+    const sum = p.ratings.reduce((s,r)=>s+(r[cat]||5),0);
+    return (sum + RATING_PRIOR_VOTES*5) / (n + RATING_PRIOR_VOTES);
+}
 
-    // ── B. PENALIZARE IMBALANCE ──────────────────────────────────
-    base -= Math.min((p.lastImbalanceLoss || 0), 3) * 0.20; // ↑ 0.15→0.20
+/**
+ * Win rate cu shrinkage bayesian spre 50% — proporțional cu numărul de
+ * meciuri jucate. Un jucător cu 1 meci și 1 victorie (100% WR) nu mai
+ * primește același bonus ca unul cu 20 victorii din 25 de meciuri.
+ */
+const WINRATE_PRIOR_GAMES = 8; // "meciuri virtuale" la 50% winrate
+function getWinrateShrunk(p){
+    return (p.wins + WINRATE_PRIOR_GAMES*0.5) / (p.games + WINRATE_PRIOR_GAMES);
+}
 
-    // ── E. TAG BUCKETS ───────────────────────────────────────────
+/**
+ * Calculează toate componentele Smart Rating pentru un jucător, ca o listă
+ * de "pași" aditivi plecând de la baza 5.0 — folosit atât de getSmartRating()
+ * (ia doar rezultatul final) cât și de modalul de breakdown (afișează fiecare
+ * pas). Are UN SINGUR loc unde trăiește formula, ca să nu mai apară decalaje
+ * între ce se calculează și ce se explică în UI.
+ */
+function computeSmartRatingComponents(p, context = {}){
+    // ── Blend ponderat (medie ponderată, auto-normalizată) ────────────
+    // Fiecare componentă e un scor 0-10 centrat pe 5; media ponderată se
+    // exprimă echivalent ca "5 + suma deltelor ponderate", ceea ce ne permite
+    // să păstrăm afișarea sub formă de pași aditivi din UI.
+    const wrShrunk     = getWinrateShrunk(p);
+    const winrateScore = 5 + (wrShrunk - 0.5) * 10;
+    const goalsScore   = getGoalsScoreRelative(p);
+    const catScores    = {
+        general:   getCatScoreShrunk(p,'general'),
+        viteza:    getCatScoreShrunk(p,'viteza'),
+        tehnica:   getCatScoreShrunk(p,'tehnica'),
+        strategie: getCatScoreShrunk(p,'strategie'),
+        aparare:   getCatScoreShrunk(p,'aparare'),
+    };
+    // Tag-urile devin un scor 0-10 (5 + suma netă a contribuțiilor per tag),
+    // exact ca celelalte componente — cu propria pondere W.tags în ACELAȘI
+    // blend, nu un strat aditiv separat cu "cap" fix cum era înainte.
     const activeTags = getPlayerActiveTagObjects(p);
-    const { bonus: tagBonus } = computeTagBonus(activeTags);
+    const { bonus: tagsNetSum, signals: tagSignals } = computeTagBonus(activeTags);
+    const tagsScore = 5 + tagsNetSum;
 
-    // ── F. #2 PENALIZARE ABSENȚE ─────────────────────────────────
-    const actMult = getActivityMultiplier(p);
-    base = base * actMult + 5.0 * (1 - actMult); // blend spre neutru
+    const parts = [
+        { key:'winrate',   icon:'📈', label:'Win Rate',      score:winrateScore,      w:W.winrate||0 },
+        { key:'goals',     icon:'⚽', label:'Goluri (poziție)', score:goalsScore,       w:W.goals||0 },
+        { key:'general',   icon:'⭐', label:'Rating (statusuri)', score:catScores.general,   w:W.general||0 },
+        { key:'tags',      icon:'🏷️', label:'Tag-uri',       score:tagsScore,         w:W.tags||0 },
+        { key:'viteza',    icon:'⚡', label:'Viteză',        score:catScores.viteza,    w:W.viteza||0 },
+        { key:'tehnica',   icon:'🎯', label:'Tehnică',       score:catScores.tehnica,   w:W.tehnica||0 },
+        { key:'strategie', icon:'🧠', label:'Strategie',     score:catScores.strategie, w:W.strategie||0 },
+        { key:'aparare',   icon:'🛡️', label:'Apărare',       score:catScores.aparare,   w:W.aparare||0 },
+    ];
+    const wSum = parts.reduce((s,c)=>s+c.w, 0);
+    parts.forEach(c => { c.delta = wSum>0 ? (c.score-5) * c.w / wSum : 0; });
+    const blendBase = 5 + parts.reduce((s,c)=>s+c.delta, 0);
 
-    // ── G. #1 SINERGIE CU COECHIPIERI ACTUALI ───────────────────
-    // Aplicat doar în context de balansare (context.teammates furnizat)
+    // ── Penalizare dezechilibru ────────────────────────────────────
+    const imbalPen   = Math.min((p.lastImbalanceLoss||0), 3) * 0.20;
+    const afterImbal = blendBase - imbalPen;
+
+    // ── Penalizare absențe (blend spre neutru) ────────────────────
+    const actMult        = getActivityMultiplier(p);
+    const afterActivity  = afterImbal*actMult + 5.0*(1-actMult);
+    const deltaActivity  = afterActivity - afterImbal;
+
+    // ── Sinergie cu coechipierii actuali (doar în context de balansare) ──
     let synergyBonus = 0;
     if (context.teammates && context.teammates.length) {
         synergyBonus = getTeamSynergyBonus(p.name, context.teammates) * 0.4;
     }
 
-    const raw = base + tagBonus + synergyBonus;
-    return parseFloat(Math.max(1, Math.min(10, raw)).toFixed(2));
+    const final = parseFloat(Math.max(1, Math.min(10, afterActivity + synergyBonus)).toFixed(2));
+
+    return {
+        parts, wSum, blendBase,
+        wrShrunk, wrRaw: p.games>0 ? p.wins/p.games : 0.5,
+        goalsScore, gpg: p.games>0 ? (p.totalGoals||0)/p.games : 0,
+        catScores, tagsScore, tagsNetSum, tagSignals,
+        imbalPen, afterImbal,
+        actMult, afterActivity, deltaActivity,
+        synergyBonus, final,
+    };
+}
+
+function getSmartRating(p, context = {}) {
+    if (p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
+    return computeSmartRatingComponents(p, context).final;
 }
 // ═══════════════════════════════════════════════════════════════════
 // ── SMART ALGORITHMS v2.0 ──────────────────────────────────────────
@@ -1328,8 +1400,7 @@ function render(){
                 ? `<div class="fifa-stat" style="color:#b71c1c;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
-                ${admin?`<button class="move-btn" onclick="event.stopPropagation();openMoveSheet(${p.id})" title="Mută în altă echipă">⇄</button>`:''}
-                <div class="fifa-card-body${admin?' has-move-btn':''}">
+                <div class="fifa-card-body">
                     <div class="fifa-rating-col">
                         <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.5rem;">👑</span>':''}</div>
                         <div class="fifa-rating-lbl" style="color:${smartColor};font-size:.45rem;letter-spacing:.8px;">SMART</div>
@@ -2296,52 +2367,6 @@ function copyTeams(){
         .catch(()=>showToast('❌ Eroare clipboard'));
 }
 
-// ── Tap-to-move sheet ── mobile-friendly alternative to drag & drop.
-// Drag & drop (adminDrop/adminAllowDrop below) still works on desktop with a mouse,
-// but HTML5 drag events don't fire reliably on touch devices, so on phones admins
-// use this bottom sheet instead: tap the ⇄ button on a card, tap the destination team.
-let _moveSheetPlayerId = null;
-function openMoveSheet(id){
-    if(!isAdmin()) return;
-    if(window._isLive){ showToast("⚠️ Meciul e live — echipele sunt blocate!"); return; }
-    const p = db.players.find(x=>x.id==id);
-    if(!p) return;
-    _moveSheetPlayerId = id;
-    const nameEl = document.getElementById('moveSheetPlayerName');
-    if(nameEl) nameEl.textContent = p.name;
-    const destinations = [
-        {key:'orange', label:teamNames.orange,   emoji:'🟠', color:'var(--orange)'},
-        {key:'green',  label:teamNames.green,    emoji:'🟢', color:'var(--green)'},
-        {key:'bench',  label: threeTeamMode ? teamNames.bench : 'Bancă', emoji: threeTeamMode?'⚫':'🪑', color: threeTeamMode?'#555':'#82b1ff'},
-        {key:'active', label:'Jucători (fără echipă)', emoji:'👤', color:'#3d5afe'},
-    ];
-    const optsEl = document.getElementById('moveSheetOptions');
-    if(optsEl){
-        optsEl.innerHTML = destinations.map(d=>`
-            <div class="move-opt ${p.status===d.key?'move-opt-current':''}" onclick="movePlayerTo('${d.key}')">
-                <span class="move-opt-dot" style="background:${d.color};"></span>
-                <span>${d.emoji} ${d.label}</span>
-            </div>`).join('');
-    }
-    const ov = document.getElementById('moveSheetOverlay');
-    if(ov) ov.style.display='flex';
-}
-function closeMoveSheet(){
-    const ov = document.getElementById('moveSheetOverlay');
-    if(ov) ov.style.display='none';
-    _moveSheetPlayerId = null;
-}
-async function movePlayerTo(team){
-    const p = db.players.find(x=>x.id==_moveSheetPlayerId);
-    closeMoveSheet();
-    if(!p || p.status===team) return;
-    p.status = team;
-    render();
-    showToast(`✅ ${p.name} mutat!`);
-    await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
-}
-function scrollToTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
-
 function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
 async function adminDrop(e){
     if(!isAdmin()) return;
@@ -2846,6 +2871,9 @@ function buildTagsPanel(){
                     return v!==0 ? (PROFILE_ATTR_META[a]?.label.split(' ')[0]||a)+(v>0?'+'+v:v) : null;
                 }).filter(Boolean).join(', ')||'—';
                 const expandId=`tag-profile-${t.id}`;
+                const tid=String(t.id);
+                const twCur=Math.round((TW[tid]||0)*100);
+                const twNumColor=twCur>0?'#1b7a43':twCur<0?'#b71c1c':'#555';
                 return `<div style="border-bottom:1px solid #f1e4c8;padding:6px 0;">
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         <input type="text" value="${t.emoji}" maxlength="4"
@@ -2870,6 +2898,12 @@ function buildTagsPanel(){
                             style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
                     </div>
                     <div style="font-size:.6rem;color:#6b5840;padding:2px 4px;">Impact: ${profileStr}</div>
+                    <div class="tw-row" style="margin-top:2px;">
+                        <span class="tw-emoji" style="color:#7d6849;font-size:.62rem;">🎚️ Coeficient rating</span>
+                        <button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button>
+                        <span class="tw-val" id="twval-${tid}" style="color:${twNumColor};width:44px;">${twCur>0?'+'+twCur:twCur}%</span>
+                        <button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button>
+                    </div>
                     <div id="${expandId}" style="display:none;background:#f3e6cf;border-radius:8px;padding:10px;margin-top:6px;border:1px solid #e3d3ac;">
                         <div style="font-size:.6rem;color:#7d6849;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📊 Profil Impact (−3 → +3)</div>
                         <div id="ipSliders-${t.id}"></div>
@@ -2948,12 +2982,14 @@ function invalidateTagsCache(){
 const W_LABELS = {
     winrate:'📈 Win Rate',
     general:'⭐ Rating (statusuri)',
+    goals:'⚽ Goluri (relativ la poziție)',
+    tags:'🏷️ Tag-uri',
 };
 
 const PRESETS = {
-    balanced:    {winrate:.40,general:.40,viteza:0,tehnica:0,strategie:0,aparare:0},
-    defensive:   {winrate:.30,general:.50,viteza:0,tehnica:0,strategie:0,aparare:0},
-    performance: {winrate:.50,general:.40,viteza:0,tehnica:0,strategie:0,aparare:0}
+    balanced:    {winrate:.25,general:.25,goals:.25,tags:.25,viteza:0,tehnica:0,strategie:0,aparare:0},
+    defensive:   {winrate:.20,general:.35,goals:.15,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0},
+    performance: {winrate:.25,general:.15,goals:.30,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0}
 };
 
 function buildAlgorithmPanel(){
@@ -2975,50 +3011,7 @@ function buildAlgorithmPanel(){
     }).join('');
 
     updateWeightsSum();
-    const _tcEl = document.getElementById('tagCapVal');
-    if(_tcEl) _tcEl.textContent = TAG_BONUS_CAP.toFixed(1);
-
-    // ── Tag weights (loaded from Supabase) ───────────────────────
-    const twEl = document.getElementById('tagWeightsList');
-    if(!twEl) return;
-    if(!tagsConfig.length){ twEl.innerHTML='<div style="color:#6b5840;font-size:.78rem;">Configurează mai întâi tag-urile.</div>'; return; }
-
-    const cats = [...new Set(tagsConfig.map(t=>t.category))];
-    twEl.innerHTML = cats.map(cat=>{
-        const tags = tagsConfig.filter(t=>t.category===cat);
-        const catLabel = CAT_LABELS_CONFIG[cat]||cat;
-        return `<div style="margin-bottom:8px;">
-            <div style="font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 0 4px;border-bottom:1px solid #f1e4c8;">${catLabel}</div>
-            ${tags.map(t=>{
-                const tid = String(t.id);
-                const cur = Math.round((TW[tid]||0)*100);
-                const defColor = t.type==='pos'?'#1b7a43':t.type==='neg'?'#b71c1c':'#1554b3';
-                const numColor = cur>0?'#1b7a43':cur<0?'#b71c1c':'#555';
-                return `<div class="tw-row">
-                    <span class="tw-emoji" style="color:${defColor};">${t.emoji}</span>
-                    <span class="tw-label">${t.label}</span>
-                    <button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button>
-                    <span class="tw-val" id="twval-${tid}" style="color:${numColor};">${cur>0?'+'+cur:cur}</span>
-                    <button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button>
-                </div>`;
-            }).join('')}
-        </div>`;
-    }).join('');
 }
-
-function stepTagCap(delta){
-    TAG_BONUS_CAP = Math.max(0.5, Math.min(20.0, parseFloat((TAG_BONUS_CAP + delta).toFixed(1))));
-    const el = document.getElementById('tagCapVal');
-    if(el) el.value = TAG_BONUS_CAP.toFixed(1);
-    updateWeightsSum();
-}
-function setTagCapDirect(val){
-    const v = parseFloat(val);
-    if(isNaN(v)||v<0.5) return;
-    TAG_BONUS_CAP = Math.min(20.0, Math.round(v*10)/10);
-    updateWeightsSum();
-}
-
 function stepWeight(key, delta){
     let val = Math.round((W[key]||0)*100) + delta;
     val = Math.max(0, Math.min(100, val));
@@ -3044,9 +3037,15 @@ function stepTagWeight(tid, delta){
     if(t) t.tw_weight = TW[tid];
     const el = document.getElementById('twval-'+tid);
     if(el){
-        el.textContent = cur>0?'+'+cur:cur;
+        el.textContent = (cur>0?'+'+cur:cur)+'%';
         el.style.color = cur>0?'#1b7a43':cur<0?'#b71c1c':'#555';
     }
+    clearTimeout(window._twSaveTimer);
+    window._twSaveTimer = setTimeout(()=>saveTagWeight(tid), 600);
+}
+async function saveTagWeight(tid){
+    try{ await sb.from('tags_config').update({tw_weight:TW[tid]||0}).eq('id',tid); invalidateTagsCache(); }
+    catch(e){ console.warn('saveTagWeight:', e.message); }
 }
 
 // Legacy compat
@@ -3069,7 +3068,7 @@ function applyPreset(name){
 }
 
 function updateWeightsSum(){
-    const sum = ['winrate','general'].reduce((s,k)=>s+(W[k]||0),0);
+    const sum = ['winrate','general','goals','tags'].reduce((s,k)=>s+(W[k]||0),0);
     const pct = Math.round(sum*100);
     const ok  = Math.abs(pct-100) <= 1;
 
@@ -3092,22 +3091,16 @@ function updateWeightsSum(){
 }
 
 async function saveAlgorithm(){
-    const mainKeys = ['winrate','general'];
+    const mainKeys = ['winrate','general','goals','tags'];
     const sum = mainKeys.reduce((s,k)=>s+(W[k]||0),0);
     if (Math.abs(sum-1) > 0.02) {
-        showToast(`⚠️ Suma ponderi (Win Rate + Rating) = ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
+        showToast(`⚠️ Suma ponderi (Win Rate + Rating + Goluri + Tag-uri) = ${(sum*100).toFixed(0)}% — trebuie să fie 100%!`);
         return;
     }
     try{
-        // Save weights + tag_bonus_cap to algo_settings table
         await sb.from('algo_settings').upsert([
-            {key:'weights', value: W},
-            {key:'tag_bonus_cap', value: TAG_BONUS_CAP}
+            {key:'weights', value: W}
         ], {onConflict:'key'});
-        // Save TW weights to tags_config
-        await Promise.all(tagsConfig.map(t=>
-            sb.from('tags_config').update({tw_weight: TW[String(t.id)]||0}).eq('id',t.id)
-        ));
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){ showToast('⚠️ Eroare: '+e.message); return; }
     render();
@@ -3115,16 +3108,15 @@ async function saveAlgorithm(){
 
 async function resetAlgorithm(){
     Object.assign(W, DEFAULT_W);
-    TAG_BONUS_CAP = 2.0;
     tagsConfig.forEach(t=>{ TW[String(t.id)]=0; t.tw_weight=0; });
     try{
         await sb.from('algo_settings').upsert([
-            {key:'weights', value: DEFAULT_W},
-            {key:'tag_bonus_cap', value: 10.0}
+            {key:'weights', value: DEFAULT_W}
         ], {onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
     }catch(e){ console.warn('reset algo error:',e.message); }
     buildAlgorithmPanel();
+    buildTagsPanel();
     render();
     showToast('↺ Algoritm resetat!');
 }
@@ -3516,18 +3508,15 @@ function buildModalStats(p){
     }
 
     // ── Formula info line ─────────────────────────────────────────
-    const games = Math.max(p.games,1);
     const wTot = (W.general+W.viteza+W.tehnica+W.strategie+W.aparare)*100;
-    const wrScore = p.games>0 ? (1+p.wins/p.games*9).toFixed(1) : '5.0';
 
-    let formulaHtml = `<strong>Smart Rating 2.0</strong>: General×${wTot.toFixed(0)}% + WinRate×${(W.winrate*100).toFixed(0)}%`;
-    formulaHtml += ` | WR→<strong>${wrScore}/10</strong>`;
+    let formulaHtml = `<strong>Smart Rating</strong>: WinRate×${(W.winrate*100).toFixed(0)}% + Goluri×${((W.goals||0)*100).toFixed(0)}% + Rating×${wTot.toFixed(0)}% + Tag-uri×${((W.tags||0)*100).toFixed(0)}%`;
     const _activeTags = getPlayerActiveTagObjects(p);
     if(_activeTags.length>0){
         const {bonus:_tb, signals:_sigs} = computeTagBonus(_activeTags);
         const bonusStr=_tb>0?`<span style="color:#2e7d32">+${_tb.toFixed(2)}</span>`:`<span style="color:#b33030">${_tb.toFixed(2)}</span>`;
         const posC=_sigs.filter(s=>s.dir>0).length, negC=_sigs.filter(s=>s.dir<0).length;
-        formulaHtml += ` | Tags: ${bonusStr} <span style="font-size:.6em;color:#6b5840;">(${posC>0?'+'+posC+' pos':''}${negC>0?' −'+negC+' neg':''})</span>`;
+        formulaHtml += ` | Tags brut: ${bonusStr} <span style="font-size:.6em;color:#6b5840;">(${posC>0?'+'+posC+' pos':''}${negC>0?' −'+negC+' neg':''})</span>`;
     }
     document.getElementById('algoInfo').innerHTML = formulaHtml;
 
@@ -3556,10 +3545,14 @@ function buildModalStats(p){
                 const cls = tag.type==='pos'?'tag-pos':tag.type==='neg'?'tag-neg':'tag-neu';
                 const dir = tag.type==='pos'?1:tag.type==='neg'?-1:0;
                 const tw = TW[tid]||0;
-                // Contribution: based on impact_profile strength
+                // Contribuție: aceeași formulă ca în computeTagBonus (o singură
+                // sursă de adevăr), afișată aici per-tag individual.
                 const profileStrength = getTagProfileStrength(tag);
                 const profileNet = getTagProfileNet(tag);
-                const contribNet = ((profileNet !== 0 ? profileNet : dir * profileStrength) + tw * 0.6) * TAG_BONUS_CAP / 3.0;
+                const scaledStrength = Math.min(profileStrength/9, 1.0);
+                const contribNet = dir===0
+                    ? (profileNet/27)*0.2 + tw*0.1
+                    : dir*(0.25+scaledStrength*0.25) + tw*0.30;
                 const contribColor = contribNet>0?'#1b7a43':contribNet<0?'#b71c1c':'#555';
                 const twLabel = `<span style="font-size:.58rem;color:${contribColor};margin-left:3px;">${contribNet>=0?'+':''}${contribNet.toFixed(2)}pt</span>`;
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
@@ -3580,18 +3573,12 @@ function buildModalStats(p){
         });
     }
 
-    // ── Pas-cu-pas explicat ───────────────────────────────────────
-    const wrRaw2     = p.games>0 ? p.wins/p.games : 0.5;
-    const wrDelta    = (wrRaw2 - 0.5) * 4 * W.winrate;
-    const peerBonus  = p.ratings.length>0
-        ? ((p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length - 5)/5) * (W.general+W.viteza+W.tehnica+W.strategie+W.aparare)
-        : 0;
-    const gpg        = p.games>0 ? Math.min((p.totalGoals||0)/p.games, 3) : 0;
-    const goalBonus  = Math.min(gpg*0.33, 1.0);
-    const imbalPen   = Math.min((p.lastImbalanceLoss||0),3)*0.15;
-    const activeTags2 = getPlayerActiveTagObjects(p);
-    const {bonus:tagBns} = computeTagBonus(activeTags2);
-    const finalRaw   = getSmartRating(p);
+    // ── Pas-cu-pas explicat ─────────────────────────────────────────
+    // O SINGURĂ sursă de adevăr: componentele vin din computeSmartRatingComponents,
+    // aceeași funcție care produce getSmartRating(p) — nu se mai poate desincroniza
+    // ce se explică aici de ce se calculează efectiv.
+    const rc = computeSmartRatingComponents(p);
+    const finalRaw = rc.final;
 
     // Color helper
     const col = v => v > 0.05 ? '#1b7a43' : v < -0.05 ? '#b71c1c' : '#666';
@@ -3599,29 +3586,30 @@ function buildModalStats(p){
 
     const steps = [
         {icon:'🎯', label:'Punct de start', val:5.0, note:'Toată lumea pornește de la 5.0', color:'#7d6849', delta:null},
-        {icon:'📈', label:'Win Rate ('+Math.round(wrRaw2*100)+'%)', val:null, note: wrDelta>=0 ? 'WR peste 50% → bonus' : 'WR sub 50% → penalizare', color:col(wrDelta), delta:wrDelta},
-        {icon:'⚽', label:'Goluri marcate ('+(p.totalGoals||0)+')', val:null, note:goalBonus>0?Math.round(gpg*10)/10+' goluri/meci → bonus':'Fără goluri înregistrate', color:col(goalBonus), delta:goalBonus},
     ];
-    if(p.ratings.length>0 && W.general>0){
-        steps.push({icon:'⭐', label:'Rating ('+p.ratings.length+')', val:null,
-            note:'Nota medie '+getCatAvg(p,"general").toFixed(1)+'/10', color:col(peerBonus), delta:peerBonus});
-    }
-    if(imbalPen>0) steps.push({icon:'⚠️', label:'Dezechilibru echipă', val:null, note:(p.lastImbalanceLoss||0)+' meci(uri) pierdut cu 3+ goluri', color:'#b71c1c', delta:-imbalPen});
-    if(activeTags2.length>0){
-        const {bonus:tagBns, signals} = computeTagBonus(activeTags2);
-        const posCount = signals.filter(s=>s.dir>0).length;
-        const negCount = signals.filter(s=>s.dir<0).length;
-        const tagDetails = signals
-            .filter(s=>s.dir!==0)
-            .map(s=>`${s.tag.emoji}${s.raw>=0?'+':''}${s.raw.toFixed(2)}`)
-            .join(' ');
-        const note = tagDetails + (tagDetails?' → ':'') + `net ${tagBns>=0?'+':''}${tagBns.toFixed(2)}`;
-        steps.push({icon:'🏷️', label:`Tag-uri (${posCount>0?'+'+posCount+' pos':''}${negCount>0?' −'+negCount+' neg':''}${activeTags2.length-posCount-negCount>0?' ~neu':''})`, val:null, note, color:col(tagBns), delta:tagBns});
-    }
+    rc.parts.forEach(part => {
+        if (part.w <= 0) return; // pondere 0 → componentă dezactivată, nu o mai afișăm
+        let icon = part.icon, label = part.label, note;
+        if (part.key === 'winrate') note = Math.round(rc.wrRaw*100)+'% WR (ajustat: '+Math.round(rc.wrShrunk*100)+'%)';
+        else if (part.key === 'goals') note = (p.totalGoals||0)+' goluri · '+(Math.round(rc.gpg*100)/100)+'/meci vs media poziției';
+        else if (part.key === 'tags') {
+            if (!rc.tagSignals.length) { note = 'Fără tag-uri active (neutru 5.0)'; }
+            else {
+                const posCount = rc.tagSignals.filter(s=>s.dir>0).length;
+                const negCount = rc.tagSignals.filter(s=>s.dir<0).length;
+                label = `Tag-uri (${posCount>0?'+'+posCount+' pos':''}${negCount>0?' −'+negCount+' neg':''}${rc.tagSignals.length-posCount-negCount>0?' ~neu':''})`;
+                const tagDetails = rc.tagSignals.filter(s=>s.dir!==0).map(s=>`${s.tag.emoji}${s.raw>=0?'+':''}${s.raw.toFixed(2)}`).join(' ');
+                note = tagDetails + (tagDetails?' → ':'') + `net ${rc.tagsNetSum>=0?'+':''}${rc.tagsNetSum.toFixed(2)}`;
+            }
+        }
+        else note = p.ratings.length ? 'Nota medie '+part.score.toFixed(1)+'/10 ('+p.ratings.length+' voturi)' : 'Fără voturi încă (neutru 5.0)';
+        steps.push({icon, label, val:null, note, color:col(part.delta), delta:part.delta});
+    });
+    if (rc.imbalPen > 0) steps.push({icon:'⚠️', label:'Dezechilibru echipă', val:null, note:(p.lastImbalanceLoss||0)+' meci(uri) pierdut cu 3+ goluri', color:'#b71c1c', delta:-rc.imbalPen});
+    if (Math.abs(rc.deltaActivity) > 0.005) steps.push({icon:'📅', label:'Activitate recentă', val:null, note: rc.actMult<1 ? 'Absențe recente → blend spre neutru' : 'Prezență constantă', color:col(rc.deltaActivity), delta:rc.deltaActivity});
 
-    let running = 5.0;
     const stepsHtml = steps.map((s,i)=>{
-        const lineH = i===0
+        return i===0
             ? `<div style="display:flex;justify-content:space-between;align-items:baseline;">
                 <span style="font-size:.8rem;color:${s.color};">${s.icon} ${s.label}</span>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:${s.color};">${s.val.toFixed(1)}</span>
@@ -3633,8 +3621,6 @@ function buildModalStats(p){
                     <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:40px;text-align:right;color:${s.color};">${fmt(s.delta)}</span>
                 </div>
                </div>`;
-        if(s.delta!==null) running = Math.max(1,Math.min(10,running+s.delta));
-        return lineH;
     }).join('');
 
     // Weak attr warning
@@ -3740,11 +3726,11 @@ function buildLiveEditor(p){
     const snap = {};
     LIVE_ATTRS.forEach(a => snap[a.key] = Math.round(getCatAvg(p, a.key)*10));
 
-    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
+    const preview = previewSmartRating(p, snap);
 
     const attrsHtml = LIVE_ATTRS.map(a => {
         const v = snap[a.key];
-        const contrib = ((v/10) * (a.key==='general'? wG : W[a.key] || (wG/5))).toFixed(2);
+        const contrib = (preview.contribs[a.key]||0).toFixed(2);
         return `<div>
             <div class="live-attr-row">
                 <span class="live-attr-lbl" style="color:${a.color};">${a.label}</span>
@@ -3764,7 +3750,6 @@ function buildLiveEditor(p){
         </div>`;
     }).join('');
 
-    const preview = previewSmartRating(p, snap);
     const srColor = preview.final>=8?'#1b7a43':preview.final>=6?'#8a6800':preview.final>=4?'#9c4f00':'#e57373';
 
     const wrap = document.createElement('div');
@@ -3779,7 +3764,6 @@ function buildLiveEditor(p){
             </div>
             <div class="live-sr-meta">
                 <div id="livePenaltyBadge" class="live-penalty-badge ${preview.penalized?'penalty show':''}">${preview.penalized?'⚠️ Dezechilibru −10%':''}</div>
-                <div id="liveWrBonusBadge" class="live-penalty-badge ${preview.wrBonus?'bonus show':''}">${preview.wrBonus?'📈 WR Bonus +0.2':''}</div>
                 <div style="font-size:.6rem;color:#7d6849;margin-top:4px;">Real: <strong style="color:#5c4a32;">${getSmartRating(p).toFixed(2)}</strong></div>
             </div>
         </div>
@@ -3797,44 +3781,62 @@ function buildLiveEditor(p){
 }
 
 function previewSmartRating(p, snap){
-    // snap: {general:0..100, viteza:0..100, ...}
+    // snap: {general:0..100, viteza:0..100, ...} — valori setate direct de admin
+    // prin sliders, tratate ca notă finală (nu mai trec prin shrinkage de voturi,
+    // pentru că nu sunt "un vot printre altele" ci un snapshot definit manual).
     const v10 = k => (snap[k]||0)/10; // convert 0-100 → 0-10
-    const general   = v10('general');
-    const viteza    = v10('viteza');
-    const tehnica   = v10('tehnica');
-    const strategie = v10('strategie');
-    const aparare   = v10('aparare');
+    const catScores = {
+        general:   v10('general'),
+        viteza:    v10('viteza'),
+        tehnica:   v10('tehnica'),
+        strategie: v10('strategie'),
+        aparare:   v10('aparare'),
+    };
 
-    const wrRaw   = p.games>0 ? p.wins/p.games : 0;
-    const wrScore = 1 + wrRaw*9;
-    const games   = Math.max(p.games,1);
+    // Win Rate, Goluri și Tag-uri rămân calculate din statisticile reale ale
+    // jucătorului, exact ca în computeSmartRatingComponents — ca "Preview" și
+    // "Real" să difere DOAR prin ce se schimbă efectiv la sliders (notele pe
+    // categorii), nu prin formulă.
+    const winrateScore = 5 + (getWinrateShrunk(p) - 0.5) * 10;
+    const goalsScore   = getGoalsScoreRelative(p);
+    const activeTags   = getPlayerActiveTagObjects(p);
+    const {bonus: tagsNetSum, signals} = computeTagBonus(activeTags);
+    const tagsScore    = 5 + tagsNetSum;
 
-    const wG = W.general + W.viteza + W.tehnica + W.strategie + W.aparare;
-    let base = general*wG + wrScore*W.winrate;
+    const parts = [
+        { key:'winrate',   score:winrateScore,        w:W.winrate||0 },
+        { key:'goals',     score:goalsScore,          w:W.goals||0 },
+        { key:'general',   score:catScores.general,   w:W.general||0 },
+        { key:'tags',      score:tagsScore,           w:W.tags||0 },
+        { key:'viteza',    score:catScores.viteza,    w:W.viteza||0 },
+        { key:'tehnica',   score:catScores.tehnica,   w:W.tehnica||0 },
+        { key:'strategie', score:catScores.strategie, w:W.strategie||0 },
+        { key:'aparare',   score:catScores.aparare,   w:W.aparare||0 },
+    ];
+    const wSum = parts.reduce((s,c)=>s+c.w, 0);
+    let base = wSum>0 ? 5 + parts.reduce((s,c)=>s+(c.score-5)*c.w, 0)/wSum : 5;
 
     const THRESHOLD = 2.5;
-    const penalized = viteza<THRESHOLD || tehnica<THRESHOLD || strategie<THRESHOLD || aparare<THRESHOLD;
+    const penalized = catScores.viteza<THRESHOLD || catScores.tehnica<THRESHOLD || catScores.strategie<THRESHOLD || catScores.aparare<THRESHOLD;
     if(penalized) base *= 0.90;
 
-    const wrBonus = wrRaw > 0.60 && p.games >= 3;
-    if(wrBonus) base += 0.2;
-
-    // Tag bonus auto-scalat
-    const activeTags = getPlayerActiveTagObjects(p);
-    const {bonus: tagBonus, signals} = computeTagBonus(activeTags);
-
-    // Per-attribute contribution for display
+    // Per-attribute contribution for display (câte puncte din rating vin din fiecare atribut)
+    const contribOf = key => {
+        const part = parts.find(c=>c.key===key);
+        return parseFloat((wSum>0 ? (part.score-5)*part.w/wSum : 0).toFixed(2));
+    };
     const contribs = {
-        general:   parseFloat((general*wG).toFixed(2)),
-        viteza:    parseFloat((viteza*(W.viteza||0)).toFixed(2)),
-        tehnica:   parseFloat((tehnica*(W.tehnica||0)).toFixed(2)),
-        strategie: parseFloat((strategie*(W.strategie||0)).toFixed(2)),
-        aparare:   parseFloat((aparare*(W.aparare||0)).toFixed(2)),
+        general:   contribOf('general'),
+        viteza:    contribOf('viteza'),
+        tehnica:   contribOf('tehnica'),
+        strategie: contribOf('strategie'),
+        aparare:   contribOf('aparare'),
+        tags:      contribOf('tags'),
     };
 
     return {
-        final: parseFloat(Math.max(1,Math.min(10,base+tagBonus)).toFixed(2)),
-        contribs, penalized, wrBonus, tagBonus, signals
+        final: parseFloat(Math.max(1,Math.min(10,base)).toFixed(2)),
+        contribs, penalized, tagsNetSum, signals
     };
 }
 
@@ -3861,13 +3863,10 @@ function onLiveSlider(pid, key, el){
     srEl.style.transform = 'scale(1.15)';
     setTimeout(()=>srEl.style.transform='', 150);
 
-    // Update penalty/bonus badges
+    // Update penalty badge
     const penEl = document.getElementById('livePenaltyBadge');
-    const wrEl  = document.getElementById('liveWrBonusBadge');
     penEl.textContent = preview.penalized ? '⚠️ Dezechilibru −10%' : '';
     penEl.className = `live-penalty-badge penalty${preview.penalized?' show':''}`;
-    wrEl.textContent  = preview.wrBonus ? '📈 WR Bonus +0.2' : '';
-    wrEl.className = `live-penalty-badge bonus${preview.wrBonus?' show':''}`;
 
     // Update contributions
     Object.entries(preview.contribs).forEach(([k,contrib])=>{
@@ -4717,15 +4716,8 @@ async function saveMatchEdit() {
     validGoalEvents.forEach(ev => {
         goals[ev.player] = (goals[ev.player]||0) + 1;
     });
-    // Rânduri brute cu player_id rezolvat ACUM (după numele curent) — folosite pentru
-    // recalcularea imediată a statisticilor, rezistentă la o eventuală redenumire ulterioară.
-    const goalRowsForRecalc = validGoalEvents.map(ev => ({
-        player_id: db.players.find(x => x.name === ev.player)?.id ?? null,
-        player_name: ev.player,
-        goals: 1,
-    }));
 
-    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals, goalRows: goalRowsForRecalc };
+    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals };
 
     const h = db.history[matchEditorIdx];
     const dbId = h._dbId;
@@ -4757,11 +4749,8 @@ async function saveMatchEdit() {
             }
 
             // Un rând per gol individual (cu minut real, dacă a fost completat)
-            // player_id e rezolvat după numele curent al jucătorului — face legătura
-            // gol↔jucător rezistentă la o eventuală redenumire ulterioară (vezi recalculateAllPlayerStats).
             const goalRows = validGoalEvents.map(ev => ({
                 match_id: dbId,
-                player_id: db.players.find(x => x.name === ev.player)?.id ?? null,
                 player_name: ev.player,
                 team: orangePlayers.includes(ev.player) ? 'orange' : blackPlayers.includes(ev.player) ? 'black' : 'green',
                 goals: 1,
@@ -4771,7 +4760,6 @@ async function saveMatchEdit() {
             // Rânduri separate pentru goluri primite (agregat per jucător, fără minut)
             const concededRows = Object.keys(goalsConceded).map(name => ({
                 match_id: dbId,
-                player_id: db.players.find(x => x.name === name)?.id ?? null,
                 player_name: name,
                 team: orangePlayers.includes(name) ? 'orange' : blackPlayers.includes(name) ? 'black' : 'green',
                 goals: 0,
@@ -4780,14 +4768,7 @@ async function saveMatchEdit() {
             }));
             const rows = [...goalRows, ...concededRows];
             if(rows.length) {
-                let { error: insErr } = await sb.from('match_goals').insert(rows);
-                if (insErr && /player_id/i.test(insErr.message||'')) {
-                    // Coloana player_id nu există încă (migrarea SQL nu a fost rulată) — reîncercăm fără ea,
-                    // ca salvarea meciului să nu pice; golurile vor fi legate doar prin nume până rulezi migrarea.
-                    const rowsNoId = rows.map(({player_id, ...rest}) => rest);
-                    const retry = await sb.from('match_goals').insert(rowsNoId);
-                    insErr = retry.error;
-                }
+                const { error: insErr } = await sb.from('match_goals').insert(rows);
                 if (insErr) throw new Error('Salvare goluri eșuată: ' + insErr.message);
             }
         }
@@ -5757,10 +5738,13 @@ function applyThreeTeamUI(){
 
 
 // ── Start Match Modal ─────────────────────────────────────────────
+let startBenchChoice = null; // ce echipă (orange/green/bench) stă pe bancă la acest meci — alegere temporară, NU schimbă echipele din dashboard
+
 function openStartMatch(){
     if(!isAdmin()) return;
     const bP = db.players.filter(p=>p.status==='bench');
     const has3 = bP.length > 0; // auto-detect from bench players
+    startBenchChoice = 'bench'; // implicit: echipa deja pe bancă rămâne pe bancă, dacă adminul nu alege alta
 
     if (has3) {
         renderStartTeamPicker();
@@ -5799,48 +5783,51 @@ function renderStartTeamPicker(){
         `<button onclick="closeStartMatch()" style="padding:12px;border-radius:10px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;">✕ Anulează</button>`;
 }
 
-// Utilizatorul a ales ce echipă stă pe bancă → mută grupul ales pe 'bench'
-// și grupul care era pe bancă preia locul rămas liber (orange/green).
+// Utilizatorul a ales ce echipă stă pe bancă → reținem alegerea (fără să mutăm
+// jucătorii sau să le schimbăm identitatea/culoarea în dashboard). Alegerea
+// contează doar pentru mapping-ul teamA/teamB/teamC la lansarea meciului live.
 function selectStartingBench(key){
-    if (key !== 'bench') {
-        const chosen   = db.players.filter(p => p.status === key);
-        const wasBench = db.players.filter(p => p.status === 'bench');
-        chosen.forEach(p => p.status = 'bench');
-        wasBench.forEach(p => p.status = key);
-        render();
-        Promise.all([...chosen, ...wasBench].map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
-    }
+    startBenchChoice = key;
     renderStartMatchSummary();
 }
 
 // ── Step 2: rezumat final + buton de start ──────────────────────────────
 function renderStartMatchSummary(){
-    const oP = db.players.filter(p=>p.status==='orange');
-    const gP = db.players.filter(p=>p.status==='green');
-    const bP = db.players.filter(p=>p.status==='bench');
-    const has3 = bP.length > 0; // auto-detect from bench players
+    const groups = {
+        orange: { name: teamNames.orange,          color: teamColors.orange,          players: db.players.filter(p=>p.status==='orange') },
+        green:  { name: teamNames.green,            color: teamColors.green,           players: db.players.filter(p=>p.status==='green')  },
+        bench:  { name: teamNames.bench||'Echipa 3', color: teamColors.bench||'#111111', players: db.players.filter(p=>p.status==='bench') },
+    };
+    const has3 = groups.bench.players.length > 0;
+    const benchKey = has3 ? (startBenchChoice || 'bench') : null;
 
-    const teamBlock = (title, color, players) => {
-        if(!players.length) return '';
-        return `<div style="background:#fffaf0;border-radius:10px;border:1px solid ${color}33;padding:10px 12px;margin-bottom:8px;">
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:${color};margin-bottom:6px;">${title} (${players.length})</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">${players.map(p=>`<span style="background:${color}11;border:1px solid ${color}33;color:${color};padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;">${p.name}</span>`).join('')}</div>
+    const teamBlock = (key) => {
+        const g = groups[key];
+        if(!g.players.length) return '';
+        const sitsOut = key === benchKey;
+        return `<div style="background:#fffaf0;border-radius:10px;border:1px solid ${g.color}33;padding:10px 12px;margin-bottom:8px;${sitsOut?'opacity:.7;':''}">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:${g.color};">${g.name} (${g.players.length})</div>
+                ${sitsOut ? '<span style="font-size:.62rem;color:#7d6849;background:#f1e4c8;border:1px solid #dcc89a;border-radius:6px;padding:1px 6px;">🪑 pe bancă</span>' : ''}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${g.players.map(p=>`<span style="background:${g.color}11;border:1px solid ${g.color}33;color:${g.color};padding:2px 8px;border-radius:5px;font-size:.72rem;font-weight:700;">${p.name}</span>`).join('')}</div>
         </div>`;
     };
 
+    const playingKeys = ['orange','green','bench'].filter(k=>k!==benchKey);
     const warnings = [];
-    if(!oP.length) warnings.push('⚠️ Echipa Portocalie e goală');
-    if(!gP.length) warnings.push('⚠️ Echipa Verde e goală');
-    if(has3 && !bP.length) warnings.push('⚠️ Nicio echipă pe bancă (mod 3 echipe activ)');
+    if(!groups[playingKeys[0]].players.length) warnings.push(`⚠️ Echipa ${groups[playingKeys[0]].name} e goală`);
+    if(!groups[playingKeys[1]].players.length) warnings.push(`⚠️ Echipa ${groups[playingKeys[1]].name} e goală`);
+    if(has3 && !groups[benchKey].players.length) warnings.push('⚠️ Nicio echipă pe bancă (mod 3 echipe activ)');
 
     document.getElementById('startMatchBody').innerHTML =
-        `<div style="font-size:.72rem;color:#7d6849;margin-bottom:12px;">Mod: <strong style="color:${has3?'#8e3a9e':'#1554b3'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong>${has3?' · pe bancă prima repriză: <strong>'+(teamNames.bench||'Echipa 3')+'</strong>':''}</div>`
+        `<div style="font-size:.72rem;color:#7d6849;margin-bottom:12px;">Mod: <strong style="color:${has3?'#8e3a9e':'#1554b3'};">${has3?'3️⃣ Trei Echipe':'👥 Două Echipe'}</strong>${has3?' · pe bancă prima repriză: <strong>'+groups[benchKey].name+'</strong>':''}</div>`
         + (warnings.length ? `<div style="background:rgba(198,40,40,.1);border:1px solid #c6282855;border-radius:8px;padding:8px 12px;margin-bottom:12px;">${warnings.map(w=>`<div style="font-size:.75rem;color:#b71c1c;">${w}</div>`).join('')}</div>` : '')
-        + teamBlock(teamNames.orange, teamColors.orange, oP)
-        + teamBlock(teamNames.green,  teamColors.green,  gP)
-        + (has3 ? teamBlock(teamNames.bench||'Echipa 3', teamColors.bench||'#111111', bP) : '');
+        + teamBlock('orange')
+        + teamBlock('green')
+        + (has3 ? teamBlock('bench') : '');
 
-    const canStart = oP.length > 0 && gP.length > 0;
+    const canStart = groups[playingKeys[0]].players.length > 0 && groups[playingKeys[1]].players.length > 0;
     document.getElementById('startMatchActions').innerHTML =
         `<button id="launchLiveBtn" onclick="launchLive()" ${canStart?'':'disabled style="opacity:.4;cursor:not-allowed;"'}
             style="padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;">
@@ -5855,10 +5842,10 @@ async function launchLive(){
     const btn = document.getElementById('launchLiveBtn');
     if(btn){ btn.disabled=true; btn.textContent='⏳ Se pregătește...'; }
 
-    const oP = db.players.filter(p=>p.status==='orange');
-    const gP = db.players.filter(p=>p.status==='green');
     const bP = db.players.filter(p=>p.status==='bench');
     const has3 = bP.length > 0; // auto-detect from bench players
+    const benchKey = has3 ? (startBenchChoice || 'bench') : null;
+    const playKeys = has3 ? ['orange','green','bench'].filter(k=>k!==benchKey) : [];
 
     try{
         const patch = {
@@ -5867,7 +5854,10 @@ async function launchLive(){
             timer_started_at: null,
             round_start_sec: 0,
             three_team_mode: has3,
-            color_map: has3 ? { orange:'teamA', green:'teamB', bench:'teamC' } : {},
+            // Echipa aleasă să stea pe bancă la acest meci devine teamC (indiferent
+            // dacă e orange/green/bench) — celelalte două ocupă teamA/teamB.
+            // Identitatea (culoarea/numele) echipelor NU se schimbă în dashboard.
+            color_map: has3 ? { [playKeys[0]]:'teamA', [playKeys[1]]:'teamB', [benchKey]:'teamC' } : {},
             match_started_at: null,
         };
 
@@ -6150,37 +6140,17 @@ function recalculateAllPlayerStats() {
             p.matchHistory.push(blackWon ? 'W' : 'L');
         });
 
-        // Goluri — sumate din rândurile brute (sursă: match_goals). Potrivim jucătorul
-        // ÎNTÂI după player_id (rezistent la redenumiri), și doar dacă lipsește id-ul
-        // (rânduri vechi, dinainte de migrarea SQL) cădem defensiv pe potrivire după nume.
-        const goalRows = h.goalRows || Object.entries(h.playerGoals||{}).map(([player_name,g]) => ({player_id:null, player_name, goals:g}));
-        goalRows.forEach(g => {
-            const p = (g.player_id != null)
-                ? db.players.find(x => x.id === g.player_id)
-                : db.players.find(x => x.name === g.player_name);
-            if (p) p.totalGoals += (g.goals || 0);
-        });
+        // Goluri — sumate din playerGoals al fiecărui meci (sursă: match_goals, mereu suprascris corect la editare)
+        if (h.playerGoals) {
+            Object.entries(h.playerGoals).forEach(([name, g]) => {
+                const p = db.players.find(x => x.name === name);
+                if (p) p.totalGoals += (g || 0);
+            });
+        }
     });
 
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
-}
-
-// Wrapper apelabil dintr-un buton din UI: recalculează golurile/victoriile/meciurile TUTUROR
-// jucătorilor direct din istoricul real al meciurilor (sursa de adevăr), suprascriind orice
-// valoare editată manual sau rămasă desincronizată. Cere confirmare explicită, pentru că
-// suprascrie total_goals/wins/games pentru toată lumea.
-function recalculateStatsFromUI(){
-    if(!isAdmin()) return;
-    showConfirm('🔄','Recalculează statisticile?',
-        'Golurile, victoriile și meciurile jucate ale TUTUROR jucătorilor vor fi recalculate strict din istoricul meciurilor salvate — orice valoare editată manual va fi suprascrisă. Numele jucătorului trebuie să fie scris identic în meciuri și pe card, altfel golurile acelea nu se vor aduna.',
-        'Recalculează','#1a4a7a', () => {
-            try{
-                recalculateAllPlayerStats();
-                render();
-                showToast('✅ Statistici recalculate din istoricul meciurilor!');
-            }catch(e){ showToast('⚠️ '+e.message); }
-        });
 }
 
 function confirmDeleteMatch(idx) {
