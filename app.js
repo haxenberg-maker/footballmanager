@@ -397,18 +397,23 @@ async function loadAll() {
         }
 
         // Load match_goals in bulk — one query for all matches
-        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
-        // cele normale în topScorer/playerGoals); dacă migrarea nu a fost rulată încă,
-        // cădem defensiv pe interogarea veche, fără is_penalty.
+        // Încercăm întâi CU player_id + is_penalty (cea mai bogată variantă — player_id
+        // face legătura goluri↔jucător rezistentă la redenumiri); dacă migrarea SQL nu a
+        // fost rulată încă, cădem defensiv, în etape, pe interogări mai vechi.
         let goalsPerMatch = {};
         try {
             let allGoals = null;
-            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
-            if (withPen.error) {
-                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
-                allGoals = noPen.data;
+            const withIdAndPen = await sb.from('match_goals').select('match_id,player_id,player_name,team,goals,is_penalty');
+            if (!withIdAndPen.error) {
+                allGoals = withIdAndPen.data;
             } else {
-                allGoals = withPen.data;
+                const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
+                if (!withPen.error) {
+                    allGoals = withPen.data;
+                } else {
+                    const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
+                    allGoals = noPen.data;
+                }
             }
             (allGoals || []).forEach(g => {
                 if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
@@ -444,8 +449,11 @@ async function loadAll() {
                 greenPlayers:  h.green_players  || [],
                 blackPlayers:  h.black_players  || [],
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
-                playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
+                playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului / afișare
                 playerPenaltyGoals, // { playerName: goluriPenalty } — SEPARAT de playerGoals
+                // Rândurile brute (cu player_id când există) — sursa de adevăr pentru recalcularea
+                // statisticilor per jucător, rezistentă la redenumiri (vezi recalculateAllPlayerStats).
+                goalRows: goals.filter(g => !g.is_penalty && (g.goals||0) > 0),
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -1320,7 +1328,8 @@ function render(){
                 ? `<div class="fifa-stat" style="color:#b71c1c;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
-                <div class="fifa-card-body">
+                ${admin?`<button class="move-btn" onclick="event.stopPropagation();openMoveSheet(${p.id})" title="Mută în altă echipă">⇄</button>`:''}
+                <div class="fifa-card-body${admin?' has-move-btn':''}">
                     <div class="fifa-rating-col">
                         <div class="fifa-rating-num" style="color:${smartColor};">${smart}${p.adminRating!=null?'<span style="font-size:.5rem;">👑</span>':''}</div>
                         <div class="fifa-rating-lbl" style="color:${smartColor};font-size:.45rem;letter-spacing:.8px;">SMART</div>
@@ -2286,6 +2295,52 @@ function copyTeams(){
         .then(()=>showToast('📋 Echipe copiate cu rating și șanse!'))
         .catch(()=>showToast('❌ Eroare clipboard'));
 }
+
+// ── Tap-to-move sheet ── mobile-friendly alternative to drag & drop.
+// Drag & drop (adminDrop/adminAllowDrop below) still works on desktop with a mouse,
+// but HTML5 drag events don't fire reliably on touch devices, so on phones admins
+// use this bottom sheet instead: tap the ⇄ button on a card, tap the destination team.
+let _moveSheetPlayerId = null;
+function openMoveSheet(id){
+    if(!isAdmin()) return;
+    if(window._isLive){ showToast("⚠️ Meciul e live — echipele sunt blocate!"); return; }
+    const p = db.players.find(x=>x.id==id);
+    if(!p) return;
+    _moveSheetPlayerId = id;
+    const nameEl = document.getElementById('moveSheetPlayerName');
+    if(nameEl) nameEl.textContent = p.name;
+    const destinations = [
+        {key:'orange', label:teamNames.orange,   emoji:'🟠', color:'var(--orange)'},
+        {key:'green',  label:teamNames.green,    emoji:'🟢', color:'var(--green)'},
+        {key:'bench',  label: threeTeamMode ? teamNames.bench : 'Bancă', emoji: threeTeamMode?'⚫':'🪑', color: threeTeamMode?'#555':'#82b1ff'},
+        {key:'active', label:'Jucători (fără echipă)', emoji:'👤', color:'#3d5afe'},
+    ];
+    const optsEl = document.getElementById('moveSheetOptions');
+    if(optsEl){
+        optsEl.innerHTML = destinations.map(d=>`
+            <div class="move-opt ${p.status===d.key?'move-opt-current':''}" onclick="movePlayerTo('${d.key}')">
+                <span class="move-opt-dot" style="background:${d.color};"></span>
+                <span>${d.emoji} ${d.label}</span>
+            </div>`).join('');
+    }
+    const ov = document.getElementById('moveSheetOverlay');
+    if(ov) ov.style.display='flex';
+}
+function closeMoveSheet(){
+    const ov = document.getElementById('moveSheetOverlay');
+    if(ov) ov.style.display='none';
+    _moveSheetPlayerId = null;
+}
+async function movePlayerTo(team){
+    const p = db.players.find(x=>x.id==_moveSheetPlayerId);
+    closeMoveSheet();
+    if(!p || p.status===team) return;
+    p.status = team;
+    render();
+    showToast(`✅ ${p.name} mutat!`);
+    await dbUpdatePlayer(p).catch(err=>showToast('⚠️ '+err.message));
+}
+function scrollToTop(){ window.scrollTo({top:0,behavior:'smooth'}); }
 
 function adminAllowDrop(e){ if(isAdmin()) e.preventDefault(); }
 async function adminDrop(e){
@@ -4662,8 +4717,15 @@ async function saveMatchEdit() {
     validGoalEvents.forEach(ev => {
         goals[ev.player] = (goals[ev.player]||0) + 1;
     });
+    // Rânduri brute cu player_id rezolvat ACUM (după numele curent) — folosite pentru
+    // recalcularea imediată a statisticilor, rezistentă la o eventuală redenumire ulterioară.
+    const goalRowsForRecalc = validGoalEvents.map(ev => ({
+        player_id: db.players.find(x => x.name === ev.player)?.id ?? null,
+        player_name: ev.player,
+        goals: 1,
+    }));
 
-    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals };
+    const entry = { date, winner, score, imbalanced, orangePlayers, greenPlayers, blackPlayers, playerGoals: goals, goalRows: goalRowsForRecalc };
 
     const h = db.history[matchEditorIdx];
     const dbId = h._dbId;
@@ -4695,8 +4757,11 @@ async function saveMatchEdit() {
             }
 
             // Un rând per gol individual (cu minut real, dacă a fost completat)
+            // player_id e rezolvat după numele curent al jucătorului — face legătura
+            // gol↔jucător rezistentă la o eventuală redenumire ulterioară (vezi recalculateAllPlayerStats).
             const goalRows = validGoalEvents.map(ev => ({
                 match_id: dbId,
+                player_id: db.players.find(x => x.name === ev.player)?.id ?? null,
                 player_name: ev.player,
                 team: orangePlayers.includes(ev.player) ? 'orange' : blackPlayers.includes(ev.player) ? 'black' : 'green',
                 goals: 1,
@@ -4706,6 +4771,7 @@ async function saveMatchEdit() {
             // Rânduri separate pentru goluri primite (agregat per jucător, fără minut)
             const concededRows = Object.keys(goalsConceded).map(name => ({
                 match_id: dbId,
+                player_id: db.players.find(x => x.name === name)?.id ?? null,
                 player_name: name,
                 team: orangePlayers.includes(name) ? 'orange' : blackPlayers.includes(name) ? 'black' : 'green',
                 goals: 0,
@@ -4714,7 +4780,14 @@ async function saveMatchEdit() {
             }));
             const rows = [...goalRows, ...concededRows];
             if(rows.length) {
-                const { error: insErr } = await sb.from('match_goals').insert(rows);
+                let { error: insErr } = await sb.from('match_goals').insert(rows);
+                if (insErr && /player_id/i.test(insErr.message||'')) {
+                    // Coloana player_id nu există încă (migrarea SQL nu a fost rulată) — reîncercăm fără ea,
+                    // ca salvarea meciului să nu pice; golurile vor fi legate doar prin nume până rulezi migrarea.
+                    const rowsNoId = rows.map(({player_id, ...rest}) => rest);
+                    const retry = await sb.from('match_goals').insert(rowsNoId);
+                    insErr = retry.error;
+                }
                 if (insErr) throw new Error('Salvare goluri eșuată: ' + insErr.message);
             }
         }
@@ -6077,17 +6150,37 @@ function recalculateAllPlayerStats() {
             p.matchHistory.push(blackWon ? 'W' : 'L');
         });
 
-        // Goluri — sumate din playerGoals al fiecărui meci (sursă: match_goals, mereu suprascris corect la editare)
-        if (h.playerGoals) {
-            Object.entries(h.playerGoals).forEach(([name, g]) => {
-                const p = db.players.find(x => x.name === name);
-                if (p) p.totalGoals += (g || 0);
-            });
-        }
+        // Goluri — sumate din rândurile brute (sursă: match_goals). Potrivim jucătorul
+        // ÎNTÂI după player_id (rezistent la redenumiri), și doar dacă lipsește id-ul
+        // (rânduri vechi, dinainte de migrarea SQL) cădem defensiv pe potrivire după nume.
+        const goalRows = h.goalRows || Object.entries(h.playerGoals||{}).map(([player_name,g]) => ({player_id:null, player_name, goals:g}));
+        goalRows.forEach(g => {
+            const p = (g.player_id != null)
+                ? db.players.find(x => x.id === g.player_id)
+                : db.players.find(x => x.name === g.player_name);
+            if (p) p.totalGoals += (g.goals || 0);
+        });
     });
 
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
+}
+
+// Wrapper apelabil dintr-un buton din UI: recalculează golurile/victoriile/meciurile TUTUROR
+// jucătorilor direct din istoricul real al meciurilor (sursa de adevăr), suprascriind orice
+// valoare editată manual sau rămasă desincronizată. Cere confirmare explicită, pentru că
+// suprascrie total_goals/wins/games pentru toată lumea.
+function recalculateStatsFromUI(){
+    if(!isAdmin()) return;
+    showConfirm('🔄','Recalculează statisticile?',
+        'Golurile, victoriile și meciurile jucate ale TUTUROR jucătorilor vor fi recalculate strict din istoricul meciurilor salvate — orice valoare editată manual va fi suprascrisă. Numele jucătorului trebuie să fie scris identic în meciuri și pe card, altfel golurile acelea nu se vor aduna.',
+        'Recalculează','#1a4a7a', () => {
+            try{
+                recalculateAllPlayerStats();
+                render();
+                showToast('✅ Statistici recalculate din istoricul meciurilor!');
+            }catch(e){ showToast('⚠️ '+e.message); }
+        });
 }
 
 function confirmDeleteMatch(idx) {

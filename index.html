@@ -78,6 +78,30 @@
         button:hover{filter:brightness(1.2);transform:translateY(-1px);}
         button:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
         .btn-settings{background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;}
+        .btn-nav-clasament{background:linear-gradient(135deg,#fff3c4,#ffcc00);border:1px solid #e0b400;color:#7d5a00;}
+        .btn-nav-cheltuieli{background:linear-gradient(135deg,#dff3df,#a8d8a0);border:1px solid #28a745;color:#1b7a35;}
+
+        /* ── Sticky bottom quick-nav (mobile) ── */
+        .quick-nav{display:none;}
+        @media(max-width:640px){
+            .quick-nav{
+                display:flex;position:fixed;left:0;right:0;bottom:0;z-index:500;
+                background:#fffaf0;border-top:1px solid var(--border);
+                box-shadow:0 -6px 18px rgba(0,0,0,.25);
+                padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+            }
+            .conn-badge{bottom:calc(60px + env(safe-area-inset-bottom));}
+            .quick-nav-btn{
+                flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+                background:none;border:none;padding:6px 2px;border-radius:10px;
+                font-size:.62rem;font-weight:700;color:#7d6849;letter-spacing:.3px;
+            }
+            .quick-nav-btn .qn-ico{font-size:1.15rem;line-height:1;}
+            .quick-nav-btn:hover{filter:none;transform:none;}
+            .quick-nav-btn.qn-active{color:var(--accent);}
+            /* leave room so content isn't hidden behind the bar */
+            body{padding-bottom:64px;}
+        }
         .btn-quick-vote{background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;}
         .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
@@ -176,6 +200,28 @@
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
         .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
         .player-rank-label{position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:60%;border-radius:0 2px 2px 0;}
+        /* Tap-to-move button on player cards — mobile-friendly alternative to drag & drop */
+        .move-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(61,90,254,.15);border:1px solid var(--accent);color:#2f5fcf;font-size:.95rem;line-height:1;display:flex;align-items:center;justify-content:center;z-index:5;padding:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+        .fifa-card-body.has-move-btn{padding-right:42px;}
+        .move-btn:active{background:rgba(61,90,254,.4);transform:scale(.94);}
+        /* Move sheet — bottom action sheet for choosing a destination team */
+        #moveSheetOverlay{align-items:flex-end;}
+        .move-sheet{background:#fff8ed;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:12px 18px calc(20px + env(safe-area-inset-bottom));border:1px solid #d3bd8c;border-bottom:none;box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:moveSheetUp .22s cubic-bezier(.34,1.56,.64,1);}
+        @keyframes moveSheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+        .move-sheet-handle{width:40px;height:4px;background:#dcc89a;border-radius:3px;margin:0 auto 12px;}
+        .move-sheet-title{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:2px;color:#3a2f1f;text-align:center;margin-bottom:4px;}
+        .move-sheet-sub{font-size:.7rem;color:#7d6849;text-align:center;margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;}
+        .move-sheet-options{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+        .move-opt{display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:12px;font-size:1rem;font-weight:700;border:1px solid var(--border);background:#fdf3df;cursor:pointer;transition:transform .12s,background .12s;color:#3a2f1f;}
+        .move-opt:active{transform:scale(.97);background:#f3e6cf;}
+        .move-opt-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+        .move-opt-current{opacity:.45;pointer-events:none;}
+        .move-opt-current::after{content:'✓ echipa curentă';margin-left:auto;font-size:.65rem;color:#7d6849;font-weight:700;text-transform:none;}
+        .move-sheet-cancel{width:100%;padding:13px;border-radius:10px;background:#dcc89a;font-size:.95rem;font-weight:700;}
+        @media(min-width:641px){
+            /* Desktop keeps drag & drop as primary, but the move button remains a handy shortcut */
+            .move-btn{width:26px;height:26px;font-size:.82rem;}
+        }
         .rank-1{background:#ffd700}.rank-2{background:#c0c0c0}.rank-3{background:#cd7f32}.rank-other{background:transparent}
         .player-stats{font-size:0.73rem;color:#7d6849;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
         .streak-badge{padding:1px 7px;border-radius:10px;font-size:0.7rem;font-weight:700;}
@@ -733,6 +779,7 @@
             .controls{padding:8px 10px;gap:4px;}
             .controls button{padding:7px 9px;font-size:0.78rem;}
             .controls-separator{display:none;}
+            .btn-nav-clasament,.btn-nav-cheltuieli,.btn-settings{display:none;}
             .main-header{padding:14px 12px 12px;}
             .main-header h1{font-size:1.9rem;}
             /* Dashboard columns hidden by default on mobile */
@@ -856,7 +903,19 @@
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
+    <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
+    <div class="controls-separator"></div>
+    <button class="btn-nav-clasament" onclick="window.location.href='clasament.html'" title="Clasament">🏆 Clasament</button>
+    <button class="btn-nav-cheltuieli" onclick="window.location.href='cheltuieli.html'" title="Cheltuieli">💰 Cheltuieli</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
+</div>
+
+<!-- QUICK NAV — sticky bottom bar, always reachable on mobile with one thumb -->
+<div class="quick-nav" id="quickNav">
+    <button class="quick-nav-btn qn-active" onclick="scrollToTop()"><span class="qn-ico">🏠</span><span>Acasă</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='clasament.html'"><span class="qn-ico">🏆</span><span>Clasament</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='cheltuieli.html'"><span class="qn-ico">💰</span><span>Cheltuieli</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='setari.html'"><span class="qn-ico">⚙️</span><span>Setări</span></button>
 </div>
 
 <!-- MOBILE TABS -->
@@ -1251,6 +1310,17 @@
 </div>
 </div>
 
+<!-- MOVE PLAYER SHEET — tap-friendly team switcher (mobile-friendly alternative to drag&drop) -->
+<div class="modal-overlay" id="moveSheetOverlay" onclick="if(event.target===this)closeMoveSheet()">
+<div class="move-sheet">
+    <div class="move-sheet-handle"></div>
+    <div class="move-sheet-title">Mută pe <span id="moveSheetPlayerName"></span></div>
+    <div class="move-sheet-sub">Alege echipa nouă</div>
+    <div class="move-sheet-options" id="moveSheetOptions"></div>
+    <button class="move-sheet-cancel" onclick="closeMoveSheet()">Anulează</button>
+</div>
+</div>
+
 <!-- SCHEDULE MODAL -->
 <div class="modal-overlay" id="scheduleOverlay" onclick="if(event.target===this)closeScheduleModal()">
 <div class="schedule-modal">
@@ -1616,7 +1686,7 @@
 </div>
 </div>
 
-<script src="app.js?v=20260714"></script>
+<script src="app.js?v=20260801"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
