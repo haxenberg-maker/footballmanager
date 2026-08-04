@@ -738,6 +738,7 @@ async function timerToggle() {
         await patchState(patch);
         updateMatchUrl(liveState);
         applyTimerUI(liveState); // immediate local update
+        render(); // deblochează imediat butoanele de gol (nu doar la următorul update realtime)
     } else {
         // Pause
         const elapsed = (liveState.timer_elapsed_ms || 0) +
