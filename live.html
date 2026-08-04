@@ -162,9 +162,9 @@ main, body{padding-bottom:80px;}
 /* 3-team */
 .three-mode-bar{background:#fffaf0;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
 .three-mode-bar.show{display:block;}
-.waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
+.waiting-team{background:#f3e8fb;border:2px dashed #8e3a9e;border-radius:12px;padding:10px;margin-bottom:6px;}
 .waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
-.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#8e3a9e;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#5a2a72;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .swap-btn{padding:5px 10px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw;flex-shrink:1;}
 .swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
 .swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
@@ -232,7 +232,9 @@ main, body{padding-bottom:80px;}
 .uf-question{font-size:.78rem;color:#7d6849;text-align:center;padding:0 16px 12px;line-height:1.5;}
 .uf-actions{display:flex;flex-direction:column;gap:8px;padding:0 16px 16px;}
 .uf-btn-confirm{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;touch-action:manipulation;}
-.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;}
+.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;gap:4px;width:100%;}
+.uf-btn-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;}
+.uf-btn-players{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.2px;opacity:.85;white-space:normal;line-height:1.35;text-align:center;}
 .add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
 .add-temp-overlay.show{display:flex;}
 .add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
@@ -846,13 +848,15 @@ function showUltimaFaza() {
     const btnP = document.getElementById('ufBtnPenalty');
     const btnConfirm = document.getElementById('ufBtnConfirm');
 
-    btnO.textContent = '⚽ Gol ' + oName;
+    btnO.innerHTML = '<span class="uf-btn-title">⚽ Gol ' + oName + '</span><span class="uf-btn-players">'
+        + (players.filter(p=>p.status==='orange').map(p=>p.name).join(', ') || '—') + '</span>';
     btnO.style.borderColor = oHex;
     btnO.style.color = oHex;
     btnO.style.background = oHex + '15';
     btnO.onclick = () => { ufPickScorer('orange'); };
 
-    btnG.textContent = '⚽ Gol ' + gName;
+    btnG.innerHTML = '<span class="uf-btn-title">⚽ Gol ' + gName + '</span><span class="uf-btn-players">'
+        + (players.filter(p=>p.status==='green').map(p=>p.name).join(', ') || '—') + '</span>';
     btnG.style.borderColor = gHex;
     btnG.style.color = gHex;
     btnG.style.background = gHex + '15';
@@ -3008,8 +3012,8 @@ init();
     </div>
     <div class="uf-score" id="ufScore">0 : 0</div>
     <div class="uf-actions">
-      <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 1</button>
-      <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;">⚽ Gol Echipa 2</button>
+      <button class="uf-btn-penalty" id="ufBtnTeamO" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;"><span class="uf-btn-title">⚽ Gol Echipa 1</span><span class="uf-btn-players" id="ufBtnTeamOPlayers"></span></button>
+      <button class="uf-btn-penalty" id="ufBtnTeamG" style="border:1px solid #7d6849;background:#fffaf0;color:#7d6849;"><span class="uf-btn-title">⚽ Gol Echipa 2</span><span class="uf-btn-players" id="ufBtnTeamGPlayers"></span></button>
       <button class="uf-btn-penalty" id="ufBtnPenalty" style="border:1px solid #c9920a33;color:#8a6307;background:#fbe9c8;">🥅 Merg la Penaltyuri</button>
       <div id="ufBtnConfirmWrap">
         <button class="uf-btn-confirm" id="ufBtnConfirm">✕ Echipa înfrântă iese</button>
