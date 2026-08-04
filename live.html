@@ -68,7 +68,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .color-preview-bar{height:4px;border-radius:2px;margin-top:4px;transition:background .2s;}
 .team-edit-actions{display:flex;gap:8px;margin-top:4px;}
 .team-edit-cancel{flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;touch-action:manipulation;}
-.team-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#3a2f1f;touch-action:manipulation;}
+.team-edit-save{flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;touch-action:manipulation;}
 /* All teams manager */
 .all-teams-btn{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:7px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#7d6849;touch-action:manipulation;}
 .sc-lbl.o{color:var(--o);}
@@ -128,7 +128,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .log-empty{padding:16px 14px;color:#7d6849;font-size:.78rem;text-align:center;}
 
 .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
-.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#3a2f1f;min-height:48px;touch-action:manipulation;}
+.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
 /* Extra padding so last player row is never hidden by bottom-bar */
 main, body{padding-bottom:80px;}
@@ -151,7 +151,7 @@ main, body{padding-bottom:80px;}
 .mvp-info-name{font-weight:700;font-size:.95rem;color:#8a6800;}
 .dialog-actions{display:flex;gap:8px;margin-top:14px;}
 .dia-cancel{flex:0 0 auto;padding:12px 16px;border-radius:9px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.82rem;cursor:pointer;}
-.dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#3a2f1f;background:linear-gradient(135deg,#1a3a2a,var(--g));}
+.dia-confirm{flex:1;padding:12px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;border:1px solid var(--g);color:#fff;background:linear-gradient(135deg,#1a3a2a,var(--g));}
 
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#fdf3df;border:1px solid var(--accent);color:#3a2f1f;padding:8px 16px;border-radius:9px;font-size:.82rem;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999;white-space:nowrap;}
 .toast.show{opacity:1;}
@@ -178,7 +178,7 @@ main, body{padding-bottom:80px;}
 .reset-sub{font-size:.8rem;color:#6b5840;margin-bottom:20px;line-height:1.5;}
 .reset-actions{display:flex;gap:8px;}
 .reset-cancel{flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.88rem;touch-action:manipulation;}
-.reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
+.reset-confirm{flex:1;padding:13px;border-radius:9px;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1.5px;touch-action:manipulation;}
 .result-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;}
 .result-overlay.show{display:flex;}
 .result-box{background:#fff8ed;width:100%;max-width:400px;border-radius:16px;border:1px solid #28a745;padding:22px;text-align:center;}
@@ -229,8 +229,8 @@ main, body{padding-bottom:80px;}
 .uf-team-lbl{font-size:.68rem;font-weight:700;margin-bottom:2px;}
 .uf-question{font-size:.78rem;color:#7d6849;text-align:center;padding:0 16px 12px;line-height:1.5;}
 .uf-actions{display:flex;flex-direction:column;gap:8px;padding:0 16px 16px;}
-.uf-btn-confirm{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#3a2f1f;touch-action:manipulation;}
-.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#3a2f1f;touch-action:manipulation;}
+.uf-btn-confirm{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:1px solid #c62828;color:#fff;touch-action:manipulation;}
+.uf-btn-penalty{padding:14px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:1px solid #28a745;color:#fff;touch-action:manipulation;}
 .add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
 .add-temp-overlay.show{display:flex;}
 .add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
@@ -241,9 +241,9 @@ main, body{padding-bottom:80px;}
 .round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;}
 .rd-hd{background:linear-gradient(135deg,#1a0050,#3d006a);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;}
 .rd-hd-left{flex:1;}
-.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
+.rd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
 .rd-sub{font-size:.65rem;color:rgba(255,255,255,.45);margin-top:1px;}
-.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#3a2f1f;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
+.rd-close{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;touch-action:manipulation;}
 .rd-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:16px 20px;background:#fffaf0;border-bottom:1px solid #e3d3ac;}
 .rd-team{text-align:center;flex:1;}
 .rd-team-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;}
@@ -286,7 +286,7 @@ main, body{padding-bottom:80px;}
 .penalty-overlay.show{display:flex;}
 .penalty-box{display:flex;flex-direction:column;width:100%;height:100dvh;overflow:hidden;background:#f3e6cf;}
 .penalty-hd{background:linear-gradient(135deg,#7b1010,#c62828);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;}
-.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
+.penalty-hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#fff;}
 .penalty-hd-sub{font-size:.62rem;color:rgba(255,255,255,.6);margin-top:1px;}
 .penalty-score-row{display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:#fffaf0;border-bottom:1px solid #e3d3ac;flex-shrink:0;}
 .pen-team-score{text-align:center;flex:1;}
@@ -303,8 +303,8 @@ main, body{padding-bottom:80px;}
 .penalty-kicker-name{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:3px;color:#3a2f1f;margin-bottom:8px;line-height:1.1;}
 .penalty-kicker-team{font-size:.78rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block;}
 .penalty-btns{display:flex;gap:10px;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));flex-shrink:0;}
-.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#3a2f1f;touch-action:manipulation;}
-.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#3a2f1f;touch-action:manipulation;}
+.penalty-btn-goal{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#1a3a1a,#28a745);border:2px solid #28a745;color:#fff;touch-action:manipulation;}
+.penalty-btn-miss{flex:1;padding:24px 10px;border-radius:14px;font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;cursor:pointer;background:linear-gradient(135deg,#3a1a1a,#c62828);border:2px solid #c62828;color:#fff;touch-action:manipulation;}
 .penalty-btn-goal:active,.penalty-btn-miss:active{opacity:.8;}
 .penalty-kicker-list{padding:0 16px 8px;flex-shrink:0;max-height:140px;overflow-y:auto;}
 .pen-list-section{font-size:.58rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;padding:4px 0 3px;}
@@ -2765,7 +2765,7 @@ init();
         <div class="penalty-hd-title">⚽ Penaltyuri</div>
         <div class="penalty-hd-sub" id="penSubtitle">Selecție lovitori</div>
       </div>
-      <button onclick="closePenalty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#3a2f1f;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.85rem;">✕</button>
+      <button onclick="closePenalty()" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:.85rem;">✕</button>
     </div>
     <div id="penaltyContent"></div>
   </div>
@@ -2777,12 +2777,12 @@ init();
   <div style="background:#fff8ed;width:100%;max-width:520px;border-radius:16px;border:1px solid #7c4dff;padding:0;max-height:88vh;max-height:88dvh;overflow-y:auto;">
     <div style="background:linear-gradient(135deg,#ede3fa,#8e3a9e);padding:14px 18px;border-radius:16px 16px 0 0;">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:#3a2f1f;" id="rotConfirmTitle">🔄 Schimb Echipă?</div>
-      <div style="font-size:.72rem;color:rgba(255,255,255,.5);margin-top:2px;" id="rotConfirmSub"></div>
+      <div style="font-size:.72rem;color:rgba(58,47,31,.65);margin-top:2px;" id="rotConfirmSub"></div>
     </div>
     <div style="padding:14px 18px;" id="rotConfirmBody"></div>
     <div style="display:flex;gap:8px;padding:0 18px 18px;">
       <button onclick="cancelRotConfirm()" style="flex:1;padding:13px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;font-size:.85rem;touch-action:manipulation;">✕ Nu acum</button>
-      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#3a2f1f;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
+      <button onclick="doConfirmedRotation()" id="rotConfirmBtn" style="flex:2;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a0050,#7c4dff);border:1px solid #7c4dff;color:#fff;touch-action:manipulation;">🔄 Confirmă Schimbul</button>
     </div>
   </div>
 </div>
@@ -2891,7 +2891,7 @@ init();
     <div id="codeAuthErr" style="font-size:.68rem;color:#b71c1c;min-height:16px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;">
       <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
-      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#3a2f1f;">✓ Autentifică</button>
+      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
     </div>
   </div>
 </div>
