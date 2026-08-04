@@ -42,6 +42,8 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .timer-display{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#3a2f1f;letter-spacing:3px;min-width:60px;}
 .timer-display.running{color:#1b7a43;}
 .timer-display.paused{color:#8a6800;}
+#pauseBanner{background:linear-gradient(135deg,#fff3cd,#ffe69c);border-top:1px solid #e0b400;border-bottom:1px solid #e0b400;color:#7a5c00;text-align:center;padding:7px 10px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:3px;animation:pauseBlink 1.6s ease-in-out infinite;}
+@keyframes pauseBlink{0%,100%{opacity:1;}50%{opacity:.55;}}
 .half-badge{font-size:.62rem;color:#7d6849;flex:1;}
 
 .score-wrap{background:#f3e6cf;border-bottom:2px solid var(--b);padding:10px 12px 4px;}
@@ -85,10 +87,10 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#3a2f1f;}
 
-.universal-undo-btn{position:fixed;right:14px;bottom:calc(64px + max(8px,env(safe-area-inset-bottom)));z-index:500;display:none;flex-direction:column;align-items:flex-end;gap:2px;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:10px 14px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.35);cursor:pointer;touch-action:manipulation;max-width:min(78vw,320px);}
+.universal-undo-btn{display:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;flex:0 0 auto;max-width:44%;overflow:hidden;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:6px 12px;border-radius:9px;box-shadow:0 2px 6px rgba(0,0,0,.12);cursor:pointer;touch-action:manipulation;min-height:44px;}
 .universal-undo-btn.show{display:flex;}
-.universal-undo-btn .uu-main{font-size:.82rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
-.universal-undo-btn .uu-sub{font-size:.62rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.universal-undo-btn .uu-main{font-size:.72rem;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.universal-undo-btn .uu-sub{font-size:.6rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .universal-undo-btn:active{transform:scale(.96);}
 
 .teams-wrap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
@@ -373,6 +375,8 @@ main, body{padding-bottom:80px;}
   </div>
 </div>
 
+<div id="pauseBanner" style="display:none;">⏸ MECI ÎN PAUZĂ</div>
+
 <div class="score-wrap">
   <div class="score-row">
     <div class="sc-side"><div class="sc-lbl" id="lblO">Portocaliu</div><div class="sc-n" id="scoreO" style="color:var(--o)">0</div></div>
@@ -443,6 +447,10 @@ main, body{padding-bottom:80px;}
 </div>
 
 <div class="bottom-bar">
+  <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
+    <span class="uu-main">↩ Anulează</span>
+    <span class="uu-sub" id="universalUndoSub"></span>
+  </button>
   <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
 </div>
 
@@ -450,11 +458,6 @@ main, body{padding-bottom:80px;}
   <div class="dialog-box" id="dialogBox"></div>
 </div>
 <div class="toast" id="toast"></div>
-
-<button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
-  <span class="uu-main">↩ Anulează ultima acțiune</span>
-  <span class="uu-sub" id="universalUndoSub"></span>
-</button>
 
 <script>
 const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
@@ -755,21 +758,25 @@ function applyTimerUI(st) {
     disp.textContent = fmtTimer(s);
     document.getElementById('halfBadge').textContent = Math.floor(s/60) >= 1 ? Math.floor(s/60)+"'" : '';
 
+    const pauseBanner = document.getElementById('pauseBanner');
     if (st.timer_status === 'running') {
         btn.textContent = '⏸ Pauză'; btn.className = 'timer-btn pause';
         disp.className = 'timer-display running';
         startLocalTimerTick();
         scheduleRoundTimeout(st);
+        if (pauseBanner) pauseBanner.style.display = 'none';
     } else if (st.timer_status === 'paused') {
         btn.textContent = '▶ Continuă'; btn.className = 'timer-btn resume';
         disp.className = 'timer-display paused';
         stopLocalTimerTick();
         cancelRoundTimeout();
+        if (pauseBanner) pauseBanner.style.display = 'block';
     } else {
         btn.textContent = '▶ Start Meci'; btn.className = 'timer-btn start';
         disp.className = 'timer-display';
         stopLocalTimerTick();
         cancelRoundTimeout();
+        if (pauseBanner) pauseBanner.style.display = 'none';
     }
 }
 
@@ -1295,18 +1302,22 @@ function render() {
         const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const bench = players.filter(p => p.status === 'bench');
 
+        // Meciul nu a început încă (Start Meci neapăsat) — blocăm adăugarea de goluri
+        const matchStarted = !!liveState?.match_started_at;
+
         // Mark temp players in rows
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
             const isTemp = !!p._temp;
             const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#8a6307;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
             const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#6b5840;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
+            const plusDisabled = matchStarted ? '' : 'disabled style="opacity:.3;pointer-events:none;" title="Apasă ▶ Start Meci mai întâi"';
             return '<div class="pr">'
                 + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}">${p.name}${tempBadge}</div>`
                 + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
-                + `<button class="pr-plus" onclick="confirmGoal('${p.name}','${team}')">+</button>`
+                + `<button class="pr-plus" ${plusDisabled} onclick="confirmGoal('${p.name}','${team}')">+</button>`
                 + '</div>';
         }).join('');
 
@@ -1622,6 +1633,11 @@ let _pendingGoal = null;
 
 function confirmGoal(name, team) {
     if (_goalBusy) return;
+    if (!liveState?.match_started_at) {
+        showToast('⏱ Apasă mai întâi ▶ Start Meci');
+        if (navigator.vibrate) navigator.vibrate(60);
+        return;
+    }
     _pendingGoal = { name, team };
     const hex = getTeamHex(team);
     const tName = getTeamName(team);
