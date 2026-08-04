@@ -96,8 +96,8 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .teams-wrap{display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
 .team-col{padding:4px 3px 6px;}
 .team-col.o-col{border-right:1px solid var(--b);}
-.team-hd{display:flex;align-items:baseline;justify-content:space-between;padding:3px 3px 5px;border-bottom:1px solid #f1e4c8;margin-bottom:3px;}
-.team-hd-lbl{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1.5px;}
+.team-hd{display:flex;align-items:baseline;justify-content:space-between;padding:3px 3px 5px;border-bottom:1px solid #f1e4c8;margin-bottom:3px;gap:4px;}
+.team-hd-lbl{font-family:'Bebas Neue',sans-serif;font-size:.78rem;letter-spacing:1.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex-shrink:1;}
 .team-hd-lbl.o{color:var(--o);}
 .team-hd-lbl.g{color:var(--g);}
 .team-hd-cnt{font-size:.58rem;color:#7d6849;}
@@ -163,9 +163,9 @@ main, body{padding-bottom:80px;}
 .three-mode-bar{background:#fffaf0;border-top:2px solid #9c27b0;padding:10px 14px;display:none;}
 .three-mode-bar.show{display:block;}
 .waiting-team{background:linear-gradient(135deg,#1a0050,#2d006a);border:2px dashed #7c4dff;border-radius:12px;padding:10px;margin-bottom:6px;}
-.waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#8e3a9e;}
-.swap-btn{padding:5px 12px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.waiting-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;}
+.waiting-lbl{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#8e3a9e;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.swap-btn{padding:5px 10px;border-radius:7px;font-size:.72rem;font-weight:700;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:34vw;flex-shrink:1;}
 .swap-o{background:rgba(255,140,0,.2);color:var(--o);border:1px solid rgba(255,140,0,.4)!important;}
 .swap-g{background:rgba(40,167,69,.2);color:var(--g);border:1px solid rgba(40,167,69,.4)!important;}
 .threshold-row{display:flex;align-items:center;gap:8px;padding:6px 0;}
@@ -369,7 +369,8 @@ main, body{padding-bottom:80px;}
   <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
-  <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;margin-left:auto;">
+  <button id="statsBtn" onclick="openLiveStats()" style="margin-left:auto;padding:5px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(21,84,179,.12);border:1px solid #1554b3;color:#1554b3;touch-action:manipulation;white-space:nowrap;min-height:34px;flex-shrink:0;">📊 Stats</button>
+  <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;">
     <div style="width:1px;height:18px;background:#e3d3ac;margin:0 2px;"></div>
     <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#b71c1c;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
@@ -387,20 +388,6 @@ main, body{padding-bottom:80px;}
     <div class="sc-side right"><div class="sc-lbl" id="lblG">Verde</div><div class="sc-n" id="scoreG" style="color:var(--g)">0</div></div>
   </div>
   <div class="score-sub" id="scoreSub"></div>
-</div>
-
-<div class="three-mode-bar" id="threeBar">
-  <!-- Waiting team row -->
-  <div class="waiting-team">
-    <div class="waiting-hd">
-      <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
-      <div style="display:flex;gap:5px;align-items:center;">
-        <button class="swap-btn swap-o" onclick="manualSwap('orange')" id="swapBtnO">↔ O</button>
-        <button class="swap-btn swap-g" onclick="manualSwap('green')" id="swapBtnG">↔ G</button>
-      </div>
-    </div>
-    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
-  </div>
 </div>
 
 <div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
@@ -427,6 +414,21 @@ main, body{padding-bottom:80px;}
       <span class="thr-val" id="timeLimitVal" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#1554b3;min-width:26px;text-align:center;">10</span>
       <button class="thr-btn" onclick="changeTimeLimitMin(1)">+</button>
     </div>
+  </div>
+</div>
+
+<!-- Echipa de pe bancă — mutată sub setările Schimb/Max min, ca cele 2 echipe active
+     + cronometrul să rămână mereu vizibile pe ecran fără scroll -->
+<div class="three-mode-bar" id="threeBar">
+  <div class="waiting-team">
+    <div class="waiting-hd">
+      <span class="waiting-lbl" id="waitingLbl">⏳ Echipa în Așteptare</span>
+      <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;">
+        <button class="swap-btn swap-o" onclick="manualSwap('orange')" id="swapBtnO">↔ O</button>
+        <button class="swap-btn swap-g" onclick="manualSwap('green')" id="swapBtnG">↔ G</button>
+      </div>
+    </div>
+    <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
   </div>
 </div>
 
@@ -1832,6 +1834,90 @@ function buildPairs(allRounds) {
         a_players: [...p.a_players],
         b_players: [...p.b_players]
     }));
+}
+
+// ── Statistici Live (marcatori + timp pe teren) ────────────────────
+function computeLiveStats() {
+    const mode = getThreeTeamMode();
+    let allRoundsForStats = [];
+    if (mode) {
+        allRoundsForStats = rounds.map(r => ({...r}));
+        const roundG = getRoundGoals();
+        const oG = roundG.filter(g=>g.team==='orange').length;
+        const gG = roundG.filter(g=>g.team==='green').length;
+        if (oG>0 || gG>0) {
+            allRoundsForStats.push({
+                team_a_id: getTeamIdByColor('orange')||'teamA',
+                team_b_id: getTeamIdByColor('green')||'teamB',
+                goals: roundG,
+                duration_sec: calcRoundElapsedSec(liveState),
+            });
+        }
+    }
+
+    // Marcatori (cumulat pe tot meciul, inclusiv turele deja încheiate)
+    const scorerMap = {};
+    const trackGoal = (g) => {
+        if (!scorerMap[g.player_name]) scorerMap[g.player_name] = { count:0, team:g.team };
+        scorerMap[g.player_name].count++;
+        scorerMap[g.player_name].team = g.team;
+    };
+    if (mode) {
+        allRoundsForStats.forEach(r => (r.goals||[]).forEach(trackGoal));
+    } else {
+        goals.filter(g=>!String(g.id).startsWith('tmp_')).forEach(trackGoal);
+    }
+    const scorers = Object.entries(scorerMap)
+        .map(([name,d])=>({name, count:d.count, team:d.team}))
+        .sort((a,b)=>b.count-a.count);
+
+    // Timp petrecut pe teren, per echipă
+    const timeMap = {};
+    const addTime = (tid, sec) => { if(!tid) return; timeMap[tid]=(timeMap[tid]||0)+Math.max(0,sec||0); };
+    if (mode) {
+        allRoundsForStats.forEach(r => { addTime(r.team_a_id, r.duration_sec); addTime(r.team_b_id, r.duration_sec); });
+    } else {
+        const sec = calcElapsedSec(liveState);
+        addTime(getTeamIdByColor('orange'), sec);
+        addTime(getTeamIdByColor('green'), sec);
+    }
+    const teamTimes = Object.entries(timeMap)
+        .map(([tid,sec])=>({tid, name:getTeamNameById(tid), hex:getTeamHexById(tid), sec}))
+        .sort((a,b)=>b.sec-a.sec);
+
+    return { scorers, teamTimes };
+}
+
+function fmtMinSec(totalSec){
+    const m = Math.floor(totalSec/60), s = Math.floor(totalSec%60);
+    return m+':'+String(s).padStart(2,'0');
+}
+
+function openLiveStats(){
+    const { scorers, teamTimes } = computeLiveStats();
+    const maxSec = teamTimes.length ? teamTimes[0].sec : 1;
+    const timeHtml = teamTimes.length
+        ? teamTimes.map((t,i)=>{
+            const pct = maxSec>0 ? Math.round((t.sec/maxSec)*100) : 0;
+            return '<div style="margin-bottom:10px;">'
+                + '<div style="display:flex;justify-content:space-between;font-size:.78rem;font-weight:700;margin-bottom:3px;"><span style="color:'+t.hex+'">'+(i===0?'👑 ':'')+t.name+'</span><span>'+fmtMinSec(t.sec)+'</span></div>'
+                + '<div style="background:#f1e4c8;border-radius:6px;height:8px;overflow:hidden;"><div style="width:'+pct+'%;height:100%;background:'+t.hex+';"></div></div>'
+                + '</div>';
+        }).join('')
+        : '<div style="color:#7d6849;font-size:.78rem;">Niciun minut jucat încă.</div>';
+    const scorersHtml = scorers.length
+        ? scorers.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(s.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals">'+s.count+'⚽</span></div>').join('')
+        : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun gol încă.</div>';
+    document.getElementById('dialogBox').innerHTML =
+        '<div class="dialog-title">📊 Statistici Live</div>'
+        + '<div class="dialog-section">⏱ Timp pe teren</div>'
+        + '<div>' + timeHtml + '</div>'
+        + '<div class="dialog-section">⚽ Marcatori</div>'
+        + '<div>' + scorersHtml + '</div>'
+        + '<div class="dialog-actions">'
+        + '<button class="dia-cancel" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
+        + '</div>';
+    document.getElementById('dialogOverlay').classList.add('show');
 }
 
 function openFinalize() {
