@@ -362,7 +362,7 @@ main, body{padding-bottom:80px;}
     <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
     <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
     <button class="hd-key-btn" id="swapTeamsBtn" onclick="swapTeams()" title="Schimbă echipele între ele" style="display:none;">⇄</button>
-    <button class="icon-btn" id="threeBtn" onclick="toggleThreeTeam()" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;">3️⃣</button>
+    <button class="icon-btn" id="threeBtn" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;cursor:default;" title="Modul (2/3 echipe) se setează din pagina principală, la Start Meci — nu se poate schimba din Live.">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
 </div>
@@ -764,6 +764,8 @@ function applyTimerUI(st) {
     document.getElementById('halfBadge').textContent = Math.floor(s/60) >= 1 ? Math.floor(s/60)+"'" : '';
 
     const pauseBanner = document.getElementById('pauseBanner');
+    const threeBtn = document.getElementById('threeBtn');
+    if (threeBtn) { threeBtn.disabled = true; threeBtn.style.cursor = 'default'; }
     if (st.timer_status === 'running') {
         btn.textContent = '⏸ Pauză'; btn.className = 'timer-btn pause';
         disp.className = 'timer-display running';
@@ -952,39 +954,14 @@ function getRoundConceded() {
 }
 
 // ── 3-team toggle ─────────────────────────────────────────────────
+// Modul (2/3 echipe) NU se mai poate schimba din pagina Live, niciodată — nici
+// măcar înainte de Start Meci. Schimbarea, la orice moment, reamesteca identitatea
+// echipelor (color_map), cauzând bug-ul "VERDE vs NEGRU" devenit "VERDE vs PORTOCALIU".
+// Modul se decide o singură dată, din index.html, la "▶ Start Meci — Deschide Live".
 async function toggleThreeTeam() {
-    if (!liveState) return;
-    const newMode = !liveState.three_team_mode;
-    const btn = document.getElementById('threeBtn');
-
-    if (newMode) {
-        const orange = players.filter(p => p.status === 'orange');
-        const green  = players.filter(p => p.status === 'green');
-        const bench  = players.filter(p => p.status === 'bench');
-        if (!orange.length && !green.length) {
-            showToast('⚠️ Setează jucătorii pe echipe mai întâi!'); return;
-        }
-        const colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
-        await patchState({
-            three_team_mode: true,
-            color_map: colorMap,
-            round_start_sec: calcElapsedSec(liveState),
-        });
-        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
-        scheduleRoundTimeout(liveState);
-    } else {
-        await patchState({
-            three_team_mode: false,
-            color_map: {},
-            round_start_sec: 0,
-        });
-        await sb.from('live_rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        rounds = [];
-        if (btn) { btn.style.background='rgba(124,77,255,.15)'; btn.style.color='#8e3a9e'; }
-        cancelRoundTimeout();
-    }
-    render();
-    applyTimerUI(liveState);
+    showToast('🔒 Modul (2/3 echipe) se schimbă doar din pagina principală, la Start Meci');
+    if (navigator.vibrate) navigator.vibrate(60);
+    return;
 }
 
 async function changeThreshold(d) {
