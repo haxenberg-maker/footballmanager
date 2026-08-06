@@ -2537,7 +2537,13 @@ async function doReset() {
         await Promise.all([
             sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
             sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null}),
+            // IMPORTANT: NU atingem three_team_mode / color_map aici — ele descriu identitatea
+            // reală a echipelor (cine e Portocaliu/Verde/Negru și pe ce poziție). Ștergerea lor
+            // la reset cauza exact bug-ul "NEGRU devine VERDE": fără color_map, aplicația
+            // cădea pe maparea implicită (orange→Portocaliu, green→Verde), care nu mai
+            // corespundea cu echipele reale aflate pe teren după rotații anterioare.
+            // Reset trebuie să șteargă doar scorul/cronometrul, nu echipele.
+            patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,round_start_sec:0,match_started_at:null}),
         ]);
         rounds=[]; goals=[];
         render(); applyTimerUI(liveState);
