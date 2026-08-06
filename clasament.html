@@ -449,6 +449,65 @@ function renderSessionCard(rows){
     </div>`;
 }
 
+// ── Reconstrucție goluri-pe-tură pentru meciuri VECHI (salvate înainte ca
+// live.html să înceapă să salveze r.goals direct) ──────────────────────────
+// Avem tot ce ne trebuie ca să deducem, per sesiune de 3 echipe:
+//  • fiecare tură are un `num` GLOBAL, secvențial pe toată sesiunea (nu per
+//    pereche) — deci putem sorta TOATE turele din sesiune în ordine reală
+//  • fiecare tură are `duration_sec` → cumulativ, obținem fereastra ei de
+//    timp [start,stop) în sesiune
+//  • fiecare gol are `minute` = minutul absolut (din startul meciului) la
+//    care a fost marcat
+// Combinând astea, plasăm fiecare gol exact în tura a cărei fereastră de
+// timp îl conține. Golurile reconstruite sunt marcate cu `_reconstructed`
+// ca UI-ul să poată nota că sunt deduse, nu înregistrate direct pe tură.
+function backfillSessionRoundGoals(sessionRows) {
+    const needsBackfill = sessionRows.some(h => (h.roundsDetail||[]).some(r => !Array.isArray(r.goals)));
+    if (!needsBackfill) return;
+
+    // 1) Toate turele sesiunii (din toate perechile), sortate după num-ul global
+    const allRounds = [];
+    sessionRows.forEach(h => (h.roundsDetail||[]).forEach(r => allRounds.push(r)));
+    allRounds.sort((a,b) => (a.num||0) - (b.num||0));
+    if (!allRounds.length) return;
+
+    // 2) Fereastra de timp cumulativă [startSec, endSec) a fiecărei ture
+    let cursor = 0;
+    allRounds.forEach(r => {
+        r._startSec = cursor;
+        r._endSec   = cursor + (r.duration_sec || 0);
+        cursor = r._endSec;
+    });
+
+    // 3) Toate golurile normale (ne-penalty) din toate perechile sesiunii
+    const allGoals = [];
+    sessionRows.forEach(h => (h.goalsList||[]).forEach(g => {
+        if (g.is_penalty || g.minute == null) return;
+        allGoals.push({ player_name: g.player_name, team: g.team, minute: g.minute });
+    }));
+
+    // 4) Plasăm fiecare gol în tura a cărei fereastră de timp îl conține
+    //    (aproximare la minut întreg — tolerabilă, turele durează minute întregi)
+    allGoals.forEach(g => {
+        const sec = g.minute * 60;
+        let target = allRounds.find(r => sec >= r._startSec && sec < r._endSec);
+        if (!target) { // fallback: tura cu marginea cea mai apropiată (rotunjiri la limită)
+            target = allRounds.reduce((best, r) => {
+                const d = Math.min(Math.abs(sec-r._startSec), Math.abs(sec-r._endSec));
+                return (!best || d < best._d) ? { r, _d: d } : best;
+            }, null)?.r;
+        }
+        if (target) {
+            if (!Array.isArray(target.goals)) target.goals = [];
+            target.goals.push({ player_name: g.player_name, team: g.team, minute: g.minute, _reconstructed: true });
+        }
+    });
+
+    // Turele fără niciun gol găsit rămân cu listă goală (nu null) — UI-ul distinge
+    // corect "0 goluri" de "date indisponibile"
+    allRounds.forEach(r => { if (!Array.isArray(r.goals)) r.goals = []; delete r._startSec; delete r._endSec; });
+}
+
 // Detaliu bogat la click pe un MECI (simplu, 2 echipe) sau pe o TURĂ/pereche
 // dintr-o sesiune 3 echipe — arată timp jucat + fiecare gol, pe tură/pe meci,
 // la fel cum se vede în Live.
@@ -469,13 +528,14 @@ function openMatchDetail(dbId){
 
         const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
         const anyGoalsData = h.roundsDetail.some(r=>Array.isArray(r.goals));
+        const anyReconstructed = h.roundsDetail.some(r=>(r.goals||[]).some(g=>g._reconstructed));
         const turHtml = h.roundsDetail.map(r=>{
             const dm = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
             const ds = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
             const goalsHtml = Array.isArray(r.goals) && r.goals.length
-                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}</span>`:''}</div>`).join('')
-                : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile (meci salvat înainte de update)'}</div>`;
+                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
+                : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
             return `<div style="padding:7px 0;border-bottom:1px solid #e3d3ac;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#3a2f1f;">
                     <span>Tur ${r.num}</span>
@@ -484,7 +544,7 @@ function openMatchDetail(dbId){
                 <div style="margin-top:3px;">${goalsHtml}</div>
             </div>`;
         }).join('');
-        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}</div>`;
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#a8916b;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}</div>`;
     } else {
         // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
         const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
@@ -1301,6 +1361,12 @@ async function loadAll(){
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
             };
         }).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
+
+        // Reconstituim golurile-pe-tură pentru sesiunile vechi (salvate înainte
+        // de update-ul care le salvează direct) — vezi backfillSessionRoundGoals().
+        groupHistoryForDisplay(db.history)
+            .filter(item => item.type === 'session')
+            .forEach(item => backfillSessionRoundGoals(item.rows));
 
         // ── Construiește lista de sezoane arhivate (cele mai recente primele) ──
         const seasonLatestDate = new Map();
