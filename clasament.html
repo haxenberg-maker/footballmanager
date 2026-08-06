@@ -1323,9 +1323,9 @@ async function loadAll(){
         let goalsPerMatch = {};
         try{
             let allGoals = null;
-            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
+            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty,minute');
             if (withPen.error) {
-                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
+                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals,minute');
                 allGoals = noPen.data;
             } else {
                 allGoals = withPen.data;
