@@ -2167,6 +2167,12 @@ async function finalizeMatch3Team(pairs) {
                     penalty_shots: r.end_reason === 'penalty' && Array.isArray(r.penalty_shots)
                         ? r.penalty_shots.map(s => ({ ...s, team: remapPenTeam(s.team) }))
                         : null,
+                    // Golurile marcate ÎN ACEASTĂ TURĂ, remapate la culoarea canonică a
+                    // rândului de istoric (colA/colB) — necesar pentru a arăta în clasament
+                    // exact ca la live: cine a marcat, în ce tură, la ce minut.
+                    goals: Array.isArray(r.goals)
+                        ? r.goals.map(g => ({ player_name: g.player_name, team: remapPenTeam(g.team), minute: g.minute ?? null }))
+                        : [],
                 };
             });
 
