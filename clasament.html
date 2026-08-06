@@ -361,7 +361,7 @@ function renderSingleMatchCard(h){
                    : _ws === 'black'  ? teamColorsPublic.black
                    : '#7d6849';
     const { teamsHTML, topScorerHTML } = renderPairBodyPublic(h);
-    return `<div class="match-card">
+    return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
             <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat</div>
@@ -449,18 +449,67 @@ function renderSessionCard(rows){
     </div>`;
 }
 
-// Detaliu simplu la click pe un rând din timeline — arată echipele + golgheterul acelei perechi
+// Detaliu bogat la click pe un MECI (simplu, 2 echipe) sau pe o TURĂ/pereche
+// dintr-o sesiune 3 echipe — arată timp jucat + fiecare gol, pe tură/pe meci,
+// la fel cum se vede în Live.
 function openMatchDetail(dbId){
     const h = db.history.find(x=>String(x._dbId)===String(dbId));
     if(!h) return;
     const { teamsHTML, topScorerHTML } = renderPairBodyPublic(h);
+    const hasRounds = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+    const teamHex = (col) => col==='orange'?teamColorsPublic.orange:col==='green'?teamColorsPublic.green:teamColorsPublic.black;
+
+    let extraHtml = '';
+    if (hasRounds) {
+        // ── Meci 3 echipe: o "tură" = un rând din rounds_detail. Ambele echipe
+        // ale acestei perechi au jucat exact aceleași ture, deci timpul e comun.
+        const totalSec = h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0),0);
+        const mm = Math.floor(totalSec/60), ss = totalSec%60;
+        extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}</div>`;
+
+        const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
+        const anyGoalsData = h.roundsDetail.some(r=>Array.isArray(r.goals));
+        const turHtml = h.roundsDetail.map(r=>{
+            const dm = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
+            const ds = r.duration_sec ? r.duration_sec%60 : 0;
+            const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
+            const goalsHtml = Array.isArray(r.goals) && r.goals.length
+                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}</span>`:''}</div>`).join('')
+                : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile (meci salvat înainte de update)'}</div>`;
+            return `<div style="padding:7px 0;border-bottom:1px solid #e3d3ac;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#3a2f1f;">
+                    <span>Tur ${r.num}</span>
+                    <span style="font-weight:400;color:#7d6849;">${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span>
+                </div>
+                <div style="margin-top:3px;">${goalsHtml}</div>
+            </div>`;
+        }).join('');
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}</div>`;
+    } else {
+        // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
+        const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
+        if (totalSec != null) {
+            const mm = Math.floor(totalSec/60), ss = totalSec%60;
+            extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)</div>`;
+        }
+        const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
+        const goalsHtml = normalGoals.length
+            ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1e4c8;font-size:.72rem;">
+                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}</span>
+                <span style="color:#7d6849;">${g.minute!=null?`min ${g.minute}`:''}</span>
+            </div>`).join('')
+            : `<div style="font-size:.7rem;color:#a8916b;padding:4px 0;">Niciun gol înregistrat.</div>`;
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}</div>`;
+    }
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:18px;max-width:360px;width:100%;max-height:80vh;overflow:auto;">
-        <div style="font-size:.68rem;color:#7d6849;margin-bottom:4px;">${h.date||'—'} · ture ${h.score||'—'}</div>
+    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
+        <div style="font-size:.68rem;color:#7d6849;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
         <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">${teamsHTML}</div>
         ${topScorerHTML}
+        ${extraHtml}
         <button id="matchDetailCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
     </div>`;
     overlay.querySelector('#matchDetailCloseBtn').onclick = ()=>overlay.remove();
@@ -1248,7 +1297,8 @@ async function loadAll(){
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
                 roundsDetail: h.rounds_detail||null, playerGoals, playerPenaltyGoals, topScorer, teamGoals,
-                season: h.season||null, createdAt: h.created_at||null
+                season: h.season||null, createdAt: h.created_at||null,
+                startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
             };
         }).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
 
