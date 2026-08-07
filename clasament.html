@@ -453,18 +453,26 @@ function renderSessionCard(rows){
         (h.greenPlayers ||[]).forEach(n=>{ playerTeamName[n]='Verde'; });
         (h.blackPlayers ||[]).forEach(n=>{ playerTeamName[n]='Negru'; });
     });
-    const topScorersList = Object.entries(totalGoals)
-        .map(([name,goals]) => ({ name, goals, team: playerTeamName[name] }))
-        .filter(s => s.goals > 0)
-        .sort((a,b) => b.goals - a.goals)
-        .slice(0, 5);
-    const topScorersHtml = topScorersList.map((s,i) =>
-        `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
+    // Sortare: mai întâi goluri, apoi (la egalitate) minutele jucate — evită
+    // ordinea arbitrară când doi jucători au același număr de goluri.
+    const allPlayerNames = new Set([...Object.keys(playerTeamName), ...Object.keys(totalGoals)]);
+    const allScorersList = [...allPlayerNames].map(name => ({
+        name,
+        goals: totalGoals[name] || 0,
+        minutes: Math.round((totalSeconds[name]||0) / 60),
+        team: playerTeamName[name],
+    })).sort((a,b) => b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name));
+    const topScorersList  = allScorersList.filter(s => s.goals > 0).slice(0, 5);
+    const restScorersList = allScorersList.slice(topScorersList.length); // restul (inclusiv cei cu 0 goluri), pentru "Vezi mai mult"
+    const scorerRowHtml = (s,i) => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
             <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#3a2f1f'};flex-shrink:0;"></span>
             <span style="flex:1;font-weight:700;color:#3a2f1f;">${i===0?'🥇 ':''}${s.name}</span>
+            <span style="font-size:.64rem;color:#7d6849;margin-right:2px;">${s.minutes} min</span>
             <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#3a2f1f;">${s.goals}⚽</span>
-        </div>`
-    ).join('');
+        </div>`;
+    const topScorersHtml = topScorersList.map((s,i) => scorerRowHtml(s,i)).join('');
+    const restScorersHtml = restScorersList.map((s,i) => scorerRowHtml(s,i+topScorersList.length)).join('');
+    const scorersDomId = 'sessScorers_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
 
     // Timeline vizual — un rând per pereche, în ordine cronologică
     const timelineHTML = chrono.map((h,idx) => {
