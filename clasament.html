@@ -392,7 +392,12 @@ function renderSessionCard(rows){
     const totalSeconds = {};
     chrono.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
-        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[])]);
+        // IMPORTANT: o pereche poate fi Portocaliu-Verde, Portocaliu-Negru SAU
+        // Verde-Negru — deci trebuie incluse toate cele 3 liste (cea a echipei
+        // care NU joacă în perechea asta e oricum goală). Includerea doar a
+        // orange+green lăsa afară minutele jucătorilor de pe Negru ori de câte
+        // ori Negru era una din cele 2 echipe active ale perechii.
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
 
@@ -422,6 +427,56 @@ function renderSessionCard(rows){
         `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span>`
     ).join('<span style="color:#c9b587;margin:0 6px;">·</span>');
 
+    // ── ⏱ Timp pe teren, per echipă (ca la Live → 📊 Stats) ──────────────
+    const teamSeconds = {};
+    chrono.forEach(h => {
+        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        getRowTeamNames(h).forEach(t => { teamSeconds[t] = (teamSeconds[t]||0) + rowSeconds; });
+    });
+    const teamTimeList = Object.entries(teamSeconds)
+        .map(([name,sec]) => ({ name, sec, hex: standingColor[name] || '#3a2f1f' }))
+        .sort((a,b) => b.sec - a.sec);
+    const maxTeamSec = teamTimeList.length ? teamTimeList[0].sec : 1;
+    const teamTimeHtml = teamTimeList.map((t,i) => {
+        const mm = Math.floor(t.sec/60), ss = t.sec%60;
+        const pct = maxTeamSec>0 ? Math.round((t.sec/maxTeamSec)*100) : 0;
+        return `<div style="margin-bottom:7px;">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;margin-bottom:2px;">
+                <span style="color:${t.hex};">${i===0?'👑 ':''}${t.name}</span>
+                <span style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</span>
+            </div>
+            <div style="background:#f1e4c8;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${t.hex};"></div></div>
+        </div>`;
+    }).join('');
+
+    // ── ⚽ Golgheteri pe toată sesiunea (nu doar MVP-ul, tot clasamentul) ──
+    const playerTeamName = {};
+    chrono.forEach(h => {
+        (h.orangePlayers||[]).forEach(n=>{ playerTeamName[n]='Portocaliu'; });
+        (h.greenPlayers ||[]).forEach(n=>{ playerTeamName[n]='Verde'; });
+        (h.blackPlayers ||[]).forEach(n=>{ playerTeamName[n]='Negru'; });
+    });
+    // Sortare: mai întâi goluri, apoi (la egalitate) minutele jucate — evită
+    // ordinea arbitrară când doi jucători au același număr de goluri.
+    const allPlayerNames = new Set([...Object.keys(playerTeamName), ...Object.keys(totalGoals)]);
+    const allScorersList = [...allPlayerNames].map(name => ({
+        name,
+        goals: totalGoals[name] || 0,
+        minutes: Math.round((totalSeconds[name]||0) / 60),
+        team: playerTeamName[name],
+    })).sort((a,b) => b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name));
+    const topScorersList  = allScorersList.filter(s => s.goals > 0).slice(0, 5);
+    const restScorersList = allScorersList.slice(topScorersList.length); // restul (inclusiv cei cu 0 goluri), pentru "Vezi mai mult"
+    const scorerRowHtml = (s,i) => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
+            <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#3a2f1f'};flex-shrink:0;"></span>
+            <span style="flex:1;font-weight:700;color:#3a2f1f;">${i===0?'🥇 ':''}${s.name}</span>
+            <span style="font-size:.64rem;color:#7d6849;margin-right:2px;">${s.minutes} min</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#3a2f1f;">${s.goals}⚽</span>
+        </div>`;
+    const topScorersHtml = topScorersList.map((s,i) => scorerRowHtml(s,i)).join('');
+    const restScorersHtml = restScorersList.map((s,i) => scorerRowHtml(s,i+topScorersList.length)).join('');
+    const scorersDomId = 'sessScorers_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
+
     // Timeline vizual — un rând per pereche, în ordine cronologică
     const timelineHTML = chrono.map((h,idx) => {
         const [tA,tB] = getRowTeamNames(h);
@@ -445,6 +500,16 @@ function renderSessionCard(rows){
         </div>
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
+            <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin:8px 0;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:6px;">⏱ Timp pe teren</div>
+                ${teamTimeHtml || '<div style="font-size:.7rem;color:#a8916b;">Indisponibil</div>'}
+            </div>
+            ${topScorersList.length ? `<div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
+                ${topScorersHtml}
+                ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
+                <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #d3bd8c;color:#7d6849;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
+            </div>` : ''}
             <div class="mc-badges">
                 ${sessionTop ? `<div class="mc-badge" style="background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);color:#1b7a43;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
                 ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#7d6849;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
@@ -453,6 +518,14 @@ function renderSessionCard(rows){
             <div class="mc-timeline">${timelineHTML}</div>
         </div>
     </div>`;
+}
+
+function toggleSessionScorers(id, btn, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const open = el.style.display === 'none';
+    el.style.display = open ? 'block' : 'none';
+    btn.textContent = open ? '▲ Vezi mai puțin' : `▼ Vezi mai mult (${count})`;
 }
 
 // ── Reconstrucție goluri-pe-tură pentru meciuri VECHI (salvate înainte ca
@@ -1462,8 +1535,12 @@ sb.channel('clasament-live')
     .on('postgres_changes',{event:'*',schema:'public',table:'match_goals'}, scheduleReload)
     .subscribe();
 
-// Fallback polling la fiecare 45s, pentru cazul în care realtime nu e activat pe proiect
-setInterval(()=>loadAll(), 45000);
+// Reîncărcarea live vine deja din subscripțiile realtime de mai sus (instant,
+// la orice schimbare reală în players/ratings/match_history/match_goals).
+// Acest interval e doar o plasă de siguranță, pentru cazul rar în care
+// conexiunea realtime pică — nu are rost să fie des, doar să prindă din urmă
+// eventualele evenimente ratate. La 45s crea reîncărcări inutile de dese.
+setInterval(()=>loadAll(), 5*60*1000); // la 5 minute
 
 // ── Mic helper de notificare (clasament.html nu avea unul) ─────────
 function showToast(msg){
