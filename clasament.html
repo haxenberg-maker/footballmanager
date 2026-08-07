@@ -386,7 +386,12 @@ function renderSessionCard(rows){
     const totalSeconds = {};
     chrono.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
-        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[])]);
+        // IMPORTANT: o pereche poate fi Portocaliu-Verde, Portocaliu-Negru SAU
+        // Verde-Negru — deci trebuie incluse toate cele 3 liste (cea a echipei
+        // care NU joacă în perechea asta e oricum goală). Includerea doar a
+        // orange+green lăsa afară minutele jucătorilor de pe Negru ori de câte
+        // ori Negru era una din cele 2 echipe active ale perechii.
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
 
@@ -1429,7 +1434,13 @@ sb.channel('clasament-live')
     .subscribe();
 
 // Fallback polling la fiecare 45s, pentru cazul în care realtime nu e activat pe proiect
-setInterval(()=>loadAll(), 45000);
+// Reîncărcarea live vine deja din subscripțiile realtime de mai sus (instant,
+// la orice schimbare reală în players/ratings/match_history/match_goals).
+// Acest interval e doar o plasă de siguranță, pentru cazul rar în care
+// conexiunea realtime pică (ex: telefonul stă în fundal și se reconectează) —
+// nu are rost să fie des, doar să prindă din urmă eventualele evenimente
+// ratate. La 45s crea reîncărcări inutile de dese (vizibile ca glitch-uri de UI).
+setInterval(()=>loadAll(), 5*60*1000); // la 5 minute
 
 loadAll();
 </script>
