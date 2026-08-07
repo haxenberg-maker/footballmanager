@@ -1055,6 +1055,11 @@ function getSeasonMatches(seasonName){
 function renderSeasonTabs(){
     const row = document.getElementById('lbSeasonRow');
     if(!row) return;
+    // Selectorul de sezon nu are voie să apară pe tabul Meciuri (vezi setPageTab).
+    // renderSeasonTabs() e apelat și din loadAll() la fiecare reîncărcare (la 45s
+    // sau la orice update live) — fără verificarea asta, un reload readucea
+    // selectorul pe ecran chiar dacă userul era pe tabul Meciuri.
+    if (pageTab === 'matches') { row.style.display='none'; return; }
     if(!seasonsList.length){ row.style.display='none'; row.innerHTML=''; return; }
     row.style.display='flex';
     const btn = (key, label) => `<button class="lb-season-btn${currentSeason===key?' active':''}" onclick="setSeason(${key===null?'null':`'${key.replace(/'/g,"\\'")}'`})">${label}</button>`;
@@ -1317,24 +1322,20 @@ async function loadAll(){
 
         // match history + goals
         const { data: histRaw } = await sb.from('match_history').select('*').order('created_at', { ascending:false });
-        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
-        // cele normale); dacă migrarea nu a fost rulată încă, cădem defensiv pe
-        // interogarea veche, fără is_penalty.
+        // IMPORTANT: select('*') aici, NU o listă explicită de coloane — o listă
+        // explicită cu 'minute' cădea cu eroare 400 (posibil cache de schemă
+        // PostgREST neactualizat pentru coloana nou-adăugată), care declanșa un
+        // lanț de reîncărcări eșuate repetate. select('*') e exact ce folosește
+        // deja index.html cu succes, deci e sigur.
         let goalsPerMatch = {};
         try{
-            let allGoals = null;
-            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty,minute');
-            if (withPen.error) {
-                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals,minute');
-                allGoals = noPen.data;
-            } else {
-                allGoals = withPen.data;
-            }
+            const { data: allGoals, error } = await sb.from('match_goals').select('*');
+            if (error) throw error;
             (allGoals||[]).forEach(g=>{
                 if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]=[];
                 goalsPerMatch[g.match_id].push(g);
             });
-        }catch(e){}
+        }catch(e){ console.warn('match_goals load:', e.message); }
         db.history = (histRaw||[]).map(h=>{
             const goals = goalsPerMatch[h.id]||[];
             // Golurile de penalty (is_penalty:true) se țin STRICT separat, nu se adună
