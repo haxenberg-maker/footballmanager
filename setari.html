@@ -198,6 +198,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('milestones')" id="sb-milestones">
             <span class="sb-icon">🎖️</span><span class="sb-label">Milestone-uri</span>
         </div>
+        <div class="sb-item" onclick="switchSection('potm')" id="sb-potm">
+            <span class="sb-icon">⭐</span><span class="sb-label">Player of The Match</span>
+        </div>
         <div class="sb-divider"></div>
         <div class="sb-item" onclick="switchSection('data')" id="sb-data">
             <span class="sb-icon">📦</span><span class="sb-label">Date</span>
@@ -218,6 +221,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('algorithm')">⚙️ Algoritm</div>
     <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
     <div class="mobile-tab" onclick="switchSection('milestones')">🎖️ Milestone</div>
+    <div class="mobile-tab" onclick="switchSection('potm')">⭐ POTM</div>
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
     <div class="mobile-tab" onclick="switchSection('compare')">🆚 Compară</div>
@@ -367,6 +371,42 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             sau denumirea direct în listă — se salvează automat.
         </div>
         <div id="milestonesList"></div>
+    </div>
+</div>
+
+<!-- ── PLAYER OF THE MATCH ──────────────────────────────────────── -->
+<div class="section" id="sec-potm">
+    <div class="panel-header">
+        <div class="panel-title">Player of The Match</div>
+        <div class="panel-sub">Voturi de la jucători (link WhatsApp) + suprascriere manuală</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <label class="form-label">Alege meciul</label>
+            <select id="potmMatchSelect" class="p-input" style="width:100%;" onchange="loadPotmMatchDetails()">
+                <option value="">— selectează un meci —</option>
+            </select>
+        </div>
+
+        <div id="potmMatchPanel" style="display:none;">
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div class="card-title" style="margin-bottom:0;">🗳️ Voturi live</div>
+                    <button onclick="refreshPotmVotes()" style="background:none;border:1px solid var(--border);color:#888;padding:3px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;">↻ Reîmprospătează</button>
+                </div>
+                <div id="potmVotesList" style="font-size:.82rem;"></div>
+                <div id="potmVotersDetail" style="margin-top:10px;font-size:.68rem;color:#555;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">✏️ Setează Manual POTM</div>
+                <div style="font-size:.68rem;color:#555;margin-bottom:8px;">Suprascrie rezultatul votului — dacă alegi pe cineva aici, acesta devine POTM-ul oficial indiferent de voturi.</div>
+                <select id="potmManualSelect" class="p-input" style="width:100%;margin-bottom:8px;">
+                    <option value="">— fără suprascriere (folosește voturile) —</option>
+                </select>
+                <button onclick="savePotmManual()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">💾 Salvează POTM Oficial</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -541,6 +581,7 @@ function switchSection(name){
     if(name==='algorithm') buildAlgorithmPanel();
     if(name==='tags') buildTagsPanel();
     if(name==='milestones') buildMilestonesPanel();
+    if(name==='potm') buildPotmPanel();
     if(name==='compare') buildComparePanel();
 }
 
@@ -597,8 +638,10 @@ async function loadAll(){
         ratings:(p.ratings||[]).map(r=>({general:r.general||5,viteza:r.viteza||5,tehnica:r.tehnica||5,strategie:r.strategie||5,aparare:r.aparare||5}))
     }));
     // History
-    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(50);
-    db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[]}));
+    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(200);
+    db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
+        orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
+        manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null}));
     // Build initial panel
     buildPlayerEditList();
 }
@@ -1091,6 +1134,104 @@ const MILESTONE_CAT_LABELS={
     best_match_goals:'🎩 Goluri Într-un Singur Meci',
 };
 const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals'];
+
+// ═══════════════════════════════════════════════════════════════════
+// ── PLAYER OF THE MATCH — panou administrare ─────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+function potmMatchParticipants(h){
+    const names = [...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])];
+    return names.map(name => db.players.find(p=>p.name===name)).filter(Boolean);
+}
+
+function potmMatchLabel(h){
+    const teams = [];
+    if ((h.orangePlayers||[]).length) teams.push('Portocaliu');
+    if ((h.greenPlayers||[]).length) teams.push('Verde');
+    if ((h.blackPlayers||[]).length) teams.push('Negru');
+    return `${h.date||'—'} · ${teams.join(' vs ')}${h.score?' · '+h.score:''}`;
+}
+
+function buildPotmPanel(){
+    const sel = document.getElementById('potmMatchSelect');
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— selectează un meci —</option>'
+        + db.history.map(h=>`<option value="${h._dbId}">${potmMatchLabel(h)}</option>`).join('');
+    if (current) sel.value = current;
+    document.getElementById('potmMatchPanel').style.display = 'none';
+}
+
+let _potmAdminMatch = null;
+
+async function loadPotmMatchDetails(){
+    const sel = document.getElementById('potmMatchSelect');
+    const matchId = sel.value;
+    if (!matchId){ document.getElementById('potmMatchPanel').style.display='none'; return; }
+    _potmAdminMatch = db.history.find(h=>String(h._dbId)===String(matchId));
+    if (!_potmAdminMatch) return;
+
+    // Populează dropdown-ul de suprascriere manuală
+    const participants = potmMatchParticipants(_potmAdminMatch);
+    const manualSel = document.getElementById('potmManualSelect');
+    manualSel.innerHTML = '<option value="">— fără suprascriere (folosește voturile) —</option>'
+        + participants.sort((a,b)=>a.name.localeCompare(b.name))
+            .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualPotmId==p.id?'selected':''}>${p.name}</option>`).join('');
+
+    document.getElementById('potmMatchPanel').style.display = 'block';
+    await refreshPotmVotes();
+}
+
+async function refreshPotmVotes(){
+    if (!_potmAdminMatch) return;
+    const listEl = document.getElementById('potmVotesList');
+    const votersEl = document.getElementById('potmVotersDetail');
+    listEl.innerHTML = '<div style="color:#555;font-size:.75rem;">⏳ Se încarcă...</div>';
+    try{
+        const { data, error } = await sb.from('potm_votes')
+            .select('voter_player_id,voted_player_id')
+            .eq('match_id', _potmAdminMatch._dbId);
+        if (error) throw error;
+
+        const counts = {};
+        (data||[]).forEach(v=>{ counts[v.voted_player_id] = (counts[v.voted_player_id]||0)+1; });
+        const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+        if (!sorted.length){
+            listEl.innerHTML = '<div style="color:#555;font-size:.75rem;">Niciun vot încă pentru acest meci.</div>';
+        } else {
+            listEl.innerHTML = sorted.map(([pid,count],i)=>{
+                const p = db.players.find(x=>x.id==pid);
+                const isLeader = i===0 && !_potmAdminMatch.manualPotmId;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <span style="font-weight:700;color:${isLeader?'var(--star)':'#e0e0e0'};">${isLeader?'⭐ ':''}${p?p.name:'#'+pid}</span>
+                    <span style="color:#888;">${count} vot${count!==1?'uri':''}</span>
+                </div>`;
+            }).join('');
+        }
+
+        const voterNames = (data||[]).map(v=>{
+            const p = db.players.find(x=>x.id==v.voter_player_id);
+            return p ? p.name : null;
+        }).filter(Boolean);
+        const participants = potmMatchParticipants(_potmAdminMatch);
+        votersEl.innerHTML = `Au votat (${voterNames.length}/${participants.length}): ${voterNames.length ? voterNames.join(', ') : '—'}`;
+    }catch(e){
+        listEl.innerHTML = `<div style="color:#ef9a9a;font-size:.75rem;">⚠️ ${e.message} (ai rulat migrarea SQL pentru potm_votes?)</div>`;
+    }
+}
+
+async function savePotmManual(){
+    if (!_potmAdminMatch) return;
+    const sel = document.getElementById('potmManualSelect');
+    const val = sel.value ? parseInt(sel.value) : null;
+    try{
+        await sb.from('match_history').update({ manual_potm_player_id: val }).eq('id', _potmAdminMatch._dbId);
+        _potmAdminMatch.manualPotmId = val;
+        showToast(val ? '✅ POTM oficial salvat!' : '✅ Suprascriere eliminată — folosește voturile.');
+        await refreshPotmVotes();
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
 
 function buildMilestonesPanel(){
     const el=document.getElementById('milestonesList');if(!el)return;
