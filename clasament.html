@@ -199,6 +199,17 @@ let matchSearchQuery = '';
 let matchTeamFilter = 'all'; // 'all' | 'Portocaliu' | 'Verde' | 'Negru'
 const teamColorsPublic = { orange: '#ff8c00', green: '#28a745', black: '#555' };
 
+// Codul secret e stocat în localStorage de live.html, la autentificare (același
+// domeniu → aceeași origine → aceeași localStorage). Verificăm că e chiar un
+// cod valid al unui jucător real (nu doar o valoare rămasă în localStorage),
+// ca să decidem cine poate vedea butoanele de "Copiază Link Vot POTM".
+function isAuthenticatedWithSecretCode(){
+    const saved = localStorage.getItem('liveAuthCode');
+    if (!saved) return false;
+    const code = saved.trim().toUpperCase();
+    return db.players.some(p => p.secretCode && p.secretCode.toUpperCase() === code);
+}
+
 function showLoading(v){ document.getElementById('loadingOverlay').classList.toggle('hidden', !v); }
 
 // ── Helpers copiate din aplicația principală (logică identică, doar citire) ──
@@ -538,7 +549,7 @@ function renderSessionCard(rows){
                 ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(156,39,176,.1);border:1px solid rgba(156,39,176,.3);color:#8e3a9e;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
             </div>
             <div class="mc-timeline">${timelineHTML}</div>
-            <button onclick="event.stopPropagation();copyPotmVoteLink('${first._dbId}')" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;font-size:.74rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot POTM (sesiune)</button>
+            ${isAuthenticatedWithSecretCode() ? `<button onclick="event.stopPropagation();copyPotmVoteLink('${first._dbId}')" style="margin-top:10px;width:100%;padding:9px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;font-size:.74rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot POTM (sesiune)</button>` : ''}
         </div>
     </div>`;
 }
@@ -673,11 +684,12 @@ function openMatchDetail(dbId){
         ${topScorerHTML}
         ${hasRounds ? '' : potmHTML}
         ${extraHtml}
-        <button id="potmCopyLinkBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot POTM${hasRounds?' (sesiune)':''}</button>
+        ${isAuthenticatedWithSecretCode() ? `<button id="potmCopyLinkBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot POTM${hasRounds?' (sesiune)':''}</button>` : ''}
         <button id="matchDetailCloseBtn" style="margin-top:8px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
     </div>`;
     overlay.querySelector('#matchDetailCloseBtn').onclick = ()=>overlay.remove();
-    overlay.querySelector('#potmCopyLinkBtn').onclick = ()=>copyPotmVoteLink(h._dbId);
+    const potmBtn = overlay.querySelector('#potmCopyLinkBtn');
+    if (potmBtn) potmBtn.onclick = ()=>copyPotmVoteLink(h._dbId);
     document.body.appendChild(overlay);
 }
 
@@ -1371,6 +1383,7 @@ function renderLeaderboard(){
 function rowToPlayer(p) {
     return {
         id: p.id, name: p.name, status: p.status||'bench',
+        secretCode: p.secret_code||null,
         wins: p.wins||0, games: p.games||0,
         matchHistory: p.match_history||[],
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
