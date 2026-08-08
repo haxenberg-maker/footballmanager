@@ -1077,9 +1077,22 @@ function render(){
         if(byTeam[s]) byTeam[s].push(p);
         else byTeam.active.push(p); // fallback — status necunoscut → Jucători Activi
     });
+    // Rangul (cununa aur/argint/bronz) rămâne legat de RATING — îl calculăm acum,
+    // cât timp byTeam[team] e încă sortat după rating — înainte să reordonăm
+    // alfabetic mai jos doar pentru AFIȘARE.
+    const rankByName = {};
+    ['orange','green','bench','active'].forEach(team=>{
+        byTeam[team].forEach((p,idx)=>{ rankByName[p.name] = idx; });
+    });
+    // Prezență relativă — proporțională cu cel mai activ jucător din tot roster-ul
+    // (nu prag fix), ca overlay-ul să rămână corect indiferent cât de lung e sezonul.
+    const maxGames = Math.max(1, ...db.players.map(p=>p.games||0));
     const admin = isAdmin();
     ['orange','green','bench','active'].forEach(team=>{
-        byTeam[team].forEach((p,idx)=>{
+        // Ordine alfabetică pentru AFIȘARE — rangul de mai sus rămâne cel de rating.
+        const displayOrder = [...byTeam[team]].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+        displayOrder.forEach(p=>{
+            const idx = rankByName[p.name];
             const smart=getSmartRating(p).toFixed(1),general=getGeneralAvg(p).toFixed(1);
             const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
             const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
@@ -1108,8 +1121,11 @@ function render(){
             // Smart rating color based on value
             const smartNum = parseFloat(smart);
             const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=8?'#1b7a43':smartNum>=6?'#8a6800':smartNum>=4?'#9c4f00':'#e57373';
-            const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':'';
-            card.className=`player-card ${teamCls}`;
+            const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':p.status==='bench'?'team-bench':'';
+            const presenceRatio = (p.games||0) / maxGames;
+            const presenceCls = presenceRatio>=0.75 ? 'presence-high' : presenceRatio>=0.4 ? 'presence-mid' : '';
+            card.className=`player-card ${teamCls} ${presenceCls}`.trim();
+            card.title = `${p.games||0} meciuri jucate`;
 
             // Active tag badges (max 6, grouped pos/neg)
             const posTagObjs = playerTagObjs.filter(t=>t.tag?.type==='pos').slice(0,3);
