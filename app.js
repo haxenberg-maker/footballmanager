@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808c';
+const APP_VERSION = '20260808d';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -4201,11 +4201,33 @@ function exportPDF(){
     doc.save(`raport_fotbal_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
+// IMPORTANT: skipWaiting()+clients.claim() în sw.js fac ca noul Service Worker
+// să preia controlul imediat — DAR asta nu retroactivează singur un tab/PWA
+// care era deja deschis când s-a publicat update-ul. Fără codul de mai jos,
+// index.html rămâne cu CSS-ul/DOM-ul vechi în memorie la nesfârșit (chiar dacă
+// app.js, care e o resursă separată cu ?v=..., se actualizează normal) — exact
+// simptomul "app.js arată versiunea nouă în consolă, dar nimic vizual nu se
+// schimbă". Ascultăm 'controllerchange' și reîncărcăm o singură dată automat.
+let _swReloaded = false;
+function watchServiceWorkerUpdates(){
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_swReloaded) return; // gardă anti-buclă (poate declanșa o dată per tab)
+        _swReloaded = true;
+        console.log('🔄 Service Worker nou activ — reîncarc pagina ca să iau tot ce e nou.');
+        location.reload();
+    });
+}
+
 async function registerServiceWorker(){
     if(!('serviceWorker' in navigator))return;
     try{
-        await navigator.serviceWorker.register('/sw.js');
+        watchServiceWorkerUpdates();
+        const reg = await navigator.serviceWorker.register('/sw.js');
         console.log('✅ Service Worker registered');
+        // Verifică activ dacă există un update disponibil chiar la fiecare
+        // deschidere a paginii, nu doar quando browserul decide singur.
+        reg.update().catch(()=>{});
     }catch(e){
         console.log('SW registration skipped (local dev?):', e.message);
     }
