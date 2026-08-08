@@ -171,20 +171,6 @@
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
         .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
         .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
-        /* Prezență — overlay suplimentar, peste culoarea de echipă, proporțional cu
-           câte meciuri a jucat un jucător față de cel mai activ din roster (nu e o
-           culoare fixă pe praguri, e relativă la ceilalți, ca să rămână corectă
-           indiferent cât de lung e sezonul). Se vede ca un shimmer auriu discret,
-           mai puternic pentru cei cu prezență mare. */
-        .player-card.presence-high{box-shadow:inset 0 0 0 1px rgba(255,204,0,.5);}
-        .player-card.presence-high::after{
-            content:'';position:absolute;inset:0;pointer-events:none;
-            background:linear-gradient(115deg,rgba(255,204,0,.16) 0%,transparent 45%);
-        }
-        .player-card.presence-mid::after{
-            content:'';position:absolute;inset:0;pointer-events:none;
-            background:linear-gradient(115deg,rgba(255,204,0,.08) 0%,transparent 45%);
-        }
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
@@ -369,6 +355,12 @@
         .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#6b5840;}
         .lobby-player-chip.confirmed .chip-name{color:#1554b3;}
         .lobby-player-chip.absent .chip-name{color:#b33030;text-decoration:line-through;}
+        /* Prezență — glow proporțional cu cât de des a jucat în ultimele meciuri
+           (rate), independent de confirmed/absent (aia ține de meciul viitor,
+           asta ține de istoric). Nu atinge background-ul, ca să nu intre în
+           conflict cu culorile de confirmed/absent de mai sus. */
+        .lobby-player-chip.presence-high{box-shadow:inset 0 0 0 1.5px rgba(255,204,0,.65), 0 0 8px rgba(255,204,0,.3);}
+        .lobby-player-chip.presence-mid{box-shadow:inset 0 0 0 1.5px rgba(255,204,0,.3);}
         .lobby-confirmed-count{font-size:0.78rem;color:#2f5fcf;font-weight:700;margin-top:10px;}
 
         /* Presence modal */
@@ -1703,7 +1695,7 @@
 </div>
 
 <script src="smart-rating.js"></script>
-<script src="app.js?v=20260808b"></script>
+<script src="app.js?v=20260808c"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
