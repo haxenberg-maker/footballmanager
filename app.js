@@ -3,6 +3,13 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const VAPID_PUBLIC_KEY  = 'YOUR_VAPID_PUBLIC_KEY';
 const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 
+// ── Versiune build — trebuie să coincidă mereu cu ?v=... din <script src="app.js?v=...">
+// din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
+// aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
+// telefonul, fără să ghicești dacă a prins din cache versiunea veche.
+const APP_VERSION = '20260808c';
+console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
+
 // ── Supabase Client ──
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -1760,7 +1767,8 @@ function renderLobby(){
             else if (rate >= 0.4) chipClass += ' presence-mid';
         }
         let dotHtml = '<div class="chip-dot"></div>';
-        let nameHtml = `<span class="chip-name">${p.name}</span>`;
+        const presenceIcon = chipClass.includes('presence-high') ? '🔥 ' : '';
+        let nameHtml = `<span class="chip-name">${presenceIcon}${p.name}</span>`;
         if(confirmed){
             chipClass += ' confirmed';
             dotHtml = '<div class="chip-dot"></div>';
@@ -1787,6 +1795,14 @@ function renderLobby(){
     if(absCnt > 0) countText += (countText?' · ':'') + `❌ ${absCnt} absenți`;
     if(pending > 0) countText += (countText?' · ':'') + `⏳ ${pending} fără răspuns`;
     document.getElementById('lobbyCount').textContent = countText || 'Nimeni nu a răspuns încă.';
+
+    // Diagnostic — dacă nu vezi glow-ul de prezență pe niciun chip, uită-te aici:
+    // showStats trebuie să fie true (minim 3 meciuri recente în istoric) ca să
+    // apară vreun glow. Sub 3 meciuri, glow-ul e dezactivat intenționat (procentul
+    // ar fi prea zgomotos cu așa puține date).
+    const highCount = withRate.filter(x=>x.rate>=0.7).length;
+    const midCount  = withRate.filter(x=>x.rate>=0.4 && x.rate<0.7).length;
+    console.log(`🟡 Prezență lobby: showStats=${showStats} (recentTotal=${recentTotal}, prag minim 3) · presence-high=${highCount} · presence-mid=${midCount}`);
 }
 
 async function toggleLobbyPresence(playerId){
