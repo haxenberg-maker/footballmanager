@@ -128,7 +128,7 @@
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
         .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
-        #list-active,#list-bench{max-height:520px;overflow-y:auto;}
+        #list-active{max-height:520px;overflow-y:auto;}
         #matchStatsBanner{grid-column:1/-1;}
         .dash-stats-hidden .rating-badge,
         .dash-stats-hidden .rating-badge-smart,
@@ -169,6 +169,8 @@
         .player-card.team-orange::before{background:linear-gradient(135deg,rgba(255,140,0,.08) 0%,transparent 60%);}
         .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#dff3df,#c5e8c0);}
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
+        .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
+        .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
@@ -353,6 +355,12 @@
         .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#6b5840;}
         .lobby-player-chip.confirmed .chip-name{color:#1554b3;}
         .lobby-player-chip.absent .chip-name{color:#b33030;text-decoration:line-through;}
+        /* Prezență — glow proporțional cu cât de des a jucat în ultimele meciuri
+           (rate), independent de confirmed/absent (aia ține de meciul viitor,
+           asta ține de istoric). Nu atinge background-ul, ca să nu intre în
+           conflict cu culorile de confirmed/absent de mai sus. */
+        .lobby-player-chip.presence-high{box-shadow:inset 0 0 0 1.5px rgba(255,204,0,.65), 0 0 8px rgba(255,204,0,.3);}
+        .lobby-player-chip.presence-mid{box-shadow:inset 0 0 0 1.5px rgba(255,204,0,.3);}
         .lobby-confirmed-count{font-size:0.78rem;color:#2f5fcf;font-weight:700;margin-top:10px;}
 
         /* Presence modal */
@@ -1363,12 +1371,12 @@
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
         <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-            <div style="text-align:center;">
+            <div style="text-align:center;" id="meScoreBlockO">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">Portocaliu</div>
                 <input type="number" min="0" max="99" id="meScoreO" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:var(--orange);padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
+            <div id="meScoreSepOG" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
             <div style="text-align:center;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--green);margin-bottom:4px;">Verde</div>
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
@@ -1686,7 +1694,8 @@
 </div>
 </div>
 
-<script src="app.js?v=20260801"></script>
+<script src="smart-rating.js"></script>
+<script src="app.js?v=20260808c"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">

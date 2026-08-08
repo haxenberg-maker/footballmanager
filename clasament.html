@@ -350,7 +350,12 @@ function renderPairBodyPublic(h){
             ${hattrick?'🎩':'⚽'} <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#8e3a9e;font-weight:700;">HATTRICK!</span>':''}
            </div>`
         : '';
-    return { teamsHTML, topScorerHTML, hattrick };
+    const potmHTML = h.potmWinnerName
+        ? `<div style="margin-top:5px;padding:3px 8px;background:rgba(255,204,0,.12);border-radius:6px;border:1px solid rgba(255,204,0,.4);font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
+            ⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#7d6849;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#7d6849;font-weight:400;">(setat manual)</span>`}
+           </div>`
+        : '';
+    return { teamsHTML, topScorerHTML, potmHTML, hattrick };
 }
 
 // Card pentru un meci simplu (2 echipe)
@@ -360,8 +365,8 @@ function renderSingleMatchCard(h){
                    : _ws === 'green'  ? teamColorsPublic.green
                    : _ws === 'black'  ? teamColorsPublic.black
                    : '#7d6849';
-    const { teamsHTML, topScorerHTML } = renderPairBodyPublic(h);
-    return `<div class="match-card">
+    const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
+    return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
             <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat</div>
@@ -370,6 +375,7 @@ function renderSingleMatchCard(h){
         <div class="match-card-body">
             <div style="background:#fffaf0;border-radius:8px;padding:6px 10px;border:1px solid #e3d3ac;">${teamsHTML}</div>
             ${topScorerHTML}
+            ${potmHTML}
         </div>
     </div>`;
 }
@@ -386,7 +392,12 @@ function renderSessionCard(rows){
     const totalSeconds = {};
     chrono.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
-        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[])]);
+        // IMPORTANT: o pereche poate fi Portocaliu-Verde, Portocaliu-Negru SAU
+        // Verde-Negru — deci trebuie incluse toate cele 3 liste (cea a echipei
+        // care NU joacă în perechea asta e oricum goală). Includerea doar a
+        // orange+green lăsa afară minutele jucătorilor de pe Negru ori de câte
+        // ori Negru era una din cele 2 echipe active ale perechii.
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
 
@@ -403,6 +414,27 @@ function renderSessionCard(rows){
     const totalPenSorted = Object.entries(totalPenGoals).sort((a,b)=>b[1]-a[1]);
     const sessionPenTop = totalPenSorted[0] ? {name:totalPenSorted[0][0], goals:totalPenSorted[0][1]} : null;
 
+    // ── ⭐ POTM pe toată sesiunea (nu per pereche) ──────────────────────────
+    // Manual override (dacă vreun admin l-a setat pe oricare din perechile
+    // sesiunii) are prioritate; altfel, adunăm voturile din TOATE perechile
+    // sesiunii (fiecare h.potmVoteCounts vine dintr-un match_id diferit) și
+    // câștigă cel cu cele mai multe voturi în total, pe toată sesiunea.
+    const sessionPotmVotes = {};
+    let sessionManualPotmId = null;
+    chrono.forEach(h => {
+        if (sessionManualPotmId == null && h.manualPotmId != null) sessionManualPotmId = h.manualPotmId;
+        Object.entries(h.potmVoteCounts||{}).forEach(([pid,cnt]) => {
+            sessionPotmVotes[pid] = (sessionPotmVotes[pid]||0) + cnt;
+        });
+    });
+    let sessionPotmWinnerId = sessionManualPotmId;
+    let sessionPotmSource = sessionPotmWinnerId != null ? 'manual' : null;
+    if (sessionPotmWinnerId == null) {
+        const sortedVotes = Object.entries(sessionPotmVotes).sort((a,b)=>b[1]-a[1]);
+        if (sortedVotes.length) { sessionPotmWinnerId = parseInt(sortedVotes[0][0]); sessionPotmSource = 'voted'; }
+    }
+    const sessionPotmPlayer = sessionPotmWinnerId != null ? db.players.find(p=>p.id==sessionPotmWinnerId) : null;
+
     const hattricks = [];
     chrono.forEach(h => { if (h.topScorer && h.topScorer.goals >= 3) hattricks.push({ name: h.topScorer.name, goals: h.topScorer.goals, teams: getRowTeamNames(h) }); });
 
@@ -415,6 +447,56 @@ function renderSessionCard(rows){
     const standingHTML = Object.keys(teamPlayed).map(t =>
         `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span>`
     ).join('<span style="color:#c9b587;margin:0 6px;">·</span>');
+
+    // ── ⏱ Timp pe teren, per echipă (ca la Live → 📊 Stats) ──────────────
+    const teamSeconds = {};
+    chrono.forEach(h => {
+        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        getRowTeamNames(h).forEach(t => { teamSeconds[t] = (teamSeconds[t]||0) + rowSeconds; });
+    });
+    const teamTimeList = Object.entries(teamSeconds)
+        .map(([name,sec]) => ({ name, sec, hex: standingColor[name] || '#3a2f1f' }))
+        .sort((a,b) => b.sec - a.sec);
+    const maxTeamSec = teamTimeList.length ? teamTimeList[0].sec : 1;
+    const teamTimeHtml = teamTimeList.map((t,i) => {
+        const mm = Math.floor(t.sec/60), ss = t.sec%60;
+        const pct = maxTeamSec>0 ? Math.round((t.sec/maxTeamSec)*100) : 0;
+        return `<div style="margin-bottom:7px;">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;margin-bottom:2px;">
+                <span style="color:${t.hex};">${i===0?'👑 ':''}${t.name}</span>
+                <span style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</span>
+            </div>
+            <div style="background:#f1e4c8;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${t.hex};"></div></div>
+        </div>`;
+    }).join('');
+
+    // ── ⚽ Golgheteri pe toată sesiunea (nu doar MVP-ul, tot clasamentul) ──
+    const playerTeamName = {};
+    chrono.forEach(h => {
+        (h.orangePlayers||[]).forEach(n=>{ playerTeamName[n]='Portocaliu'; });
+        (h.greenPlayers ||[]).forEach(n=>{ playerTeamName[n]='Verde'; });
+        (h.blackPlayers ||[]).forEach(n=>{ playerTeamName[n]='Negru'; });
+    });
+    // Sortare: mai întâi goluri, apoi (la egalitate) minutele jucate — evită
+    // ordinea arbitrară când doi jucători au același număr de goluri.
+    const allPlayerNames = new Set([...Object.keys(playerTeamName), ...Object.keys(totalGoals)]);
+    const allScorersList = [...allPlayerNames].map(name => ({
+        name,
+        goals: totalGoals[name] || 0,
+        minutes: Math.round((totalSeconds[name]||0) / 60),
+        team: playerTeamName[name],
+    })).sort((a,b) => b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name));
+    const topScorersList  = allScorersList.filter(s => s.goals > 0).slice(0, 5);
+    const restScorersList = allScorersList.slice(topScorersList.length); // restul (inclusiv cei cu 0 goluri), pentru "Vezi mai mult"
+    const scorerRowHtml = (s,i) => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
+            <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#3a2f1f'};flex-shrink:0;"></span>
+            <span style="flex:1;font-weight:700;color:#3a2f1f;">${i===0?'🥇 ':''}${s.name}</span>
+            <span style="font-size:.64rem;color:#7d6849;margin-right:2px;">${s.minutes} min</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#3a2f1f;">${s.goals}⚽</span>
+        </div>`;
+    const topScorersHtml = topScorersList.map((s,i) => scorerRowHtml(s,i)).join('');
+    const restScorersHtml = restScorersList.map((s,i) => scorerRowHtml(s,i+topScorersList.length)).join('');
+    const scorersDomId = 'sessScorers_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
 
     // Timeline vizual — un rând per pereche, în ordine cronologică
     const timelineHTML = chrono.map((h,idx) => {
@@ -439,8 +521,19 @@ function renderSessionCard(rows){
         </div>
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
+            <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin:8px 0;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:6px;">⏱ Timp pe teren</div>
+                ${teamTimeHtml || '<div style="font-size:.7rem;color:#a8916b;">Indisponibil</div>'}
+            </div>
+            ${topScorersList.length ? `<div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
+                ${topScorersHtml}
+                ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
+                <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #d3bd8c;color:#7d6849;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
+            </div>` : ''}
             <div class="mc-badges">
                 ${sessionTop ? `<div class="mc-badge" style="background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);color:#1b7a43;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
+                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);color:#8a6800;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
                 ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#7d6849;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
                 ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(156,39,176,.1);border:1px solid rgba(156,39,176,.3);color:#8e3a9e;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
             </div>
@@ -449,18 +542,136 @@ function renderSessionCard(rows){
     </div>`;
 }
 
-// Detaliu simplu la click pe un rând din timeline — arată echipele + golgheterul acelei perechi
+function toggleSessionScorers(id, btn, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const open = el.style.display === 'none';
+    el.style.display = open ? 'block' : 'none';
+    btn.textContent = open ? '▲ Vezi mai puțin' : `▼ Vezi mai mult (${count})`;
+}
+
+// ── Reconstrucție goluri-pe-tură pentru meciuri VECHI (salvate înainte ca
+// live.html să înceapă să salveze r.goals direct) ──────────────────────────
+// Avem tot ce ne trebuie ca să deducem, per sesiune de 3 echipe:
+//  • fiecare tură are un `num` GLOBAL, secvențial pe toată sesiunea (nu per
+//    pereche) — deci putem sorta TOATE turele din sesiune în ordine reală
+//  • fiecare tură are `duration_sec` → cumulativ, obținem fereastra ei de
+//    timp [start,stop) în sesiune
+//  • fiecare gol are `minute` = minutul absolut (din startul meciului) la
+//    care a fost marcat
+// Combinând astea, plasăm fiecare gol exact în tura a cărei fereastră de
+// timp îl conține. Golurile reconstruite sunt marcate cu `_reconstructed`
+// ca UI-ul să poată nota că sunt deduse, nu înregistrate direct pe tură.
+function backfillSessionRoundGoals(sessionRows) {
+    const needsBackfill = sessionRows.some(h => (h.roundsDetail||[]).some(r => !Array.isArray(r.goals)));
+    if (!needsBackfill) return;
+
+    // 1) Toate turele sesiunii (din toate perechile), sortate după num-ul global
+    const allRounds = [];
+    sessionRows.forEach(h => (h.roundsDetail||[]).forEach(r => allRounds.push(r)));
+    allRounds.sort((a,b) => (a.num||0) - (b.num||0));
+    if (!allRounds.length) return;
+
+    // 2) Fereastra de timp cumulativă [startSec, endSec) a fiecărei ture
+    let cursor = 0;
+    allRounds.forEach(r => {
+        r._startSec = cursor;
+        r._endSec   = cursor + (r.duration_sec || 0);
+        cursor = r._endSec;
+    });
+
+    // 3) Toate golurile normale (ne-penalty) din toate perechile sesiunii
+    const allGoals = [];
+    sessionRows.forEach(h => (h.goalsList||[]).forEach(g => {
+        if (g.is_penalty || g.minute == null) return;
+        allGoals.push({ player_name: g.player_name, team: g.team, minute: g.minute });
+    }));
+
+    // 4) Plasăm fiecare gol în tura a cărei fereastră de timp îl conține
+    //    (aproximare la minut întreg — tolerabilă, turele durează minute întregi)
+    allGoals.forEach(g => {
+        const sec = g.minute * 60;
+        let target = allRounds.find(r => sec >= r._startSec && sec < r._endSec);
+        if (!target) { // fallback: tura cu marginea cea mai apropiată (rotunjiri la limită)
+            target = allRounds.reduce((best, r) => {
+                const d = Math.min(Math.abs(sec-r._startSec), Math.abs(sec-r._endSec));
+                return (!best || d < best._d) ? { r, _d: d } : best;
+            }, null)?.r;
+        }
+        if (target) {
+            if (!Array.isArray(target.goals)) target.goals = [];
+            target.goals.push({ player_name: g.player_name, team: g.team, minute: g.minute, _reconstructed: true });
+        }
+    });
+
+    // Turele fără niciun gol găsit rămân cu listă goală (nu null) — UI-ul distinge
+    // corect "0 goluri" de "date indisponibile"
+    allRounds.forEach(r => { if (!Array.isArray(r.goals)) r.goals = []; delete r._startSec; delete r._endSec; });
+}
+
+// Detaliu bogat la click pe un MECI (simplu, 2 echipe) sau pe o TURĂ/pereche
+// dintr-o sesiune 3 echipe — arată timp jucat + fiecare gol, pe tură/pe meci,
+// la fel cum se vede în Live.
 function openMatchDetail(dbId){
     const h = db.history.find(x=>String(x._dbId)===String(dbId));
     if(!h) return;
-    const { teamsHTML, topScorerHTML } = renderPairBodyPublic(h);
+    const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
+    const hasRounds = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+    const teamHex = (col) => col==='orange'?teamColorsPublic.orange:col==='green'?teamColorsPublic.green:teamColorsPublic.black;
+
+    let extraHtml = '';
+    if (hasRounds) {
+        // ── Meci 3 echipe: o "tură" = un rând din rounds_detail. Ambele echipe
+        // ale acestei perechi au jucat exact aceleași ture, deci timpul e comun.
+        const totalSec = h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0),0);
+        const mm = Math.floor(totalSec/60), ss = totalSec%60;
+        extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}</div>`;
+
+        const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
+        const anyGoalsData = h.roundsDetail.some(r=>Array.isArray(r.goals));
+        const anyReconstructed = h.roundsDetail.some(r=>(r.goals||[]).some(g=>g._reconstructed));
+        const turHtml = h.roundsDetail.map(r=>{
+            const dm = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
+            const ds = r.duration_sec ? r.duration_sec%60 : 0;
+            const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
+            const goalsHtml = Array.isArray(r.goals) && r.goals.length
+                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
+                : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
+            return `<div style="padding:7px 0;border-bottom:1px solid #e3d3ac;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#3a2f1f;">
+                    <span>Tur ${r.num}</span>
+                    <span style="font-weight:400;color:#7d6849;">${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span>
+                </div>
+                <div style="margin-top:3px;">${goalsHtml}</div>
+            </div>`;
+        }).join('');
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#a8916b;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}</div>`;
+    } else {
+        // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
+        const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
+        if (totalSec != null) {
+            const mm = Math.floor(totalSec/60), ss = totalSec%60;
+            extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)</div>`;
+        }
+        const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
+        const goalsHtml = normalGoals.length
+            ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1e4c8;font-size:.72rem;">
+                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}</span>
+                <span style="color:#7d6849;">${g.minute!=null?`min ${g.minute}`:''}</span>
+            </div>`).join('')
+            : `<div style="font-size:.7rem;color:#a8916b;padding:4px 0;">Niciun gol înregistrat.</div>`;
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}</div>`;
+    }
+
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:18px;max-width:360px;width:100%;max-height:80vh;overflow:auto;">
-        <div style="font-size:.68rem;color:#7d6849;margin-bottom:4px;">${h.date||'—'} · ture ${h.score||'—'}</div>
+    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
+        <div style="font-size:.68rem;color:#7d6849;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
         <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">${teamsHTML}</div>
         ${topScorerHTML}
+        ${hasRounds ? '' : potmHTML}
+        ${extraHtml}
         <button id="matchDetailCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
     </div>`;
     overlay.querySelector('#matchDetailCloseBtn').onclick = ()=>overlay.remove();
@@ -946,6 +1157,11 @@ function getSeasonMatches(seasonName){
 function renderSeasonTabs(){
     const row = document.getElementById('lbSeasonRow');
     if(!row) return;
+    // Selectorul de sezon nu are voie să apară pe tabul Meciuri (vezi setPageTab).
+    // renderSeasonTabs() e apelat și din loadAll() la fiecare reîncărcare —
+    // fără verificarea asta, un reload readucea selectorul pe ecran chiar dacă
+    // userul era pe tabul Meciuri.
+    if (pageTab === 'matches') { row.style.display='none'; return; }
     if(!seasonsList.length){ row.style.display='none'; row.innerHTML=''; return; }
     row.style.display='flex';
     const btn = (key, label) => `<button class="lb-season-btn${currentSeason===key?' active':''}" onclick="setSeason(${key===null?'null':`'${key.replace(/'/g,"\\'")}'`})">${label}</button>`;
@@ -1208,24 +1424,30 @@ async function loadAll(){
 
         // match history + goals
         const { data: histRaw } = await sb.from('match_history').select('*').order('created_at', { ascending:false });
-        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
-        // cele normale); dacă migrarea nu a fost rulată încă, cădem defensiv pe
-        // interogarea veche, fără is_penalty.
+        // IMPORTANT: select('*') aici, NU o listă explicită de coloane — o listă
+        // explicită cu 'minute' cădea cu eroare 400 (posibil cache de schemă
+        // PostgREST neactualizat pentru coloana nou-adăugată). select('*') e
+        // exact ce funcționează deja garantat (e folosit și în index.html).
         let goalsPerMatch = {};
         try{
-            let allGoals = null;
-            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
-            if (withPen.error) {
-                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
-                allGoals = noPen.data;
-            } else {
-                allGoals = withPen.data;
-            }
+            const { data: allGoals, error } = await sb.from('match_goals').select('*');
+            if (error) throw error;
             (allGoals||[]).forEach(g=>{
                 if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]=[];
                 goalsPerMatch[g.match_id].push(g);
             });
-        }catch(e){}
+        }catch(e){ console.warn('match_goals load:', e.message); }
+        // POTM (Player of The Match) — voturi + suprascriere manuală, pentru
+        // insigna ⭐ POTM de pe fiecare card/detaliu de meci.
+        let potmVotesByMatch = {};
+        try{
+            const { data: potmRaw } = await sb.from('potm_votes').select('match_id,voted_player_id');
+            (potmRaw||[]).forEach(v=>{
+                if(!potmVotesByMatch[v.match_id]) potmVotesByMatch[v.match_id]={};
+                const pid = String(v.voted_player_id);
+                potmVotesByMatch[v.match_id][pid] = (potmVotesByMatch[v.match_id][pid]||0)+1;
+            });
+        }catch(e){ console.warn('potm_votes load (ai rulat migrarea SQL?):', e.message); }
         db.history = (histRaw||[]).map(h=>{
             const goals = goalsPerMatch[h.id]||[];
             // Golurile de penalty (is_penalty:true) se țin STRICT separat, nu se adună
@@ -1243,14 +1465,37 @@ async function loadAll(){
             const topScorer = topEntries[0] ? { name: topEntries[0][0], goals: topEntries[0][1] } : null;
             const teamGoals = { orange:0, green:0, black:0 };
             goals.forEach(g=>{ if(!g.is_penalty && teamGoals[g.team]!==undefined) teamGoals[g.team] += (g.goals||1); });
+
+            // POTM: manual (setat de admin) are prioritate; altfel, jucătorul cu cele mai multe voturi.
+            const voteCounts = potmVotesByMatch[h.id] || {};
+            let potmWinnerId = h.manual_potm_player_id != null ? h.manual_potm_player_id : null;
+            let potmSource = potmWinnerId != null ? 'manual' : null;
+            if (potmWinnerId == null) {
+                const sortedVotes = Object.entries(voteCounts).sort((a,b)=>b[1]-a[1]);
+                if (sortedVotes.length) { potmWinnerId = parseInt(sortedVotes[0][0]); potmSource = 'voted'; }
+            }
+            const potmPlayer = potmWinnerId != null ? db.players.find(p=>p.id==potmWinnerId) : null;
+
             return {
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
                 roundsDetail: h.rounds_detail||null, playerGoals, playerPenaltyGoals, topScorer, teamGoals,
-                season: h.season||null, createdAt: h.created_at||null
+                season: h.season||null, createdAt: h.created_at||null,
+                startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
+                manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
+                potmVoteDeadline: h.potm_vote_deadline||null,
+                potmVoteCounts: voteCounts,
+                potmWinnerId, potmSource,
+                potmWinnerName: potmPlayer ? potmPlayer.name : null,
             };
         }).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
+
+        // Reconstituim golurile-pe-tură pentru sesiunile vechi (salvate înainte
+        // de update-ul care le salvează direct) — vezi backfillSessionRoundGoals().
+        groupHistoryForDisplay(db.history)
+            .filter(item => item.type === 'session')
+            .forEach(item => backfillSessionRoundGoals(item.rows));
 
         // ── Construiește lista de sezoane arhivate (cele mai recente primele) ──
         const seasonLatestDate = new Map();
@@ -1311,10 +1556,244 @@ sb.channel('clasament-live')
     .on('postgres_changes',{event:'*',schema:'public',table:'match_goals'}, scheduleReload)
     .subscribe();
 
-// Fallback polling la fiecare 45s, pentru cazul în care realtime nu e activat pe proiect
-setInterval(()=>loadAll(), 45000);
+// Reîncărcarea live vine deja din subscripțiile realtime de mai sus (instant,
+// la orice schimbare reală în players/ratings/match_history/match_goals).
+// Acest interval e doar o plasă de siguranță, pentru cazul rar în care
+// conexiunea realtime pică — nu are rost să fie des, doar să prindă din urmă
+// eventualele evenimente ratate. La 45s crea reîncărcări inutile de dese.
+setInterval(()=>loadAll(), 5*60*1000); // la 5 minute
 
-loadAll();
+// ── Mic helper de notificare (clasament.html nu avea unul) ─────────
+function showToast(msg){
+    let t = document.getElementById('potmToast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'potmToast';
+        t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#3a2f1f;color:#fff;padding:10px 18px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:99999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+    clearTimeout(t._hideTimer);
+    t._hideTimer = setTimeout(()=>{ t.style.opacity='0'; t.style.transform='translateX(-50%) translateY(20px)'; }, 2600);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ── POTM — Vot prin link (WhatsApp) ──────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// Link-ul se generează acum doar din panoul de admin (setari.html) — aici
+// rămâne doar partea care PRIMEȘTE votul, când cineva deschide linkul.
+
+function checkPotmVoteParam(){
+    const params = new URLSearchParams(location.search);
+    const matchId = params.get('vote_match');
+    if (!matchId) return;
+    openPotmVoteModal(matchId);
+}
+
+// Returnează toate rândurile (perechile) sesiunii din care face parte h — sau
+// doar [h] dacă e un meci simplu, ne-legat de nicio sesiune 3 echipe.
+function getSessionRowsFor(h){
+    if (!h) return [];
+    const groups = groupHistoryForDisplay(db.history);
+    const g = groups.find(item => item.rows.some(r => r._dbId === h._dbId));
+    return g ? g.rows : [h];
+}
+
+function getMatchParticipants(h){
+    // La o sesiune 3 echipe, votul POTM e pentru TOATĂ sesiunea, nu doar
+    // pentru perechea din care s-a deschis link-ul — deci adunăm participanții
+    // din toate perechile sesiunii (toate cele 3 echipe), nu doar cele 2 din
+    // perechea curentă.
+    const rows = getSessionRowsFor(h);
+    const names = new Set();
+    rows.forEach(row => {
+        [...(row.orangePlayers||[]), ...(row.greenPlayers||[]), ...(row.blackPlayers||[])].forEach(n=>names.add(n));
+    });
+    return [...names].map(name => db.players.find(p=>p.name===name)).filter(Boolean);
+}
+
+let _potmMatch = null;
+let _potmVoter = null;
+
+function potmModalShell(innerHTML){
+    let overlay = document.getElementById('potmVoteOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'potmVoteOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:86vh;overflow:auto;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">⭐ Player of The Match</div>
+        ${innerHTML}
+    </div>`;
+    overlay.style.display = 'flex';
+    return overlay;
+}
+function closePotmModal(){
+    const overlay = document.getElementById('potmVoteOverlay');
+    if (overlay) overlay.remove();
+    // Curățăm parametrul din URL ca un refresh accidental să nu redeschidă modalul
+    const url = new URL(location.href);
+    url.searchParams.delete('vote_match');
+    history.replaceState({}, '', url);
+}
+
+async function openPotmVoteModal(matchId){
+    const h = db.history.find(x=>String(x._dbId)===String(matchId));
+    if (!h){
+        potmModalShell(`
+            <div style="font-size:.85rem;color:#7d6849;margin:14px 0;">Nu am găsit meciul ăsta — poate a fost șters sau link-ul e greșit.</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+        return;
+    }
+    // Termenul de vot se aplică pe toată sesiunea (setat din setari.html) —
+    // dacă a expirat pentru oricare pereche a sesiunii, s-a închis peste tot.
+    const deadline = getSessionRowsFor(h).map(r=>r.potmVoteDeadline).find(Boolean);
+    if (deadline && Date.now() > new Date(deadline).getTime()){
+        const fmt = new Date(deadline).toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        potmModalShell(`
+            <div style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                <div style="font-size:1.6rem;margin-bottom:6px;">🔒</div>
+                <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Votarea s-a închis</div>
+                <div style="font-size:.72rem;color:#7d6849;margin-top:4px;">Termenul a expirat pe ${fmt}.</div>
+            </div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+        return;
+    }
+    const participants = getMatchParticipants(h);
+    if (!participants.length){
+        potmModalShell(`
+            <div style="font-size:.85rem;color:#7d6849;margin:14px 0;">Nu găsesc jucătorii acestui meci.</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+        return;
+    }
+    _potmMatch = h;
+    renderPotmStep1(participants);
+}
+
+// Pasul 1: cine ești?
+function renderPotmStep1(participants){
+    const options = participants.sort((a,b)=>a.name.localeCompare(b.name))
+        .map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    const isSessionVote = Array.isArray(_potmMatch.roundsDetail) && _potmMatch.roundsDetail.length > 0;
+    const subtitle = isSessionVote
+        ? `${_potmMatch.date||''} · 🎮 Sesiune 3 Echipe`
+        : `${_potmMatch.date||''} · ${_potmMatch.score||''}`;
+    potmModalShell(`
+        <div style="font-size:.72rem;color:#7d6849;margin-bottom:14px;">${subtitle}</div>
+        <div style="font-size:.8rem;color:#3a2f1f;font-weight:700;margin-bottom:8px;">Cine ești?</div>
+        <select id="potmWhoAmI" style="width:100%;padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #e3d3ac;color:#3a2f1f;font-size:.88rem;margin-bottom:14px;">
+            <option value="">— alege-ți numele —</option>
+            ${options}
+        </select>
+        <button id="potmStep1Next" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;cursor:pointer;">Continuă →</button>
+    `);
+    document.getElementById('potmStep1Next').onclick = async ()=>{
+        const sel = document.getElementById('potmWhoAmI');
+        const pid = parseInt(sel.value);
+        if (!pid){ showToast('⚠️ Alege-ți numele întâi!'); return; }
+        _potmVoter = db.players.find(p=>p.id===pid);
+        await checkAlreadyVotedAndProceed();
+    };
+}
+
+// Pasul 2: verificare în DB dacă a votat deja
+async function checkAlreadyVotedAndProceed(){
+    potmModalShell(`<div style="font-size:.85rem;color:#7d6849;margin:20px 0;text-align:center;">⏳ Se verifică...</div>`);
+    try{
+        const { data, error } = await sb.from('potm_votes')
+            .select('id')
+            .eq('match_id', _potmMatch._dbId)
+            .eq('voter_player_id', _potmVoter.id)
+            .maybeSingle();
+        if (error) throw error;
+        if (data){
+            potmModalShell(`
+                <div style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                    <div style="font-size:1.6rem;margin-bottom:6px;">🗳️</div>
+                    <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Ai votat deja pentru acest meci!</div>
+                    <div style="font-size:.72rem;color:#7d6849;margin-top:4px;">Fiecare jucător votează o singură dată per meci.</div>
+                </div>
+                <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+            localStorage.setItem(`potm_voted_${_potmMatch._dbId}_${_potmVoter.id}`, 'true');
+            return;
+        }
+        renderPotmStep3();
+    }catch(e){
+        potmModalShell(`
+            <div style="font-size:.85rem;color:#b71c1c;margin:14px 0;">⚠️ Eroare la verificare: ${e.message}</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+    }
+}
+
+// Pasul 3: pe cine votezi? (exclude propriul nume)
+function renderPotmStep3(){
+    const participants = getMatchParticipants(_potmMatch).filter(p=>p.id!==_potmVoter.id);
+    const options = participants.sort((a,b)=>a.name.localeCompare(b.name))
+        .map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    potmModalShell(`
+        <div style="font-size:.72rem;color:#7d6849;margin-bottom:4px;">Votezi ca <b style="color:#3a2f1f;">${_potmVoter.name}</b></div>
+        <div style="font-size:.8rem;color:#3a2f1f;font-weight:700;margin:10px 0 8px;">Pe cine votezi ca Player of The Match?</div>
+        <select id="potmWhoVote" style="width:100%;padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #e3d3ac;color:#3a2f1f;font-size:.88rem;margin-bottom:14px;">
+            <option value="">— alege coechipierul —</option>
+            ${options}
+        </select>
+        <button id="potmSubmitVote" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;cursor:pointer;">✅ Trimite Votul</button>
+    `);
+    document.getElementById('potmSubmitVote').onclick = submitPotmVote;
+}
+
+// Pasul 4: trimite votul
+async function submitPotmVote(){
+    const sel = document.getElementById('potmWhoVote');
+    const votedId = parseInt(sel.value);
+    if (!votedId){ showToast('⚠️ Alege pe cineva întâi!'); return; }
+    const deadline = getSessionRowsFor(_potmMatch).map(r=>r.potmVoteDeadline).find(Boolean);
+    if (deadline && Date.now() > new Date(deadline).getTime()){
+        showToast('🔒 Votarea s-a închis între timp.');
+        closePotmModal();
+        return;
+    }
+    const btn = document.getElementById('potmSubmitVote');
+    btn.disabled = true; btn.textContent = '⏳ Se trimite...';
+    try{
+        const { error } = await sb.from('potm_votes').insert({
+            match_id: _potmMatch._dbId,
+            voter_player_id: _potmVoter.id,
+            voted_player_id: votedId,
+        });
+        if (error){
+            // Constraint unique (match_id, voter_player_id) — a votat deja, poate din alt tab
+            if (String(error.code)==='23505' || /duplicate/i.test(error.message||'')){
+                potmModalShell(`
+                    <div style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                        <div style="font-size:1.6rem;margin-bottom:6px;">🗳️</div>
+                        <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Ai votat deja pentru acest meci!</div>
+                    </div>
+                    <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+                return;
+            }
+            throw error;
+        }
+        localStorage.setItem(`potm_voted_${_potmMatch._dbId}_${_potmVoter.id}`, 'true');
+        const votedPlayer = db.players.find(p=>p.id===votedId);
+        potmModalShell(`
+            <div style="background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.4);border-radius:10px;padding:16px;margin:14px 0;text-align:center;">
+                <div style="font-size:1.8rem;margin-bottom:6px;">🎉</div>
+                <div style="font-size:.9rem;color:#3a2f1f;font-weight:700;">Vot trimis!</div>
+                <div style="font-size:.78rem;color:#7d6849;margin-top:4px;">Ai votat pentru <b>${votedPlayer?votedPlayer.name:'—'}</b></div>
+            </div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;cursor:pointer;">Gata</button>`);
+    }catch(e){
+        btn.disabled = false; btn.textContent = '✅ Trimite Votul';
+        showToast('⚠️ Eroare: '+e.message);
+    }
+}
+
+loadAll().then(checkPotmVoteParam);
 </script>
 </body>
 </html>

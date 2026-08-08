@@ -7,6 +7,7 @@
 <title>Setări · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="smart-rating.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
@@ -197,6 +198,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('milestones')" id="sb-milestones">
             <span class="sb-icon">🎖️</span><span class="sb-label">Milestone-uri</span>
         </div>
+        <div class="sb-item" onclick="switchSection('potm')" id="sb-potm">
+            <span class="sb-icon">⭐</span><span class="sb-label">Player of The Match</span>
+        </div>
         <div class="sb-divider"></div>
         <div class="sb-item" onclick="switchSection('data')" id="sb-data">
             <span class="sb-icon">📦</span><span class="sb-label">Date</span>
@@ -205,9 +209,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             <span class="sb-icon">🔄</span><span class="sb-label">Sezon</span>
         </div>
         <div class="sb-divider"></div>
-        <div class="sb-item" onclick="switchSection('poll')" id="sb-poll">
-            <span class="sb-icon">🗳️</span><span class="sb-label">Sondaj Jucători</span>
-        </div>
         <div class="sb-item" onclick="switchSection('compare')" id="sb-compare">
             <span class="sb-icon">🆚</span><span class="sb-label">Compară</span>
         </div>
@@ -220,9 +221,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('algorithm')">⚙️ Algoritm</div>
     <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
     <div class="mobile-tab" onclick="switchSection('milestones')">🎖️ Milestone</div>
+    <div class="mobile-tab" onclick="switchSection('potm')">⭐ POTM</div>
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
-    <div class="mobile-tab" onclick="switchSection('poll')">🗳️ Sondaj</div>
     <div class="mobile-tab" onclick="switchSection('compare')">🆚 Compară</div>
 </div>
 
@@ -373,6 +374,48 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
 </div>
 
+<!-- ── PLAYER OF THE MATCH ──────────────────────────────────────── -->
+<div class="section" id="sec-potm">
+    <div class="panel-header">
+        <div class="panel-title">Player of The Match</div>
+        <div class="panel-sub">Voturi de la jucători (link WhatsApp) + suprascriere manuală</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <label class="form-label">Alege meciul</label>
+            <select id="potmMatchSelect" class="p-input" style="width:100%;" onchange="loadPotmMatchDetails()">
+                <option value="">— selectează un meci —</option>
+            </select>
+        </div>
+
+        <div id="potmMatchPanel" style="display:none;">
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div class="card-title" style="margin-bottom:0;">🗳️ Voturi live</div>
+                    <button onclick="refreshPotmVotes()" style="background:none;border:1px solid var(--border);color:#888;padding:3px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;">↻ Reîmprospătează</button>
+                </div>
+                <div id="potmVotesList" style="font-size:.82rem;"></div>
+                <div id="potmVotersDetail" style="margin-top:10px;font-size:.68rem;color:#555;"></div>
+                <div id="potmDeadlineStatus" style="margin-top:8px;font-size:.7rem;"></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+                    <label style="font-size:.7rem;color:#888;white-space:nowrap;">Valabil (ore):</label>
+                    <input type="number" id="potmVoteHoursInput" value="24" min="1" max="720" style="width:70px;background:var(--input-bg,#1a1a1a);border:1px solid var(--border);color:#e0e0e0;padding:6px 8px;border-radius:6px;font-size:.78rem;">
+                </div>
+                <button onclick="copyPotmAdminVoteLink()" style="width:100%;margin-top:8px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Generează & copiază link (se închide automat)</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">✏️ Setează Manual POTM</div>
+                <div style="font-size:.68rem;color:#555;margin-bottom:8px;">Suprascrie rezultatul votului — dacă alegi pe cineva aici, acesta devine POTM-ul oficial indiferent de voturi.</div>
+                <select id="potmManualSelect" class="p-input" style="width:100%;margin-bottom:8px;">
+                    <option value="">— fără suprascriere (folosește voturile) —</option>
+                </select>
+                <button onclick="savePotmManual()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">💾 Salvează POTM Oficial</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- ── COMPARĂ JUCĂTORI ──────────────────────────────────────── -->
 <div class="section" id="sec-compare">
@@ -464,68 +507,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
 </div>
 
-<!-- ── SONDAJ ────────────────────────────────────────────────── -->
-<div class="section" id="sec-poll">
-    <div class="panel-header">
-        <div class="panel-title">Sondaj Jucători</div>
-        <div class="panel-sub">Configurează și gestionează votul de clasament</div>
-    </div>
-    <div class="panel-body">
-        <!-- Create new poll -->
-        <div class="card" id="pollCreateCard">
-            <div class="card-title">📋 Sondaj Nou</div>
-            <div style="margin-bottom:8px;">
-                <label class="form-label">Titlu / Descriere</label>
-                <input id="pollLabel" type="text" class="p-input" placeholder="ex: Meciuri Aprilie 2026" style="width:100%;">
-            </div>
-            <div style="margin-bottom:10px;">
-                <label class="form-label" style="margin-bottom:6px;display:block;">Selectează jucătorii care participă la vot:</label>
-                <div id="pollPlayerPicks" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
-            </div>
-            <div style="display:flex;gap:8px;">
-                <button onclick="startPoll()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,var(--green));border:1px solid var(--green);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">▶ Start Vot</button>
-            </div>
-        </div>
-        <!-- Active poll panel -->
-        <div class="card" id="pollActiveCard" style="display:none;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <div>
-                    <div class="card-title" style="margin-bottom:2px;">🟢 Vot Activ</div>
-                    <div style="font-size:.72rem;color:#555;" id="pollActiveLabel"></div>
-                </div>
-                <button onclick="stopPoll()" style="padding:6px 14px;border-radius:7px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#ef9a9a;font-size:.78rem;font-weight:700;cursor:pointer;">■ Stop</button>
-            </div>
-            <!-- Share link -->
-            <div style="background:#0a0c14;border:1px dashed #2a2d40;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-                <span style="font-size:.7rem;color:#555;flex:1;" id="pollShareUrl"></span>
-                <button onclick="copyPollLink()" style="background:rgba(61,90,254,.1);border:1px solid var(--accent);color:#82b1ff;padding:4px 10px;border-radius:6px;font-size:.7rem;cursor:pointer;">📋 Copiază</button>
-            </div>
-            <!-- Live vote progress -->
-            <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
-                Voturi primite <span id="pollVoteCount" style="color:#69f0ae;font-size:.85rem;">0</span> / <span id="pollTotalEligible">0</span>
-            </div>
-            <div id="pollVotersList" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;"></div>
-
-            <!-- Live Borda results — always visible once there's at least 1 vote -->
-            <div id="pollLiveResults" style="display:none;">
-                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-top:10px;border-top:1px solid var(--border);">📊 Clasament Live</div>
-                <div id="pollLiveResultsList"></div>
-            </div>
-
-            <!-- Per-voter breakdown (toggle) -->
-            <div id="pollBreakdownWrap" style="display:none;margin-top:10px;">
-                <button onclick="toggleBreakdown()" style="width:100%;padding:7px;border-radius:7px;background:#0a0c14;border:1px solid var(--border);color:#555;font-size:.72rem;cursor:pointer;margin-bottom:8px;" id="breakdownToggleBtn">▼ Vezi cum a votat fiecare</button>
-                <div id="pollBreakdownList" style="display:none;"></div>
-            </div>
-
-            <!-- Apply after stop -->
-            <div id="pollResultsPreview" style="display:none;margin-top:10px;">
-                <button onclick="applyPollToBorda()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;">💾 Aplică în Smart Rating</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 </div><!-- /main-area -->
 </div><!-- /layout -->
 
@@ -541,14 +522,15 @@ const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit'
 // ── State ─────────────────────────────────────────────────────────
 let db={players:[],history:[]};
 let tagsConfig=[];
-const DEFAULT_W={winrate:0.25,general:0.25,goals:0.25,tags:0.25,viteza:0,tehnica:0,strategie:0,aparare:0};
-let W={...DEFAULT_W};
-let TW={};
+let _algoSnapshot=null; // {W, BASE_RATING, ACTIVITY_INTENSITY} — ce e SALVAT în DB, folosit ca bază pt preview
+// DEFAULT_W, W, BASE_RATING, ACTIVITY_INTENSITY, TW, W_LABELS, PRESETS,
+// PROFILE_ATTRS, getSmartRating și toate funcțiile de calcul → definite
+// acum în smart-rating.js (încărcat înaintea acestui script), ca formula
+// de aici să nu mai poată diverge de cea reală din app.js.
 let csvParsed=null;
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
-// ── Constants ─────────────────────────────────────────────────────
-const PROFILE_ATTRS=['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
+// ── Constants (specifice UI-ului acestei pagini) ────────────────────
 const PROFILE_ATTR_META={
     viteza:{label:'⚡ Viteză',color:'#ff8c00'},
     tehnica:{label:'🎯 Tehnică',color:'#82b1ff'},
@@ -561,12 +543,6 @@ const PROFILE_ATTR_META={
     pozitionare:{label:'📍 Poziționare',color:'#80deea'},
 };
 const CAT_LABELS_CONFIG={atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',mentalitate:'💡 Mentalitate / IQ',fizic:'💪 Profil Fizic',executie:'🎯 Execuție',pozitionare:'📍 Poziționare',negativ:'❌ Negative'};
-const W_LABELS={winrate:'📈 Win Rate',goals:'⚽ Goluri (poziție)',general:'⭐ Voturi colegi',tags:'🏷️ Tag-uri'};
-const PRESETS={
-    balanced:{winrate:.25,general:.25,goals:.25,tags:.25,viteza:0,tehnica:0,strategie:0,aparare:0},
-    defensive:{winrate:.20,general:.35,goals:.15,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0},
-    performance:{winrate:.25,general:.15,goals:.30,tags:.30,viteza:0,tehnica:0,strategie:0,aparare:0}
-};
 
 // ── Utilities ─────────────────────────────────────────────────────
 
@@ -589,105 +565,6 @@ const POSITIONS = {
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 function showConfirm(icon,title,msg,yesLabel,yesBg,cb){if(confirm(icon+' '+title+'\n'+msg))cb();}
 
-function getPlayerPrimaryGroup(p){
-    return (p.positionPrimary && POSITIONS[p.positionPrimary]) ? POSITIONS[p.positionPrimary].group : null;
-}
-// Media goluri/meci a unui grup — bază de comparație pt scorul de goluri relativ la poziție.
-function getGroupAvgGoalsPerGame(pool){
-    const withGames=pool.filter(pl=>pl.games>0);
-    if(!withGames.length) return 0;
-    return withGames.reduce((s,pl)=>s+(pl.totalGoals||0)/pl.games,0)/withGames.length;
-}
-// Scor 0-10 (centrat pe 5) pt goluri, relativ la media jucătorilor din același grup de
-// poziție (GK/DEF/MID/FWD) — nu un bonus fix, ca să nu penalizeze nedrept fundașii/portarii.
-function getGoalsScoreRelative(p){
-    if(!p.games) return 5;
-    const gpg=(p.totalGoals||0)/p.games;
-    const group=getPlayerPrimaryGroup(p);
-    let pool=group?db.players.filter(pl=>getPlayerPrimaryGroup(pl)===group):[];
-    if(pool.filter(pl=>pl.games>0).length<3) pool=db.players;
-    const avgGpg=getGroupAvgGoalsPerGame(pool);
-    const scale=Math.max(avgGpg,0.3);
-    const diff=(gpg-avgGpg)/scale;
-    return 5+Math.max(-3,Math.min(3,diff*2.5));
-}
-// Winrate cu shrinkage bayesian spre 50%, proporțional cu nr. de meciuri — un jucător cu
-// 1 meci/1 victorie nu mai primește același bonus ca unul cu 20 din 25.
-const WINRATE_PRIOR_GAMES=8;
-function getWinrateShrunk(p){ return (p.wins+WINRATE_PRIOR_GAMES*0.5)/(p.games+WINRATE_PRIOR_GAMES); }
-// Notă medie pe categorie cu shrinkage spre 5, proporțional cu nr. de voturi — un singur
-// vot extrem nu mai poate muta ratingul brusc.
-const RATING_PRIOR_VOTES=3;
-function getCatScoreShrunk(p,cat){
-    const n=p.ratings.length;
-    if(!n) return 5;
-    const sum=p.ratings.reduce((s,r)=>s+(r[cat]||5),0);
-    return (sum+RATING_PRIOR_VOTES*5)/(n+RATING_PRIOR_VOTES);
-}
-// ── Tag bonus (portat din app.js, ca formula de aici să nu diveargă) ──────
-function getTagProfileStrength(tag){
-    const p=tag.impact_profile||{};
-    const sum=PROFILE_ATTRS.reduce((s,a)=>s+Math.abs(parseFloat(p[a])||0),0);
-    return sum||1.0;
-}
-function getTagProfileNet(tag){
-    const p=tag.impact_profile||{};
-    return PROFILE_ATTRS.reduce((s,a)=>s+(parseFloat(p[a])||0),0);
-}
-function getPlayerActiveTagObjects(p){
-    const adminSet=new Set((p.adminTags||[]).map(String));
-    const result=[];
-    tagsConfig.forEach(tag=>{const tid=String(tag.id);if(adminSet.has(tid))result.push({id:tid,tag,adminSet:true});});
-    return result;
-}
-// Suma netă a contribuțiilor tuturor tag-urilor active ale unui jucător — NU mai e
-// limitată de un "cap" separat; devine pur și simplu un scor 0-10 (5+net) care intră
-// în același blend ponderat ca Win Rate/Goluri/Voturi colegi, cu propria pondere W.tags.
-function computeTagNetSum(activeTags){
-    if(!activeTags.length) return {net:0, signals:[]};
-    let total=0;
-    const signals=[];
-    activeTags.forEach(obj=>{
-        const tag=obj.tag;
-        const tw=TW[String(obj.id)]||0;
-        const strength=getTagProfileStrength(tag);
-        const scaledStrength=Math.min(strength/9,1.0);
-        const dir=tag.type==='pos'?1:tag.type==='neg'?-1:0;
-        if(dir===0){
-            const net=getTagProfileNet(tag);
-            const contrib=(net/27)*0.2+tw*0.1;
-            signals.push({id:obj.id,tag,raw:contrib,dir:0});
-            total+=contrib;
-            return;
-        }
-        const base=dir*(0.25+scaledStrength*0.25);
-        const twContrib=tw*0.30;
-        const contrib=base+twContrib;
-        signals.push({id:obj.id,tag,raw:contrib,dir,strength,scaledStrength});
-        total+=contrib;
-    });
-    return {net:parseFloat(Math.max(-5,Math.min(5,total)).toFixed(3)), signals};
-}
-function getTagsScore(p){
-    const {net}=computeTagNetSum(getPlayerActiveTagObjects(p));
-    return 5+net;
-}
-function getSmartRating(p){
-    if(p.adminRating!=null) return parseFloat(p.adminRating.toFixed(2));
-    const parts=[
-        {score:5+(getWinrateShrunk(p)-0.5)*10, w:W.winrate||0},
-        {score:getGoalsScoreRelative(p),        w:W.goals||0},
-        {score:getCatScoreShrunk(p,'general'),   w:W.general||0},
-        {score:getTagsScore(p),                  w:W.tags||0},
-        {score:getCatScoreShrunk(p,'viteza'),    w:W.viteza||0},
-        {score:getCatScoreShrunk(p,'tehnica'),   w:W.tehnica||0},
-        {score:getCatScoreShrunk(p,'strategie'), w:W.strategie||0},
-        {score:getCatScoreShrunk(p,'aparare'),   w:W.aparare||0},
-    ];
-    const wSum=parts.reduce((s,c)=>s+c.w,0);
-    const base=wSum>0 ? 5+parts.reduce((s,c)=>s+(c.score-5)*c.w,0)/wSum : 5;
-    return parseFloat(Math.max(1,Math.min(10,base)).toFixed(2));
-}
 function getGeneralAvg(p){return p.ratings.length?p.ratings.reduce((s,r)=>s+(r.general||5),0)/p.ratings.length:5;}
 function invalidateTagsCache(){localStorage.removeItem('tags_config_cache');localStorage.removeItem('tags_config_ts');}
 
@@ -710,7 +587,7 @@ function switchSection(name){
     if(name==='algorithm') buildAlgorithmPanel();
     if(name==='tags') buildTagsPanel();
     if(name==='milestones') buildMilestonesPanel();
-    if(name==='poll') initPollSection();
+    if(name==='potm') buildPotmPanel();
     if(name==='compare') buildComparePanel();
 }
 
@@ -733,13 +610,26 @@ async function loadAll(){
     }catch(e){ console.warn('milestone_config load failed (ai rulat migrarea SQL?):',e.message); }
     // Algo settings
     const{data:as}=await sb.from('algo_settings').select('key,value');
-    (as||[]).forEach(r=>{if(r.key==='weights')Object.assign(W,r.value);});
+    (as||[]).forEach(r=>{
+        if(r.key==='weights')Object.assign(W,r.value);
+        if(r.key==='base_rating')BASE_RATING=parseFloat(r.value);
+        if(r.key==='activity_intensity')ACTIVITY_INTENSITY=parseFloat(r.value);
+    });
+    if(isNaN(BASE_RATING))BASE_RATING=5.0;
+    if(isNaN(ACTIVITY_INTENSITY))ACTIVITY_INTENSITY=1.0;
+    // Migrare: "Voturi colegi" (Rating/Borda/MVP) a fost eliminat complet din
+    // formulă — nu mai contează deloc în Smart Rating.
+    W.general=0; W.viteza=0; W.tehnica=0; W.strategie=0; W.aparare=0;
+    W.borda=0; W.mvpWin=0; W.mvpLoss=0;
     // Migrare: configurări salvate înainte de introducerea componentei de goluri
     // raportate la poziție nu au deloc cheia 'goals' — îi dăm o valoare implicită.
     if(W.goals==null) W.goals=DEFAULT_W.goals;
     // Migrare: configurări salvate înainte ca tag-urile să devină un slot ponderat
     // (înainte foloseau un "cap" separat în puncte) — le dăm o valoare implicită.
     if(W.tags==null) W.tags=DEFAULT_W.tags;
+    // Migrare: configurări salvate înainte de introducerea Chimiei.
+    if(W.chemistry==null) W.chemistry=DEFAULT_W.chemistry;
+    _algoSnapshot = { W:{...W}, BASE_RATING, ACTIVITY_INTENSITY }; // baseline pt preview "înainte/după"
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -754,8 +644,12 @@ async function loadAll(){
         ratings:(p.ratings||[]).map(r=>({general:r.general||5,viteza:r.viteza||5,tehnica:r.tehnica||5,strategie:r.strategie||5,aparare:r.aparare||5}))
     }));
     // History
-    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(50);
-    db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[]}));
+    const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(200);
+    db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
+        orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
+        roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
+        manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
+        potmVoteDeadline:h.potm_vote_deadline||null}));
     // Build initial panel
     buildPlayerEditList();
 }
@@ -865,7 +759,7 @@ function addNewPlayerFromSettings(){
 
 // ── ALGORITHM SECTION ─────────────────────────────────────────────
 function buildAlgorithmPanel(){
-    document.getElementById('weightsList').innerHTML=Object.entries(W_LABELS).map(([k,lbl])=>{
+    const weightsHtml=Object.entries(W_LABELS).map(([k,lbl])=>{
         const pct=Math.round((W[k]||0)*100);
         return `<div class="w-cell">
             <span class="w-lbl">${lbl}</span>
@@ -877,8 +771,48 @@ function buildAlgorithmPanel(){
             </div>
         </div>`;
     }).join('');
+    const modifiersHtml=`
+        <div class="w-cell" style="border-top:1px dashed #2a2d3a;margin-top:8px;padding-top:12px;">
+            <span class="w-lbl">🎯 Rating de bază <span style="font-size:.62em;color:#666;">(de unde pornește toată lumea)</span></span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepBaseRating(-0.5)">−</button>
+                <input class="w-num" type="number" id="baseRatingNum" value="${BASE_RATING.toFixed(1)}" min="1" max="10" step="0.5" oninput="syncBaseRating()">
+                <button class="w-btn" onclick="stepBaseRating(0.5)">+</button>
+                <span class="w-pct">pt</span>
+            </div>
+        </div>
+        <div class="w-cell">
+            <span class="w-lbl">📅 Intensitate activitate recentă <span style="font-size:.62em;color:#666;">(0%=ignorată, 100%=normal)</span></span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepActivityIntensity(-10)">−</button>
+                <input class="w-num" type="number" id="activityIntensityNum" value="${Math.round(ACTIVITY_INTENSITY*100)}" min="0" max="200" step="10" oninput="syncActivityIntensity()">
+                <button class="w-btn" onclick="stepActivityIntensity(10)">+</button>
+                <span class="w-pct">%</span>
+            </div>
+        </div>`;
+    document.getElementById('weightsList').innerHTML=weightsHtml+modifiersHtml;
     updateWeightsSum();
     setTimeout(renderFormulaPreview,50);
+}
+function stepBaseRating(delta){
+    BASE_RATING=Math.max(1,Math.min(10,parseFloat((BASE_RATING+delta).toFixed(1))));
+    const el=document.getElementById('baseRatingNum');if(el)el.value=BASE_RATING.toFixed(1);
+    renderFormulaPreview();
+}
+function syncBaseRating(){
+    let v=parseFloat(document.getElementById('baseRatingNum').value);if(isNaN(v))v=5.0;
+    BASE_RATING=Math.max(1,Math.min(10,v));
+    renderFormulaPreview();
+}
+function stepActivityIntensity(delta){
+    ACTIVITY_INTENSITY=Math.max(0,Math.min(2,parseFloat(((ACTIVITY_INTENSITY*100+delta)/100).toFixed(2))));
+    const el=document.getElementById('activityIntensityNum');if(el)el.value=Math.round(ACTIVITY_INTENSITY*100);
+    renderFormulaPreview();
+}
+function syncActivityIntensity(){
+    let v=parseInt(document.getElementById('activityIntensityNum').value);if(isNaN(v))v=100;
+    ACTIVITY_INTENSITY=Math.max(0,Math.min(2,v/100));
+    renderFormulaPreview();
 }
 
 function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
@@ -894,7 +828,7 @@ async function saveTagWeight(tid){
     catch(e){console.warn('saveTagWeight:',e.message);}
 }
 function updateWeightsSum(){
-    const allKeys=['winrate','general','goals','tags'];
+    const allKeys=['winrate','goals','tags','chemistry'];
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
     const pct=Math.round(sum*100);
     const ring=document.getElementById('algoRing');const pw=document.getElementById('algoPower');
@@ -907,21 +841,111 @@ function applyPreset(name){
     Object.entries(p).forEach(([k,v])=>{W[k]=v;const el=document.getElementById('wnum-'+k);if(el)el.value=Math.round(v*100);});
     buildAlgorithmPanel();showToast('✅ Presetare aplicată!');
 }
-async function saveAlgorithm(){
-    const allKeys=['winrate','general','goals','tags'];
+
+/**
+ * Calculează, pentru fiecare jucător cu activitate, ratingul cu setările
+ * VECHI (salvate) vs cele NOI (editate acum, încă nesalvate) — ca admin să
+ * vadă impactul înainte să apese "confirmă", nu după.
+ */
+function computeAlgoPreviewDeltas(){
+    const before=_algoSnapshot||{W:{...DEFAULT_W},BASE_RATING:5.0,ACTIVITY_INTENSITY:1.0};
+    const players=db.players.filter(p=>p.games>0&&p.adminRating==null);
+    const results=players.map(p=>({p,after:getSmartRating(p)}));
+    const liveW=W,liveBase=BASE_RATING,liveAI=ACTIVITY_INTENSITY;
+    W=before.W;BASE_RATING=before.BASE_RATING;ACTIVITY_INTENSITY=before.ACTIVITY_INTENSITY;
+    results.forEach(r=>{r.before=getSmartRating(r.p);});
+    W=liveW;BASE_RATING=liveBase;ACTIVITY_INTENSITY=liveAI;
+    results.forEach(r=>{r.delta=parseFloat((r.after-r.before).toFixed(2));});
+    results.sort((a,b)=>b.delta-a.delta);
+    return results;
+}
+
+function saveAlgorithm(){
+    const allKeys=['winrate','goals','tags','chemistry'];
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
-    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma (Win Rate + Rating + Goluri + Tag-uri) = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
+    if(Math.abs(sum-1)>0.02){showToast(`⚠️ Suma (Win Rate + Goluri + Tag-uri + Chimie) = ${Math.round(sum*100)}% — trebuie 100%!`);return;}
+    showAlgoPreview();
+}
+
+function showAlgoPreview(){
+    const results=computeAlgoPreviewDeltas();
+    const moved=results.filter(r=>Math.abs(r.delta)>0.005);
+    const gainers=moved.filter(r=>r.delta>0).slice(0,5);
+    const losers=[...moved.filter(r=>r.delta<0)].sort((a,b)=>a.delta-b.delta).slice(0,5);
+    const unchanged=results.length-moved.length;
+
+    const row=r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1d2a;">
+        <span style="font-size:.82rem;font-weight:700;color:#e0e0e0;">${r.p.name}</span>
+        <span style="font-size:.78rem;color:#888;">${r.before.toFixed(2)} → <strong style="color:${r.delta>0?'#69f0ae':'#ef9a9a'};">${r.after.toFixed(2)}</strong>
+            <span style="color:${r.delta>0?'#69f0ae':'#ef9a9a'};font-weight:700;margin-left:4px;">(${r.delta>0?'+':''}${r.delta.toFixed(2)})</span>
+        </span>
+    </div>`;
+
+    const body=`
+        <div style="font-size:.72rem;color:#888;margin-bottom:10px;">
+            ${moved.length} din ${results.length} jucători cu activitate își schimbă ratingul · ${unchanged} rămân neschimbați.
+        </div>
+        ${gainers.length?`<div style="font-size:.68rem;color:#69f0ae;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">📈 Urcă cel mai mult</div>${gainers.map(row).join('')}`:''}
+        ${losers.length?`<div style="font-size:.68rem;color:#ef9a9a;text-transform:uppercase;letter-spacing:1px;margin:10px 0 4px;">📉 Coboară cel mai mult</div>${losers.map(row).join('')}`:''}
+        ${!moved.length?`<div style="font-size:.8rem;color:#888;padding:10px 0;">Nicio schimbare vizibilă cu setările astea față de ce e salvat acum.</div>`:''}
+    `;
+
+    let overlay=document.getElementById('algoPreviewOverlay');
+    if(!overlay){
+        overlay=document.createElement('div');
+        overlay.id='algoPreviewOverlay';
+        overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;';
+        document.body.appendChild(overlay);
+    }
+    overlay.innerHTML=`
+        <div style="background:#141720;border-radius:14px;border:1px solid #2a2d40;padding:18px;max-width:420px;width:100%;max-height:82vh;overflow-y:auto;">
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:2px;color:#e0e0e0;margin-bottom:4px;">👀 Preview: Impact Algoritm</div>
+            <div style="font-size:.68rem;color:#666;margin-bottom:12px;">Așa arată ratingurile cu setările noi, ÎNAINTE să le salvezi.</div>
+            ${body}
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button onclick="closeAlgoPreview(true)" style="flex:1;padding:11px;border-radius:9px;background:#0a0c14;border:1px solid #2a2d40;color:#888;font-size:.82rem;cursor:pointer;">✕ Anulează</button>
+                <button onclick="commitAlgorithmSave()" style="flex:1;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer;">✅ Confirmă și salvează</button>
+            </div>
+        </div>`;
+    overlay.style.display='flex';
+}
+
+function closeAlgoPreview(revert){
+    const overlay=document.getElementById('algoPreviewOverlay');
+    if(overlay) overlay.style.display='none';
+    if(revert&&_algoSnapshot){
+        W={..._algoSnapshot.W};
+        BASE_RATING=_algoSnapshot.BASE_RATING;
+        ACTIVITY_INTENSITY=_algoSnapshot.ACTIVITY_INTENSITY;
+        buildAlgorithmPanel();
+        showToast('↺ Modificări anulate — a rămas ce era salvat.');
+    }
+}
+
+async function commitAlgorithmSave(){
     try{
-        await sb.from('algo_settings').upsert([{key:'weights',value:W}],{onConflict:'key'});
+        await sb.from('algo_settings').upsert([
+            {key:'weights',value:W},
+            {key:'base_rating',value:BASE_RATING},
+            {key:'activity_intensity',value:ACTIVITY_INTENSITY}
+        ],{onConflict:'key'});
+        _algoSnapshot={W:{...W},BASE_RATING,ACTIVITY_INTENSITY};
+        closeAlgoPreview(false);
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){showToast('⚠️ '+e.message);}
 }
 async function resetAlgorithm(){
     Object.assign(W,DEFAULT_W);
+    BASE_RATING=5.0;ACTIVITY_INTENSITY=1.0;
     tagsConfig.forEach(t=>{TW[String(t.id)]=0;t.tw_weight=0;});
     try{
-        await sb.from('algo_settings').upsert([{key:'weights',value:DEFAULT_W}],{onConflict:'key'});
+        await sb.from('algo_settings').upsert([
+            {key:'weights',value:DEFAULT_W},
+            {key:'base_rating',value:5.0},
+            {key:'activity_intensity',value:1.0}
+        ],{onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
+        _algoSnapshot={W:{...DEFAULT_W},BASE_RATING:5.0,ACTIVITY_INTENSITY:1.0};
     }catch(e){console.warn(e);}
     buildAlgorithmPanel();buildTagsPanel();showToast('↺ Algoritm resetat (inclusiv coeficienții tag-urilor)!');
 }
@@ -931,12 +955,13 @@ function renderFormulaPreview(){
     const el=document.getElementById('formulaPreview');
     if(!el) return;
     const rows=[
-        {color:'#888',icon:'🎯',label:'Punct de start',formula:'5.0',detail:''},
+        {color:'#888',icon:'🎯',label:'Punct de start',formula:BASE_RATING.toFixed(1),detail:'setabil din panou'},
         {color:W.winrate>0?'#ffcc00':'#333',icon:'📈',label:'Win Rate',formula:`(WR ajustat−50%)×${(W.winrate*10).toFixed(2)}`,detail:`shrinkage spre 50% · pondere ${Math.round(W.winrate*100)}%`},
         {color:W.goals>0?'#69f0ae':'#333',icon:'⚽',label:'Goluri (poziție)',formula:`(gpg−medie poziție)×2.5`,detail:`relativ la grupul GK/DEF/MID/FWD · ${Math.round((W.goals||0)*100)}%`},
-        {color:W.general>0?'var(--star)':'#333',icon:'⭐',label:'Voturi colegi',formula:`(Nota ajustată−5)×${(W.general).toFixed(2)}`,detail:`shrinkage spre 5 · ${Math.round(W.general*100)}%`},
-        {color:W.tags>0?'#82b1ff':'#333',icon:'🏷️',label:'Tag-uri',formula:`(Net tag-uri)×${(W.tags||0).toFixed(2)}`,detail:`suma coeficienților per tag · ${Math.round((W.tags||0)*100)}%`},
-        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.20',detail:'max −0.60 pt · calculat de app.js'},
+        {color:W.tags>0?'#82b1ff':'#333',icon:'🏷️',label:'Tag-uri',formula:`(coeficient×14)`,detail:`max ±7pt per tag · pondere ${Math.round((W.tags||0)*100)}%`},
+        {color:W.chemistry>0?'#ff8c69':'#333',icon:'🧪',label:'Chimie',formula:`(WR cu echipa−50%)×10`,detail:`auto-calculat din coechipierii actuali · ${Math.round((W.chemistry||0)*100)}%`},
+        {color:'#ef9a9a',icon:'⚠️',label:'Dezechilibru',formula:'−imbal×0.20',detail:'max −0.60 pt'},
+        {color:ACTIVITY_INTENSITY>0?'#ce93d8':'#333',icon:'📅',label:'Activitate recentă',formula:`blend spre ${BASE_RATING.toFixed(1)}`,detail:`intensitate ${Math.round(ACTIVITY_INTENSITY*100)}% · max −20% din multiplicator`},
     ];
     el.innerHTML=rows.map(r=>`<div style="display:flex;align-items:baseline;gap:8px;padding:2px 0;border-bottom:1px solid #0a0c14;">
         <span style="font-size:.72rem;min-width:16px;">${r.icon}</span>
@@ -975,18 +1000,19 @@ function buildTagsPanel(){
                         <select class="tag-select-sm" onchange="updateTagField(${t.id},'category',this.value)">
                             ${Object.entries(CAT_LABELS_CONFIG).map(([v,l])=>`<option value="${v}" ${t.category===v?'selected':''}>${l.split(' ')[0]}</option>`).join('')}
                         </select>
-                        <button class="tag-profile-btn" onclick="toggleTagProfile('${expandId}')">📊 Profil</button>
+                        <button class="tag-profile-btn" onclick="toggleTagProfile('${expandId}')" title="Profil echilibrare echipe: ${profileStr} (NU afectează ratingul)">📊 Profil echipă</button>
                         <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
                     </div>
-                    <div class="tag-impact-summary">Impact: ${profileStr}</div>
                     <div class="tw-row" style="margin-top:4px;">
                         <span class="tw-emoji" style="color:#555;font-size:.62rem;">🎚️ Coeficient rating</span>
                         <button class="tw-btn" onclick="stepTagWeight('${tid}',-5)">−</button>
                         <span class="tw-val" id="twval-${tid}" style="color:${twNumColor};width:44px;">${twCur>0?'+'+twCur:twCur}%</span>
                         <button class="tw-btn" onclick="stepTagWeight('${tid}',+5)">+</button>
+                        <span style="font-size:.55rem;color:#666;margin-left:4px;">→ singurul lucru care contează pentru Smart Rating</span>
                     </div>
                     <div class="tag-profile-panel" id="${expandId}">
-                        <div style="font-size:.6rem;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">📊 Profil Impact (−3 → +3)</div>
+                        <div style="font-size:.6rem;color:#555;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">📊 Profil pentru echilibrare echipe (−3 → +3)</div>
+                        <div style="font-size:.58rem;color:#666;margin-bottom:6px;">Nu afectează ratingul — folosit doar la formarea echipelor echilibrate. Poți sări peste asta.</div>
                         <div id="ipSliders-${t.id}"></div>
                     </div>
                 </div>`;
@@ -1062,11 +1088,12 @@ async function saveNewTag(){
     const type=document.getElementById('ntType').value;
     const category=document.getElementById('ntCat').value;
     const impact_profile=getNewTagProfile();
+    const tw_weight = type==='pos' ? 0.20 : type==='neg' ? -0.20 : 0;
     if(!label){showToast('⚠️ Introdu un label!');return;}
     try{
-        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_profile,sort_order:tagsConfig.length+1}).select().single();
+        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_profile,tw_weight,sort_order:tagsConfig.length+1}).select().single();
         if(error)throw error;
-        tagsConfig.push(data);invalidateTagsCache();
+        tagsConfig.push(data);TW[String(data.id)]=tw_weight;invalidateTagsCache();
         document.getElementById('addTagForm').classList.remove('open');
         document.getElementById('ntEmoji').value='';document.getElementById('ntLabel').value='';
         buildTagsPanel();showToast('✅ Tag adăugat: '+emoji+' '+label);
@@ -1115,6 +1142,244 @@ const MILESTONE_CAT_LABELS={
     best_match_goals:'🎩 Goluri Într-un Singur Meci',
 };
 const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals'];
+
+// ═══════════════════════════════════════════════════════════════════
+// ── PLAYER OF THE MATCH — panou administrare ─────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+// Grupează perechile de 3 echipe salvate în aceeași zi, la <10 min una de alta,
+// într-o singură "sesiune" — la fel ca în clasament.html / live.html.
+function groupHistoryForDisplay(sorted){
+    const SESSION_GAP_MS = 10*60*1000;
+    const items = [];
+    let i = 0;
+    while (i < sorted.length) {
+        const h = sorted[i];
+        const is3Team = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+        if (!is3Team) { items.push({type:'single', rows:[h]}); i++; continue; }
+        const group = [h];
+        let j = i+1;
+        while (j < sorted.length) {
+            const next = sorted[j];
+            const nextIs3 = Array.isArray(next.roundsDetail) && next.roundsDetail.length > 0;
+            if (!nextIs3 || next.date !== h.date) break;
+            const tA = group[group.length-1].createdAt ? new Date(group[group.length-1].createdAt).getTime() : null;
+            const tB = next.createdAt ? new Date(next.createdAt).getTime() : null;
+            if (tA===null || tB===null || Math.abs(tA-tB) > SESSION_GAP_MS) break;
+            group.push(next);
+            j++;
+        }
+        items.push({type:'session', rows: group});
+        i = j;
+    }
+    return items;
+}
+
+// Returnează toate rândurile (perechile) sesiunii din care face parte h — sau
+// doar [h] dacă e un meci simplu, ne-legat de nicio sesiune 3 echipe.
+function getSessionRowsFor(h){
+    if (!h) return [];
+    const groups = groupHistoryForDisplay(db.history);
+    const g = groups.find(item => item.rows.some(r => r._dbId === h._dbId));
+    return g ? g.rows : [h];
+}
+
+function potmMatchParticipants(h){
+    // POTM la o sesiune 3 echipe e pentru TOATĂ sesiunea — adunăm participanții
+    // din toate perechile ei (toate cele 3 echipe), nu doar cele 2 din perechea
+    // curentă. Pentru un meci simplu (2 echipe), getSessionRowsFor(h) întoarce
+    // doar [h], deci comportamentul rămâne neschimbat.
+    const rows = getSessionRowsFor(h);
+    const names = new Set();
+    rows.forEach(row => {
+        [...(row.orangePlayers||[]), ...(row.greenPlayers||[]), ...(row.blackPlayers||[])].forEach(n=>names.add(n));
+    });
+    return [...names].map(name => db.players.find(p=>p.name===name)).filter(Boolean);
+}
+
+function potmMatchLabel(h){
+    const teams = [];
+    if ((h.orangePlayers||[]).length) teams.push('Portocaliu');
+    if ((h.greenPlayers||[]).length) teams.push('Verde');
+    if ((h.blackPlayers||[]).length) teams.push('Negru');
+    return `${h.date||'—'} · ${teams.join(' vs ')}${h.score?' · '+h.score:''}`;
+}
+
+// Etichetă pentru o sesiune întreagă de 3 echipe (nu o singură pereche) —
+// arată toate echipele implicate în sesiune și câte meciuri/perechi conține.
+function potmSessionLabel(rows){
+    const first = rows[0];
+    const teamSet = new Set();
+    rows.forEach(h=>{
+        if ((h.orangePlayers||[]).length) teamSet.add('Portocaliu');
+        if ((h.greenPlayers||[]).length)  teamSet.add('Verde');
+        if ((h.blackPlayers||[]).length)  teamSet.add('Negru');
+    });
+    return `🎮 ${first.date||'—'} · Sesiune 3 Echipe (${[...teamSet].join(', ')}) · ${rows.length} meci${rows.length!==1?'uri':''}`;
+}
+
+function buildPotmPanel(){
+    const sel = document.getElementById('potmMatchSelect');
+    if (!sel) return;
+    const current = sel.value;
+    // O sesiune 3 echipe apare o singură dată în listă (valoarea folosită e
+    // _dbId-ul PRIMEI perechi din sesiune, ca "reprezentant" al întregii
+    // sesiuni) — nu mai apare separat pentru fiecare pereche în parte.
+    const items = groupHistoryForDisplay(db.history);
+    sel.innerHTML = '<option value="">— selectează un meci —</option>'
+        + items.map(item => {
+            if (item.type === 'session') {
+                return `<option value="${item.rows[0]._dbId}">${potmSessionLabel(item.rows)}</option>`;
+            }
+            const h = item.rows[0];
+            return `<option value="${h._dbId}">${potmMatchLabel(h)}</option>`;
+        }).join('');
+    if (current) sel.value = current;
+    document.getElementById('potmMatchPanel').style.display = 'none';
+}
+
+let _potmAdminMatch = null;
+
+async function loadPotmMatchDetails(){
+    const sel = document.getElementById('potmMatchSelect');
+    const matchId = sel.value;
+    if (!matchId){ document.getElementById('potmMatchPanel').style.display='none'; return; }
+    _potmAdminMatch = db.history.find(h=>String(h._dbId)===String(matchId));
+    if (!_potmAdminMatch) return;
+
+    // Populează dropdown-ul de suprascriere manuală
+    const participants = potmMatchParticipants(_potmAdminMatch);
+    const manualSel = document.getElementById('potmManualSelect');
+    manualSel.innerHTML = '<option value="">— fără suprascriere (folosește voturile) —</option>'
+        + participants.sort((a,b)=>a.name.localeCompare(b.name))
+            .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualPotmId==p.id?'selected':''}>${p.name}</option>`).join('');
+
+    document.getElementById('potmMatchPanel').style.display = 'block';
+    await refreshPotmVotes();
+}
+
+async function refreshPotmVotes(){
+    if (!_potmAdminMatch) return;
+    const listEl = document.getElementById('potmVotesList');
+    const votersEl = document.getElementById('potmVotersDetail');
+    listEl.innerHTML = '<div style="color:#555;font-size:.75rem;">⏳ Se încarcă...</div>';
+    try{
+        // Voturile pentru o sesiune 3 echipe sunt împrăștiate pe mai multe
+        // match_id-uri (câte unul per pereche) — le adunăm pe toate, nu doar
+        // pe cele legate de rândul "reprezentant" ales în dropdown.
+        const sessionRows = getSessionRowsFor(_potmAdminMatch);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        const { data, error } = await sb.from('potm_votes')
+            .select('voter_player_id,voted_player_id')
+            .in('match_id', sessionMatchIds);
+        if (error) throw error;
+
+        const counts = {};
+        (data||[]).forEach(v=>{ counts[v.voted_player_id] = (counts[v.voted_player_id]||0)+1; });
+        const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+
+        if (!sorted.length){
+            listEl.innerHTML = '<div style="color:#555;font-size:.75rem;">Niciun vot încă pentru acest meci.</div>';
+        } else {
+            listEl.innerHTML = sorted.map(([pid,count],i)=>{
+                const p = db.players.find(x=>x.id==pid);
+                const isLeader = i===0 && !_potmAdminMatch.manualPotmId;
+                return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+                    <span style="font-weight:700;color:${isLeader?'var(--star)':'#e0e0e0'};">${isLeader?'⭐ ':''}${p?p.name:'#'+pid}</span>
+                    <span style="color:#888;">${count} vot${count!==1?'uri':''}</span>
+                </div>`;
+            }).join('');
+        }
+
+        const voterNames = (data||[]).map(v=>{
+            const p = db.players.find(x=>x.id==v.voter_player_id);
+            return p ? p.name : null;
+        }).filter(Boolean);
+        const participants = potmMatchParticipants(_potmAdminMatch);
+        votersEl.innerHTML = `Au votat (${voterNames.length}/${participants.length}): ${voterNames.length ? voterNames.join(', ') : '—'}`;
+
+        renderPotmDeadlineStatus();
+    }catch(e){
+        listEl.innerHTML = `<div style="color:#ef9a9a;font-size:.75rem;">⚠️ ${e.message} (ai rulat migrarea SQL pentru potm_votes?)</div>`;
+    }
+}
+
+// Arată starea curentă a termenului de vot (deschis / expirat / nesetat).
+function renderPotmDeadlineStatus(){
+    const el = document.getElementById('potmDeadlineStatus');
+    if (!el || !_potmAdminMatch) return;
+    const deadline = _potmAdminMatch.potmVoteDeadline;
+    if (!deadline){
+        el.innerHTML = '<span style="color:#888;">⏱ Niciun termen setat încă — linkul rămâne deschis nelimitat.</span>';
+        return;
+    }
+    const d = new Date(deadline);
+    const closed = Date.now() > d.getTime();
+    const fmt = d.toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    el.innerHTML = closed
+        ? `<span style="color:#ef9a9a;">🔒 Votarea s-a închis (termen: ${fmt}). Generează un link nou ca să redeschizi.</span>`
+        : `<span style="color:#81c784;">🟢 Votarea e deschisă până la ${fmt}.</span>`;
+}
+
+async function savePotmManual(){
+    if (!_potmAdminMatch) return;
+    const sel = document.getElementById('potmManualSelect');
+    const val = sel.value ? parseInt(sel.value) : null;
+    try{
+        // Suprascrierea manuală se salvează pe TOATE perechile sesiunii (nu
+        // doar pe rândul reprezentant), ca să existe o singură sursă de
+        // adevăr indiferent care pereche o citește prima (clasament.html
+        // caută suprascrierea în oricare rând al sesiunii).
+        const sessionRows = getSessionRowsFor(_potmAdminMatch);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        await sb.from('match_history').update({ manual_potm_player_id: val }).in('id', sessionMatchIds);
+        sessionRows.forEach(r => { r.manualPotmId = val; });
+        _potmAdminMatch.manualPotmId = val;
+        showToast(val ? '✅ POTM oficial salvat!' : '✅ Suprascriere eliminată — folosește voturile.');
+        await refreshPotmVotes();
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// Link-ul de vot trebuie să indice spre clasament.html (pagina publică, fără
+// login), NU spre setari.html unde suntem acum — votanții trebuie să ajungă
+// direct la ecranul de vot, nu la panoul de admin.
+async function copyPotmAdminVoteLink(){
+    if (!_potmAdminMatch) return;
+    const hoursInput = document.getElementById('potmVoteHoursInput');
+    const hours = Math.max(1, parseInt(hoursInput?.value) || 24);
+    const deadline = new Date(Date.now() + hours*60*60*1000).toISOString();
+    try{
+        // Termenul se salvează pe TOATE perechile sesiunii (aceeași logică ca
+        // suprascrierea manuală) — o singură sursă de adevăr, indiferent care
+        // pereche o citește prima clasament.html.
+        const sessionRows = getSessionRowsFor(_potmAdminMatch);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        const { error } = await sb.from('match_history').update({ potm_vote_deadline: deadline }).in('id', sessionMatchIds);
+        if (error) throw error;
+        sessionRows.forEach(r => { r.potmVoteDeadline = deadline; });
+        _potmAdminMatch.potmVoteDeadline = deadline;
+        renderPotmDeadlineStatus();
+    }catch(e){
+        showToast('⚠️ Nu am putut seta termenul: '+e.message+' (ai rulat migrarea SQL pentru potm_vote_deadline?)');
+        return;
+    }
+    const clasamentPath = location.pathname.replace(/[^/]*$/, '') + 'clasament.html';
+    const url = `${location.origin}${clasamentPath}?vote_match=${_potmAdminMatch._dbId}`;
+    const doCopy = () => navigator.clipboard.writeText(url).then(
+        ()=>showToast(`🔗 Link copiat! Valabil ${hours}h. Trimite-l pe WhatsApp.`),
+        ()=>fallbackCopyPotmLink(url)
+    );
+    if (navigator.clipboard && window.isSecureContext) doCopy();
+    else fallbackCopyPotmLink(url);
+}
+function fallbackCopyPotmLink(text){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); showToast('🔗 Link copiat! Trimite-l pe WhatsApp.'); }
+    catch(e){ showToast('⚠️ Nu am putut copia — link: '+text); }
+    document.body.removeChild(ta);
+}
 
 function buildMilestonesPanel(){
     const el=document.getElementById('milestonesList');if(!el)return;
@@ -1231,224 +1496,7 @@ async function nukeAll(){
     });
 }
 
-// ── POLL SECTION ─────────────────────────────────────────────────
-let activePoll = null;
-let pollVoters = new Set();
-let pollChannel = null;
-let pollSelectedPlayers = new Set();
-
-async function initPollSection(){
-    // Build player picker
-    buildPollPlayerPicks();
-    // Check for active poll
-    const{data}=await sb.from('player_poll').select('*').eq('status','open').order('id',{ascending:false}).limit(1).maybeSingle();
-    if(data){
-        activePoll=data;
-        showActivePoll();
-        await loadPollVotes();
-        subscribePollRealtime();
-    } else {
-        document.getElementById('pollCreateCard').style.display='block';
-        document.getElementById('pollActiveCard').style.display='none';
-    }
-}
-
-function buildPollPlayerPicks(){
-    const el=document.getElementById('pollPlayerPicks');if(!el)return;
-    el.innerHTML=db.players.sort((a,b)=>a.name.localeCompare(b.name)).map(p=>{
-        const sel=pollSelectedPlayers.has(p.name);
-        return `<div onclick="togglePollPlayer('${p.name}')" id="ppick-${p.id}"
-            style="padding:5px 10px;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:700;border:1px solid;
-            background:${sel?'rgba(61,90,254,.15)':'#141720'};border-color:${sel?'var(--accent)':'var(--border)'};color:${sel?'#82b1ff':'#555'};">
-            ${p.name}</div>`;
-    }).join('');
-}
-
-function togglePollPlayer(name){
-    if(pollSelectedPlayers.has(name)) pollSelectedPlayers.delete(name);
-    else pollSelectedPlayers.add(name);
-    buildPollPlayerPicks();
-}
-
-async function startPoll(){
-    if(pollSelectedPlayers.size < 2){showToast('⚠️ Selectează minim 2 jucători!');return;}
-    const label=document.getElementById('pollLabel').value.trim()||'Sondaj '+new Date().toLocaleDateString('ro-RO');
-    const players=[...pollSelectedPlayers];
-    try{
-        // Close any existing open polls
-        await sb.from('player_poll').update({status:'closed'}).eq('status','open');
-        const{data,error}=await sb.from('player_poll').insert({players,status:'open',label}).select().single();
-        if(error)throw error;
-        activePoll=data;
-        pollVoters=new Set();
-        showActivePoll();
-        subscribePollRealtime();
-        showToast('✅ Vot pornit! '+players.length+' jucători.');
-    }catch(e){showToast('⚠️ '+e.message);}
-}
-
-function showActivePoll(){
-    document.getElementById('pollCreateCard').style.display='none';
-    document.getElementById('pollActiveCard').style.display='block';
-    document.getElementById('pollActiveLabel').textContent=activePoll.label+' · '+(activePoll.players||[]).length+' jucători';
-    const url=location.origin+location.pathname.replace('setari.html','')+'vote-jucatori.html';
-    document.getElementById('pollShareUrl').textContent=url;
-    document.getElementById('pollTotalEligible').textContent=(activePoll.players||[]).length;
-}
-
-function copyPollLink(){
-    const url=location.origin+location.pathname.replace('setari.html','')+'vote-jucatori.html';
-    navigator.clipboard.writeText(url).then(()=>showToast('📋 Link copiat!'));
-}
-
-async function loadPollVotes(){
-    if(!activePoll) return;
-    const{data}=await sb.from('player_poll_votes').select('voter_name').eq('poll_id',activePoll.id);
-    pollVoters=new Set((data||[]).map(v=>v.voter_name));
-    renderPollVoters();
-    refreshPollResults();
-}
-
-function renderPollVoters(){
-    document.getElementById('pollVoteCount').textContent=pollVoters.size;
-    const el=document.getElementById('pollVotersList');
-    el.innerHTML=[...pollVoters].map(name=>
-        `<span style="background:rgba(105,240,174,.08);border:1px solid rgba(105,240,174,.2);color:#69f0ae;padding:3px 8px;border-radius:5px;font-size:.72rem;">✅ ${name}</span>`
-    ).join('');
-}
-
-async function refreshPollResults(){
-    if(!activePoll) return;
-    const{data:votes}=await sb.from('player_poll_votes').select('voter_name,ranking').eq('poll_id',activePoll.id);
-    if(!votes?.length){ document.getElementById('pollLiveResults').style.display='none'; return; }
-    // Aggregate Borda
-    const totals={};
-    votes.forEach(v=>{const rank=v.ranking||[];const N=rank.length;rank.forEach((name,i)=>{totals[name]=(totals[name]||0)+(N-i);});});
-    const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
-    const maxPts=sorted[0]?.[1]||1;
-    // Live results (no percentages, just rank + bar)
-    const medals=['🥇','🥈','🥉'];
-    document.getElementById('pollLiveResults').style.display='block';
-    document.getElementById('pollLiveResultsList').innerHTML=sorted.map(([name,pts],i)=>
-        `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0a0c14;">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;min-width:22px;text-align:center;color:${i===0?'var(--star)':i===1?'#aaa':i===2?'#cd7f32':'#333'}">${medals[i]||(i+1)}</span>
-            <span style="flex:1;font-weight:700;font-size:.82rem;">${name}</span>
-            <div style="width:80px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;">
-                <div style="width:${Math.round((pts/maxPts)*100)}%;height:100%;background:${i===0?'linear-gradient(90deg,var(--star),#ff8c00)':'linear-gradient(90deg,var(--accent),#a78bfa)'};border-radius:2px;"></div>
-            </div>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:.75rem;color:#555;min-width:28px;text-align:right;">${pts}pt</span>
-        </div>`
-    ).join('');
-    // Per-voter breakdown
-    document.getElementById('pollBreakdownWrap').style.display='block';
-    // Store votes for editing
-    window._pollVotes=votes;
-    document.getElementById('pollBreakdownList').innerHTML=votes.map(v=>{
-        const rank=v.ranking||[];
-        const ms=['🥇','🥈','🥉'];
-        return `<div style="padding:7px 0;border-bottom:1px solid #0a0c14;display:flex;align-items:flex-start;gap:8px;">
-            <div style="flex:1;">
-                <div style="font-size:.68rem;font-weight:700;color:#888;margin-bottom:4px;">👤 ${v.voter_name}</div>
-                <div style="display:flex;flex-wrap:wrap;gap:4px;">
-                    ${rank.map((name,i)=>`<span style="font-size:.65rem;padding:2px 7px;border-radius:5px;background:#0d1020;border:1px solid var(--border);color:#888;">${ms[i]||(i+1)+'. '}${name}</span>`).join('')}
-                </div>
-            </div>
-            <button onclick="openVoteEdit('${v.voter_name}')" style="background:rgba(255,204,0,.07);border:1px solid rgba(255,204,0,.2);color:var(--star);padding:4px 8px;border-radius:6px;font-size:.65rem;cursor:pointer;white-space:nowrap;margin-top:2px;flex-shrink:0;">✏️ Edit</button>
-        </div>`;
-    }).join('');
-}
-
-function toggleBreakdown(){
-    const bd=document.getElementById('pollBreakdownList');
-    const btn=document.getElementById('breakdownToggleBtn');
-    const open=bd.style.display==='none';
-    bd.style.display=open?'block':'none';
-    btn.textContent=open?'▲ Ascunde':'▼ Vezi cum a votat fiecare';
-}
-
-function subscribePollRealtime(){
-    if(pollChannel) sb.removeChannel(pollChannel);
-    pollChannel=sb.channel('poll_rt_'+activePoll.id)
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'player_poll_votes',filter:'poll_id=eq.'+activePoll.id},payload=>{
-            pollVoters.add(payload.new.voter_name);
-            renderPollVoters();
-            refreshPollResults();
-            showToast('🗳️ '+payload.new.voter_name+' a votat!');
-        })
-        .subscribe();
-}
-
-async function stopPoll(){
-    if(!activePoll||!confirm('Oprești votarea și calculezi rezultatele?')) return;
-    try{
-        await sb.from('player_poll').update({status:'closed'}).eq('id',activePoll.id);
-        // Calculate Borda results
-        const{data:votes}=await sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id);
-        const totals={};
-        (votes||[]).forEach(v=>{
-            const ranking=v.ranking||[];
-            const N=ranking.length;
-            ranking.forEach((name,idx)=>{totals[name]=(totals[name]||0)+(N-idx);});
-        });
-        const sorted=Object.entries(totals).sort((a,b)=>b[1]-a[1]);
-        const maxPts=sorted[0]?.[1]||1;
-        // Show results
-        document.getElementById('pollResultsPreview').style.display='block';
-        document.getElementById('pollResultsList').innerHTML=sorted.map(([name,pts],i)=>{
-            const pct=Math.round((pts/maxPts)*100);
-            const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #0f1118;">
-                <span style="font-size:.85rem;min-width:22px;">${medal}</span>
-                <span style="flex:1;font-weight:700;font-size:.82rem;">${name}</span>
-                <div style="width:80px;height:4px;background:#1e2130;border-radius:2px;overflow:hidden;">
-                    <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--accent),#a78bfa);border-radius:2px;"></div>
-                </div>
-                <span style="font-size:.72rem;color:#555;min-width:30px;text-align:right;">${pts}pt</span>
-            </div>`;
-        }).join('');
-        if(pollChannel) sb.removeChannel(pollChannel);
-        showToast('✅ Vot oprit! '+pollVoters.size+' voturi înregistrate.');
-    }catch(e){showToast('⚠️ '+e.message);}
-}
-
-async function applyPollToBorda(){
-    if(!activePoll) return;
-    const{data:votes}=await sb.from('player_poll_votes').select('ranking').eq('poll_id',activePoll.id);
-    if(!votes?.length){showToast('⚠️ Niciun vot!');return;}
-    // Build borda totals
-    const totals={},counts={};
-    votes.forEach(v=>{
-        const ranking=v.ranking||[];const N=ranking.length;
-        ranking.forEach((name,idx)=>{
-            totals[name]=(totals[name]||0)+(N-idx);
-            counts[name]=(counts[name]||0)+1;
-        });
-    });
-    // Insert into borda_votes (link to a virtual match_id or use null)
-    // We use player_poll_id as reference — insert one aggregate row per player
-    const maxPts=Math.max(...Object.values(totals),1);
-    try{
-        // Update bordaScore directly on players via a dedicated column
-        // We'll insert rows with a special match_id based on poll
-        // Actually: insert borda_votes rows so the existing algorithm picks them up
-        // Use a special marker match_id = '00000000-0000-0000-0000-'+ poll_id padded
-        const fakeMatchId='00000000-0000-0000-0000-'+String(activePoll.id).padStart(12,'0');
-        // Delete old poll votes for this poll
-        await sb.from('borda_votes').delete().eq('match_id',fakeMatchId);
-        const rows=Object.entries(totals).map(([name,pts])=>({
-            match_id:fakeMatchId,
-            voter_name:'_poll_'+activePoll.id,
-            player_name:name,
-            borda_pts:pts,
-            ranked_pos:Object.entries(totals).sort((a,b)=>b[1]-a[1]).findIndex(([n])=>n===name)+1
-        }));
-        await sb.from('borda_votes').insert(rows);
-        showToast('✅ Scoruri Borda actualizate pentru '+rows.length+' jucători!');
-    }catch(e){showToast('⚠️ '+e.message);}
-}
-
-
-// ── SECRET CODES ──────────────────────────────────────────────────
+// ── Coduri secrete per jucător (identitate, independent de Sondaj) ──
 function genCode(){
     const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0,O,1,I for clarity
     let code='';for(let i=0;i<5;i++)code+=chars[Math.floor(Math.random()*chars.length)];
@@ -1502,81 +1550,6 @@ function copyAllCodes(){
         .map(p=>p.name+': '+( p.secretCode||'—' )).join('\n');
     navigator.clipboard.writeText(lines).then(()=>showToast('📋 Coduri copiate!'));
 }
-
-
-// ── Admin: Edit a voter's ranking ─────────────────────────────────
-let _editVoter=null, _editSelected=[];
-
-function openVoteEdit(voterName){
-    _editVoter=voterName;
-    const vote=(window._pollVotes||[]).find(v=>v.voter_name===voterName);
-    _editSelected=vote?.ranking?[...vote.ranking]:[];
-    // Make sure all poll players present
-    const allP=activePoll?.players||[];
-    allP.forEach(n=>{if(!_editSelected.includes(n))_editSelected.push(n);});
-    _editSelected=_editSelected.filter(n=>allP.includes(n));
-    document.getElementById('voteEditWho').textContent='Votul lui '+voterName;
-    document.getElementById('voteEditOverlay').style.display='flex';
-    renderVoteEditGrid();
-}
-
-function closeVoteEdit(){
-    document.getElementById('voteEditOverlay').style.display='none';
-    _editVoter=null;_editSelected=[];
-}
-
-function renderVoteEditGrid(){
-    const allP=activePoll?.players||[];
-    const medals=['🥇','🥈','🥉'];
-    const grid=document.getElementById('voteEditGrid');
-    grid.innerHTML=allP.map(name=>{
-        const pos=_editSelected.indexOf(name);
-        const isSet=pos>=0;
-        const lbl=isSet?(medals[pos]||(pos+1)+'°'):'—';
-        const col=pos===0?'var(--star)':pos===1?'#aaa':pos===2?'#cd7f32':isSet?'var(--accent)':'#252836';
-        const bg=pos===0?'rgba(255,204,0,.06)':isSet?'rgba(61,90,254,.06)':'#0d0f18';
-        const border=pos===0?'rgba(255,204,0,.3)':isSet?'var(--accent)':'var(--border)';
-        return `<div onclick="veToggle('${name.replace(/'/g,"\'")}')
-            " style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;border:2px solid ${border};background:${bg};cursor:pointer;transition:all .1s;-webkit-tap-highlight-color:transparent;">
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:26px;text-align:center;color:${col};">${lbl}</span>
-            <span style="flex:1;font-weight:700;font-size:.88rem;">${name}</span>
-            ${isSet?`<span onclick="veDesel(event,'${name.replace(/'/g,"\'")}')
-                " style="font-size:.7rem;color:#ef9a9a;background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.2);padding:2px 6px;border-radius:5px;cursor:pointer;">✕</span>`:''}
-        </div>`;
-    }).join('');
-    const done=_editSelected.length,total=allP.length;
-    document.getElementById('voteEditSaveBtn').disabled=done<total;
-    document.getElementById('voteEditSaveBtn').textContent=done<total?`💾 Salvează (${done}/${total})`:'💾 Salvează';
-}
-
-function veToggle(name){
-    if(_editSelected.includes(name)) return;
-    _editSelected.push(name);
-    renderVoteEditGrid();
-}
-function veDesel(e,name){
-    e.stopPropagation();
-    _editSelected=_editSelected.filter(n=>n!==name);
-    renderVoteEditGrid();
-}
-function resetVoteEdit(){
-    _editSelected=[];
-    renderVoteEditGrid();
-}
-
-async function saveVoteEdit(){
-    if(!_editVoter||!activePoll) return;
-    const allP=activePoll.players||[];
-    if(_editSelected.length<allP.length){showToast('⚠️ Selectează toți jucătorii!');return;}
-    try{
-        await sb.from('player_poll_votes')
-            .upsert({poll_id:activePoll.id,voter_name:_editVoter,ranking:_editSelected},{onConflict:'poll_id,voter_name'});
-        showToast('✅ Votul lui '+_editVoter+' actualizat!');
-        closeVoteEdit();
-        await refreshPollResults();
-    }catch(e){showToast('⚠️ '+e.message);}
-}
-
 
 // ── COMPARE SESSION ───────────────────────────────────────────────
 let compareSelected = new Set();
@@ -1682,24 +1655,5 @@ async function loadCompareResults(configId, players){
 loadAll();
 </script>
 
-<!-- Poll Vote Edit Modal -->
-<div id="voteEditOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-end;justify-content:center;">
-  <div style="background:#141720;width:100%;max-width:520px;border-radius:16px 16px 0 0;border:1px solid #2a2d40;border-bottom:none;padding:18px;max-height:88vh;overflow-y:auto;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-      <div>
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;">✏️ Editează Vot</div>
-        <div style="font-size:.7rem;color:#555;margin-top:2px;" id="voteEditWho"></div>
-      </div>
-      <button onclick="closeVoteEdit()" style="background:#252836;border:1px solid #2a2d40;color:#888;padding:5px 10px;border-radius:7px;cursor:pointer;font-size:.8rem;">✕</button>
-    </div>
-    <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Apasă în ordinea preferinței (primul = cel mai bun):</div>
-    <!-- Player picker inside modal -->
-    <div id="voteEditGrid" style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;"></div>
-    <div style="display:flex;gap:8px;margin-top:6px;">
-      <button onclick="resetVoteEdit()" style="padding:10px 14px;border-radius:9px;background:#0a0c14;border:1px solid var(--border);color:#555;font-size:.78rem;cursor:pointer;">↺ Reset</button>
-      <button onclick="saveVoteEdit()" id="voteEditSaveBtn" style="flex:1;padding:10px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;" disabled>💾 Salvează</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>

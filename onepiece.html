@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Pace Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --gold:#f59e0b;--gold2:#fbbf24;--bg:#0f172a;--panel:#111c31;--panel2:#17243b;
+  --line:#263754;--text:#f8fafc;--muted:#94a3b8;--green:#22c55e;--red:#ef4444;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at top,#172554 0,#0f172a 38%,#080e1b 100%);
+ color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+button{font:inherit}
+.header{position:sticky;top:0;z-index:100;background:rgba(8,14,27,.94);backdrop-filter:blur(16px);
+ border-bottom:1px solid var(--line);padding:18px 20px 14px}
+.header-inner{max-width:1200px;margin:auto}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:15px}
+h1{margin:0;font-size:clamp(1.55rem,4vw,2.25rem);letter-spacing:-.04em}
+.brand small{display:block;color:var(--muted);font-size:.78rem;margin-top:3px}
+.connection{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#64748b}.online .dot{background:var(--green);box-shadow:0 0 10px #22c55e}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.stat{background:linear-gradient(145deg,rgba(23,36,59,.95),rgba(17,28,49,.95));border:1px solid var(--line);
+ border-radius:12px;padding:10px 13px}
+.stat-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
+.stat-value{font-weight:800;font-size:1.15rem;margin-top:2px}
+.progress{height:7px;background:#1e293b;border-radius:10px;overflow:hidden;margin-top:7px}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#fde68a);transition:width .3s}
+.controls{max-width:1200px;margin:18px auto 0;padding:0 20px;display:flex;gap:9px;flex-wrap:wrap}
+.control{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:9px 13px;border-radius:9px;cursor:pointer}
+.control:hover{border-color:#475d80}
+.control.active{background:#3a290b;border-color:#a16207;color:#fcd34d}
+main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
+.saga{margin-top:18px;border:1px solid var(--line);border-radius:15px;background:rgba(17,28,49,.82);overflow:hidden}
+.saga-head{display:flex;align-items:center;gap:12px;padding:15px 16px;cursor:pointer;background:linear-gradient(90deg,rgba(245,158,11,.08),transparent)}
+.saga-head:hover{background:linear-gradient(90deg,rgba(245,158,11,.13),transparent)}
+.chev{width:25px;height:25px;display:grid;place-items:center;border-radius:7px;background:#1e293b;color:var(--gold);transition:.2s}
+.saga.closed .chev{transform:rotate(-90deg)}
+.saga-title{font-weight:850;flex:1}
+.saga-meta{font-size:.75rem;color:var(--muted);white-space:nowrap}
+.saga-body{padding:0 14px 14px}
+.saga.closed .saga-body{display:none}
+.arc{border:1px solid #22324e;background:rgba(10,18,33,.62);border-radius:12px;margin-top:10px;overflow:hidden}
+.arc-head{display:flex;align-items:center;gap:10px;padding:11px 12px;cursor:pointer}
+.arc-head:hover{background:rgba(255,255,255,.025)}
+.arc-name{font-weight:750;flex:1}
+.arc-count{font-size:.72rem;color:var(--muted)}
+.arc-bar{height:3px;background:#1e293b}
+.arc-bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .25s}
+.episodes{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px;padding:10px}
+.arc.closed .episodes{display:none}
+.ep{position:relative;min-height:48px;border:1px solid #263754;background:#142139;color:#cbd5e1;border-radius:9px;
+ cursor:pointer;text-align:left;padding:8px 9px;transition:transform .12s,border-color .15s,background .15s}
+.ep:hover{transform:translateY(-1px);border-color:#48658f}
+.ep small{display:block;color:#64748b;font-size:.62rem;margin-bottom:2px}
+.ep strong{font-size:.83rem}
+.ep.watched{background:linear-gradient(145deg,#3a290b,#211a0d);border-color:#a16207;color:#fde68a}
+.ep.watched:after{content:"✓";position:absolute;right:8px;top:7px;color:var(--green);font-weight:900}
+.loading{max-width:1200px;margin:18px auto;padding:0 20px}
+.notice{border:1px solid #7c5a12;background:#2a200c;color:#fcd34d;border-radius:10px;padding:11px 13px;font-size:.82rem}
+.empty{padding:35px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;
+ background:#111c31;border:1px solid #3b506f;color:#f8fafc;border-radius:10px;padding:11px 16px;font-size:.82rem;
+ box-shadow:0 12px 35px #0008;transition:.25s;z-index:200}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:620px){
+ .header{padding:14px 14px 12px}.brand{align-items:flex-start}.connection{font-size:.68rem}
+ .stats{gap:6px}.stat{padding:8px}.stat-label{font-size:.58rem}.stat-value{font-size:1rem}
+ .controls,main{padding-left:12px;padding-right:12px}.controls{margin-top:12px}
+ .episodes{grid-template-columns:repeat(4,1fr);padding:8px;gap:5px}.ep{min-height:46px;padding:7px 6px}.ep strong{font-size:.76rem}
+ .saga-head{padding:12px}.saga-meta{font-size:.65rem}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <div><h1>🏴‍☠️ One Pace Tracker</h1><small>Urmărește progresul tău în One Pace</small></div>
+      <div id="connection" class="connection"><span class="dot"></span><span>Conectare...</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Episoade văzute</div><div id="watched" class="stat-value">0</div></div>
+      <div class="stat"><div class="stat-label">Total episoade</div><div id="total" class="stat-value">0</div></div>
+      <div class="stat"><div class="stat-label">Progres</div><div id="percent" class="stat-value">0%</div><div class="progress"><i id="progress"></i></div></div>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <button class="control active" id="allBtn">Toate</button>
+  <button class="control" id="openBtn">Deschise</button>
+  <button class="control" id="collapseBtn">Restrânge toate</button>
+</div>
+
+<div id="loading" class="loading"><div class="notice">Se încarcă progresul din Supabase...</div></div>
+<main id="app"></main>
+<div id="toast" class="toast"></div>
+
+<script>
+/* Supabase credentials supplied in the attached application files. */
+const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/*
+  One Pace guide data: 10 main saga groups requested by the user.
+  Episode counts follow the current One Pace episode guide structure.
+*/
+const SAGAS = [
+ {name:'East Blue Saga', emoji:'🌊', arcs:[['Romance Dawn',4],['Orange Town',3],['Syrup Village',7],['Gaimon',1],['Baratie',8],['Arlong Park',10],["The Adventures of Buggy's Crew",1],['Loguetown',3]]},
+ {name:'Arabasta Saga', emoji:'🏜️', arcs:[['Reverse Mountain',2],['Whisky Peak',2],['The Trials of Koby-Meppo',1],['Little Garden',5],['Drum Island',8],['Alabasta',21]]},
+ {name:'Sky Island Saga', emoji:'☁️', arcs:[['Jaya',8],['Skypiea',25]]},
+ {name:'Water 7 Saga', emoji:'🚂', arcs:[['Long Ring Long Land',7],['Water Seven',20],['Enies Lobby',25],['Post-Enies Lobby',5]]},
+ {name:'Thriller Bark Saga', emoji:'🧟', arcs:[['Thriller Bark',22]]},
+ {name:'Summit War Saga', emoji:'⚔️', arcs:[['Sabaody Archipelago',11],['Amazon Lily',5],['Impel Down',10],['If You Could Go Anywhere... The Adventures of the Straw Hats',1],['Marineford',17],['Post-War',8]]},
+ {name:'Fish-Man Island Saga', emoji:'🐟', arcs:[['Return to Sabaody',3],['Fish-Man Island',24]]},
+ {name:'Dressrosa Saga', emoji:'🌹', arcs:[['Punk Hazard',22],['Dressrosa',48]]},
+ {name:'Four Emperors', emoji:'👑', arcs:[['Zou',10],['Whole Cake Island',39],['Reverie',3],['Wano',88]]},
+ {name:'Egghead', emoji:'🤖', arcs:[['Egghead',20]]}
+];
+
+let allEpisodes=[];
+let watchedSet=new Set();
+let filter='all';
+let toastTimer;
+
+function buildEpisodes(){
+  let global=1;
+  SAGAS.forEach((s,si)=>s.arcs.forEach((a,ai)=>{
+    for(let n=1;n<=a[1];n++){
+      allEpisodes.push({id:`s${si+1}-a${ai+1}-e${n}`, saga:si, arc:ai, number:n, global:global++});
+    }
+  }));
+}
+buildEpisodes();
+
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+
+function render(){
+  const app=document.getElementById('app');
+  if(filter==='open' && watchedSet.size===allEpisodes.length){
+    app.innerHTML='<div class="empty">Ai terminat tot. 🏴‍☠️</div>'; updateStats(); return;
+  }
+  let html='';
+  SAGAS.forEach((s,si)=>{
+    const sagaEps=allEpisodes.filter(e=>e.saga===si);
+    const sagaWatched=sagaEps.filter(e=>watchedSet.has(e.id)).length;
+    if(filter==='open' && sagaWatched===sagaEps.length) return;
+    html+=`<section class="saga" data-saga="${si}">
+      <div class="saga-head" onclick="toggleSaga(${si})">
+        <span class="chev">⌄</span><div class="saga-title">${s.emoji} ${escapeHtml(s.name)}</div>
+        <div class="saga-meta">${sagaWatched}/${sagaEps.length} · ${Math.round(sagaWatched/sagaEps.length*100)}%</div>
+      </div><div class="saga-body">`;
+    s.arcs.forEach((a,ai)=>{
+      const eps=allEpisodes.filter(e=>e.saga===si&&e.arc===ai);
+      const aw=eps.filter(e=>watchedSet.has(e.id)).length;
+      if(filter==='open' && aw===eps.length) return;
+      html+=`<div class="arc" data-arc="${si}-${ai}">
+        <div class="arc-head" onclick="toggleArc(${si},${ai})">
+          <span class="chev">⌄</span><div class="arc-name">${escapeHtml(a[0])}</div>
+          <div class="arc-count">${aw}/${eps.length}</div>
+        </div>
+        <div class="arc-bar"><i style="width:${aw/eps.length*100}%"></i></div>
+        <div class="episodes">`;
+      eps.forEach(e=>{
+        html+=`<button class="ep ${watchedSet.has(e.id)?'watched':''}" onclick="toggleEpisode('${e.id}',this)">
+          <small>EPISOD ${String(e.number).padStart(2,'0')}</small><strong>One Pace #${e.global}</strong>
+        </button>`;
+      });
+      html+='</div></div>';
+    });
+    html+='</div></section>';
+  });
+  app.innerHTML=html||'<div class="empty">Nu există episoade pentru filtrul selectat.</div>';
+  updateStats();
+}
+
+function updateStats(){
+  const total=allEpisodes.length, watched=watchedSet.size, pct=total?Math.round(watched/total*100):0;
+  document.getElementById('watched').textContent=watched;
+  document.getElementById('total').textContent=total;
+  document.getElementById('percent').textContent=pct+'%';
+  document.getElementById('progress').style.width=pct+'%';
+}
+
+function toggleSaga(i){document.querySelector(`.saga[data-saga="${i}"]`)?.classList.toggle('closed')}
+function toggleArc(s,a){document.querySelector(`.saga[data-saga="${s}"] .arc[data-arc="${s}-${a}"]`)?.classList.toggle('closed')}
+
+async function toggleEpisode(id,btn){
+  const next=!watchedSet.has(id);
+  if(next) watchedSet.add(id); else watchedSet.delete(id);
+  btn.classList.toggle('watched',next);
+  updateStats();
+  refreshCounts();
+  const {error}=await sb.from('onepiece_tracker').upsert(
+    {episode_id:id,watched:next,updated_at:new Date().toISOString()},
+    {onConflict:'episode_id'}
+  );
+  if(error){
+    if(next) watchedSet.delete(id); else watchedSet.add(id);
+    btn.classList.toggle('watched',!next);
+    updateStats(); refreshCounts();
+    showToast('❌ Nu s-a putut salva în Supabase.');
+    console.error(error);
+  }else{
+    showToast(next?'✓ Episod marcat ca văzut':'↩ Episod debifat');
+  }
+}
+
+function refreshCounts(){
+  document.querySelectorAll('.saga').forEach(sec=>{
+    const si=+sec.dataset.saga;
+    const eps=allEpisodes.filter(e=>e.saga===si);
+    const w=eps.filter(e=>watchedSet.has(e.id)).length;
+    const meta=sec.querySelector('.saga-meta');
+    if(meta) meta.textContent=`${w}/${eps.length} · ${Math.round(w/eps.length*100)}%`;
+    sec.querySelectorAll('.arc').forEach(el=>{
+      const [s,a]=el.dataset.arc.split('-').map(Number);
+      const ae=allEpisodes.filter(e=>e.saga===s&&e.arc===a), aw=ae.filter(e=>watchedSet.has(e.id)).length;
+      const count=el.querySelector('.arc-count'), bar=el.querySelector('.arc-bar i');
+      if(count) count.textContent=`${aw}/${ae.length}`;
+      if(bar) bar.style.width=(aw/ae.length*100)+'%';
+    });
+  });
+}
+
+async function loadProgress(){
+  try{
+    const {data,error}=await sb.from('onepiece_tracker').select('episode_id,watched');
+    if(error) throw error;
+    watchedSet=new Set((data||[]).filter(x=>x.watched).map(x=>x.episode_id));
+    document.getElementById('connection').classList.add('online');
+    document.getElementById('connection').querySelector('span:last-child').textContent='Supabase conectat';
+    document.getElementById('loading').innerHTML='';
+    render();
+  }catch(error){
+    console.error(error);
+    document.getElementById('connection').querySelector('span:last-child').textContent='Eroare Supabase';
+    document.getElementById('loading').innerHTML=`<div class="notice">⚠️ Supabase a refuzat cererea. Dacă apare <b>401</b>, cheia anon/configurația proiectului este problema; dacă apare eroare de tabel/RLS, verifică SQL-ul.</div>`;
+    render();
+  }
+}
+
+function setupRealtime(){
+  sb.channel('one-pace-progress')
+    .on('postgres_changes',{event:'*',schema:'public',table:'onepiece_tracker'},payload=>{
+      const row=payload.new||payload.old;
+      if(!row?.episode_id) return;
+      if(row.watched) watchedSet.add(row.episode_id); else watchedSet.delete(row.episode_id);
+      render();
+    }).subscribe();
+}
+
+function showToast(text){
+  const el=document.getElementById('toast'); el.textContent=text; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),1800);
+}
+
+document.getElementById('allBtn').onclick=()=>{
+  filter='all'; document.getElementById('allBtn').classList.add('active'); document.getElementById('openBtn').classList.remove('active'); render();
+};
+document.getElementById('openBtn').onclick=()=>{
+  filter='open'; document.getElementById('openBtn').classList.add('active'); document.getElementById('allBtn').classList.remove('active'); render();
+};
+document.getElementById('collapseBtn').onclick=()=>{
+  document.querySelectorAll('.saga').forEach(x=>x.classList.add('closed'));
+  document.querySelectorAll('.arc').forEach(x=>x.classList.add('closed'));
+};
+loadProgress();
+setupRealtime();
+</script>
+</body>
+</html>
