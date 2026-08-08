@@ -1008,7 +1008,19 @@ async function checkGoalRotation() {
 // penaltyWinnerId = ID-ul echipei (team_a_id/team_b_id) care a câștigat la
 // lovituri de departajare — se completează DOAR când reason === 'penalty'.
 async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null, penaltyShots = null) {
-    const colorMap = getColorMap();
+    let colorMap = getColorMap();
+    // SIGURANȚĂ: dacă slotul orange sau green nu are o identitate în color_map
+    // chiar în momentul salvării turei, NU presupunem tăcut teamA/teamB (asta
+    // ar putea eticheta greșit identitatea reală a echipei, exact bug-ul de
+    // "echipe amestecate"). Reparăm pe loc, salvăm reparația în live_state ca
+    // să rămână corectă și pentru turele următoare, și avertizăm vizibil —
+    // ca să știm sigur, dacă mai apare, EXACT când s-a întâmplat.
+    if (!colorMap['orange'] || !colorMap['green']) {
+        console.error('⚠️ color_map incomplet la salvarea turei', rounds.length + 1, colorMap);
+        showToast('⚠️ Identitate echipă lipsă la salvarea turei — verifică echipele!');
+        colorMap = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
+        await patchState({ color_map: colorMap });
+    }
     const oTid = colorMap['orange'];
     const gTid = colorMap['green'];
     const roundGoals = getRoundGoals();
@@ -1017,12 +1029,12 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null, penalty
     const durationSec = Math.max(0, calcRoundElapsedSec(liveState));
     const num = rounds.length + 1;
     // ID-ul echipei care IESE (merge pe bancă) — salvat explicit, nu dedus din scor
-    const loserTeamId = loserColor === 'orange' ? (oTid || 'teamA') : (gTid || 'teamB');
+    const loserTeamId = loserColor === 'orange' ? oTid : gTid;
 
     const roundData = {
         num,
-        team_a_id:      oTid || 'teamA',
-        team_b_id:      gTid || 'teamB',
+        team_a_id:      oTid,
+        team_b_id:      gTid,
         score_a:        oG,
         score_b:        gG,
         orange_players: players.filter(p => p.status === 'orange').map(p => p.name),
