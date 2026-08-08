@@ -1,9 +1,4 @@
-from pathlib import Path
-from textwrap import dedent
-
-out = Path("/mnt/data/one_pace_tracker.html")
-
-html = dedent(r'''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
@@ -109,7 +104,7 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 <script>
 /* Supabase credentials supplied in the attached application files. */
 const SUPABASE_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJsbmZudW1iamlraXluZ2R4c2dyayIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzc0NTA0NTMxLCJleHAiOjIwOTAwODA1MzF9.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66dHqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /*
@@ -246,7 +241,7 @@ async function loadProgress(){
   }catch(error){
     console.error(error);
     document.getElementById('connection').querySelector('span:last-child').textContent='Eroare Supabase';
-    document.getElementById('loading').innerHTML=`<div class="notice">⚠️ Nu am putut încărca tabela <b>onepiece_tracker</b>. Verifică SQL-ul de configurare de mai jos.</div>`;
+    document.getElementById('loading').innerHTML=`<div class="notice">⚠️ Supabase a refuzat cererea. Dacă apare <b>401</b>, cheia anon/configurația proiectului este problema; dacă apare eroare de tabel/RLS, verifică SQL-ul.</div>`;
     render();
   }
 }
@@ -281,8 +276,3 @@ setupRealtime();
 </script>
 </body>
 </html>
-''')
-
-out.write_text(html, encoding="utf-8")
-print(f"Created: {out}")
-print(f"Size: {out.stat().st_size:,} bytes")
