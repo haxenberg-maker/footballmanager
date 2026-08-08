@@ -1077,22 +1077,9 @@ function render(){
         if(byTeam[s]) byTeam[s].push(p);
         else byTeam.active.push(p); // fallback — status necunoscut → Jucători Activi
     });
-    // Rangul (cununa aur/argint/bronz) rămâne legat de RATING — îl calculăm acum,
-    // cât timp byTeam[team] e încă sortat după rating — înainte să reordonăm
-    // alfabetic mai jos doar pentru AFIȘARE.
-    const rankByName = {};
-    ['orange','green','bench','active'].forEach(team=>{
-        byTeam[team].forEach((p,idx)=>{ rankByName[p.name] = idx; });
-    });
-    // Prezență relativă — proporțională cu cel mai activ jucător din tot roster-ul
-    // (nu prag fix), ca overlay-ul să rămână corect indiferent cât de lung e sezonul.
-    const maxGames = Math.max(1, ...db.players.map(p=>p.games||0));
     const admin = isAdmin();
     ['orange','green','bench','active'].forEach(team=>{
-        // Ordine alfabetică pentru AFIȘARE — rangul de mai sus rămâne cel de rating.
-        const displayOrder = [...byTeam[team]].sort((a,b)=>a.name.localeCompare(b.name,'ro'));
-        displayOrder.forEach(p=>{
-            const idx = rankByName[p.name];
+        byTeam[team].forEach((p,idx)=>{
             const smart=getSmartRating(p).toFixed(1),general=getGeneralAvg(p).toFixed(1);
             const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
             const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';
@@ -1122,10 +1109,7 @@ function render(){
             const smartNum = parseFloat(smart);
             const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=8?'#1b7a43':smartNum>=6?'#8a6800':smartNum>=4?'#9c4f00':'#e57373';
             const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':p.status==='bench'?'team-bench':'';
-            const presenceRatio = (p.games||0) / maxGames;
-            const presenceCls = presenceRatio>=0.75 ? 'presence-high' : presenceRatio>=0.4 ? 'presence-mid' : '';
-            card.className=`player-card ${teamCls} ${presenceCls}`.trim();
-            card.title = `${p.games||0} meciuri jucate`;
+            card.className=`player-card ${teamCls}`;
 
             // Active tag badges (max 6, grouped pos/neg)
             const posTagObjs = playerTagObjs.filter(t=>t.tag?.type==='pos').slice(0,3);
@@ -1749,9 +1733,10 @@ function renderLobby(){
         const rate = recentTotal>0 ? recentCount/recentTotal : 0;
         return {p, rate, recentCount};
     });
-    // A. Sortare după cât de recent/des a jucat (ultimele meciuri), apoi alfabetic
+    // A. Ordine alfabetică — prezența se vede acum prin glow-ul de mai jos
+    // (presence-high/presence-mid), nu prin ordinea din listă.
     let sortedPlayers = withRate
-        .sort((a,b)=> b.recentCount-a.recentCount || (b.p.games||0)-(a.p.games||0) || a.p.name.localeCompare(b.p.name,'ro'));
+        .sort((a,b)=> a.p.name.localeCompare(b.p.name,'ro'));
 
     // Filtrare după căutare (fără diacritice, insensibil la majuscule)
     const searchQ = normalizeSearchStr(lobbySearchQuery.trim());
@@ -1763,21 +1748,17 @@ function renderLobby(){
         container.innerHTML = `<div style="width:100%;text-align:center;padding:14px 0;font-size:.78rem;color:#7d6849;">Niciun jucător găsit pentru „${lobbySearchQuery.trim()}".</div>`;
     }
 
-    let dividerShown = false;
     sortedPlayers.forEach(({p,rate,recentCount})=>{
-        // E. Separator vizual între „nucleul dur" (≥70% din meciurile recente) și restul
-        // (sărit peste când e activă o căutare — n-are sens cu o listă deja filtrată)
-        if(!searchQ && showStats && !dividerShown && rate < 0.7 && sortedPlayers.some(x=>x.rate>=0.7)){
-            const divider=document.createElement('div');
-            divider.style.cssText='width:100%;display:flex;align-items:center;gap:8px;margin:4px 0 2px;';
-            divider.innerHTML = `<div style="flex:1;height:1px;background:#dcc89a;"></div><span style="font-size:.62rem;color:#9a8663;white-space:nowrap;">restul grupului</span><div style="flex:1;height:1px;background:#dcc89a;"></div>`;
-            container.appendChild(divider);
-            dividerShown = true;
-        }
         const confirmed = nm.confirmedIds.includes(p.id);
         const absent    = nm.absentIds?.includes(p.id);
         const chip=document.createElement('div');
         let chipClass = 'lobby-player-chip';
+        // Prezență — glow proporțional cu rata din ultimele meciuri (independent
+        // de confirmed/absent, care țin doar de meciul următor).
+        if (showStats) {
+            if (rate >= 0.7) chipClass += ' presence-high';
+            else if (rate >= 0.4) chipClass += ' presence-mid';
+        }
         let dotHtml = '<div class="chip-dot"></div>';
         let nameHtml = `<span class="chip-name">${p.name}</span>`;
         if(confirmed){
