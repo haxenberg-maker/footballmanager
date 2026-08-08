@@ -1484,6 +1484,7 @@ async function loadAll(){
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
+                potmVoteDeadline: h.potm_vote_deadline||null,
                 potmVoteCounts: voteCounts,
                 potmWinnerId, potmSource,
                 potmWinnerName: potmPlayer ? potmPlayer.name : null,
@@ -1648,6 +1649,20 @@ async function openPotmVoteModal(matchId){
             <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
         return;
     }
+    // Termenul de vot se aplică pe toată sesiunea (setat din setari.html) —
+    // dacă a expirat pentru oricare pereche a sesiunii, s-a închis peste tot.
+    const deadline = getSessionRowsFor(h).map(r=>r.potmVoteDeadline).find(Boolean);
+    if (deadline && Date.now() > new Date(deadline).getTime()){
+        const fmt = new Date(deadline).toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+        potmModalShell(`
+            <div style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                <div style="font-size:1.6rem;margin-bottom:6px;">🔒</div>
+                <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Votarea s-a închis</div>
+                <div style="font-size:.72rem;color:#7d6849;margin-top:4px;">Termenul a expirat pe ${fmt}.</div>
+            </div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+        return;
+    }
     const participants = getMatchParticipants(h);
     if (!participants.length){
         potmModalShell(`
@@ -1736,6 +1751,12 @@ async function submitPotmVote(){
     const sel = document.getElementById('potmWhoVote');
     const votedId = parseInt(sel.value);
     if (!votedId){ showToast('⚠️ Alege pe cineva întâi!'); return; }
+    const deadline = getSessionRowsFor(_potmMatch).map(r=>r.potmVoteDeadline).find(Boolean);
+    if (deadline && Date.now() > new Date(deadline).getTime()){
+        showToast('🔒 Votarea s-a închis între timp.');
+        closePotmModal();
+        return;
+    }
     const btn = document.getElementById('potmSubmitVote');
     btn.disabled = true; btn.textContent = '⏳ Se trimite...';
     try{
