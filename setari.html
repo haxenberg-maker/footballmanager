@@ -396,7 +396,12 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 </div>
                 <div id="potmVotesList" style="font-size:.82rem;"></div>
                 <div id="potmVotersDetail" style="margin-top:10px;font-size:.68rem;color:#555;"></div>
-                <button onclick="copyPotmAdminVoteLink()" style="width:100%;margin-top:12px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot (trimite pe WhatsApp)</button>
+                <div id="potmDeadlineStatus" style="margin-top:8px;font-size:.7rem;"></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:12px;">
+                    <label style="font-size:.7rem;color:#888;white-space:nowrap;">Valabil (ore):</label>
+                    <input type="number" id="potmVoteHoursInput" value="24" min="1" max="720" style="width:70px;background:var(--input-bg,#1a1a1a);border:1px solid var(--border);color:#e0e0e0;padding:6px 8px;border-radius:6px;font-size:.78rem;">
+                </div>
+                <button onclick="copyPotmAdminVoteLink()" style="width:100%;margin-top:8px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Generează & copiază link (se închide automat)</button>
             </div>
 
             <div class="card">
@@ -643,7 +648,8 @@ async function loadAll(){
     db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
         orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
-        manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null}));
+        manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
+        potmVoteDeadline:h.potm_vote_deadline||null}));
     // Build initial panel
     buildPlayerEditList();
 }
@@ -1291,9 +1297,28 @@ async function refreshPotmVotes(){
         }).filter(Boolean);
         const participants = potmMatchParticipants(_potmAdminMatch);
         votersEl.innerHTML = `Au votat (${voterNames.length}/${participants.length}): ${voterNames.length ? voterNames.join(', ') : '—'}`;
+
+        renderPotmDeadlineStatus();
     }catch(e){
         listEl.innerHTML = `<div style="color:#ef9a9a;font-size:.75rem;">⚠️ ${e.message} (ai rulat migrarea SQL pentru potm_votes?)</div>`;
     }
+}
+
+// Arată starea curentă a termenului de vot (deschis / expirat / nesetat).
+function renderPotmDeadlineStatus(){
+    const el = document.getElementById('potmDeadlineStatus');
+    if (!el || !_potmAdminMatch) return;
+    const deadline = _potmAdminMatch.potmVoteDeadline;
+    if (!deadline){
+        el.innerHTML = '<span style="color:#888;">⏱ Niciun termen setat încă — linkul rămâne deschis nelimitat.</span>';
+        return;
+    }
+    const d = new Date(deadline);
+    const closed = Date.now() > d.getTime();
+    const fmt = d.toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    el.innerHTML = closed
+        ? `<span style="color:#ef9a9a;">🔒 Votarea s-a închis (termen: ${fmt}). Generează un link nou ca să redeschizi.</span>`
+        : `<span style="color:#81c784;">🟢 Votarea e deschisă până la ${fmt}.</span>`;
 }
 
 async function savePotmManual(){
@@ -1318,12 +1343,30 @@ async function savePotmManual(){
 // Link-ul de vot trebuie să indice spre clasament.html (pagina publică, fără
 // login), NU spre setari.html unde suntem acum — votanții trebuie să ajungă
 // direct la ecranul de vot, nu la panoul de admin.
-function copyPotmAdminVoteLink(){
+async function copyPotmAdminVoteLink(){
     if (!_potmAdminMatch) return;
+    const hoursInput = document.getElementById('potmVoteHoursInput');
+    const hours = Math.max(1, parseInt(hoursInput?.value) || 24);
+    const deadline = new Date(Date.now() + hours*60*60*1000).toISOString();
+    try{
+        // Termenul se salvează pe TOATE perechile sesiunii (aceeași logică ca
+        // suprascrierea manuală) — o singură sursă de adevăr, indiferent care
+        // pereche o citește prima clasament.html.
+        const sessionRows = getSessionRowsFor(_potmAdminMatch);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        const { error } = await sb.from('match_history').update({ potm_vote_deadline: deadline }).in('id', sessionMatchIds);
+        if (error) throw error;
+        sessionRows.forEach(r => { r.potmVoteDeadline = deadline; });
+        _potmAdminMatch.potmVoteDeadline = deadline;
+        renderPotmDeadlineStatus();
+    }catch(e){
+        showToast('⚠️ Nu am putut seta termenul: '+e.message+' (ai rulat migrarea SQL pentru potm_vote_deadline?)');
+        return;
+    }
     const clasamentPath = location.pathname.replace(/[^/]*$/, '') + 'clasament.html';
     const url = `${location.origin}${clasamentPath}?vote_match=${_potmAdminMatch._dbId}`;
     const doCopy = () => navigator.clipboard.writeText(url).then(
-        ()=>showToast('🔗 Link copiat! Trimite-l pe WhatsApp.'),
+        ()=>showToast(`🔗 Link copiat! Valabil ${hours}h. Trimite-l pe WhatsApp.`),
         ()=>fallbackCopyPotmLink(url)
     );
     if (navigator.clipboard && window.isSecureContext) doCopy();
