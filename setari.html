@@ -396,6 +396,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 </div>
                 <div id="potmVotesList" style="font-size:.82rem;"></div>
                 <div id="potmVotersDetail" style="margin-top:10px;font-size:.68rem;color:#555;"></div>
+                <button onclick="copyPotmAdminVoteLink()" style="width:100%;margin-top:12px;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">🔗 Copiază Link Vot (trimite pe WhatsApp)</button>
             </div>
 
             <div class="card">
@@ -1312,6 +1313,29 @@ async function savePotmManual(){
         showToast(val ? '✅ POTM oficial salvat!' : '✅ Suprascriere eliminată — folosește voturile.');
         await refreshPotmVotes();
     }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// Link-ul de vot trebuie să indice spre clasament.html (pagina publică, fără
+// login), NU spre setari.html unde suntem acum — votanții trebuie să ajungă
+// direct la ecranul de vot, nu la panoul de admin.
+function copyPotmAdminVoteLink(){
+    if (!_potmAdminMatch) return;
+    const clasamentPath = location.pathname.replace(/[^/]*$/, '') + 'clasament.html';
+    const url = `${location.origin}${clasamentPath}?vote_match=${_potmAdminMatch._dbId}`;
+    const doCopy = () => navigator.clipboard.writeText(url).then(
+        ()=>showToast('🔗 Link copiat! Trimite-l pe WhatsApp.'),
+        ()=>fallbackCopyPotmLink(url)
+    );
+    if (navigator.clipboard && window.isSecureContext) doCopy();
+    else fallbackCopyPotmLink(url);
+}
+function fallbackCopyPotmLink(text){
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); showToast('🔗 Link copiat! Trimite-l pe WhatsApp.'); }
+    catch(e){ showToast('⚠️ Nu am putut copia — link: '+text); }
+    document.body.removeChild(ta);
 }
 
 function buildMilestonesPanel(){
