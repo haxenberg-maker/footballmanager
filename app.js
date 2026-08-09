@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808d';
+const APP_VERSION = '20260808e';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -410,24 +410,19 @@ async function loadAll() {
         }
 
         // Load match_goals in bulk — one query for all matches
-        // Încercăm întâi CU is_penalty (ca să separăm corect golurile de penalty de
-        // cele normale în topScorer/playerGoals); dacă migrarea nu a fost rulată încă,
-        // cădem defensiv pe interogarea veche, fără is_penalty.
+        // IMPORTANT: select('*') aici, NU o listă explicită de coloane — o listă
+        // explicită (ex. 'match_id,player_name,team,goals,is_penalty') cădea cu
+        // eroare 400 (cache de schemă PostgREST neactualizat pentru coloanele nou
+        // adăugate). select('*') e sigur indiferent ce coloane există.
         let goalsPerMatch = {};
         try {
-            let allGoals = null;
-            const withPen = await sb.from('match_goals').select('match_id,player_name,team,goals,is_penalty');
-            if (withPen.error) {
-                const noPen = await sb.from('match_goals').select('match_id,player_name,team,goals');
-                allGoals = noPen.data;
-            } else {
-                allGoals = withPen.data;
-            }
+            const { data: allGoals, error } = await sb.from('match_goals').select('*');
+            if (error) throw error;
             (allGoals || []).forEach(g => {
                 if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
                 goalsPerMatch[g.match_id].push(g);
             });
-        } catch(e) { /* match_goals may not exist */ }
+        } catch(e) { console.warn('match_goals load:', e.message); }
 
         db.history = (histRaw || []).map(h => {
             const goals = goalsPerMatch[h.id] || [];
@@ -4260,10 +4255,22 @@ async function openMatchEditor(idx) {
     document.getElementById('meDate').value = h.date || '';
     if (h.winner) setMatchWinner(h.winner);
     buildMePlayerLists(h.orangePlayers || [], h.greenPlayers || [], h.blackPlayers || []);
-    // Populate score
+    // Populate score — mapăm pozițional NUMERELE din h.score pe sloturile de
+    // culoare care sunt ACTIV implicate în acest meci (nu mereu O apoi G!). La
+    // un meci dintr-o sesiune 3 echipe, perechea poate fi Verde-Negru sau
+    // Portocaliu-Negru (fără Verde deloc) — vechea logică presupunea mereu
+    // "O:G" și, la o pereche fără Verde, punea orbește al doilea număr pe
+    // Verde în loc de Negru. Acum acceptă orice combinație de 2-3 părți.
+    const activeColorsForScore = [];
+    if ((h.orangePlayers||[]).length) activeColorsForScore.push('O');
+    if ((h.greenPlayers ||[]).length) activeColorsForScore.push('G');
+    if ((h.blackPlayers ||[]).length) activeColorsForScore.push('B');
     if(h.score && h.score !== '—'){
-        const parts = h.score.split(':');
-        if(parts.length===2){ document.getElementById('meScoreO').value=parseInt(parts[0])||0; document.getElementById('meScoreG').value=parseInt(parts[1])||0; }
+        const parts = h.score.split(':').map(s=>parseInt(s)||0);
+        parts.forEach((val, i) => {
+            const col = activeColorsForScore[i];
+            if (col) document.getElementById('meScore'+col).value = val;
+        });
     }
 
     // Încarcă golurile REALE (eveniment cu eveniment, cu minut) direct din DB, nu doar agregatul local
@@ -4284,8 +4291,8 @@ async function openMatchEditor(idx) {
     renderMeGoalEvents();
     buildMeConcededList(h.orangePlayers||[], h.greenPlayers||[], h.blackPlayers||[], existingConceded);
 
-    // Arată "Negru" doar dacă meciul are efectiv jucători pe echipa neagră
-    updateMeBlackVisibility();
+    // Arată "Portocaliu"/"Negru" doar dacă meciul are efectiv jucători pe ele
+    updateMeTeamVisibility();
 
     document.getElementById('matchEditorOverlay').style.display = 'flex';
 }
@@ -4417,28 +4424,46 @@ function mePLayerToggle(el, team, playerId) {
     });
     renderMeGoalEvents();
     buildMeConcededList(getMeSelectedPlayers('Orange'),getMeSelectedPlayers('Green'),getMeSelectedPlayers('Black'), captureCurrentConceded());
-    updateMeBlackVisibility();
+    updateMeTeamVisibility();
 }
 
-// Arată scorul + butonul "Negru" doar dacă există jucători bifați pe echipa Negru
-function updateMeBlackVisibility() {
-    const hasBlack = getMeSelectedPlayers('Black').length > 0;
+// Arată scorul + butonul "Portocaliu"/"Negru" doar dacă există jucători bifați pe ele
+// Ascunde/arată sloturile de scor & câștigător pentru Portocaliu / Negru, în
+// funcție de cine e efectiv selectat în meci. Verde rămâne mereu vizibil (e
+// întotdeauna implicat, fie la un meci normal 2 echipe, fie într-o pereche de
+// sesiune). IMPORTANT: Portocaliu nu mai e presupus mereu prezent — o pereche
+// dintr-o sesiune 3 echipe poate fi Verde-Negru, fără Portocaliu deloc, caz în
+// care sloturile lui trebuie ascunse la fel cum se întâmplă deja cu Negru.
+function updateMeTeamVisibility() {
+    const hasOrange = getMeSelectedPlayers('Orange').length > 0;
+    const hasBlack  = getMeSelectedPlayers('Black').length  > 0;
+
+    const winO = document.getElementById('meWinO');
+    const blkO = document.getElementById('meScoreBlockO');
+    const sepOG= document.getElementById('meScoreSepOG');
     const winB = document.getElementById('meWinB');
-    const sep  = document.getElementById('meScoreSepB');
-    const blk  = document.getElementById('meScoreBlockB');
-    if (winB) winB.style.display = hasBlack ? '' : 'none';
-    if (sep)  sep.style.display  = hasBlack ? '' : 'none';
-    if (blk)  blk.style.display  = hasBlack ? '' : 'none';
-    // Dacă echipa Negru dispare și era selectată ca și câștigătoare, resetăm
+    const sepB = document.getElementById('meScoreSepB');
+    const blkB = document.getElementById('meScoreBlockB');
+
+    if (winO)  winO.style.display  = hasOrange ? '' : 'none';
+    if (blkO)  blkO.style.display  = hasOrange ? '' : 'none';
+    if (sepOG) sepOG.style.display = hasOrange ? '' : 'none';
+    if (winB)  winB.style.display  = hasBlack ? '' : 'none';
+    if (sepB)  sepB.style.display  = hasBlack ? '' : 'none';
+    if (blkB)  blkB.style.display  = hasBlack ? '' : 'none';
+
+    // Dacă o echipă dispare și era selectată ca și câștigătoare, resetăm
+    if (!hasOrange && matchEditorWinner === 'Portocaliu') {
+        matchEditorWinner = null;
+        if (winO) winO.className = 'me-winner-btn';
+    }
     if (!hasBlack && matchEditorWinner === 'Negru') {
         matchEditorWinner = null;
         if (winB) winB.className = 'me-winner-btn';
     }
-    // Scorul rămas ascuns nu trebuie să influențeze salvarea — îl resetăm la 0
-    if (!hasBlack) {
-        const sb = document.getElementById('meScoreB');
-        if (sb) sb.value = 0;
-    }
+    // Scorurile rămase ascunse nu trebuie să influențeze salvarea — le resetăm la 0
+    if (!hasOrange) { const so = document.getElementById('meScoreO'); if (so) so.value = 0; }
+    if (!hasBlack)  { const sb = document.getElementById('meScoreB'); if (sb) sb.value = 0; }
 }
 
 function getMeSelectedPlayers(team) {
@@ -4470,9 +4495,19 @@ async function saveMatchEdit() {
     const scoreO = parseInt(document.getElementById('meScoreO')?.value)||0;
     const scoreG = parseInt(document.getElementById('meScoreG')?.value)||0;
     const scoreB = parseInt(document.getElementById('meScoreB')?.value||'0')||0;
-    const hasManualScore = scoreO>0||scoreG>0||scoreB>0;
-    const score = hasManualScore?`${scoreO}:${scoreG}${blackPlayers.length?':'+scoreB:''}`:'—';
-    const imbalanced = hasManualScore && Math.abs(scoreO-scoreG) >= 3;
+    // Scorul se construiește DOAR din culorile efectiv implicate în meci, în
+    // ordine canonică O,G,B — nu mai adăugăm orbește un al treilea (sau al
+    // doilea) număr pentru o echipă care nici nu joacă în perechea asta.
+    // Asta cauza bug-ul "Portocaliu 2 : Verde 2 : Negru 0" la o pereche
+    // Portocaliu-Negru: se punea orbește al 2-lea număr pe Verde, deși Verde
+    // nici nu era în meci, iar scorul real al lui Negru se pierdea (rămânea 0).
+    const activeScores = [];
+    if (orangePlayers.length) activeScores.push(scoreO);
+    if (greenPlayers.length)  activeScores.push(scoreG);
+    if (blackPlayers.length)  activeScores.push(scoreB);
+    const hasManualScore = activeScores.some(s => s > 0);
+    const score = hasManualScore ? activeScores.join(':') : '—';
+    const imbalanced = hasManualScore && activeScores.length===2 && Math.abs(activeScores[0]-activeScores[1]) >= 3;
 
     // Colectăm golurile — un rând per gol individual, cu jucător + minut reale
     const goalsConceded = {};
