@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808e';
+const APP_VERSION = '20260808f';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -430,11 +430,15 @@ async function loadAll() {
             // se țin STRICT separat, nu se adună la golurile normale.
             const playerGoals = {};
             const playerPenaltyGoals = {};
+            const playerConceded = {}; // { playerName: goluri primite (manual, per jucător — de obicei portar) }
             goals.forEach(g => {
                 if (g.is_penalty) {
                     playerPenaltyGoals[g.player_name] = (playerPenaltyGoals[g.player_name]||0) + (g.goals||1);
                 } else {
                     playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1);
+                }
+                if ((g.goals_conceded||0) > 0) {
+                    playerConceded[g.player_name] = (playerConceded[g.player_name]||0) + g.goals_conceded;
                 }
             });
             const topEntries = Object.entries(playerGoals).sort((a,b)=>b[1]-a[1]);
@@ -454,6 +458,7 @@ async function loadAll() {
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
                 playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
                 playerPenaltyGoals, // { playerName: goluriPenalty } — SEPARAT de playerGoals
+                playerConceded, // { playerName: goluriPrimite } — manual, per jucător (de obicei portar)
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
@@ -1725,7 +1730,7 @@ function renderLobby(){
 
     const container=document.getElementById('lobbyPlayers');container.innerHTML='';
     // Prezență recentă — ultimele N meciuri (db.history e deja sortat, cel mai recent primul)
-    const RECENT_WINDOW = 6;
+    const RECENT_WINDOW = 12;
     const recentMatches = db.history.slice(0, RECENT_WINDOW);
     const recentTotal = recentMatches.length;
     const showStats = recentTotal >= 3; // sub 3 meciuri recente, procentul e prea zgomotos
@@ -1755,14 +1760,21 @@ function renderLobby(){
         const absent    = nm.absentIds?.includes(p.id);
         const chip=document.createElement('div');
         let chipClass = 'lobby-player-chip';
-        // Prezență — glow proporțional cu rata din ultimele meciuri (independent
-        // de confirmed/absent, care țin doar de meciul următor).
+        // Prezență — fundal colorat proporțional cu rata din ultimele 12 meciuri
+        // (independent de confirmed/absent, care țin doar de meciul următor).
+        // 4 trepte acum (nu 2) — cu fereastra de 12 meciuri avem destulă
+        // granularitate ca să separăm clar "aproape mereu prezent" de "prezent
+        // ocazional", nu doar "activ / nu prea activ".
+        let presenceTier = '';
         if (showStats) {
-            if (rate >= 0.7) chipClass += ' presence-high';
-            else if (rate >= 0.4) chipClass += ' presence-mid';
+            if (rate >= 0.83)      presenceTier = 'presence-elite'; // 10+/12
+            else if (rate >= 0.58) presenceTier = 'presence-high';  // 7+/12
+            else if (rate >= 0.33) presenceTier = 'presence-mid';   // 4+/12
+            else if (rate >= 0.15) presenceTier = 'presence-low';   // 2+/12
         }
+        if (presenceTier) chipClass += ' ' + presenceTier;
         let dotHtml = '<div class="chip-dot"></div>';
-        const presenceIcon = chipClass.includes('presence-high') ? '🔥 ' : '';
+        const presenceIcon = presenceTier === 'presence-elite' ? '🔥 ' : '';
         let nameHtml = `<span class="chip-name">${presenceIcon}${p.name}</span>`;
         if(confirmed){
             chipClass += ' confirmed';
@@ -1774,7 +1786,7 @@ function renderLobby(){
         chip.className = chipClass;
         // C. Badge de regularitate — câte din ultimele meciuri a jucat
         const rateBadge = showStats
-            ? `<span title="${recentCount}/${recentTotal} din ultimele meciuri" style="font-size:.6rem;color:${rate>=0.7?'#1b7a43':rate>=0.4?'#9c4f00':'#b71c1c'};margin-left:3px;">${recentCount}/${recentTotal}</span>`
+            ? `<span title="${recentCount}/${recentTotal} din ultimele meciuri" style="font-size:.6rem;color:${rate>=0.58?'#1b7a43':rate>=0.33?'#9c4f00':'#b71c1c'};margin-left:3px;">${recentCount}/${recentTotal}</span>`
             : '';
         chip.innerHTML = dotHtml + nameHtml + `<span style="font-size:0.68rem;color:${confirmed?'#5c8aff':absent?'#c62828':'#333'};margin-left:2px;">${getGeneralAvg(p).toFixed(1)}</span>` + rateBadge;
         // Admin can toggle anyone; players can only toggle themselves
@@ -1795,9 +1807,11 @@ function renderLobby(){
     // showStats trebuie să fie true (minim 3 meciuri recente în istoric) ca să
     // apară vreun glow. Sub 3 meciuri, glow-ul e dezactivat intenționat (procentul
     // ar fi prea zgomotos cu așa puține date).
-    const highCount = withRate.filter(x=>x.rate>=0.7).length;
-    const midCount  = withRate.filter(x=>x.rate>=0.4 && x.rate<0.7).length;
-    console.log(`🟡 Prezență lobby: showStats=${showStats} (recentTotal=${recentTotal}, prag minim 3) · presence-high=${highCount} · presence-mid=${midCount}`);
+    const eliteCount = withRate.filter(x=>x.rate>=0.83).length;
+    const highCount  = withRate.filter(x=>x.rate>=0.58 && x.rate<0.83).length;
+    const midCount   = withRate.filter(x=>x.rate>=0.33 && x.rate<0.58).length;
+    const lowCount   = withRate.filter(x=>x.rate>=0.15 && x.rate<0.33).length;
+    console.log(`🟡 Prezență lobby (fereastră=${RECENT_WINDOW}): showStats=${showStats} (recentTotal=${recentTotal}) · elite=${eliteCount} · high=${highCount} · mid=${midCount} · low=${lowCount}`);
 }
 
 async function toggleLobbyPresence(playerId){
@@ -3504,6 +3518,31 @@ function buildModalStats(p){
 }
 
 // ── Sumar rapid — o privire, fără să dai click prin taburi ────────
+// Goluri primite de ECHIPĂ cât timp a jucat X — spre deosebire de statul manual
+// "goluri primite" (introdus de admin, de obicei doar pentru portar), ăsta se
+// calculează automat din teamGoals al fiecărui meci, deci e mereu corect și
+// se aplică oricărui jucător. Răspunde exact la întrebarea "degeaba are goluri
+// date dacă echipa lui ia mereu multe — înseamnă că nu se apără".
+function computeTeamConcededWhilePlaying(p){
+    let conceded = 0, games = 0;
+    db.history.forEach(h=>{
+        const inOrange=(h.orangePlayers||[]).includes(p.name);
+        const inGreen =(h.greenPlayers ||[]).includes(p.name);
+        const inBlack =(h.blackPlayers ||[]).includes(p.name);
+        if(!inOrange && !inGreen && !inBlack) return;
+        const myColor = inOrange?'orange':inBlack?'black':'green';
+        let oppGoals = 0;
+        ['orange','green','black'].forEach(c=>{
+            if(c===myColor) return;
+            const teamList = c==='orange'?h.orangePlayers:c==='green'?h.greenPlayers:h.blackPlayers;
+            if((teamList||[]).length) oppGoals += (h.teamGoals && h.teamGoals[c]) || 0;
+        });
+        conceded += oppGoals;
+        games++;
+    });
+    return { conceded, games, perGame: games>0 ? conceded/games : 0 };
+}
+
 function buildModalQuickGlance(p){
     const el = document.getElementById('modalQuickGlance');
     if(!el) return;
@@ -3514,6 +3553,8 @@ function buildModalQuickGlance(p){
     const tagCount = getPlayerActiveTagObjects(p).length;
     if(tagCount>0) chips.push(chip(`👑 ${tagCount} status${tagCount!==1?'uri':''}`, '#9c4f00'));
     chips.push(chip(`🎮 ${p.games||0} meciuri`, '#1554b3'));
+    const tc = computeTeamConcededWhilePlaying(p);
+    if(tc.games>0) chips.push(chip(`🥅 ${tc.conceded} primite de echipă (${tc.perGame.toFixed(1)}/meci)`, '#b71c1c'));
     el.innerHTML = chips.join('');
 }
 
@@ -3760,16 +3801,29 @@ function buildPlayerMatchHistory(p){
     el.innerHTML=sorted.map(h=>{
         const inOrange=(h.orangePlayers||[]).includes(p.name);
         const inBlack=(h.blackPlayers||[]).includes(p.name);
+        const myColor = inOrange?'orange':inBlack?'black':'green';
         const myTeam=inOrange?h.orangePlayers:inBlack?(h.blackPlayers||[]):h.greenPlayers;
         const oppTeam=inOrange?[...h.greenPlayers,...(h.blackPlayers||[])]:inBlack?[...h.orangePlayers,...h.greenPlayers]:h.orangePlayers;
         const won = playerWonMatch(h, p.name) === true;
         const teammates=(myTeam||[]).filter(n=>n!==p.name);
         const teamColor=inOrange?'#9c4f00':inBlack?'#555':'#1b7a35';
         const teamName=inOrange?'Portocaliu':inBlack?'Negru':'Verde';
+        // Scor exact — luat din teamGoals (goluri reale înregistrate în match_goals),
+        // nu din h.score (care la o sesiune 3 echipe înseamnă TURE câștigate, nu
+        // goluri — semantică diferită, nu se poate afișa direct ca scor de goluri).
+        let teamGoalsFor = (h.teamGoals && h.teamGoals[myColor]) || 0;
+        let teamGoalsAgainst = 0;
+        ['orange','green','black'].forEach(c=>{
+            if (c===myColor) return;
+            const teamList = c==='orange'?h.orangePlayers:c==='green'?h.greenPlayers:h.blackPlayers;
+            if ((teamList||[]).length) teamGoalsAgainst += (h.teamGoals && h.teamGoals[c]) || 0;
+        });
+        const myGoalsScored = (h.playerGoals && h.playerGoals[p.name]) || 0;
         return `<div class="tl-item">
             <div class="tl-dot ${won?'W':'L'}"></div>
             <div class="tl-date">${h.date||'—'}</div>
-            <div class="tl-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNGERE'} · <span style="color:${teamColor};font-size:.75rem;">${teamName}</span></div>
+            <div class="tl-result ${won?'W':'L'}">${won?'✅ CÂȘTIG':'❌ ÎNFRÂNGERE'} · <span style="color:${teamColor};font-size:.75rem;">${teamName}</span> <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#3a2f1f;">${teamGoalsFor}:${teamGoalsAgainst}</span></div>
+            ${myGoalsScored>0?`<div class="tl-mates" style="color:#1b7a43;font-weight:700;">⚽ ${myGoalsScored} gol${myGoalsScored!==1?'uri':''} marcat${myGoalsScored!==1?'e':''}</div>`:''}
             ${teammates.length?`<div class="tl-mates">👥 ${teammates.join(' · ')}</div>`:''}
             ${(oppTeam||[]).length?`<div class="tl-mates" style="color:#2a2d3a;">⚔️ ${(oppTeam||[]).join(' · ')}</div>`:''}
         </div>`;
@@ -5917,7 +5971,7 @@ function parseDateToObj(dateStr) {
 }
 
 function recalculateAllPlayerStats() {
-    db.players.forEach(p => { p.wins = 0; p.games = 0; p.matchHistory = []; p.totalGoals = 0; });
+    db.players.forEach(p => { p.wins = 0; p.games = 0; p.matchHistory = []; p.totalGoals = 0; p.totalGoalsConceded = 0; });
 
     // Sortează după data reală a meciului, cel mai vechi primul
     const sortedHistory = [...db.history].sort((a, b) =>
@@ -5965,6 +6019,16 @@ function recalculateAllPlayerStats() {
             Object.entries(h.playerGoals).forEach(([name, g]) => {
                 const p = db.players.find(x => x.name === name);
                 if (p) p.totalGoals += (g || 0);
+            });
+        }
+        // Goluri primite (manual, per jucător) — LIPSEA din recalculare până acum,
+        // ceea ce însemna că p.totalGoalsConceded rămânea neschimbat la orice
+        // editare/ștergere de meci și se putea desincroniza de sursa reală
+        // (match_goals.goals_conceded). Acum se reconstruiește corect de fiecare dată.
+        if (h.playerConceded) {
+            Object.entries(h.playerConceded).forEach(([name, gc]) => {
+                const p = db.players.find(x => x.name === name);
+                if (p) p.totalGoalsConceded += (gc || 0);
             });
         }
     });
