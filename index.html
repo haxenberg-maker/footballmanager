@@ -351,10 +351,14 @@
            ultimele meciuri (rate). Declarate ÎNAINTE de confirmed/absent, ca starea
            meciului viitor (mai importantă/acțiune imediată) să câștige mereu în
            cascadă dacă un chip e și "prezent recent" ȘI confirmat/absent. */
+        .lobby-player-chip.presence-elite{background:linear-gradient(135deg,#ff9800,#e65100);border-color:#bf360c;}
+        .lobby-player-chip.presence-elite .chip-name{color:#fff3e0;}
         .lobby-player-chip.presence-high{background:linear-gradient(135deg,#ffd54f,#ffa726);border-color:#e65100;}
         .lobby-player-chip.presence-high .chip-name{color:#5d3a00;}
         .lobby-player-chip.presence-mid{background:linear-gradient(135deg,#fff3c4,#ffe082);border-color:#c9920a;}
         .lobby-player-chip.presence-mid .chip-name{color:#6b5000;}
+        .lobby-player-chip.presence-low{background:linear-gradient(135deg,#fffbe8,#fff3c4);border-color:#e0c468;}
+        .lobby-player-chip.presence-low .chip-name{color:#7d6849;}
         .lobby-player-chip.confirmed{background:#dde9ff;border-color:#1554b3;}
         .lobby-player-chip.absent{background:#fce0e0;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#dcc89a;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
@@ -1697,7 +1701,7 @@
 </div>
 
 <script src="smart-rating.js"></script>
-<script src="app.js?v=20260808e"></script>
+<script src="app.js?v=20260808f"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
