@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808g';
+const APP_VERSION = '20260808h';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -6035,6 +6035,36 @@ function recalculateAllPlayerStats() {
 
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
+}
+
+// Recalculează STRICT golurile primite (nu atinge victorii/meciuri/goluri
+// date) — mai sigur decât recalculateStatsFromUI() pentru cine vrea doar să
+// corecteze acest stat specific, fără riscul de a mișca altceva.
+async function recalculateConcededOnly(){
+    showConfirm('🥅', 'Recalculează doar golurile primite?',
+        'Atinge STRICT statul de goluri primite al fiecărui jucător (portar), recalculat din istoricul real al meciurilor. Nu modifică victorii, meciuri sau goluri date.',
+        'Recalculează', '#b71c1c', async () => {
+            const totals = {};
+            db.players.forEach(p => { totals[p.name] = 0; });
+            db.history.forEach(h => {
+                if (h.playerConceded) {
+                    Object.entries(h.playerConceded).forEach(([name, gc]) => {
+                        if (totals[name] !== undefined) totals[name] += (gc || 0);
+                    });
+                }
+            });
+            let changed = 0;
+            for (const p of db.players) {
+                const newVal = totals[p.name] || 0;
+                if (p.totalGoalsConceded !== newVal) {
+                    p.totalGoalsConceded = newVal;
+                    await dbUpdatePlayer(p).catch(e => console.warn('recalc conceded save:', e.message));
+                    changed++;
+                }
+            }
+            render();
+            showToast(changed > 0 ? `✅ Goluri primite corectate pentru ${changed} jucători.` : '✅ Erau deja corecte — nimic de schimbat.');
+        });
 }
 
 // Buton "🔄 Recalculează statistici" din bara de sus — apela deja funcția asta
