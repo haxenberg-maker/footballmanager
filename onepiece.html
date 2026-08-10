@@ -60,6 +60,10 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .ep strong{font-size:.83rem}
 .ep.watched{background:linear-gradient(145deg,#3a290b,#211a0d);border-color:#a16207;color:#fde68a}
 .ep.watched:after{content:"✓";position:absolute;right:8px;top:7px;color:var(--green);font-weight:900}
+.ep-link-ind{display:inline-flex;align-items:center;gap:2px;background:#1d4ed8;color:#dbeafe;font-size:.6rem;font-weight:800;padding:2px 6px;border-radius:5px;margin-left:6px;letter-spacing:.3px;vertical-align:middle}
+.arc-addlink{background:none;border:1px solid #3b82f6;color:#93c5fd;font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:7px;cursor:pointer;margin-left:8px;white-space:nowrap}
+.arc-addlink:hover{background:rgba(59,130,246,.15)}
+.arc-addlink:disabled{opacity:.5;cursor:default}
 .loading{max-width:1200px;margin:18px auto;padding:0 20px}
 .notice{border:1px solid #7c5a12;background:#2a200c;color:#fcd34d;border-radius:10px;padding:11px 13px;font-size:.82rem}
 .empty{padding:35px;text-align:center;color:var(--muted)}
@@ -134,6 +138,30 @@ const EP_RANGES = {
 };
 
 /*
+  ID-ul listei Pixeldrain pentru fiecare arc (cele 16 verificate). Link-ul
+  final per episod = https://pixeldrain.net/l/{id}#item={n-1} — item-ul e
+  0-indexat, în ordinea exactă din listă (episodul 1 = item 0, etc).
+*/
+const EP_SOURCE = {
+  'Water Seven': 'o8YkGt9i',
+  'Enies Lobby': 'Lbggw3VT',
+  'Post-Enies Lobby': 'upyN5vVk',
+  'Thriller Bark': 'Cq9faLGv',
+  'Sabaody Archipelago': 'jhpKUqF8',
+  'Amazon Lily': 'Bsr9gKsn',
+  'Impel Down': 'y5ywnHdF',
+  'If You Could Go Anywhere... The Adventures of the Straw Hats': 'cnjWovN9',
+  'Marineford': 'uFuFpnpi',
+  'Post-War': '7EANMSA7',
+  'Return to Sabaody': 'igysH62b',
+  'Fish-Man Island': 'o6ZzNwzp',
+  'Punk Hazard': 'wJoipMZu',
+  'Dressrosa': 'DMuj2Pqe',
+  'Zou': 'nSkEY2Cq',
+  'Whole Cake Island': 'phsTwRmF',
+};
+
+/*
   One Pace guide data: 10 main saga groups requested by the user.
   Episode counts follow the current One Pace episode guide structure.
 */
@@ -154,15 +182,20 @@ let allEpisodes=[];
 let watchedSet=new Set();
 let filter='all';
 let toastTimer;
+let manualArcSource={}; // {arcName: {listId, ranges:[...]}} — linkuri adăugate manual din UI, încărcate din Supabase
 
 function buildEpisodes(){
+  allEpisodes=[];
   let global=1;
   SAGAS.forEach((s,si)=>s.arcs.forEach((a,ai)=>{
     const arcName=a[0];
-    const ranges=EP_RANGES[arcName]||null;
+    const manual=manualArcSource[arcName];
+    const ranges=(manual&&manual.ranges)||EP_RANGES[arcName]||null;
+    const listId=(manual&&manual.listId)||EP_SOURCE[arcName]||null;
     for(let n=1;n<=a[1];n++){
       const range=ranges&&ranges[n-1]?ranges[n-1]:null;
-      allEpisodes.push({id:`s${si+1}-a${ai+1}-e${n}`, saga:si, arc:ai, number:n, global:global++, range});
+      const playUrl=listId?`https://pixeldrain.net/l/${listId}#item=${n-1}`:null;
+      allEpisodes.push({id:`s${si+1}-a${ai+1}-e${n}`, saga:si, arc:ai, number:n, global:global++, range, playUrl});
     }
   }));
 }
@@ -189,16 +222,20 @@ function render(){
       const eps=allEpisodes.filter(e=>e.saga===si&&e.arc===ai);
       const aw=eps.filter(e=>watchedSet.has(e.id)).length;
       if(filter==='open' && aw===eps.length) return;
+      const arcHasSource=!!(EP_SOURCE[a[0]]||manualArcSource[a[0]]);
       html+=`<div class="arc" data-arc="${si}-${ai}">
-        <div class="arc-head" onclick="toggleArc(${si},${ai})">
-          <span class="chev">⌄</span><div class="arc-name">${escapeHtml(a[0])}</div>
-          <div class="arc-count">${aw}/${eps.length}</div>
+        <div class="arc-head">
+          <span class="chev" onclick="toggleArc(${si},${ai})">⌄</span>
+          <div class="arc-name" onclick="toggleArc(${si},${ai})">${escapeHtml(a[0])}</div>
+          <div class="arc-count" onclick="toggleArc(${si},${ai})">${aw}/${eps.length}</div>
+          ${arcHasSource?'':`<button class="arc-addlink" onclick="event.stopPropagation();promptArcLink(${si},${ai})">🔗 Adaugă link</button>`}
         </div>
         <div class="arc-bar"><i style="width:${aw/eps.length*100}%"></i></div>
         <div class="episodes">`;
       eps.forEach(e=>{
-        html+=`<button class="ep ${watchedSet.has(e.id)?'watched':''}" onclick="toggleEpisode('${e.id}',this)">
-          <small>EPISOD ${String(e.number).padStart(2,'0')}${e.range?` · cap. ${escapeHtml(e.range)}`:''}</small><strong>One Pace #${e.global}</strong>
+        const urlArg=e.playUrl?`'${e.playUrl}'`:'null';
+        html+=`<button class="ep ${watchedSet.has(e.id)?'watched':''}" onclick="toggleEpisode('${e.id}',this,${urlArg})">
+          <strong>EPISOD ${String(e.number).padStart(2,'0')}${e.range?` · cap. ${escapeHtml(e.range)}`:''}</strong>${e.playUrl?'<span class="ep-link-ind">▶ VIDEO</span>':''}<small>One Pace #${e.global}</small>
         </button>`;
       });
       html+='</div></div>';
@@ -220,8 +257,9 @@ function updateStats(){
 function toggleSaga(i){document.querySelector(`.saga[data-saga="${i}"]`)?.classList.toggle('closed')}
 function toggleArc(s,a){document.querySelector(`.saga[data-saga="${s}"] .arc[data-arc="${s}-${a}"]`)?.classList.toggle('closed')}
 
-async function toggleEpisode(id,btn){
+async function toggleEpisode(id,btn,playUrl){
   const next=!watchedSet.has(id);
+  if(next && playUrl) window.open(playUrl,'_blank','noopener'); // click = deschide episodul + marcheaza vazut; demarcarea NU redeschide linkul
   if(next) watchedSet.add(id); else watchedSet.delete(id);
   btn.classList.toggle('watched',next);
   updateStats();
@@ -238,6 +276,91 @@ async function toggleEpisode(id,btn){
     console.error(error);
   }else{
     showToast(next?'✓ Episod marcat ca văzut':'↩ Episod debifat');
+  }
+}
+
+// ── Adăugare manuală de link Pixeldrain per arc, cu parsare automată ──
+// Parsează nume de forma: [One Pace][322-324] Water Seven 01 [720p][En Sub][XXXX].mp4
+// și extrage intervalul de capitole per episod, în ordinea din listă.
+const PIXELDRAIN_FILENAME_RE = /^\[One Pace\]\[([^\]]+)\]\s+.+?\s+(\d+)\s+\[/;
+
+function extractPixeldrainListId(input){
+  const trimmed=input.trim();
+  const m=trimmed.match(/\/l\/([a-zA-Z0-9]+)/);
+  if(m) return m[1];
+  if(/^[a-zA-Z0-9]+$/.test(trimmed)) return trimmed; // a introdus direct ID-ul, nu link-ul complet
+  return null;
+}
+
+async function promptArcLink(si,ai){
+  const arcName=SAGAS[si].arcs[ai][0];
+  const input=prompt(`Lipește link-ul Pixeldrain (sau doar ID-ul din URL) pentru arcul "${arcName}":\n\nEx: https://pixeldrain.net/l/o8YkGt9i`);
+  if(!input) return;
+  const listId=extractPixeldrainListId(input);
+  if(!listId){ showToast('⚠️ Nu am recunoscut niciun ID valid în link.'); return; }
+
+  showToast('⏳ Se preiau episoadele de pe Pixeldrain...');
+  let data;
+  try{
+    const res=await fetch(`https://pixeldrain.com/api/list/${listId}`);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    data=await res.json();
+  }catch(e){
+    console.error(e);
+    showToast('❌ Nu am putut prelua lista (posibil blocaj CORS) — folosește scriptul din consolă ca alternativă.');
+    return;
+  }
+
+  const files=data.files||[];
+  const ranges=[];
+  let unparsed=0;
+  files.forEach(fname=>{
+    const m=fname.match(PIXELDRAIN_FILENAME_RE);
+    if(!m){ unparsed++; return; }
+    const [,chapRange,epNumStr]=m;
+    const epNum=parseInt(epNumStr,10);
+    ranges[epNum-1]=chapRange;
+  });
+
+  if(!ranges.length){
+    showToast('❌ Nu am putut extrage niciun episod din lista asta — verifică link-ul.');
+    return;
+  }
+
+  // Avertizare dacă numărul de episoade parsate nu se potrivește cu ce avem noi declarat
+  const arcEntry=SAGAS.flatMap(s=>s.arcs).find(a=>a[0]===arcName);
+  const declaredCount=arcEntry?arcEntry[1]:null;
+  if(declaredCount && ranges.length!==declaredCount){
+    showToast(`⚠️ Am găsit ${ranges.length} episoade, dar aveam ${declaredCount} declarate — salvez oricum, verifică manual.`);
+  } else {
+    showToast(`✅ ${ranges.length} episoade găsite și salvate!`);
+  }
+  if(unparsed>0) console.warn(`${unparsed} fișiere nu s-au putut parsa din lista "${arcName}"`);
+
+  manualArcSource[arcName]={listId,ranges};
+  try{
+    await sb.from('onepiece_arc_links').upsert(
+      {arc_name:arcName, list_id:listId, ranges:ranges, updated_at:new Date().toISOString()},
+      {onConflict:'arc_name'}
+    );
+  }catch(e){
+    console.error(e);
+    showToast('⚠️ Salvat local, dar nu s-a sincronizat cu Supabase — verifică tabela onepiece_arc_links.');
+  }
+
+  buildEpisodes();
+  render();
+}
+
+async function loadArcLinks(){
+  try{
+    const {data,error}=await sb.from('onepiece_arc_links').select('arc_name,list_id,ranges');
+    if(error) throw error;
+    (data||[]).forEach(row=>{
+      manualArcSource[row.arc_name]={listId:row.list_id, ranges:row.ranges||[]};
+    });
+  }catch(e){
+    console.warn('loadArcLinks: nu am putut încărca linkurile manuale (ai rulat migrarea SQL?):', e.message);
   }
 }
 
@@ -300,8 +423,13 @@ document.getElementById('collapseBtn').onclick=()=>{
   document.querySelectorAll('.saga').forEach(x=>x.classList.add('closed'));
   document.querySelectorAll('.arc').forEach(x=>x.classList.add('closed'));
 };
-loadProgress();
-setupRealtime();
+async function init(){
+  await loadArcLinks();
+  buildEpisodes(); // rebuild cu manualArcSource incarcat, peste datele hardcodate initiale
+  await loadProgress();
+  setupRealtime();
+}
+init();
 </script>
 </body>
 </html>
