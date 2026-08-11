@@ -64,6 +64,27 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .arc-addlink{background:none;border:1px solid #3b82f6;color:#93c5fd;font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:7px;cursor:pointer;margin-left:8px;white-space:nowrap}
 .arc-addlink:hover{background:rgba(59,130,246,.15)}
 .arc-addlink:disabled{opacity:.5;cursor:default}
+.continue-bar{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#1d4ed8,#1e3a8a);border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s;color:#fff}
+.continue-bar:hover{transform:translateY(-1px)}
+.continue-bar span{font-size:1.3rem}
+.continue-label{font-size:.65rem;text-transform:uppercase;letter-spacing:1px;opacity:.85}
+.continue-ep{font-size:.95rem;font-weight:800}
+.ep.highlight-target{animation:epPulse 1.4s ease-in-out 3}
+@keyframes epPulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.7)}50%{box-shadow:0 0 0 8px rgba(59,130,246,0)}}
+.bulk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px}
+.bulk-modal{background:#0f1729;border:1px solid #263754;border-radius:14px;padding:20px;max-width:480px;width:100%;max-height:86vh;overflow-y:auto;color:#cbd5e1}
+.bulk-modal h3{margin:0 0 8px;color:#fff;font-size:1.1rem}
+.bulk-intro{font-size:.78rem;color:#94a3b8;margin:0 0 10px}
+.bulk-arc-list{margin:0 0 12px;padding-left:20px;font-size:.75rem;color:#93c5fd;max-height:140px;overflow-y:auto}
+.bulk-arc-list li{margin-bottom:2px}
+.bulk-hint{font-size:.68rem;color:#64748b;margin:0 0 8px}
+.bulk-textarea{width:100%;background:#142139;border:1px solid #263754;border-radius:9px;color:#e2e8f0;font-size:.78rem;padding:10px;resize:vertical;font-family:monospace}
+.bulk-progress{font-size:.72rem;color:#94a3b8;margin-top:8px;white-space:pre-line;max-height:100px;overflow-y:auto}
+.bulk-actions{display:flex;gap:8px;margin-top:14px}
+.bulk-btn{flex:1;padding:10px;border-radius:9px;font-weight:700;font-size:.85rem;cursor:pointer;border:1px solid transparent}
+.bulk-btn-secondary{background:#142139;border-color:#263754;color:#94a3b8}
+.bulk-btn-primary{background:linear-gradient(135deg,#1d4ed8,#1e3a8a);color:#fff}
+.bulk-btn:disabled{opacity:.5;cursor:default}
 .loading{max-width:1200px;margin:18px auto;padding:0 20px}
 .notice{border:1px solid #7c5a12;background:#2a200c;color:#fcd34d;border-radius:10px;padding:11px 13px;font-size:.82rem}
 .empty{padding:35px;text-align:center;color:var(--muted)}
@@ -91,6 +112,14 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
       <div class="stat"><div class="stat-label">Episoade văzute</div><div id="watched" class="stat-value">0</div></div>
       <div class="stat"><div class="stat-label">Total episoade</div><div id="total" class="stat-value">0</div></div>
       <div class="stat"><div class="stat-label">Progres</div><div id="percent" class="stat-value">0%</div><div class="progress"><i id="progress"></i></div></div>
+      <div class="stat"><div class="stat-label">Timp rămas (estimare)</div><div id="timeLeft" class="stat-value">—</div></div>
+    </div>
+  </div>
+  <div id="continueBar" class="continue-bar" style="display:none;" onclick="continueWatching()">
+    <span>▶</span>
+    <div class="continue-text">
+      <div class="continue-label">Continuă de unde ai rămas</div>
+      <div id="continueEp" class="continue-ep">—</div>
     </div>
   </div>
 </header>
@@ -99,11 +128,29 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
   <button class="control active" id="allBtn">Toate</button>
   <button class="control" id="openBtn">Deschise</button>
   <button class="control" id="collapseBtn">Restrânge toate</button>
+  <button class="control" id="bulkImportBtn">📥 Import multiple linkuri</button>
 </div>
 
 <div id="loading" class="loading"><div class="notice">Se încarcă progresul din Supabase...</div></div>
 <main id="app"></main>
 <div id="toast" class="toast"></div>
+
+<div id="bulkModalOverlay" class="bulk-overlay" style="display:none;">
+  <div class="bulk-modal">
+    <h3>📥 Import în masă</h3>
+    <p id="bulkModalIntro" class="bulk-intro"></p>
+    <ol id="bulkModalArcList" class="bulk-arc-list"></ol>
+    <p class="bulk-hint">Lipește linkurile mai jos, câte unul pe linie, <b>în aceeași ordine</b> ca lista de deasupra. Linii goale se ignoră.</p>
+    <textarea id="bulkModalTextarea" class="bulk-textarea" rows="8" placeholder="https://pixeldrain.net/l/xxxxxxxx
+https://pixeldrain.net/l/yyyyyyyy
+..."></textarea>
+    <div id="bulkModalProgress" class="bulk-progress"></div>
+    <div class="bulk-actions">
+      <button id="bulkModalCancel" class="bulk-btn bulk-btn-secondary">Anulează</button>
+      <button id="bulkModalRun" class="bulk-btn bulk-btn-primary">Procesează</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* Supabase credentials supplied in the attached application files. */
@@ -234,7 +281,7 @@ function render(){
         <div class="episodes">`;
       eps.forEach(e=>{
         const urlArg=e.playUrl?`'${e.playUrl}'`:'null';
-        html+=`<button class="ep ${watchedSet.has(e.id)?'watched':''}" onclick="toggleEpisode('${e.id}',this,${urlArg})">
+        html+=`<button class="ep ${watchedSet.has(e.id)?'watched':''}" data-id="${e.id}" onclick="toggleEpisode('${e.id}',this,${urlArg})">
           <strong>EPISOD ${String(e.number).padStart(2,'0')}${e.range?` · cap. ${escapeHtml(e.range)}`:''}</strong>${e.playUrl?'<span class="ep-link-ind">▶ VIDEO</span>':''}<small>One Pace #${e.global}</small>
         </button>`;
       });
@@ -246,12 +293,46 @@ function render(){
   updateStats();
 }
 
+const EP_AVG_MINUTES=15; // estimare medie per episod One Pace — variaza mult real (Skypiea ~5min, Arabasta ~20min), deci e doar orientativ
+
 function updateStats(){
   const total=allEpisodes.length, watched=watchedSet.size, pct=total?Math.round(watched/total*100):0;
   document.getElementById('watched').textContent=watched;
   document.getElementById('total').textContent=total;
   document.getElementById('percent').textContent=pct+'%';
   document.getElementById('progress').style.width=pct+'%';
+
+  const remaining=total-watched;
+  const totalMin=remaining*EP_AVG_MINUTES;
+  const h=Math.floor(totalMin/60), m=totalMin%60;
+  document.getElementById('timeLeft').textContent=remaining===0?'🎉 Gata!':(h>0?`~${h}h ${m}m`:`~${m}m`);
+
+  updateContinueBar();
+}
+
+function updateContinueBar(){
+  const bar=document.getElementById('continueBar');
+  const sorted=[...allEpisodes].sort((a,b)=>a.global-b.global);
+  const next=sorted.find(e=>!watchedSet.has(e.id));
+  if(!next){ bar.style.display='none'; return; }
+  const arcName=SAGAS[next.saga].arcs[next.arc][0];
+  document.getElementById('continueEp').textContent=
+    `${arcName} · EP ${String(next.number).padStart(2,'0')}${next.range?` (cap. ${next.range})`:''}`;
+  bar.style.display='flex';
+}
+
+function continueWatching(){
+  const sorted=[...allEpisodes].sort((a,b)=>a.global-b.global);
+  const next=sorted.find(e=>!watchedSet.has(e.id));
+  if(!next){ showToast('🎉 Ai văzut tot ce există momentan!'); return; }
+  document.querySelector(`.saga[data-saga="${next.saga}"]`)?.classList.remove('closed');
+  document.querySelector(`.arc[data-arc="${next.saga}-${next.arc}"]`)?.classList.remove('closed');
+  const btn=document.querySelector(`.ep[data-id="${next.id}"]`);
+  if(btn){
+    btn.scrollIntoView({behavior:'smooth', block:'center'});
+    btn.classList.add('highlight-target');
+    setTimeout(()=>btn.classList.remove('highlight-target'), 4300);
+  }
 }
 
 function toggleSaga(i){document.querySelector(`.saga[data-saga="${i}"]`)?.classList.toggle('closed')}
@@ -292,50 +373,35 @@ function extractPixeldrainListId(input){
   return null;
 }
 
-async function promptArcLink(si,ai){
+/*
+  Preia + parsează + salvează link-ul unui SINGUR arc (fetch Pixeldrain +
+  regex + upsert Supabase). Nu apelează buildEpisodes()/render() — asta e
+  responsabilitatea celui care cheamă funcția (pentru un singur arc, imediat;
+  pentru import în masă, o singură dată la final, nu de N ori).
+*/
+async function applyArcLink(si,ai,listId){
   const arcName=SAGAS[si].arcs[ai][0];
-  const input=prompt(`Lipește link-ul Pixeldrain (sau doar ID-ul din URL) pentru arcul "${arcName}":\n\nEx: https://pixeldrain.net/l/o8YkGt9i`);
-  if(!input) return;
-  const listId=extractPixeldrainListId(input);
-  if(!listId){ showToast('⚠️ Nu am recunoscut niciun ID valid în link.'); return; }
-
-  showToast('⏳ Se preiau episoadele de pe Pixeldrain...');
   let data;
   try{
     const res=await fetch(`https://pixeldrain.com/api/list/${listId}`);
     if(!res.ok) throw new Error('HTTP '+res.status);
     data=await res.json();
   }catch(e){
-    console.error(e);
-    showToast('❌ Nu am putut prelua lista (posibil blocaj CORS) — folosește scriptul din consolă ca alternativă.');
-    return;
+    return {success:false, arcName, error:'preluare eșuată ('+e.message+') — posibil CORS'};
   }
 
   const files=data.files||[];
   const ranges=[];
-  let unparsed=0;
   files.forEach(fname=>{
     const m=fname.match(PIXELDRAIN_FILENAME_RE);
-    if(!m){ unparsed++; return; }
+    if(!m) return;
     const [,chapRange,epNumStr]=m;
-    const epNum=parseInt(epNumStr,10);
-    ranges[epNum-1]=chapRange;
+    ranges[parseInt(epNumStr,10)-1]=chapRange;
   });
+  if(!ranges.length) return {success:false, arcName, error:'niciun episod recunoscut în listă'};
 
-  if(!ranges.length){
-    showToast('❌ Nu am putut extrage niciun episod din lista asta — verifică link-ul.');
-    return;
-  }
-
-  // Avertizare dacă numărul de episoade parsate nu se potrivește cu ce avem noi declarat
-  const arcEntry=SAGAS.flatMap(s=>s.arcs).find(a=>a[0]===arcName);
-  const declaredCount=arcEntry?arcEntry[1]:null;
-  if(declaredCount && ranges.length!==declaredCount){
-    showToast(`⚠️ Am găsit ${ranges.length} episoade, dar aveam ${declaredCount} declarate — salvez oricum, verifică manual.`);
-  } else {
-    showToast(`✅ ${ranges.length} episoade găsite și salvate!`);
-  }
-  if(unparsed>0) console.warn(`${unparsed} fișiere nu s-au putut parsa din lista "${arcName}"`);
+  const declaredCount=SAGAS[si].arcs[ai][1];
+  const countMismatch=!!(declaredCount && ranges.length!==declaredCount);
 
   manualArcSource[arcName]={listId,ranges};
   try{
@@ -344,9 +410,24 @@ async function promptArcLink(si,ai){
       {onConflict:'arc_name'}
     );
   }catch(e){
-    console.error(e);
-    showToast('⚠️ Salvat local, dar nu s-a sincronizat cu Supabase — verifică tabela onepiece_arc_links.');
+    return {success:true, arcName, count:ranges.length, warning:'nu s-a sincronizat cu Supabase: '+e.message};
   }
+  return {success:true, arcName, count:ranges.length, countMismatch, declaredCount};
+}
+
+async function promptArcLink(si,ai){
+  const arcName=SAGAS[si].arcs[ai][0];
+  const input=prompt(`Lipește link-ul Pixeldrain (sau doar ID-ul din URL) pentru arcul "${arcName}":\n\nEx: https://pixeldrain.net/l/o8YkGt9i`);
+  if(!input) return;
+  const listId=extractPixeldrainListId(input);
+  if(!listId){ showToast('⚠️ Nu am recunoscut niciun ID valid în link.'); return; }
+
+  showToast('⏳ Se preiau episoadele de pe Pixeldrain...');
+  const result=await applyArcLink(si,ai,listId);
+  if(!result.success){ showToast('❌ '+result.arcName+': '+result.error); return; }
+  if(result.warning) showToast('⚠️ '+result.warning);
+  else if(result.countMismatch) showToast(`⚠️ ${result.count} episoade găsite, dar aveam ${result.declaredCount} declarate — salvat oricum.`);
+  else showToast(`✅ ${result.count} episoade găsite și salvate!`);
 
   buildEpisodes();
   render();
@@ -363,6 +444,74 @@ async function loadArcLinks(){
     console.warn('loadArcLinks: nu am putut încărca linkurile manuale (ai rulat migrarea SQL?):', e.message);
   }
 }
+
+// ── Import în masă (mai multe arcuri deodată) ──────────────────────
+function getMissingArcs(){
+  const missing=[];
+  SAGAS.forEach((s,si)=>s.arcs.forEach((a,ai)=>{
+    if(!(EP_SOURCE[a[0]]||manualArcSource[a[0]])) missing.push({si,ai,name:a[0]});
+  }));
+  return missing;
+}
+
+let _bulkMissingArcs=[];
+
+function openBulkModal(){
+  _bulkMissingArcs=getMissingArcs();
+  if(!_bulkMissingArcs.length){ showToast('🎉 Toate arcurile au deja link — nimic de importat.'); return; }
+  document.getElementById('bulkModalIntro').textContent=
+    `${_bulkMissingArcs.length} arcuri fără link. Lipește linkurile mai jos, în EXACT această ordine:`;
+  document.getElementById('bulkModalArcList').innerHTML=
+    _bulkMissingArcs.map(a=>`<li>${escapeHtml(a.name)}</li>`).join('');
+  document.getElementById('bulkModalTextarea').value='';
+  document.getElementById('bulkModalProgress').textContent='';
+  const runBtn=document.getElementById('bulkModalRun');
+  runBtn.disabled=false; runBtn.textContent='Procesează';
+  document.getElementById('bulkModalCancel').disabled=false;
+  document.getElementById('bulkModalOverlay').style.display='flex';
+}
+function closeBulkModal(){ document.getElementById('bulkModalOverlay').style.display='none'; }
+
+async function runBulkImport(){
+  const lines=document.getElementById('bulkModalTextarea').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!lines.length){ showToast('⚠️ Nu ai lipit niciun link.'); return; }
+
+  const runBtn=document.getElementById('bulkModalRun');
+  const cancelBtn=document.getElementById('bulkModalCancel');
+  const progressEl=document.getElementById('bulkModalProgress');
+  runBtn.disabled=true; runBtn.textContent='Se procesează...'; cancelBtn.disabled=true;
+
+  const count=Math.min(lines.length,_bulkMissingArcs.length);
+  const log=[];
+  for(let i=0;i<count;i++){
+    const {si,ai,name}=_bulkMissingArcs[i];
+    const listId=extractPixeldrainListId(lines[i]);
+    let result;
+    if(!listId) result={success:false, arcName:name, error:'link nerecunoscut'};
+    else result=await applyArcLink(si,ai,listId);
+
+    if(!result.success) log.push(`❌ ${result.arcName}: ${result.error}`);
+    else if(result.countMismatch) log.push(`⚠️ ${result.arcName}: ${result.count} ep (declarat ${result.declaredCount})`);
+    else if(result.warning) log.push(`⚠️ ${result.arcName}: ${result.count} ep, dar ${result.warning}`);
+    else log.push(`✅ ${result.arcName}: ${result.count} ep`);
+    progressEl.textContent=log.join('\n');
+    progressEl.scrollTop=progressEl.scrollHeight;
+    await new Promise(r=>setTimeout(r,250)); // mic delay intre cereri, sa nu spamam API-ul
+  }
+  if(lines.length>_bulkMissingArcs.length){
+    log.push(`ℹ️ Am ignorat ${lines.length-_bulkMissingArcs.length} linkuri în plus (mai multe decât arcuri lipsă).`);
+    progressEl.textContent=log.join('\n');
+  }
+
+  buildEpisodes();
+  render();
+  runBtn.disabled=false; runBtn.textContent='Procesează'; cancelBtn.disabled=false;
+  showToast('✅ Import terminat — vezi detaliile din fereastră.');
+}
+
+document.getElementById('bulkImportBtn').onclick=openBulkModal;
+document.getElementById('bulkModalCancel').onclick=closeBulkModal;
+document.getElementById('bulkModalRun').onclick=runBulkImport;
 
 function refreshCounts(){
   document.querySelectorAll('.saga').forEach(sec=>{
