@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808i';
+const APP_VERSION = '20260808j';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -245,6 +245,8 @@ let qvVotes = {}, confirmCallback = null;
 let statsVisible = localStorage.getItem('dash_stats_visible') !== 'false';
 let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
 let rolesVisible = localStorage.getItem('dash_roles_visible') !== 'false';
+let milestonesVisible = localStorage.getItem('dash_milestones_visible') !== 'false';
+let speedVisible = localStorage.getItem('dash_speed_visible') !== 'false';
 let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
 
@@ -492,6 +494,7 @@ function rowToPlayer(p) {
         matchHistory: p.match_history||[],
         mainStatus: p.main_status||null,
         negativeStatus: p.negative_status||null,
+        speedStatus: p.speed_status||null,
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
         totalGoals: p.total_goals||0,
@@ -525,7 +528,8 @@ async function dbUpdatePlayer(p) {
         wins:p.wins, games:p.games, match_history:p.matchHistory,
         total_goals: p.totalGoals||0,
         total_goals_conceded: p.totalGoalsConceded||0,
-        last_imbalance_loss: p.lastImbalanceLoss||0
+        last_imbalance_loss: p.lastImbalanceLoss||0,
+        speed_status: p.speedStatus||null
     });
     if (error) {
         console.error('dbUpdatePlayer error for', p.name, ':', error.message, error.details, error.hint);
@@ -886,6 +890,22 @@ function renderMilestoneBadges(p, big){
     return `<div class="milestone-row">${badges.map(b=>`<span class="milestone-badge${big?' big':''}" title="${b.label}">${b.emoji} ${b.label}</span>`).join('')}</div>`;
 }
 
+// ── 💨 Status de viteză (admin-set, 6 trepte) ───────────────────────
+const SPEED_TIERS = [
+    { key:'slow-',  label:'Slow-',  emoji:'🐌', color:'#8d6e63' },
+    { key:'slow',   label:'Slow',   emoji:'🐢', color:'#a1887f' },
+    { key:'normal', label:'Normal', emoji:'🚶', color:'#78909c' },
+    { key:'fast',   label:'Fast',   emoji:'🏃', color:'#43a047' },
+    { key:'fast+',  label:'Fast+',  emoji:'💨', color:'#fb8c00' },
+    { key:'fast++', label:'Fast++', emoji:'⚡', color:'#e53935' },
+];
+function getSpeedTier(key){ return SPEED_TIERS.find(t=>t.key===key) || null; }
+function renderSpeedBadge(p){
+    const tier = getSpeedTier(p.speedStatus);
+    if(!tier) return '';
+    return `<div class="speed-badge" style="display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:6px;background:${tier.color}22;border:1px solid ${tier.color}66;color:${tier.color};white-space:nowrap;margin-top:3px;">${tier.emoji} ${tier.label}</div>`;
+}
+
 // ── 📅 Echipa Săptămânii + 🎬 Derby-ul săptămânii ──────────────────
 // Fereastră: ultimele 7 zile; dacă nu s-a jucat nimic recent, cad back pe ultimele 5 meciuri.
 function getRecentMatchesWindow(){
@@ -1149,6 +1169,7 @@ function render(){
                         </div>
                         <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
                         ${renderMilestoneBadges(p)}
+                        ${renderSpeedBadge(p)}
                     </div>
                 </div>`;
             const container = document.getElementById(`list-${team}`);
@@ -1163,6 +1184,8 @@ function render(){
     applyDashStatsVisibility();
     applyDashTagsVisibility();
     applyDashRolesVisibility();
+    applyDashMilestonesVisibility();
+    applyDashSpeedVisibility();
 }
 
 function analyzeTeamBalance(teamPlayers){
@@ -3034,6 +3057,42 @@ function applyDashRolesVisibility(){
     }
 }
 
+function toggleDashMilestones(){
+    milestonesVisible = !milestonesVisible;
+    localStorage.setItem('dash_milestones_visible', milestonesVisible);
+    applyDashMilestonesVisibility();
+}
+function applyDashMilestonesVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleMilestones');
+    if(milestonesVisible){
+        dashboard.classList.remove('dash-milestones-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.color=''; }
+    } else {
+        dashboard.classList.add('dash-milestones-hidden');
+        if(btn){ btn.style.opacity='0.6'; btn.style.color='#7d6849'; }
+    }
+}
+
+function toggleDashSpeed(){
+    speedVisible = !speedVisible;
+    localStorage.setItem('dash_speed_visible', speedVisible);
+    applyDashSpeedVisibility();
+}
+function applyDashSpeedVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleSpeed');
+    if(speedVisible){
+        dashboard.classList.remove('dash-speed-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.color=''; }
+    } else {
+        dashboard.classList.add('dash-speed-hidden');
+        if(btn){ btn.style.opacity='0.6'; btn.style.color='#7d6849'; }
+    }
+}
+
 function toggleDashTags(){
     tagsVisible = !tagsVisible;
     localStorage.setItem('dash_tags_visible', tagsVisible);
@@ -3084,6 +3143,17 @@ async function clearAdminRating(id){
         buildModalStats(p);
         showToast(`✅ Rating override șters pentru ${p.name}`);
     }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function setPlayerSpeed(id, key){
+    const p = db.players.find(x=>x.id==id); if(!p) return;
+    p.speedStatus = key;
+    try{
+        await sb.from('players').update({speed_status: key}).eq('id', id);
+        render();
+        buildModalStats(p);
+        showToast(key ? `💨 Viteză setată: ${p.name} → ${getSpeedTier(key)?.label}` : `✅ Status viteză eliminat pentru ${p.name}`);
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru speed_status?)'); }
 }
 
 async function saveStatsEdit(id) {
@@ -3290,7 +3360,6 @@ function openModal(id){
     buildModalStats(p);
     buildModalQuickGlance(p);
     buildModalChemPreview(p);
-    buildHexChart(p);
     buildPlayerMatchHistory(p);
     buildChemistry(p);
     buildRatingsList(p);
@@ -3305,16 +3374,12 @@ function openModal(id){
 }
 function switchModalTab(tab){
     document.querySelectorAll('.modal-tab').forEach((t,i)=>{
-        const tabs=['stats','evolution','radar','history','chemistry'];
+        const tabs=['stats','history','chemistry'];
         t.classList.toggle('active',tabs[i]===tab);
     });
     document.querySelectorAll('.modal-tab-panel').forEach(p=>p.classList.remove('active'));
-    const panels={stats:'tabStats',evolution:'tabEvolution',radar:'tabRadar',history:'tabHistory',chemistry:'tabChemistry'};
+    const panels={stats:'tabStats',history:'tabHistory',chemistry:'tabChemistry'};
     document.getElementById(panels[tab])?.classList.add('active');
-    if(tab==='evolution'){
-        const p=db.players.find(x=>x.id==currentPlayerId);
-        if(p){ buildCatTabs(p); buildRatingChart(p,activeCatTab); }
-    }
 }
 
 // ── buildModalStats — with Live Preview Editor ───────────────────
@@ -3380,6 +3445,29 @@ function buildModalStats(p){
                 </div>`;
         } else {
             arPanel.style.display = 'none';
+        }
+    }
+
+    // ── Admin: Status Viteză (6 trepte) ─────────────────────────────
+    const spPanel = document.getElementById('adminSpeedPanel');
+    if(spPanel){
+        if(admin){
+            spPanel.style.display = 'block';
+            spPanel.innerHTML = `
+                <div style="background:#fffaf0;border:1px solid #e3d3ac;border-radius:10px;padding:10px 14px;margin-bottom:10px;">
+                    <div style="font-size:.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💨 Status Viteză</div>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        ${SPEED_TIERS.map(t=>`<button onclick="setPlayerSpeed(${p.id},'${t.key}')"
+                            style="padding:5px 10px;border-radius:7px;font-size:.75rem;font-weight:700;cursor:pointer;
+                            background:${p.speedStatus===t.key?t.color+'33':'#fdf3df'};
+                            border:1px solid ${p.speedStatus===t.key?t.color:'#d3bd8c'};
+                            color:${p.speedStatus===t.key?t.color:'#7d6849'};">${t.emoji} ${t.label}</button>`).join('')}
+                        ${p.speedStatus?`<button onclick="setPlayerSpeed(${p.id},null)"
+                            style="background:none;border:1px solid #dcc89a;color:#7d6849;padding:5px 10px;border-radius:7px;font-size:.75rem;cursor:pointer;">✕ Șterge</button>`:''}
+                    </div>
+                </div>`;
+        } else {
+            spPanel.style.display = 'none';
         }
     }
 
@@ -3513,8 +3601,6 @@ function buildModalStats(p){
         </div>
         <div class="algo-title" style="margin-top:8px;margin-bottom:4px;">🏷️ Statusuri</div>` +
         gridHtml;
-
-    buildCatTabs(p);
 }
 
 // ── Sumar rapid — o privire, fără să dai click prin taburi ────────
@@ -6200,9 +6286,54 @@ function toggleSection(bodyId, chevronId) {
     if (chev) chev.classList.toggle('open', isOpen);
 }
 
+// ── Buton shortcut personalizat (ex: link către /onepiece) ──────────
+// Stocat local (localStorage), nu în baza de date — configurabil imediat,
+// fără migrare SQL. E per-browser: dacă vrei același shortcut peste tot
+// (toate telefoanele/toți jucătorii), spune-mi și îl mutăm în DB.
+function loadCustomShortcut(){
+    const label = localStorage.getItem('custom_shortcut_label');
+    const url = localStorage.getItem('custom_shortcut_url');
+    const btn = document.getElementById('customShortcutBtn');
+    const editBtn = document.getElementById('customShortcutEditBtn');
+    const has = !!(label && url);
+    if(btn){
+        btn.textContent = has ? '🔗 ' + label : '';
+        btn.style.display = has ? 'inline-flex' : 'none';
+    }
+    if(editBtn){
+        editBtn.textContent = has ? '✎' : '➕ Shortcut';
+        editBtn.title = has ? `Editează shortcut-ul (acum: ${label} → ${url})` : 'Creează un buton scurtătură personalizat';
+    }
+}
+function openCustomShortcut(){
+    const url = localStorage.getItem('custom_shortcut_url');
+    if(!url) return;
+    // Link relativ (ex: /onepiece) sau absolut (https://...) — ambele merg
+    window.location.href = url;
+}
+function configureCustomShortcut(){
+    const curLabel = localStorage.getItem('custom_shortcut_label') || '';
+    const curUrl = localStorage.getItem('custom_shortcut_url') || '';
+    const label = prompt('Numele butonului (ex: OnePiece):', curLabel);
+    if(label === null) return; // anulat
+    const url = prompt('Link-ul (ex: /onepiece sau https://exemplu.com):', curUrl);
+    if(url === null) return; // anulat
+    if(!label.trim() || !url.trim()){
+        localStorage.removeItem('custom_shortcut_label');
+        localStorage.removeItem('custom_shortcut_url');
+        showToast('✅ Shortcut eliminat.');
+    } else {
+        localStorage.setItem('custom_shortcut_label', label.trim());
+        localStorage.setItem('custom_shortcut_url', url.trim());
+        showToast(`✅ Shortcut salvat: ${label.trim()}`);
+    }
+    loadCustomShortcut();
+}
+
 async function init(){
     document.getElementById('current-date').innerText=new Date().toLocaleDateString('ro-RO',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     await registerServiceWorker();
+    loadCustomShortcut();
 
     const { data: { session } } = await sb.auth.getSession();
     if(session?.user){
