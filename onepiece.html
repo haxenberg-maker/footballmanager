@@ -390,7 +390,7 @@ async function applyArcLink(si,ai,listId){
     return {success:false, arcName, error:'preluare eșuată ('+e.message+') — posibil CORS'};
   }
 
-  const files=data.files||[];
+  const files=(data.files||[]).map(f=>f&&f.name).filter(n=>typeof n==='string'); // fiecare element e un obiect {name,size,...}; ignoram orice intrare fara nume valid
   const ranges=[];
   files.forEach(fname=>{
     const m=fname.match(PIXELDRAIN_FILENAME_RE);
@@ -488,32 +488,43 @@ async function runBulkImport(){
   const progressEl=document.getElementById('bulkModalProgress');
   runBtn.disabled=true; runBtn.textContent='Se procesează...'; cancelBtn.disabled=true;
 
-  const count=Math.min(lines.length,_bulkMissingArcs.length);
-  const log=[];
-  for(let i=0;i<count;i++){
-    const {si,ai,name}=_bulkMissingArcs[i];
-    const listId=extractPixeldrainListId(lines[i]);
-    let result;
-    if(!listId) result={success:false, arcName:name, error:'link nerecunoscut'};
-    else result=await applyArcLink(si,ai,listId);
+  try{
+    const count=Math.min(lines.length,_bulkMissingArcs.length);
+    const log=[];
+    for(let i=0;i<count;i++){
+      const {si,ai,name}=_bulkMissingArcs[i];
+      const listId=extractPixeldrainListId(lines[i]);
+      let result;
+      try{
+        if(!listId) result={success:false, arcName:name, error:'link nerecunoscut'};
+        else result=await applyArcLink(si,ai,listId);
+      }catch(e){
+        console.error('runBulkImport, arc "'+name+'":', e);
+        result={success:false, arcName:name, error:'eroare neașteptată: '+e.message};
+      }
 
-    if(!result.success) log.push(`❌ ${result.arcName}: ${result.error}`);
-    else if(result.countMismatch) log.push(`⚠️ ${result.arcName}: ${result.count} ep (declarat ${result.declaredCount})`);
-    else if(result.warning) log.push(`⚠️ ${result.arcName}: ${result.count} ep, dar ${result.warning}`);
-    else log.push(`✅ ${result.arcName}: ${result.count} ep`);
-    progressEl.textContent=log.join('\n');
-    progressEl.scrollTop=progressEl.scrollHeight;
-    await new Promise(r=>setTimeout(r,250)); // mic delay intre cereri, sa nu spamam API-ul
-  }
-  if(lines.length>_bulkMissingArcs.length){
-    log.push(`ℹ️ Am ignorat ${lines.length-_bulkMissingArcs.length} linkuri în plus (mai multe decât arcuri lipsă).`);
-    progressEl.textContent=log.join('\n');
-  }
+      if(!result.success) log.push(`❌ ${result.arcName}: ${result.error}`);
+      else if(result.countMismatch) log.push(`⚠️ ${result.arcName}: ${result.count} ep (declarat ${result.declaredCount})`);
+      else if(result.warning) log.push(`⚠️ ${result.arcName}: ${result.count} ep, dar ${result.warning}`);
+      else log.push(`✅ ${result.arcName}: ${result.count} ep`);
+      progressEl.textContent=log.join('\n');
+      progressEl.scrollTop=progressEl.scrollHeight;
+      await new Promise(r=>setTimeout(r,250)); // mic delay intre cereri, sa nu spamam API-ul
+    }
+    if(lines.length>_bulkMissingArcs.length){
+      log.push(`ℹ️ Am ignorat ${lines.length-_bulkMissingArcs.length} linkuri în plus (mai multe decât arcuri lipsă).`);
+      progressEl.textContent=log.join('\n');
+    }
 
-  buildEpisodes();
-  render();
-  runBtn.disabled=false; runBtn.textContent='Procesează'; cancelBtn.disabled=false;
-  showToast('✅ Import terminat — vezi detaliile din fereastră.');
+    buildEpisodes();
+    render();
+    showToast('✅ Import terminat — vezi detaliile din fereastră.');
+  }catch(e){
+    console.error('runBulkImport:', e);
+    showToast('❌ Eroare neașteptată: '+e.message);
+  }finally{
+    runBtn.disabled=false; runBtn.textContent='Procesează'; cancelBtn.disabled=false;
+  }
 }
 
 document.getElementById('bulkImportBtn').onclick=openBulkModal;
