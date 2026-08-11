@@ -140,6 +140,8 @@
         .dash-stats-hidden #probGreen { visibility:hidden; }
         .dash-tags-hidden .ptag-row { display:none !important; }
         .dash-roles-hidden .role-badge-inline { display:none !important; }
+        .dash-milestones-hidden .milestone-row { display:none !important; }
+        .dash-speed-hidden .speed-badge { display:none !important; }
         /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
@@ -915,6 +917,8 @@
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
+    <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
+    <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
     <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
@@ -923,6 +927,8 @@
     <button class="btn-nav-clasament" onclick="window.location.href='clasament.html'" title="Clasament">🏆 Clasament</button>
     <button class="btn-nav-cheltuieli" onclick="window.location.href='cheltuieli.html'" title="Cheltuieli">💰 Cheltuieli</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
+    <button id="customShortcutBtn" onclick="openCustomShortcut()" style="display:none;background:linear-gradient(135deg,#ede3fa,#c9a8f0);border:1px solid #9c27b0;color:#6a1b9a;"></button>
+    <button id="customShortcutEditBtn" class="admin-only" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat" style="background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.78rem;">➕ Shortcut</button>
 </div>
 
 <!-- QUICK NAV — sticky bottom bar, always reachable on mobile with one thumb -->
@@ -1102,7 +1108,6 @@
         <!-- Leaderboard tabs -->
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
-            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')">⭐ General</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
@@ -1199,8 +1204,6 @@
     <!-- FIFA Tabs -->
     <div class="modal-tabs" id="modalTabs">
         <button class="modal-tab active" onclick="switchModalTab('stats')">👑 Rating</button>
-        <button class="modal-tab" onclick="switchModalTab('evolution')">📈 Evoluție</button>
-        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Hex</button>
         <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
         <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
     </div>
@@ -1210,33 +1213,10 @@
         <div id="modalQuickGlance" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
         <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
+        <div id="adminSpeedPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#7d6849;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div id="modalChemPreview" style="margin-top:10px;"></div>
-    </div>
-
-    <!-- Tab: Evoluție (grafic rating în timp) -->
-    <div class="modal-tab-panel" id="tabEvolution">
-        <div class="chart-section">
-            <div class="chart-toggle-label" id="chartLabel" style="padding:2px 0 8px;font-size:.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">📈 Evoluție Rating</div>
-            <div class="chart-body open" id="chartBody">
-                <div class="chart-body-inner">
-                    <div class="cat-tabs" id="catTabs"></div>
-                    <canvas id="ratingChart" height="90"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab: Hex/Radar -->
-    <div class="modal-tab-panel" id="tabRadar">
-        <div class="hex-stats-wrap" id="hexStatsWrap">
-            <svg class="hex-svg" id="hexSvg" width="220" height="220" viewBox="0 0 220 220"></svg>
-            <div class="hex-labels" id="hexLabels"></div>
-        </div>
-        <!-- Legacy radar hidden but kept for chart.js compat -->
-        <canvas id="radarChart" width="1" height="1" style="display:none;"></canvas>
-        <div id="radarLegend" style="display:none;"></div>
     </div>
 
     <!-- Tab: Match History Timeline -->
@@ -1702,7 +1682,7 @@
 </div>
 
 <script src="smart-rating.js"></script>
-<script src="app.js?v=20260808i"></script>
+<script src="app.js?v=20260808j"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
