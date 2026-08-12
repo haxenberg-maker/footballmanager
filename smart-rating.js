@@ -39,7 +39,7 @@
  */
 
 // ── Configurare (stare mutabilă, comună ambelor pagini) ────────────
-const DEFAULT_W = {winrate:0.30, goals:0.30, tags:0.30, chemistry:0.10};
+const DEFAULT_W = {winrate:0.25, goals:0.20, defense:0.15, tags:0.20, chemistry:0.08, speed:0.05, potm:0.04, mvp:0.03};
 let W = {...DEFAULT_W};
 let TW = {}; // coeficienți fini per-tag: {tagId: -0.5..+0.5}
 
@@ -53,6 +53,11 @@ let BASE_RATING = 5.0;
 // pentru o penalizare mai agresivă.
 let ACTIVITY_INTENSITY = 1.0;
 
+// Cât de mult contează penalizarea de dezechilibru (lastImbalanceLoss) —
+// aceeași idee ca ACTIVITY_INTENSITY: 0% = ignorată complet, 100% =
+// intensitatea implicită (coeficient 0.20/pierdere, plafonat la 3).
+let IMBALANCE_INTENSITY = 1.0;
+
 // Coeficientul unui tag (−50%..+50%) se scalează ×14, ca un singur tag
 // la maxim să poată muta ratingul cu până la ±7 puncte.
 const TAG_COEF_SCALE = 14;
@@ -65,14 +70,18 @@ const WINRATE_PRIOR_GAMES = 8;
 const W_LABELS = {
     winrate:'📈 Win Rate',
     goals:'⚽ Goluri (relativ la poziție)',
+    defense:'🛡️ Goluri încasate — echipă (relativ la poziție)',
     tags:'🏷️ Tag-uri',
     chemistry:'🧪 Chimie (coechipieri actuali)',
+    speed:'💨 Viteză',
+    potm:'⭐ POTM (Player of The Match)',
+    mvp:'👑 MVP (voturi colegi)',
 };
 
 const PRESETS = {
-    balanced:    {winrate:.30, goals:.30, tags:.30, chemistry:.10},
-    defensive:   {winrate:.25, goals:.20, tags:.40, chemistry:.15},
-    performance: {winrate:.30, goals:.40, tags:.25, chemistry:.05},
+    balanced:    {winrate:.25, goals:.20, defense:.15, tags:.20, chemistry:.08, speed:.05, potm:.04, mvp:.03},
+    defensive:   {winrate:.20, goals:.10, defense:.30, tags:.25, chemistry:.10, speed:.02, potm:.02, mvp:.01},
+    performance: {winrate:.22, goals:.30, defense:.08, tags:.18, chemistry:.05, speed:.07, potm:.06, mvp:.04},
 };
 
 // Profile attrs folosite în profilul de impact al tag-urilor (echilibrare
@@ -121,6 +130,62 @@ function getGoalsScoreRelative(p){
     const scale = Math.max(avgGpg, 0.3); // evită împărțire la ~0 când media grupului e minusculă
     const diff = (gpg - avgGpg) / scale;
     const delta = Math.max(-3, Math.min(3, diff * 2.5));
+    return BASE_RATING + delta;
+}
+
+// ── Goluri încasate (de echipă, cât timp a jucat el), relativ la poziție ──
+/**
+ * La fel ca getGoalsScoreRelative, dar INVERSAT: mai puține goluri primite
+ * de echipă decât media grupului de poziție → scor mai mare (a apărat
+ * bine). p.totalGoalsConceded e calculat automat (nu introdus manual) —
+ * vezi computeTeamConcededWhilePlaying() în app.js: pentru fiecare meci
+ * jucat, câte goluri a marcat echipa ADVERSĂ cât timp el era pe teren.
+ */
+function getGroupAvgConcededPerGame(pool){
+    const withGames = pool.filter(pl => pl.games > 0);
+    if (!withGames.length) return 0;
+    return withGames.reduce((s,pl) => s + (pl.totalGoalsConceded||0) / pl.games, 0) / withGames.length;
+}
+function getConcededScoreRelative(p){
+    if (!p.games) return BASE_RATING;
+    const cpg = (p.totalGoalsConceded||0) / p.games;
+    const group = getPlayerPrimaryGroup(p);
+    let pool = group ? db.players.filter(pl => getPlayerPrimaryGroup(pl) === group) : [];
+    if (pool.filter(pl=>pl.games>0).length < 3) pool = db.players;
+    const avgCpg = getGroupAvgConcededPerGame(pool);
+    const scale = Math.max(avgCpg, 0.3);
+    const diff = (avgCpg - cpg) / scale; // inversat față de goluri date
+    const delta = Math.max(-3, Math.min(3, diff * 2.5));
+    return BASE_RATING + delta;
+}
+
+// ── Viteză (status admin, 6 trepte) ──────────────────────────────────
+/**
+ * Neutru (BASE_RATING) dacă jucătorul nu are status de viteză setat —
+ * nu penalizează pe nimeni doar pentru că admin n-a apucat să-l seteze.
+ */
+const SPEED_SCORE_DELTA = { 'slow-':-3, 'slow':-1.5, 'normal':0, 'fast':1.5, 'fast+':2.5, 'fast++':3.5 };
+function getSpeedScore(p){
+    const delta = (p.speedStatus && SPEED_SCORE_DELTA[p.speedStatus] != null) ? SPEED_SCORE_DELTA[p.speedStatus] : 0;
+    return BASE_RATING + delta;
+}
+
+// ── POTM & MVP (câte premii a avut, raportat la câte meciuri a jucat) ──
+/**
+ * Rată (premii/meci), nu total brut — altfel un jucător cu mult mai
+ * multe meciuri jucate ar acumula avantaj artificial doar din volum.
+ * Plafonat, ca un jucător cu premii dese să nu domine disproporționat.
+ */
+function getPotmScore(p){
+    if (!p.games) return BASE_RATING;
+    const rate = (p.potmCount||0) / p.games;
+    const delta = Math.min(rate * 15, 4);
+    return BASE_RATING + delta;
+}
+function getMvpScore(p){
+    if (!p.games) return BASE_RATING;
+    const rate = (p.mvpCount||0) / p.games;
+    const delta = Math.min(rate * 12, 3.5);
     return BASE_RATING + delta;
 }
 
@@ -274,18 +339,29 @@ function computeSmartRatingComponents(p, context = {}){
     const chemistryRaw   = getTeamSynergyBonus(p.name, teammates); // ±0.5
     const chemistryScore = BASE_RATING + chemistryRaw * 10; // 0-10
 
+    const defenseScore = getConcededScoreRelative(p);
+    const speedScore   = getSpeedScore(p);
+    const potmScore    = getPotmScore(p);
+    const mvpScore     = getMvpScore(p);
+
     const parts = [
-        { key:'winrate',   icon:'📈', label:'Win Rate',         score:winrateScore,   w:W.winrate||0 },
-        { key:'goals',     icon:'⚽', label:'Goluri (poziție)', score:goalsScore,     w:W.goals||0 },
-        { key:'tags',      icon:'🏷️', label:'Tag-uri',          score:tagsScore,      w:W.tags||0 },
-        { key:'chemistry', icon:'🧪', label:'Chimie',           score:chemistryScore, w:W.chemistry||0 },
+        { key:'winrate',   icon:'📈', label:'Win Rate',                     score:winrateScore,   w:W.winrate||0 },
+        { key:'goals',     icon:'⚽', label:'Goluri (poziție)',             score:goalsScore,     w:W.goals||0 },
+        { key:'defense',   icon:'🛡️', label:'Goluri încasate (echipă)',     score:defenseScore,   w:W.defense||0 },
+        { key:'tags',      icon:'🏷️', label:'Tag-uri',                      score:tagsScore,      w:W.tags||0 },
+        { key:'chemistry', icon:'🧪', label:'Chimie',                       score:chemistryScore, w:W.chemistry||0 },
+        { key:'speed',     icon:'💨', label:'Viteză',                       score:speedScore,     w:W.speed||0 },
+        { key:'potm',      icon:'⭐', label:'POTM',                         score:potmScore,      w:W.potm||0 },
+        { key:'mvp',       icon:'👑', label:'MVP',                          score:mvpScore,       w:W.mvp||0 },
     ];
     const wSum = parts.reduce((s,c)=>s+c.w, 0);
     parts.forEach(c => { c.delta = wSum>0 ? (c.score-BASE_RATING) * c.w / wSum : 0; });
     const blendBase = BASE_RATING + parts.reduce((s,c)=>s+c.delta, 0);
 
-    // Penalizare dezechilibru
-    const imbalPen   = Math.min((p.lastImbalanceLoss||0), 3) * 0.20;
+    // Penalizare dezechilibru — IMBALANCE_INTENSITY scalează cât de mult
+    // contează efectiv (0% = ignorată complet, 100% = normal), la fel ca
+    // ACTIVITY_INTENSITY mai jos.
+    const imbalPen   = Math.min((p.lastImbalanceLoss||0), 3) * 0.20 * IMBALANCE_INTENSITY;
     const afterImbal = blendBase - imbalPen;
 
     // Penalizare absențe (blend spre BASE_RATING) — actMult brut vine din
