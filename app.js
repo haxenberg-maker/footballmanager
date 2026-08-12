@@ -186,9 +186,11 @@ async function loadAlgoSettings(){
             if(row.key==='weights') Object.assign(W, row.value);
             if(row.key==='base_rating') BASE_RATING = parseFloat(row.value);
             if(row.key==='activity_intensity') ACTIVITY_INTENSITY = parseFloat(row.value);
+            if(row.key==='imbalance_intensity') IMBALANCE_INTENSITY = parseFloat(row.value);
         });
         if(isNaN(BASE_RATING)) BASE_RATING = 5.0;
         if(isNaN(ACTIVITY_INTENSITY)) ACTIVITY_INTENSITY = 1.0;
+        if(isNaN(IMBALANCE_INTENSITY)) IMBALANCE_INTENSITY = 1.0;
         // Migrare: sistemul de voturi pe colegi (Borda/MVP/"Voturi colegi") a fost
         // eliminat complet din formulă — nu mai contează deloc în Smart Rating.
         W.borda = 0; W.mvpWin = 0; W.mvpLoss = 0;
@@ -377,7 +379,7 @@ async function loadAll() {
         await loadTagsConfig();
         await loadMilestoneConfig();
         await loadAlgoSettings();
-        _algoSnapshot = { W: {...W}, BASE_RATING, ACTIVITY_INTENSITY }; // baseline pt preview "înainte/după"
+        _algoSnapshot = { W: {...W}, BASE_RATING, ACTIVITY_INTENSITY, IMBALANCE_INTENSITY }; // baseline pt preview "înainte/după"
         await loadScenarios();
         await loadTeamConfigs(); // ← load team names + colors from Supabase
         // Players + Ratings (joined)
@@ -2903,17 +2905,17 @@ let _algoSnapshot = null; // {W, BASE_RATING, ACTIVITY_INTENSITY} — ce e SALVA
  * vadă impactul înainte să apese "confirmă", nu după.
  */
 function computeAlgoPreviewDeltas(){
-    const before = _algoSnapshot || { W: {...DEFAULT_W}, BASE_RATING: 5.0, ACTIVITY_INTENSITY: 1.0 };
+    const before = _algoSnapshot || { W: {...DEFAULT_W}, BASE_RATING: 5.0, ACTIVITY_INTENSITY: 1.0, IMBALANCE_INTENSITY: 1.0 };
     const players = db.players.filter(p => p.games > 0 && p.adminRating == null);
 
-    // "După" = starea curentă (deja live-editată în W/BASE_RATING/ACTIVITY_INTENSITY)
+    // "După" = starea curentă (deja live-editată în W/BASE_RATING/ACTIVITY_INTENSITY/IMBALANCE_INTENSITY)
     const results = players.map(p => ({ p, after: getSmartRating(p) }));
 
     // Comută temporar la starea salvată, ca să calculăm "înainte"
-    const liveW = W, liveBase = BASE_RATING, liveAI = ACTIVITY_INTENSITY;
-    W = before.W; BASE_RATING = before.BASE_RATING; ACTIVITY_INTENSITY = before.ACTIVITY_INTENSITY;
+    const liveW = W, liveBase = BASE_RATING, liveAI = ACTIVITY_INTENSITY, liveII = IMBALANCE_INTENSITY;
+    W = before.W; BASE_RATING = before.BASE_RATING; ACTIVITY_INTENSITY = before.ACTIVITY_INTENSITY; IMBALANCE_INTENSITY = before.IMBALANCE_INTENSITY ?? 1.0;
     results.forEach(r => { r.before = getSmartRating(r.p); });
-    W = liveW; BASE_RATING = liveBase; ACTIVITY_INTENSITY = liveAI; // restaurează starea live
+    W = liveW; BASE_RATING = liveBase; ACTIVITY_INTENSITY = liveAI; IMBALANCE_INTENSITY = liveII; // restaurează starea live
 
     results.forEach(r => { r.delta = parseFloat((r.after - r.before).toFixed(2)); });
     results.sort((a,b) => b.delta - a.delta);
@@ -2991,9 +2993,10 @@ async function commitAlgorithmSave(){
         await sb.from('algo_settings').upsert([
             {key:'weights', value: W},
             {key:'base_rating', value: BASE_RATING},
-            {key:'activity_intensity', value: ACTIVITY_INTENSITY}
+            {key:'activity_intensity', value: ACTIVITY_INTENSITY},
+            {key:'imbalance_intensity', value: IMBALANCE_INTENSITY}
         ], {onConflict:'key'});
-        _algoSnapshot = { W: {...W}, BASE_RATING, ACTIVITY_INTENSITY }; // noul baseline pt viitoare preview-uri
+        _algoSnapshot = { W: {...W}, BASE_RATING, ACTIVITY_INTENSITY, IMBALANCE_INTENSITY }; // noul baseline pt viitoare preview-uri
         closeAlgoPreview(false);
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){ showToast('⚠️ Eroare: '+e.message); return; }
@@ -3004,15 +3007,17 @@ async function resetAlgorithm(){
     Object.assign(W, DEFAULT_W);
     BASE_RATING = 5.0;
     ACTIVITY_INTENSITY = 1.0;
+    IMBALANCE_INTENSITY = 1.0;
     tagsConfig.forEach(t=>{ TW[String(t.id)]=0; t.tw_weight=0; });
     try{
         await sb.from('algo_settings').upsert([
             {key:'weights', value: DEFAULT_W},
             {key:'base_rating', value: 5.0},
-            {key:'activity_intensity', value: 1.0}
+            {key:'activity_intensity', value: 1.0},
+            {key:'imbalance_intensity', value: 1.0}
         ], {onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
-        _algoSnapshot = { W: {...DEFAULT_W}, BASE_RATING: 5.0, ACTIVITY_INTENSITY: 1.0 };
+        _algoSnapshot = { W: {...DEFAULT_W}, BASE_RATING: 5.0, ACTIVITY_INTENSITY: 1.0, IMBALANCE_INTENSITY: 1.0 };
     }catch(e){ console.warn('reset algo error:',e.message); }
     buildAlgorithmPanel();
     buildTagsPanel();
