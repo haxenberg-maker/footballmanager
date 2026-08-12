@@ -222,7 +222,7 @@ const SAGAS = [
  {name:'Fish-Man Island Saga', emoji:'🐟', arcs:[['Return to Sabaody',3],['Fish-Man Island',24]]},
  {name:'Dressrosa Saga', emoji:'🌹', arcs:[['Punk Hazard',22],['Dressrosa',48]]},
  {name:'Four Emperors', emoji:'👑', arcs:[['Zou',10],['Whole Cake Island',39],['Reverie',3],['Wano',88]]},
- {name:'Egghead', emoji:'🤖', arcs:[['Egghead',20]]}
+ {name:'Egghead', emoji:'🤖', arcs:[['Egghead',21]]} // arc încă în lansare — verifică periodic, numărul poate crește
 ];
 
 let allEpisodes=[];
@@ -239,9 +239,10 @@ function buildEpisodes(){
     const manual=manualArcSource[arcName];
     const ranges=(manual&&manual.ranges)||EP_RANGES[arcName]||null;
     const listId=(manual&&manual.listId)||EP_SOURCE[arcName]||null;
+    const playUrls=manual&&manual.playUrls; // array complet (suportă arcuri împărțite pe mai multe liste, ex. Wano)
     for(let n=1;n<=a[1];n++){
       const range=ranges&&ranges[n-1]?ranges[n-1]:null;
-      const playUrl=listId?`https://pixeldrain.net/l/${listId}#item=${n-1}`:null;
+      const playUrl=(playUrls&&playUrls[n-1])||(listId?`https://pixeldrain.net/l/${listId}#item=${n-1}`:null);
       allEpisodes.push({id:`s${si+1}-a${ai+1}-e${n}`, saga:si, arc:ai, number:n, global:global++, range, playUrl});
     }
   }));
@@ -363,8 +364,6 @@ async function toggleEpisode(id,btn,playUrl){
 // ── Adăugare manuală de link Pixeldrain per arc, cu parsare automată ──
 // Parsează nume de forma: [One Pace][322-324] Water Seven 01 [720p][En Sub][XXXX].mp4
 // și extrage intervalul de capitole per episod, în ordinea din listă.
-const PIXELDRAIN_FILENAME_RE = /^\[One Pace\]\[([^\]]+)\]\s+.+?\s+(\d+)\s+\[/;
-
 function extractPixeldrainListId(input){
   const trimmed=input.trim();
   const m=trimmed.match(/\/l\/([a-zA-Z0-9]+)/);
@@ -373,57 +372,77 @@ function extractPixeldrainListId(input){
   return null;
 }
 
+// Ca un arc mare (ex: Wano) sa poata avea mai multe liste Pixeldrain: acceptă
+// "link1, link2" sau "id1,id2" separate prin virgulă, extrage fiecare ID.
+function extractPixeldrainListIds(input){
+  return input.split(',').map(s=>extractPixeldrainListId(s)).filter(Boolean);
+}
+
 /*
   Preia + parsează + salvează link-ul unui SINGUR arc (fetch Pixeldrain +
   regex + upsert Supabase). Nu apelează buildEpisodes()/render() — asta e
   responsabilitatea celui care cheamă funcția (pentru un singur arc, imediat;
   pentru import în masă, o singură dată la final, nu de N ori).
 */
-async function applyArcLink(si,ai,listId){
-  const arcName=SAGAS[si].arcs[ai][0];
-  let data;
-  try{
-    const res=await fetch(`https://pixeldrain.com/api/list/${listId}`);
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    data=await res.json();
-  }catch(e){
-    return {success:false, arcName, error:'preluare eșuată ('+e.message+') — posibil CORS'};
-  }
+// Range-ul de capitole e mereu prima paranteză pătrată, indiferent ce vine
+// după numărul de episod în nume (Extended/Alternate/etc). Poziția reală în
+// listă (nu numărul scris în text) decide care episod e — la fel cum
+// funcționează deja #item=N pentru link-ul video, deci sunt mereu în sincron.
+const PIXELDRAIN_RANGE_RE = /^\[One Pace\]\[([^\]]+)\]/;
 
-  const files=(data.files||[]).map(f=>f&&f.name).filter(n=>typeof n==='string'); // fiecare element e un obiect {name,size,...}; ignoram orice intrare fara nume valid
-  const ranges=[];
-  files.forEach(fname=>{
-    const m=fname.match(PIXELDRAIN_FILENAME_RE);
-    if(!m) return;
-    const [,chapRange,epNumStr]=m;
-    ranges[parseInt(epNumStr,10)-1]=chapRange;
-  });
-  if(!ranges.length) return {success:false, arcName, error:'niciun episod recunoscut în listă'};
+/*
+  Preia + parsează + salvează link-ul (sau mai multe liste, concatenate în
+  ordine — necesar la arcuri mari precum Wano, care nu încap într-o singură
+  listă Pixeldrain) pentru un SINGUR arc. Nu apelează buildEpisodes()/render()
+  — asta e responsabilitatea celui care cheamă funcția.
+*/
+async function applyArcLink(si,ai,listIdOrIds){
+  const arcName=SAGAS[si].arcs[ai][0];
+  const ids=Array.isArray(listIdOrIds)?listIdOrIds:[listIdOrIds];
+  const allRanges=[], allPlayUrls=[];
+
+  for(const id of ids){
+    let data;
+    try{
+      const res=await fetch(`https://pixeldrain.com/api/list/${id}`);
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      data=await res.json();
+    }catch(e){
+      return {success:false, arcName, error:`listă ${id}: preluare eșuată (${e.message}) — posibil CORS`};
+    }
+    const files=(data.files||[]).map(f=>f&&f.name).filter(n=>typeof n==='string');
+    files.forEach((fname,idx)=>{
+      const m=fname.match(PIXELDRAIN_RANGE_RE);
+      allRanges.push(m?m[1]:null);
+      allPlayUrls.push(`https://pixeldrain.net/l/${id}#item=${idx}`);
+    });
+  }
+  if(!allRanges.some(Boolean)) return {success:false, arcName, error:'niciun episod recunoscut în listă/liste'};
 
   const declaredCount=SAGAS[si].arcs[ai][1];
-  const countMismatch=!!(declaredCount && ranges.length!==declaredCount);
+  const countMismatch=!!(declaredCount && allRanges.length!==declaredCount);
 
-  manualArcSource[arcName]={listId,ranges};
+  manualArcSource[arcName]={listId:ids[0], listIds:ids, ranges:allRanges, playUrls:allPlayUrls};
   try{
     await sb.from('onepiece_arc_links').upsert(
-      {arc_name:arcName, list_id:listId, ranges:ranges, updated_at:new Date().toISOString()},
+      {arc_name:arcName, list_id:ids.join(','), ranges:allRanges, play_urls:allPlayUrls, updated_at:new Date().toISOString()},
       {onConflict:'arc_name'}
     );
   }catch(e){
-    return {success:true, arcName, count:ranges.length, warning:'nu s-a sincronizat cu Supabase: '+e.message};
+    return {success:true, arcName, count:allRanges.length, warning:'nu s-a sincronizat cu Supabase: '+e.message};
   }
-  return {success:true, arcName, count:ranges.length, countMismatch, declaredCount};
+  return {success:true, arcName, count:allRanges.length, countMismatch, declaredCount};
 }
 
 async function promptArcLink(si,ai){
   const arcName=SAGAS[si].arcs[ai][0];
-  const input=prompt(`Lipește link-ul Pixeldrain (sau doar ID-ul din URL) pentru arcul "${arcName}":\n\nEx: https://pixeldrain.net/l/o8YkGt9i`);
+  const input=prompt(`Lipește link-ul Pixeldrain pentru arcul "${arcName}":\n\nEx: https://pixeldrain.net/l/o8YkGt9i\n\nDacă arcul e împărțit pe mai multe liste (ex: Wano), lipește-le pe toate separate prin virgulă, ÎN ORDINE.`);
   if(!input) return;
-  const listId=extractPixeldrainListId(input);
-  if(!listId){ showToast('⚠️ Nu am recunoscut niciun ID valid în link.'); return; }
+  const listIds=extractPixeldrainListIds(input);
+  if(!listIds.length){ showToast('⚠️ Nu am recunoscut niciun ID valid în link.'); return; }
 
-  showToast('⏳ Se preiau episoadele de pe Pixeldrain...');
-  const result=await applyArcLink(si,ai,listId);
+  showToast(`⏳ Se preiau episoadele de pe Pixeldrain${listIds.length>1?` (${listIds.length} liste)`:''}...`);
+  const result=await applyArcLink(si,ai,listIds);
   if(!result.success){ showToast('❌ '+result.arcName+': '+result.error); return; }
   if(result.warning) showToast('⚠️ '+result.warning);
   else if(result.countMismatch) showToast(`⚠️ ${result.count} episoade găsite, dar aveam ${result.declaredCount} declarate — salvat oricum.`);
@@ -435,13 +454,18 @@ async function promptArcLink(si,ai){
 
 async function loadArcLinks(){
   try{
-    const {data,error}=await sb.from('onepiece_arc_links').select('arc_name,list_id,ranges');
+    const {data,error}=await sb.from('onepiece_arc_links').select('arc_name,list_id,ranges,play_urls');
     if(error) throw error;
     (data||[]).forEach(row=>{
-      manualArcSource[row.arc_name]={listId:row.list_id, ranges:row.ranges||[]};
+      manualArcSource[row.arc_name]={
+        listId:(row.list_id||'').split(',')[0], // primul, pt compatibilitate cu formula veche de fallback
+        listIds:(row.list_id||'').split(',').filter(Boolean),
+        ranges:row.ranges||[],
+        playUrls:row.play_urls||null,
+      };
     });
   }catch(e){
-    console.warn('loadArcLinks: nu am putut încărca linkurile manuale (ai rulat migrarea SQL?):', e.message);
+    console.warn('loadArcLinks: nu am putut încărca linkurile manuale (ai rulat migrarea SQL pentru play_urls?):', e.message);
   }
 }
 
