@@ -19,16 +19,15 @@ button{font:inherit}
  border-bottom:1px solid var(--line);padding:18px 20px 14px}
 .header-inner{max-width:1200px;margin:auto}
 .brand{display:flex;align-items:center;justify-content:space-between;gap:15px}
-h1{margin:0;font-size:clamp(1.55rem,4vw,2.25rem);letter-spacing:-.04em}
+h1{margin:0;font-size:clamp(1.15rem,3vw,1.6rem);letter-spacing:-.04em}
 .brand small{display:block;color:var(--muted);font-size:.78rem;margin-top:3px}
 .connection{font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
 .dot{width:8px;height:8px;border-radius:50%;background:#64748b}.online .dot{background:var(--green);box-shadow:0 0 10px #22c55e}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
-.stat{background:linear-gradient(145deg,rgba(23,36,59,.95),rgba(17,28,49,.95));border:1px solid var(--line);
- border-radius:12px;padding:10px 13px}
-.stat-label{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.09em}
-.stat-value{font-weight:800;font-size:1.15rem;margin-top:2px}
-.progress{height:7px;background:#1e293b;border-radius:10px;overflow:hidden;margin-top:7px}
+.stats-compact{margin-top:10px;background:linear-gradient(145deg,rgba(23,36,59,.95),rgba(17,28,49,.95));border:1px solid var(--line);border-radius:11px;padding:8px 12px}
+.stats-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px;font-size:.76rem;color:var(--muted)}
+.stats-row b{color:#fff;font-weight:800;font-size:.85rem}
+.stats-row .sep{opacity:.4}
+.progress{height:5px;background:#1e293b;border-radius:10px;overflow:hidden;margin-top:6px}
 .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold),#fde68a);transition:width .3s}
 .controls{max-width:1200px;margin:24px auto 0;padding:0 20px;display:flex;gap:9px;flex-wrap:wrap}
 .control{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:9px 13px;border-radius:9px;cursor:pointer}
@@ -41,6 +40,7 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .chev{width:25px;height:25px;display:grid;place-items:center;border-radius:7px;background:#1e293b;color:var(--gold);transition:.2s}
 .saga.closed .chev{transform:rotate(-90deg)}
 .saga-title{font-weight:850;flex:1}
+.saga-done{color:var(--green);font-weight:900}
 .saga-meta{font-size:.75rem;color:var(--muted);white-space:nowrap}
 .saga-body{padding:0 14px 14px}
 .saga.closed .saga-body{display:none}
@@ -62,6 +62,12 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .ep.watched:after{content:"✓";position:absolute;right:8px;top:7px;color:var(--green);font-weight:900}
 .ep-link-ind{display:inline-flex;align-items:center;gap:2px;background:#1d4ed8;color:#dbeafe;font-size:.6rem;font-weight:800;padding:2px 6px;border-radius:5px;margin-left:6px;letter-spacing:.3px;vertical-align:middle}
 .arc-addlink{background:none;border:1px solid #3b82f6;color:#93c5fd;font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:7px;cursor:pointer;margin-left:8px;white-space:nowrap}
+.arc-note-btn{background:none;border:none;font-size:.85rem;cursor:pointer;opacity:.4;padding:2px 4px;position:relative}
+.arc-note-btn:hover{opacity:.8}
+.arc-note-btn.has-note{opacity:1}
+.arc-note-btn.has-note:after{content:'';position:absolute;top:1px;right:1px;width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.arc-note-row{padding:0 16px 8px}
+.arc-note-row textarea{width:100%;min-height:44px;background:#0d1524;border:1px solid #263754;border-radius:8px;color:#e2e8f0;font-size:.76rem;padding:7px 9px;resize:vertical;font-family:inherit}
 .arc-addlink:hover{background:rgba(59,130,246,.15)}
 .arc-addlink:disabled{opacity:.5;cursor:default}
 .continue-bar{max-width:1200px;margin:16px auto 0;display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#1d4ed8,#1e3a8a);border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s;color:#fff}
@@ -78,6 +84,8 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .bulk-arc-list{margin:0 0 12px;padding-left:20px;font-size:.75rem;color:#93c5fd;max-height:140px;overflow-y:auto}
 .bulk-arc-list li{margin-bottom:2px}
 .bulk-hint{font-size:.68rem;color:#64748b;margin:0 0 8px}
+.binge-stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid #1a2338;font-size:.82rem;color:#94a3b8}
+.binge-stat-row b{color:#fff;font-size:.9rem}
 .bulk-textarea{width:100%;background:#142139;border:1px solid #263754;border-radius:9px;color:#e2e8f0;font-size:.78rem;padding:10px;resize:vertical;font-family:monospace}
 .bulk-progress{font-size:.72rem;color:#94a3b8;margin-top:8px;white-space:pre-line;max-height:100px;overflow-y:auto}
 .bulk-actions{display:flex;gap:8px;margin-top:14px}
@@ -94,7 +102,7 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 @media(max-width:620px){
  .header{padding:14px 14px 12px}.brand{align-items:flex-start}.connection{font-size:.68rem}
- .stats{gap:6px}.stat{padding:8px}.stat-label{font-size:.58rem}.stat-value{font-size:1rem}
+ .stats-row{font-size:.7rem}.stats-row b{font-size:.78rem}
  .controls,main{padding-left:12px;padding-right:12px}.controls{margin-top:18px}
  .episodes{grid-template-columns:repeat(4,1fr);padding:8px;gap:5px}.ep{min-height:46px;padding:7px 6px}.ep strong{font-size:.76rem}
  .saga-head{padding:12px}.saga-meta{font-size:.65rem}
@@ -108,11 +116,11 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
       <div><h1>🏴‍☠️ One Pace Tracker</h1><small>Urmărește progresul tău în One Pace</small></div>
       <div id="connection" class="connection"><span class="dot"></span><span>Conectare...</span></div>
     </div>
-    <div class="stats">
-      <div class="stat"><div class="stat-label">Episoade văzute</div><div id="watched" class="stat-value">0</div></div>
-      <div class="stat"><div class="stat-label">Total episoade</div><div id="total" class="stat-value">0</div></div>
-      <div class="stat"><div class="stat-label">Progres</div><div id="percent" class="stat-value">0%</div><div class="progress"><i id="progress"></i></div></div>
-      <div class="stat"><div class="stat-label">Timp rămas (estimare)</div><div id="timeLeft" class="stat-value">—</div></div>
+    <div class="stats-compact">
+      <div class="stats-row">
+        <b id="watched">0</b>/<span id="total">0</span> episoade <span class="sep">·</span> <b id="percent">0%</b> <span class="sep">·</span> <span id="timeLeft">—</span> rămas
+      </div>
+      <div class="progress"><i id="progress"></i></div>
     </div>
   </div>
   <div id="continueBar" class="continue-bar" style="display:none;" onclick="continueWatching()">
@@ -128,12 +136,23 @@ main{max-width:1200px;margin:0 auto;padding:8px 20px 50px}
   <button class="control active" id="allBtn">Toate</button>
   <button class="control" id="openBtn">Deschise</button>
   <button class="control" id="collapseBtn">Restrânge toate</button>
+  <button class="control" id="statsBtn">📊 Statistici</button>
   <button class="control" id="bulkImportBtn">📥 Import multiple linkuri</button>
 </div>
 
 <div id="loading" class="loading"><div class="notice">Se încarcă progresul din Supabase...</div></div>
 <main id="app"></main>
 <div id="toast" class="toast"></div>
+
+<div id="statsModalOverlay" class="bulk-overlay" style="display:none;">
+  <div class="bulk-modal">
+    <h3>📊 Statistici de binge</h3>
+    <div id="statsModalBody"></div>
+    <div class="bulk-actions">
+      <button id="statsModalClose" class="bulk-btn bulk-btn-secondary">Închide</button>
+    </div>
+  </div>
+</div>
 
 <div id="bulkModalOverlay" class="bulk-overlay" style="display:none;">
   <div class="bulk-modal">
@@ -263,7 +282,7 @@ function render(){
     if(filter==='open' && sagaWatched===sagaEps.length) return;
     html+=`<section class="saga" data-saga="${si}">
       <div class="saga-head" onclick="toggleSaga(${si})">
-        <span class="chev">⌄</span><div class="saga-title">${s.emoji} ${escapeHtml(s.name)}</div>
+        <span class="chev">⌄</span><div class="saga-title">${s.emoji} ${escapeHtml(s.name)}${sagaWatched===sagaEps.length?' <span class="saga-done">✓</span>':''}</div>
         <div class="saga-meta">${sagaWatched}/${sagaEps.length} · ${Math.round(sagaWatched/sagaEps.length*100)}%</div>
       </div><div class="saga-body">`;
     s.arcs.forEach((a,ai)=>{
@@ -271,12 +290,17 @@ function render(){
       const aw=eps.filter(e=>watchedSet.has(e.id)).length;
       if(filter==='open' && aw===eps.length) return;
       const arcHasSource=!!(EP_SOURCE[a[0]]||manualArcSource[a[0]]);
+      const noteVal=arcNotes[a[0]]||'';
       html+=`<div class="arc" data-arc="${si}-${ai}">
         <div class="arc-head">
           <span class="chev" onclick="toggleArc(${si},${ai})">⌄</span>
           <div class="arc-name" onclick="toggleArc(${si},${ai})">${escapeHtml(a[0])}</div>
           <div class="arc-count" onclick="toggleArc(${si},${ai})">${aw}/${eps.length}</div>
+          <button class="arc-note-btn ${noteVal.trim()?'has-note':''}" onclick="event.stopPropagation();toggleArcNote(${si},${ai})" title="Notiță">📝</button>
           ${arcHasSource?'':`<button class="arc-addlink" onclick="event.stopPropagation();promptArcLink(${si},${ai})">🔗 Adaugă link</button>`}
+        </div>
+        <div class="arc-note-row" id="note-${si}-${ai}" style="display:none;">
+          <textarea placeholder="Impresie rapidă despre arcul ăsta..." oninput="onArcNoteInput(${si},${ai},this.value)">${escapeHtml(noteVal)}</textarea>
         </div>
         <div class="arc-bar"><i style="width:${aw/eps.length*100}%"></i></div>
         <div class="episodes">`;
@@ -342,23 +366,64 @@ function toggleArc(s,a){document.querySelector(`.saga[data-saga="${s}"] .arc[dat
 async function toggleEpisode(id,btn,playUrl){
   const next=!watchedSet.has(id);
   if(next && playUrl) window.open(playUrl,'_blank','noopener'); // click = deschide episodul + marcheaza vazut; demarcarea NU redeschide linkul
-  if(next) watchedSet.add(id); else watchedSet.delete(id);
+
+  const ep=allEpisodes.find(e=>e.id===id);
+  const nowIso=new Date().toISOString();
+  let arcWasComplete=false, sagaWasComplete=false;
+  if(ep){
+    arcWasComplete=allEpisodes.filter(e=>e.saga===ep.saga&&e.arc===ep.arc).every(e=>watchedSet.has(e.id));
+    sagaWasComplete=allEpisodes.filter(e=>e.saga===ep.saga).every(e=>watchedSet.has(e.id));
+  }
+  const prevWatchedCount=watchedSet.size;
+
+  if(next){ watchedSet.add(id); watchedTimestamps[id]=nowIso; } else { watchedSet.delete(id); delete watchedTimestamps[id]; }
   btn.classList.toggle('watched',next);
   updateStats();
   refreshCounts();
   const {error}=await sb.from('onepiece_tracker').upsert(
-    {episode_id:id,watched:next,updated_at:new Date().toISOString()},
+    {episode_id:id,watched:next,updated_at:nowIso},
     {onConflict:'episode_id'}
   );
   if(error){
-    if(next) watchedSet.delete(id); else watchedSet.add(id);
+    if(next){ watchedSet.delete(id); delete watchedTimestamps[id]; } else { watchedSet.add(id); watchedTimestamps[id]=nowIso; }
     btn.classList.toggle('watched',!next);
     updateStats(); refreshCounts();
     showToast('❌ Nu s-a putut salva în Supabase.');
     console.error(error);
-  }else{
-    showToast(next?'✓ Episod marcat ca văzut':'↩ Episod debifat');
+    return;
   }
+  if(next && ep){
+    const hitMilestone=checkMilestones(ep, arcWasComplete, sagaWasComplete, prevWatchedCount);
+    if(!hitMilestone) showToast('✓ Episod marcat ca văzut');
+  } else {
+    showToast('↩ Episod debifat');
+  }
+}
+
+// ── Insigne / milestone-uri — toast la finalizare arc/saga sau praguri globale ──
+function checkMilestones(ep, arcWasComplete, sagaWasComplete, prevWatchedCount){
+  const sagaEps=allEpisodes.filter(e=>e.saga===ep.saga);
+  const sagaNowComplete=sagaEps.every(e=>watchedSet.has(e.id));
+  if(sagaNowComplete && !sagaWasComplete){
+    showToast(`🎉 Ai terminat ${SAGAS[ep.saga].name}!`);
+    return true;
+  }
+  const arcEps=allEpisodes.filter(e=>e.saga===ep.saga&&e.arc===ep.arc);
+  const arcNowComplete=arcEps.every(e=>watchedSet.has(e.id));
+  if(arcNowComplete && !arcWasComplete){
+    showToast(`✅ Arc terminat: ${SAGAS[ep.saga].arcs[ep.arc][0]}!`);
+    return true;
+  }
+  const total=allEpisodes.length;
+  const prevPct=Math.floor(prevWatchedCount/total*100);
+  const nowPct=Math.floor(watchedSet.size/total*100);
+  for(const t of [25,50,75,100]){
+    if(prevPct<t && nowPct>=t){
+      showToast(t===100?'🏆 Ai terminat TOT One Pace!':`🎯 ${t}% din tot One Pace!`);
+      return true;
+    }
+  }
+  return false;
 }
 
 // ── Adăugare manuală de link Pixeldrain per arc, cu parsare automată ──
@@ -469,6 +534,43 @@ async function loadArcLinks(){
   }
 }
 
+// ── Notițe rapide per arc ───────────────────────────────────────────
+let arcNotes={}; // {arcName: text}
+let _noteSaveTimers={};
+
+async function loadArcNotes(){
+  try{
+    const {data,error}=await sb.from('onepiece_arc_notes').select('arc_name,note');
+    if(error) throw error;
+    (data||[]).forEach(row=>{ if(row.note) arcNotes[row.arc_name]=row.note; });
+  }catch(e){
+    console.warn('loadArcNotes: nu am putut încărca notițele (ai rulat migrarea SQL?):', e.message);
+  }
+}
+
+function toggleArcNote(si,ai){
+  const el=document.getElementById(`note-${si}-${ai}`);
+  if(!el) return;
+  el.style.display = el.style.display==='none' ? 'block' : 'none';
+  if(el.style.display==='block') el.querySelector('textarea')?.focus();
+}
+
+function onArcNoteInput(si,ai,value){
+  const arcName=SAGAS[si].arcs[ai][0];
+  arcNotes[arcName]=value;
+  const btn=document.querySelector(`.arc[data-arc="${si}-${ai}"] .arc-note-btn`);
+  if(btn) btn.classList.toggle('has-note', !!value.trim());
+  clearTimeout(_noteSaveTimers[arcName]);
+  _noteSaveTimers[arcName]=setTimeout(async ()=>{
+    try{
+      await sb.from('onepiece_arc_notes').upsert(
+        {arc_name:arcName, note:value, updated_at:new Date().toISOString()},
+        {onConflict:'arc_name'}
+      );
+    }catch(e){ console.warn('nu s-a putut salva notița:', e.message); }
+  }, 800);
+}
+
 // ── Import în masă (mai multe arcuri deodată) ──────────────────────
 function getMissingArcs(){
   const missing=[];
@@ -555,6 +657,66 @@ document.getElementById('bulkImportBtn').onclick=openBulkModal;
 document.getElementById('bulkModalCancel').onclick=closeBulkModal;
 document.getElementById('bulkModalRun').onclick=runBulkImport;
 
+// ── Statistici de binge ──────────────────────────────────────────
+function computeBingeStats(){
+  const entries=Object.entries(watchedTimestamps)
+    .filter(([id,ts])=>ts)
+    .map(([id,ts])=>({id,date:new Date(ts)}))
+    .filter(e=>!isNaN(e.date))
+    .sort((a,b)=>a.date-b.date);
+  if(!entries.length) return null;
+
+  const now=new Date();
+  const weekAgo=new Date(now-7*24*3600*1000);
+  const monthAgo=new Date(now-30*24*3600*1000);
+  const lastWeek=entries.filter(e=>e.date>=weekAgo).length;
+  const lastMonth=entries.filter(e=>e.date>=monthAgo).length;
+
+  // Sesiuni: episoade marcate la mai puțin de 90 min una de alta = aceeași sesiune
+  const SESSION_GAP_MS=90*60*1000;
+  const sessions=[[entries[0]]];
+  for(let i=1;i<entries.length;i++){
+    if(entries[i].date-entries[i-1].date<=SESSION_GAP_MS) sessions[sessions.length-1].push(entries[i]);
+    else sessions.push([entries[i]]);
+  }
+  const longestSession=sessions.reduce((max,s)=>s.length>max.length?s:max, sessions[0]);
+
+  const dayNames=['Duminică','Luni','Marți','Miercuri','Joi','Vineri','Sâmbătă'];
+  const dayCounts=[0,0,0,0,0,0,0];
+  entries.forEach(e=>dayCounts[e.date.getDay()]++);
+  const maxDayIdx=dayCounts.indexOf(Math.max(...dayCounts));
+
+  return {
+    total:entries.length, lastWeek, lastMonth,
+    longestSessionCount:longestSession.length, longestSessionDate:longestSession[0].date,
+    favDay:dayNames[maxDayIdx], favDayCount:dayCounts[maxDayIdx],
+    firstDate:entries[0].date,
+  };
+}
+
+function openStatsModal(){
+  const stats=computeBingeStats();
+  const body=document.getElementById('statsModalBody');
+  if(!stats){
+    body.innerHTML='<div style="font-size:.82rem;color:#94a3b8;padding:14px 0;">Nu ai marcat încă niciun episod — nimic de arătat aici deocamdată.</div>';
+  }else{
+    const fmt=d=>d.toLocaleDateString('ro-RO',{day:'numeric',month:'short',year:'numeric'});
+    body.innerHTML=`
+      <div class="binge-stat-row"><span>📅 Ultima săptămână</span><b>${stats.lastWeek} episoade</b></div>
+      <div class="binge-stat-row"><span>🗓️ Ultima lună</span><b>${stats.lastMonth} episoade</b></div>
+      <div class="binge-stat-row"><span>🔥 Cel mai lung maraton</span><b>${stats.longestSessionCount} episoade${stats.longestSessionCount>1?` (${fmt(stats.longestSessionDate)})`:''}</b></div>
+      <div class="binge-stat-row"><span>❤️ Ziua ta preferată</span><b>${stats.favDay} (${stats.favDayCount}×)</b></div>
+      <div class="binge-stat-row"><span>🏁 Total văzute</span><b>${stats.total} episoade</b></div>
+      <div class="binge-stat-row"><span>🚀 Prima vizionare</span><b>${fmt(stats.firstDate)}</b></div>
+    `;
+  }
+  document.getElementById('statsModalOverlay').style.display='flex';
+}
+function closeStatsModal(){ document.getElementById('statsModalOverlay').style.display='none'; }
+
+document.getElementById('statsBtn').onclick=openStatsModal;
+document.getElementById('statsModalClose').onclick=closeStatsModal;
+
 function refreshCounts(){
   document.querySelectorAll('.saga').forEach(sec=>{
     const si=+sec.dataset.saga;
@@ -572,11 +734,15 @@ function refreshCounts(){
   });
 }
 
+let watchedTimestamps={}; // {episode_id: updated_at ISO string} — pt statistici de binge
+
 async function loadProgress(){
   try{
-    const {data,error}=await sb.from('onepiece_tracker').select('episode_id,watched');
+    const {data,error}=await sb.from('onepiece_tracker').select('episode_id,watched,updated_at');
     if(error) throw error;
     watchedSet=new Set((data||[]).filter(x=>x.watched).map(x=>x.episode_id));
+    watchedTimestamps={};
+    (data||[]).forEach(x=>{ if(x.watched) watchedTimestamps[x.episode_id]=x.updated_at; });
     document.getElementById('connection').classList.add('online');
     document.getElementById('connection').querySelector('span:last-child').textContent='Supabase conectat';
     document.getElementById('loading').innerHTML='';
@@ -594,7 +760,8 @@ function setupRealtime(){
     .on('postgres_changes',{event:'*',schema:'public',table:'onepiece_tracker'},payload=>{
       const row=payload.new||payload.old;
       if(!row?.episode_id) return;
-      if(row.watched) watchedSet.add(row.episode_id); else watchedSet.delete(row.episode_id);
+      if(row.watched){ watchedSet.add(row.episode_id); watchedTimestamps[row.episode_id]=row.updated_at; }
+      else{ watchedSet.delete(row.episode_id); delete watchedTimestamps[row.episode_id]; }
       render();
     }).subscribe();
 }
@@ -615,7 +782,7 @@ document.getElementById('collapseBtn').onclick=()=>{
   document.querySelectorAll('.arc').forEach(x=>x.classList.add('closed'));
 };
 async function init(){
-  await loadArcLinks();
+  await Promise.all([loadArcLinks(), loadArcNotes()]);
   buildEpisodes(); // rebuild cu manualArcSource incarcat, peste datele hardcodate initiale
   await loadProgress();
   setupRealtime();
