@@ -129,9 +129,11 @@ body{font-family:var(--font-body);background:
 /* ── Card de meci / sesiune ── */
 .match-card{border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px;border:1px solid var(--line);background:var(--surface);box-shadow:0 4px 20px -10px rgba(0,0,0,.6);}
 .match-card-hero{padding:16px 18px 14px;color:#fff;position:relative;overflow:hidden;}
-.match-card-hero .mc-date{font-size:.66rem;opacity:.85;text-transform:uppercase;letter-spacing:1.2px;font-family:var(--font-mono);}
-.match-card-hero .mc-title{font-family:var(--font-display);font-size:1.3rem;letter-spacing:1.5px;margin-top:3px;}
-.match-card-hero .mc-sub{font-size:.7rem;opacity:.88;margin-top:4px;}
+.match-card-hero .mc-date{font-family:var(--font-display);font-size:1.55rem;letter-spacing:1.5px;line-height:1.15;}
+.match-card-hero .mc-title{font-size:.7rem;opacity:.9;text-transform:uppercase;letter-spacing:1px;margin-top:4px;font-weight:600;}
+.match-card-hero .mc-sub{font-size:.72rem;opacity:.85;margin-top:3px;}
+.mc-details-toggle{width:100%;text-align:center;padding:9px;margin-top:2px;font-size:.72rem;font-weight:700;color:#c4b5fd;background:rgba(167,139,250,.08);border:1px solid rgba(167,139,250,.28);border-radius:9px;cursor:pointer;transition:background .15s;}
+.mc-details-toggle:hover{background:rgba(167,139,250,.14);}
 .match-card-body{padding:14px 18px 16px;}
 .mc-story{font-size:.76rem;color:var(--ink-soft);line-height:1.7;margin-bottom:11px;}
 .mc-standing{font-size:.76rem;margin-bottom:10px;line-height:1.9;}
@@ -421,8 +423,7 @@ function renderSingleMatchCard(h){
     return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
-            <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat</div>
-            <div class="mc-sub">Scor: ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru mare':''}</div>
+            <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
         </div>
         <div class="match-card-body">
             <div style="background:#1b2330;border-radius:8px;padding:6px 10px;border:1px solid #262f3f;">${teamsHTML}</div>
@@ -570,33 +571,45 @@ function renderSessionCard(rows){
         </div>`;
     }).join('');
 
+    const sessDomId = 'sessDetails_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
+
     return `<div class="match-card">
         <div class="match-card-hero" style="background:linear-gradient(135deg,#5b7fff,#a78bfa);">
             <div class="mc-date">${first.date||'—'}</div>
-            <div class="mc-title">🎮 Sesiune 3 Echipe</div>
-            <div class="mc-sub">${chrono.length} meciuri jucate</div>
+            <div class="mc-title">🎮 Sesiune 3 Echipe · ${chrono.length} meciuri jucate</div>
         </div>
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
-            <div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin:8px 0;">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:6px;">⏱ Timp pe teren</div>
-                ${teamTimeHtml || '<div style="font-size:.7rem;color:#5b6577;">Indisponibil</div>'}
+            <button class="mc-details-toggle" onclick="toggleSessionDetails('${sessDomId}', this)">▼ Afișează detalii</button>
+            <div id="${sessDomId}" style="display:none;margin-top:10px;">
+                <div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
+                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:6px;">⏱ Timp pe teren</div>
+                    ${teamTimeHtml || '<div style="font-size:.7rem;color:#5b6577;">Indisponibil</div>'}
+                </div>
+                ${topScorersList.length ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
+                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
+                    ${topScorersHtml}
+                    ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
+                    <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #2c384c;color:#8b96a8;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
+                </div>` : ''}
+                <div class="mc-badges">
+                    ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
+                    ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
+                    ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
+                    ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
+                </div>
+                <div class="mc-timeline">${timelineHTML}</div>
             </div>
-            ${topScorersList.length ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
-                ${topScorersHtml}
-                ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
-                <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #2c384c;color:#8b96a8;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
-            </div>` : ''}
-            <div class="mc-badges">
-                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
-                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
-                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
-                ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
-            </div>
-            <div class="mc-timeline">${timelineHTML}</div>
         </div>
     </div>`;
+}
+
+function toggleSessionDetails(id, btn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const open = el.style.display === 'none';
+    el.style.display = open ? 'block' : 'none';
+    btn.textContent = open ? '▲ Ascunde detalii' : '▼ Afișează detalii';
 }
 
 function toggleSessionScorers(id, btn, count) {
