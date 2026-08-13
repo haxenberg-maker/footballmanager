@@ -407,7 +407,7 @@
 
         .amount-paid { color: var(--success-green); font-weight: 700; }
 
-        /* ── Login gate ── */
+        /* Login gate */
         #loginGate {
             position: fixed; inset: 0; background: var(--bg-dark);
             display: flex; align-items: center; justify-content: center; z-index: 999;
@@ -562,13 +562,13 @@
             <h3>🎯 Alocă din buget</h3>
             <div class="allocation-product" id="allocationProductName">Produs</div>
             <div class="form-group">
-                <label>Cât vrei să aloci?</label>
+                <label>Cât vrei să aloci? (RON)</label>
                 <input type="number" id="allocationAmount" min="0.01" step="0.01" placeholder="Ex: 100">
                 <div class="allocation-help" id="allocationHelp"></div>
             </div>
             <div class="allocation-actions">
                 <button type="button" class="btn-cancel" id="cancelAllocationButton">Anulează</button>
-                <button type="button" class="btn-add" id="confirmAllocationButton">Alocă banii</button>
+                <button type="button" class="btn-add" id="confirmAllocationButton" data-action="confirm-allocation">Alocă banii</button>
             </div>
         </div>
     </div>
@@ -585,7 +585,6 @@
         let dateRaportIncasari = [];
         let dateRaportWishlist = [];
 
-        window.wishlistNames = {};
         let allocationItemId = null;
         let allocationMax = 0;
 
@@ -630,13 +629,17 @@
         }
 
         async function confirmaAlocarea() {
-            if (!allocationItemId) return;
+            if (!allocationItemId) {
+                alert('Eroare: Niciun produs selectat.');
+                return;
+            }
 
             const input = document.getElementById('allocationAmount');
             const suma = parseFloat(input.value);
 
             if (isNaN(suma) || suma <= 0) {
-                alert('Introdu o sumă validă.');
+                alert('Te rog introdu suma pe care dorești să o aloci!');
+                input.focus();
                 return;
             }
 
@@ -849,7 +852,6 @@
                     if (procent > 100) procent = 100;
 
                     const eComplet = procent >= 100;
-                    window.wishlistNames[String(it.id)] = it.numeProdus;
 
                     dateRaportWishlist.push({
                         produs: it.numeProdus,
@@ -859,6 +861,9 @@
                         complet: eComplet,
                         prioritate: it.prioritate
                     });
+
+                    // Curatare nume produs pentru atribute HTML safe
+                    const numeSafe = it.numeProdus.replace(/"/g, '&quot;');
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -889,6 +894,7 @@
                                     type="button"
                                     data-action="open-allocation"
                                     data-allocation-id="${it.id}"
+                                    data-allocation-name="${numeSafe}"
                                     data-allocation-current="${curent}"
                                     data-allocation-target="${tinta}">
                                     🎯 Alocă din buget
@@ -1069,7 +1075,7 @@
             });
         }
 
-        // Handlere globale pentru Evenimente (Event Delegation Fix)
+        // Delegare globală pentru evenimente
         document.addEventListener('click', async (e) => {
             const btn = e.target.closest('button, [data-action]');
             
@@ -1082,7 +1088,7 @@
                 const id = Number(btn.dataset.allocationId);
                 const current = Number(btn.dataset.allocationCurrent || 0);
                 const target = Number(btn.dataset.allocationTarget || 0);
-                const name = window.wishlistNames[String(id)] || 'Produs';
+                const name = btn.dataset.allocationName || 'Produs';
                 deschideModalAlocare(id, name, current, target);
                 return;
             }
@@ -1117,9 +1123,9 @@
             if (action === 'add-wishlist') salveazaCheltuiala();
             if (action === 'add-payment') salveazaPlata();
             if (action === 'add-expense') salveazaCheltuialaReala();
+            if (action === 'confirm-allocation') confirmaAlocarea();
         });
 
-        document.getElementById('confirmAllocationButton').addEventListener('click', confirmaAlocarea);
         document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
         
         document.getElementById('allocationModal').addEventListener('click', (e) => {
