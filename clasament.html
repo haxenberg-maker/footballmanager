@@ -409,14 +409,10 @@ function renderPairBodyPublic(h){
     ].filter(Boolean).join('<div style="height:1px;background:#262f3f;margin:1px 0;"></div>');
     const hattrick = h.topScorer && h.topScorer.goals >= 3;
     const topScorerHTML = h.topScorer
-        ? `<div style="margin-top:5px;padding:3px 8px;background:${hattrick?'rgba(167,139,250,.1)':'#1b2330'};border-radius:6px;border:1px solid ${hattrick?'rgba(167,139,250,.35)':'#262f3f'};font-size:.72rem;color:#c7d0dd;display:inline-flex;align-items:center;gap:5px;">
-            ${hattrick?'🎩':'⚽'} <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}
-           </div>`
+        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
         : '';
     const potmHTML = h.potmWinnerName
-        ? `<div style="margin-top:5px;padding:3px 8px;background:rgba(255,210,63,.12);border-radius:6px;border:1px solid rgba(255,210,63,.4);font-size:.72rem;color:#c7d0dd;display:inline-flex;align-items:center;gap:5px;">
-            ⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}
-           </div>`
+        ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}</div>`
         : '';
     return { teamsHTML, topScorerHTML, potmHTML, hattrick };
 }
@@ -429,6 +425,7 @@ function renderSingleMatchCard(h){
                    : _ws === 'black'  ? teamColorsPublic.black
                    : '#8b96a8';
     const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
+    const badgesHTML = (topScorerHTML || potmHTML) ? `<div class="mc-badges" style="margin-top:8px;">${topScorerHTML}${potmHTML}</div>` : '';
     return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
@@ -436,8 +433,7 @@ function renderSingleMatchCard(h){
         </div>
         <div class="match-card-body">
             <div style="background:#1b2330;border-radius:8px;padding:6px 10px;border:1px solid #262f3f;">${teamsHTML}</div>
-            ${topScorerHTML}
-            ${potmHTML}
+            ${badgesHTML}
         </div>
     </div>`;
 }
@@ -696,20 +692,38 @@ function openMatchDetail(dbId){
     if(!h) return;
     const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
     const hasRounds = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+    // POTM per-pereche se ascunde în modul sesiune (POTM-ul e deja arătat la nivel de sesiune).
+    const potmForModal = hasRounds ? '' : potmHTML;
+    const badgesHTML = (topScorerHTML || potmForModal) ? `<div class="mc-badges" style="margin:8px 0;">${topScorerHTML}${potmForModal}</div>` : '';
     const teamHex = (col) => col==='orange'?teamColorsPublic.orange:col==='green'?teamColorsPublic.green:teamColorsPublic.black;
+    const modalId = 'md_' + String(dbId).replace(/[^a-zA-Z0-9]/g,'');
 
-    let extraHtml = '';
+    let timeHtml = '';
+    let listHtml = '';
     if (hasRounds) {
         // ── Meci 3 echipe: o "tură" = un rând din rounds_detail. Ambele echipe
         // ale acestei perechi au jucat exact aceleași ture, deci timpul e comun.
         const totalSec = h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0),0);
         const mm = Math.floor(totalSec/60), ss = totalSec%60;
-        extraHtml += `<div style="font-size:.72rem;color:#8b96a8;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}</div>`;
+        timeHtml = `⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}`;
 
         const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
         const anyGoalsData = h.roundsDetail.some(r=>Array.isArray(r.goals));
         const anyReconstructed = h.roundsDetail.some(r=>(r.goals||[]).some(g=>g._reconstructed));
-        const turHtml = h.roundsDetail.map(r=>{
+        // Rosterul celor 2 echipe ale acestei perechi (constant pe toate turele —
+        // compoziția echipelor nu se schimbă tur cu tur în cadrul aceleiași perechi).
+        const pairTeams = [
+            h.orangePlayers?.length ? {name:'Portocaliu', col:'orange', players:h.orangePlayers} : null,
+            h.greenPlayers?.length  ? {name:'Verde',      col:'green',  players:h.greenPlayers}  : null,
+            h.blackPlayers?.length  ? {name:'Negru',       col:'black',  players:h.blackPlayers}  : null,
+        ].filter(Boolean);
+        const rosterInner = pairTeams.length ? `<div style="display:flex;justify-content:space-between;gap:10px;">
+                ${pairTeams.map(t=>`<div style="flex:1;min-width:0;">
+                    <div style="font-size:.62rem;font-weight:700;color:${teamHex(t.col)};margin-bottom:2px;">${t.name}</div>
+                    ${t.players.map(n=>`<div style="font-size:.68rem;color:#c7d0dd;">${n}</div>`).join('')}
+                </div>`).join('')}
+            </div>` : '';
+        const turHtml = h.roundsDetail.map((r,ri)=>{
             const dm = r.duration_sec ? Math.floor(r.duration_sec/60) : 0;
             const ds = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
@@ -720,21 +734,25 @@ function openMatchDetail(dbId){
             const winnerHtml = roundWinnerName
                 ? `<span style="color:${teamHex(roundWinnerName==='Portocaliu'?'orange':roundWinnerName==='Verde'?'green':'black')};font-weight:700;">🏆 ${roundWinnerName}</span>`
                 : `<span style="color:#5b6577;">Egal</span>`;
-            return `<div style="padding:7px 0;border-bottom:1px solid #262f3f;">
+            const hasRoster = pairTeams.length > 0;
+            const rosterId = `${modalId}_r${ri}`;
+            const rosterHtml = hasRoster ? `<div id="${rosterId}" style="display:none;margin-top:6px;padding:7px 9px;background:#0e131c;border-radius:7px;border:1px solid #1d2531;">${rosterInner}</div>` : '';
+            return `<div style="padding:7px 0;border-bottom:1px solid #262f3f;${hasRoster?'cursor:pointer;':''}" ${hasRoster?`onclick="const el=document.getElementById('${rosterId}');const open=el.style.display==='none';el.style.display=open?'block':'none';this.querySelector('.tur-caret').textContent=open?'▲':'▼';"`:''}>
                 <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#f3f6fa;">
-                    <span>Tur ${r.num}</span>
+                    <span>Tur ${r.num}${hasRoster?' <span class="tur-caret" style="font-size:.6rem;color:#5b6577;font-weight:400;">▼</span>':''}</span>
                     <span style="font-weight:400;font-size:.7rem;">${winnerHtml} <span style="color:#5b6577;">· ${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span></span>
                 </div>
                 <div style="margin-top:3px;">${goalsHtml}</div>
+                ${rosterHtml}
             </div>`;
         }).join('');
-        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}</div>`;
+        listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture <span style="text-transform:none;letter-spacing:0;color:#5b6577;">(atinge o tură pentru jucători)</span></div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}`;
     } else {
         // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
         const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
         if (totalSec != null) {
             const mm = Math.floor(totalSec/60), ss = totalSec%60;
-            extraHtml += `<div style="font-size:.72rem;color:#8b96a8;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)</div>`;
+            timeHtml = `⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)`;
         }
         const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
         const goalsHtml = normalGoals.length
@@ -743,8 +761,14 @@ function openMatchDetail(dbId){
                 <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
             </div>`).join('')
             : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
-        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}</div>`;
+        listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}`;
     }
+
+    const timeId = modalId + '_time';
+    const timeToggleHtml = timeHtml ? `<div style="margin-top:10px;">
+        <button onclick="const el=document.getElementById('${timeId}');const open=el.style.display==='none';el.style.display=open?'block':'none';this.textContent=open?'▲ Ascunde timp pe teren':'▼ Timp pe teren';" style="width:100%;text-align:center;padding:7px;font-size:.68rem;font-weight:700;color:#8b96a8;background:#1b2330;border:1px dashed #262f3f;border-radius:8px;cursor:pointer;">▼ Timp pe teren</button>
+        <div id="${timeId}" style="display:none;margin-top:6px;font-size:.72rem;color:#8b96a8;">${timeHtml}</div>
+    </div>` : '';
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -752,9 +776,9 @@ function openMatchDetail(dbId){
     overlay.innerHTML = `<div style="background:#141a24;border:1px solid #262f3f;box-shadow:0 20px 60px -12px rgba(0,0,0,.7);border-radius:16px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
         <div style="font-size:.68rem;color:#8b96a8;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
         <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${teamsHTML}</div>
-        ${topScorerHTML}
-        ${hasRounds ? '' : potmHTML}
-        ${extraHtml}
+        ${badgesHTML}
+        <div style="margin-top:6px;">${listHtml}</div>
+        ${timeToggleHtml}
         <button id="matchDetailCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid #f87171;color:#ef4444;font-weight:700;cursor:pointer;">Închide</button>
     </div>`;
     overlay.querySelector('#matchDetailCloseBtn').onclick = ()=>overlay.remove();
