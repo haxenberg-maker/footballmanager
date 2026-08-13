@@ -4,111 +4,149 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Clasament Live · Bârladul pe Fugă · updated on 3rd of August </title>
-<meta name="theme-color" content="#f7ecd9">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0a0e14">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-:root { --orange:#ff8c00;--green:#28a745;--dark:#f7ecd9;--card:#fff8ed;--star:#ffcc00;--accent:#3d5afe;--border:#dcc89a;--purple:#9c27b0; }
+:root {
+  /* surfaces */
+  --bg:#0a0e14; --bg-deep:#05070a;
+  --surface:#141a24; --surface-2:#1b2330; --surface-3:#212b3a;
+  --line:#232c3c; --line-soft:#1b2330;
+  /* ink */
+  --ink:#f3f6fa; --ink-soft:#c7d0dd; --ink-dim:#8b96a8; --ink-faint:#5b6577;
+  /* team colors */
+  --orange:#ff8c3c; --green:#2fd66b; --black:#c9d3e0;
+  /* accents */
+  --accent:#5b7fff; --accent-deep:#22357a;
+  --purple:#a78bfa; --purple-deep:#6d28d9;
+  --gold:#ffd23f; --star:#ffd23f;
+  --red:#ef4444; --red-soft:#f87171;
+  --bronze:#e0995e; --silver:#cbd5e1; --gold-muted:#c9a668;
+  /* legacy aliases kept so old var() refs still resolve */
+  --dark:#0a0e14; --card:#141a24; --border:#232c3c;
+  /* system */
+  --radius-lg:16px; --radius-md:12px; --radius-sm:8px;
+  --font-display:'Bebas Neue',sans-serif; --font-body:'Inter',sans-serif; --font-mono:'JetBrains Mono',monospace;
+}
 *{box-sizing:border-box;}
-body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;margin:0;padding:0;min-height:100vh;}
-.wrap{max-width:640px;margin:0 auto;padding:14px 14px 60px;}
-.hd{display:flex;align-items:center;justify-content:space-between;padding:10px 2px 16px;}
-.hd-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;}
-.hd-sub{font-size:.68rem;color:#7d6849;letter-spacing:1px;text-transform:uppercase;margin-top:2px;}
-.live-pill{display:flex;align-items:center;gap:5px;background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.3);padding:4px 10px;border-radius:14px;flex-shrink:0;}
-.live-dot{width:7px;height:7px;border-radius:50%;background:#28a745;box-shadow:0 0 6px #28a745;animation:blink 1.5s infinite;}
-@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
-.live-lbl{font-size:.62rem;font-weight:700;color:#1b7a43;text-transform:uppercase;letter-spacing:1px;}
-.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,12,16,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+::selection{background:rgba(91,127,255,.35);color:#fff;}
+body{font-family:var(--font-body);background:
+    radial-gradient(720px 420px at 12% -8%, rgba(91,127,255,.10), transparent 60%),
+    radial-gradient(600px 380px at 100% 0%, rgba(167,139,250,.08), transparent 55%),
+    var(--bg);
+  background-attachment:fixed;color:var(--ink);margin:0;padding:0;min-height:100vh;
+  -webkit-font-smoothing:antialiased;letter-spacing:.1px;}
+.wrap{max-width:640px;margin:0 auto;padding:16px 14px 64px;}
+
+/* ── Floodlight glow — signature treatment for hero surfaces ── */
+.glow{position:relative;isolation:isolate;}
+.glow::before{content:'';position:absolute;inset:-40% -20% auto -20%;height:140%;
+  background:radial-gradient(closest-side, rgba(255,255,255,.10), transparent 70%);
+  pointer-events:none;z-index:0;opacity:.8;}
+.glow>*{position:relative;z-index:1;}
+
+.hd{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 18px;}
+.hd-title{font-family:var(--font-display);font-size:1.7rem;letter-spacing:3px;color:var(--ink);}
+.hd-sub{font-size:.7rem;color:var(--ink-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;font-weight:500;}
+.live-pill{display:flex;align-items:center;gap:6px;background:rgba(47,214,107,.13);border:1px solid rgba(47,214,107,.35);padding:5px 11px;border-radius:20px;flex-shrink:0;box-shadow:0 0 16px -4px rgba(47,214,107,.5);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+.live-lbl{font-size:.64rem;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1.2px;font-family:var(--font-mono);}
+.loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg-deep);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
 .loading-overlay.hidden{display:none;}
-.spinner{width:38px;height:38px;border:3px solid #dcc89a;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+.spinner{width:38px;height:38px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:.8rem;color:#7d6849;letter-spacing:2px;text-transform:uppercase;}
-.stats-section{background:#f1e4c8;padding:16px;border-radius:14px;border:1px solid var(--border);}
-.stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;margin:0 0 12px;color:#7d6849;}
-.lb-tab{padding:5px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;transition:all .12s;white-space:nowrap;}
-.lb-tab:hover{color:#3a2f1f;}
-.lb-tab.active{background:rgba(167,139,250,.2);border-color:#5a2fd9;color:#6b46c1;}
-.lb-period-btn{padding:4px 9px;border-radius:6px;font-size:.64rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid #dcc89a;color:#8a7452;transition:all .12s;}
-.lb-period-btn:hover{color:#3a2f1f;}
-.lb-period-btn.active{background:#e9d9b3;border-color:#b89860;color:#3a2f1f;}
-.lb-season-btn{padding:5px 11px;border-radius:7px;font-size:.7rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;transition:all .12s;white-space:nowrap;}
-.lb-season-btn:hover{color:#3a2f1f;}
-.lb-season-btn.active{background:rgba(61,90,254,.15);border-color:var(--accent);color:#1c2d8a;}
-.season-banner{display:flex;align-items:center;gap:6px;font-size:.68rem;color:#6b46c1;background:rgba(156,39,176,.08);border:1px solid rgba(156,39,176,.25);border-radius:8px;padding:6px 10px;margin-bottom:10px;}
-.season-matches-toggle{width:100%;text-align:center;padding:7px;margin-top:8px;font-size:.68rem;font-weight:700;color:#6b46c1;background:rgba(156,39,176,.06);border:1px dashed rgba(156,39,176,.3);border-radius:8px;cursor:pointer;}
-.season-matches-toggle:hover{background:rgba(156,39,176,.1);}
-.season-match-row{padding:8px 10px;background:#fffaf0;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;font-size:.75rem;}
-.season-match-date{color:#9a8663;font-size:.62rem;}
-.season-match-score{font-weight:700;color:#3a2f1f;}
-.lb-more-btn{width:100%;text-align:center;padding:7px;margin-top:4px;font-size:.68rem;font-weight:700;color:#7d6849;background:#fdf3df;border:1px dashed #dcc89a;border-radius:8px;cursor:pointer;}
-.lb-more-btn:hover{background:#f3e6cf;}
-.me-card{background:linear-gradient(135deg,#3a2f1f,#241c11);color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:14px;display:flex;align-items:center;gap:14px;}
-.me-card-name{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px;}
-.me-card-sub{font-size:.68rem;color:rgba(255,255,255,.55);margin-top:2px;}
-.me-card-rank{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--star);min-width:44px;text-align:center;}
-.footer-note{text-align:center;font-size:.65rem;color:#9a8663;margin-top:18px;letter-spacing:.5px;}
-.row-highlight{outline:2px solid var(--accent);}
+.loading-text{font-size:.78rem;color:var(--ink-dim);letter-spacing:2px;text-transform:uppercase;font-family:var(--font-mono);}
+.stats-section{background:var(--surface);padding:18px;border-radius:var(--radius-lg);border:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.03) inset;}
+.stats-section h3{font-family:var(--font-display);font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:var(--ink);}
+.lb-tab{padding:6px 12px;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;white-space:nowrap;}
+.lb-tab:hover{color:var(--ink);border-color:#334155;}
+.lb-tab.active{background:rgba(167,139,250,.16);border-color:var(--purple);color:#c4b5fd;box-shadow:0 0 14px -4px rgba(167,139,250,.5);}
+.lb-period-btn{padding:5px 10px;border-radius:7px;font-size:.66rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid var(--line);color:var(--ink-faint);transition:all .15s;}
+.lb-period-btn:hover{color:var(--ink);}
+.lb-period-btn.active{background:rgba(201,166,104,.14);border-color:var(--gold-muted);color:#e8cd94;}
+.lb-season-btn{padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;white-space:nowrap;}
+.lb-season-btn:hover{color:var(--ink);}
+.lb-season-btn.active{background:rgba(91,127,255,.16);border-color:var(--accent);color:#b3c2ff;box-shadow:0 0 14px -4px rgba(91,127,255,.5);}
+.season-banner{display:flex;align-items:center;gap:6px;font-size:.7rem;color:#c4b5fd;background:rgba(167,139,250,.09);border:1px solid rgba(167,139,250,.28);border-radius:9px;padding:8px 11px;margin-bottom:11px;}
+.season-matches-toggle{width:100%;text-align:center;padding:8px;margin-top:9px;font-size:.7rem;font-weight:700;color:#c4b5fd;background:rgba(167,139,250,.07);border:1px dashed rgba(167,139,250,.3);border-radius:9px;cursor:pointer;transition:background .15s;}
+.season-matches-toggle:hover{background:rgba(167,139,250,.12);}
+.season-match-row{padding:9px 11px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;margin-bottom:6px;font-size:.76rem;}
+.season-match-date{color:var(--ink-faint);font-size:.64rem;font-family:var(--font-mono);}
+.season-match-score{font-weight:700;color:var(--ink);font-family:var(--font-mono);}
+.lb-more-btn{width:100%;text-align:center;padding:8px;margin-top:5px;font-size:.7rem;font-weight:700;color:var(--ink-dim);background:var(--surface-2);border:1px dashed var(--line);border-radius:9px;cursor:pointer;transition:background .15s;}
+.lb-more-btn:hover{background:var(--surface-3);color:var(--ink);}
+.me-card{background:linear-gradient(135deg,#1c2740,#05070a);color:#fff;border:1px solid rgba(91,127,255,.35);box-shadow:0 0 0 1px rgba(91,127,255,.08),0 8px 24px -8px rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
+.me-card-name{font-family:var(--font-display);font-size:1.2rem;letter-spacing:1px;}
+.me-card-sub{font-size:.7rem;color:rgba(255,255,255,.6);margin-top:2px;}
+.me-card-rank{font-family:var(--font-display);font-size:2.1rem;color:var(--star);min-width:46px;text-align:center;text-shadow:0 0 18px rgba(255,210,63,.5);}
+.footer-note{text-align:center;font-size:.66rem;color:var(--ink-faint);margin-top:20px;letter-spacing:.5px;}
+.row-highlight{outline:2px solid var(--accent);outline-offset:-1px;}
 .streak-banner-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 @media(max-width:480px){.streak-banner-grid{grid-template-columns:1fr;}}
-.streak-banner-card{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;}
-.streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,0,.12),rgba(229,57,53,.10));border:1px solid rgba(255,140,0,.35);}
-.streak-banner-card.goal{background:linear-gradient(135deg,rgba(27,122,67,.12),rgba(139,195,74,.10));border:1px solid rgba(27,122,67,.3);}
-.streak-banner-icon{font-size:1.4rem;line-height:1;}
-.streak-banner-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;}
-.streak-banner-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
-.streak-banner-sub{font-size:.65rem;color:#6b5840;}
+.streak-banner-card{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;}
+.streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,60,.14),rgba(239,68,68,.08));border:1px solid rgba(255,140,60,.35);}
+.streak-banner-card.goal{background:linear-gradient(135deg,rgba(52,211,153,.14),rgba(134,239,172,.08));border:1px solid rgba(52,211,153,.32);}
+.streak-banner-icon{font-size:1.5rem;line-height:1;}
+.streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
+.streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
+.streak-banner-sub{font-size:.66rem;color:var(--ink-dim);}
 .milestone-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
-.milestone-badge{font-size:.58rem;padding:2px 6px;border-radius:6px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:#8a6800;white-space:nowrap;font-weight:700;}
-.week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.milestone-badge{font-size:.6rem;padding:2px 7px;border-radius:6px;background:rgba(255,210,63,.14);border:1px solid rgba(255,210,63,.38);color:#ffd23f;white-space:nowrap;font-weight:700;}
+.week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px;}
 @media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
-.week-card{background:#fffaf0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
-.week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#7d6849;margin-bottom:8px;}
-.week-player-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0e6d0;font-size:.78rem;}
+.week-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px 15px;}
+.week-card-title{font-family:var(--font-display);font-size:.9rem;letter-spacing:1.5px;color:var(--ink-dim);margin-bottom:9px;}
+.week-player-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:.8rem;}
 .week-player-row:last-child{border-bottom:none;}
-.week-player-rank{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#b89860;min-width:16px;}
-.week-player-name{flex:1;font-weight:700;color:#3a2f1f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.week-player-sub{font-size:.64rem;color:#6b5840;}
-.derby-score{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px;text-align:center;margin:4px 0;color:#3a2f1f;}
-.derby-teams{display:flex;justify-content:space-between;font-size:.68rem;color:#6b5840;text-transform:uppercase;letter-spacing:.5px;}
-.derby-summary{font-size:.74rem;color:#3a2f1f;margin-top:6px;text-align:center;line-height:1.4;}
-.derby-date{text-align:center;font-size:.6rem;color:#9a8663;margin-top:2px;}
+.week-player-rank{font-family:var(--font-display);font-size:.9rem;color:var(--gold-muted);min-width:16px;}
+.week-player-name{flex:1;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.week-player-sub{font-size:.66rem;color:var(--ink-dim);font-family:var(--font-mono);}
+.derby-score{font-family:var(--font-display);font-size:1.9rem;letter-spacing:2px;text-align:center;margin:4px 0;color:var(--ink);}
+.derby-teams{display:flex;justify-content:space-between;font-size:.7rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+.derby-summary{font-size:.76rem;color:var(--ink-soft);margin-top:6px;text-align:center;line-height:1.5;}
+.derby-date{text-align:center;font-size:.62rem;color:var(--ink-faint);margin-top:2px;font-family:var(--font-mono);}
 
 /* ── Tab de pagină: Clasament / Meciuri ── */
-.page-tabs{display:flex;gap:6px;margin-bottom:12px;}
-.page-tab{flex:1;padding:9px 10px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;cursor:pointer;background:#f1e4c8;border:1px solid var(--border);color:#7d6849;transition:all .12s;}
-.page-tab.active{background:linear-gradient(135deg,#3d5afe,#5a2fd9);border-color:#3d5afe;color:#fff;}
+.page-tabs{display:flex;gap:7px;margin-bottom:14px;}
+.page-tab{flex:1;padding:10px 10px;border-radius:11px;font-family:var(--font-display);font-size:.9rem;letter-spacing:1.5px;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
+.page-tab.active{background:linear-gradient(135deg,#5b7fff,#6d28d9);border-color:#5b7fff;color:#fff;box-shadow:0 4px 18px -6px rgba(91,127,255,.6);}
 
 /* ── Meciuri: filtre ── */
-.match-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.match-filters{display:flex;flex-direction:column;gap:9px;margin-bottom:14px;}
 .match-search-wrap{position:relative;}
-.match-search-wrap input{width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:8px;border:1px solid var(--border);background:#fffaf0;font-size:.82rem;color:#3a2f1f;}
-.match-search-clear{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:#7d6849;font-size:.9rem;cursor:pointer;padding:4px 6px;line-height:1;}
-.match-team-filters{display:flex;gap:5px;flex-wrap:wrap;}
-.match-team-btn{padding:5px 11px;border-radius:7px;font-size:.7rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid var(--border);color:#7d6849;transition:all .12s;}
-.match-team-btn.active{background:rgba(61,90,254,.15);border-color:var(--accent);color:#1c2d8a;}
+.match-search-wrap input{width:100%;box-sizing:border-box;padding:10px 34px 10px 13px;border-radius:9px;border:1px solid var(--line);background:var(--surface);font-size:.84rem;color:var(--ink);font-family:var(--font-body);}
+.match-search-wrap input::placeholder{color:var(--ink-faint);}
+.match-search-wrap input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,127,255,.18);}
+.match-search-clear{display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--ink-dim);font-size:.95rem;cursor:pointer;padding:4px 6px;line-height:1;}
+.match-team-filters{display:flex;gap:6px;flex-wrap:wrap;}
+.match-team-btn{padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
+.match-team-btn.active{background:rgba(91,127,255,.16);border-color:var(--accent);color:#b3c2ff;}
 
 /* ── Card de meci / sesiune ── */
-.match-card{border-radius:14px;overflow:hidden;margin-bottom:14px;border:1px solid var(--border);background:#fffaf0;}
-.match-card-hero{padding:14px 16px 12px;color:#fff;position:relative;}
-.match-card-hero .mc-date{font-size:.65rem;opacity:.85;text-transform:uppercase;letter-spacing:1px;}
-.match-card-hero .mc-title{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:1.5px;margin-top:2px;}
-.match-card-hero .mc-sub{font-size:.68rem;opacity:.85;margin-top:4px;}
-.match-card-body{padding:12px 16px 14px;}
-.mc-story{font-size:.74rem;color:#4a3a26;line-height:1.7;margin-bottom:10px;}
-.mc-standing{font-size:.72rem;margin-bottom:8px;}
-.mc-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
-.mc-badge{padding:4px 10px;border-radius:7px;font-size:.7rem;font-weight:700;white-space:nowrap;}
+.match-card{border-radius:var(--radius-lg);overflow:hidden;margin-bottom:16px;border:1px solid var(--line);background:var(--surface);box-shadow:0 4px 20px -10px rgba(0,0,0,.6);}
+.match-card-hero{padding:16px 18px 14px;color:#fff;position:relative;overflow:hidden;}
+.match-card-hero .mc-date{font-size:.66rem;opacity:.85;text-transform:uppercase;letter-spacing:1.2px;font-family:var(--font-mono);}
+.match-card-hero .mc-title{font-family:var(--font-display);font-size:1.3rem;letter-spacing:1.5px;margin-top:3px;}
+.match-card-hero .mc-sub{font-size:.7rem;opacity:.88;margin-top:4px;}
+.match-card-body{padding:14px 18px 16px;}
+.mc-story{font-size:.76rem;color:var(--ink-soft);line-height:1.7;margin-bottom:11px;}
+.mc-standing{font-size:.76rem;margin-bottom:10px;line-height:1.9;}
+.mc-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px;}
+.mc-badge{padding:5px 11px;border-radius:8px;font-size:.72rem;font-weight:700;white-space:nowrap;}
 .mc-timeline{display:flex;flex-direction:column;gap:0;margin-bottom:4px;}
-.mc-timeline-item{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px dashed #e3d3ac;cursor:pointer;}
+.mc-timeline-item{display:flex;align-items:flex-start;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line);cursor:pointer;transition:background .12s;border-radius:6px;}
 .mc-timeline-item:last-child{border-bottom:none;}
-.mc-timeline-item:hover{background:#f5ecd6;}
-.mc-timeline-dot{width:9px;height:9px;border-radius:50%;margin-top:5px;flex-shrink:0;}
+.mc-timeline-item:hover{background:var(--surface-2);}
+.mc-timeline-dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex-shrink:0;box-shadow:0 0 6px currentColor;}
 .mc-timeline-content{flex:1;min-width:0;}
-.mc-timeline-teams{font-size:.72rem;font-weight:700;color:#3a2f1f;text-transform:uppercase;letter-spacing:.4px;}
-.mc-timeline-score{font-size:.68rem;color:#7d6849;}
-.mc-timeline-scorer{font-size:.68rem;color:#6b46c1;margin-top:2px;}
-.match-empty{text-align:center;padding:30px 10px;color:#7d6849;font-size:.8rem;}
+.mc-timeline-teams{font-size:.74rem;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:.4px;}
+.mc-timeline-score{font-size:.7rem;color:var(--ink-dim);font-family:var(--font-mono);}
+.mc-timeline-scorer{font-size:.7rem;color:#c4b5fd;margin-top:2px;}
+.match-empty{text-align:center;padding:34px 10px;color:var(--ink-dim);font-size:.82rem;}
 </style>
 </head>
 <body>
@@ -197,7 +235,7 @@ const LB_PERIODLESS_TABS = ['smart','general'];
 let pageTab = 'leaderboard'; // 'leaderboard' | 'matches'
 let matchSearchQuery = '';
 let matchTeamFilter = 'all'; // 'all' | 'Portocaliu' | 'Verde' | 'Negru'
-const teamColorsPublic = { orange: '#ff8c00', green: '#28a745', black: '#555' };
+const teamColorsPublic = { orange: '#ff8c3c', green: '#2fd66b', black: '#c9d3e0' };
 
 function showLoading(v){ document.getElementById('loadingOverlay').classList.toggle('hidden', !v); }
 
@@ -348,25 +386,25 @@ function renderPairBodyPublic(h){
         const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
         return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
             <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
-            <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#3a2f1f'};">${label}</span>
-            <span style="font-size:.72rem;color:#7d6849;">(${names.length} juc.)</span>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#3a2f1f'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Rajdhani',sans-serif;font-size:.62rem;color:#7d6849;">(pen ${pen})</span>`:''}</span>
+            <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#f3f6fa'};">${label}</span>
+            <span style="font-size:.72rem;color:#8b96a8;">(${names.length} juc.)</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#f3f6fa'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Inter',sans-serif;font-size:.62rem;color:#8b96a8;">(pen ${pen})</span>`:''}</span>
         </div>`;
     };
     const teamsHTML = [
         makeTeamScore(h.orangePlayers, 'orange', teamColorsPublic.orange, 'Portocaliu'),
         makeTeamScore(h.greenPlayers,  'green',  teamColorsPublic.green,  'Verde'),
         hasBlack ? makeTeamScore(h.blackPlayers, 'black', teamColorsPublic.black, 'Negru') : '',
-    ].filter(Boolean).join('<div style="height:1px;background:#e3d3ac;margin:1px 0;"></div>');
+    ].filter(Boolean).join('<div style="height:1px;background:#262f3f;margin:1px 0;"></div>');
     const hattrick = h.topScorer && h.topScorer.goals >= 3;
     const topScorerHTML = h.topScorer
-        ? `<div style="margin-top:5px;padding:3px 8px;background:${hattrick?'rgba(156,39,176,.1)':'#fdf3df'};border-radius:6px;border:1px solid ${hattrick?'rgba(156,39,176,.35)':'#e3d3ac'};font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
-            ${hattrick?'🎩':'⚽'} <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#8e3a9e;font-weight:700;">HATTRICK!</span>':''}
+        ? `<div style="margin-top:5px;padding:3px 8px;background:${hattrick?'rgba(167,139,250,.1)':'#1b2330'};border-radius:6px;border:1px solid ${hattrick?'rgba(167,139,250,.35)':'#262f3f'};font-size:.72rem;color:#c7d0dd;display:inline-flex;align-items:center;gap:5px;">
+            ${hattrick?'🎩':'⚽'} <b>${h.topScorer.name}</b> ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}
            </div>`
         : '';
     const potmHTML = h.potmWinnerName
-        ? `<div style="margin-top:5px;padding:3px 8px;background:rgba(255,204,0,.12);border-radius:6px;border:1px solid rgba(255,204,0,.4);font-size:.72rem;color:#4a3a26;display:inline-flex;align-items:center;gap:5px;">
-            ⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#7d6849;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#7d6849;font-weight:400;">(setat manual)</span>`}
+        ? `<div style="margin-top:5px;padding:3px 8px;background:rgba(255,210,63,.12);border-radius:6px;border:1px solid rgba(255,210,63,.4);font-size:.72rem;color:#c7d0dd;display:inline-flex;align-items:center;gap:5px;">
+            ⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}
            </div>`
         : '';
     return { teamsHTML, topScorerHTML, potmHTML, hattrick };
@@ -378,7 +416,7 @@ function renderSingleMatchCard(h){
     const winColor = _ws === 'orange' ? teamColorsPublic.orange
                    : _ws === 'green'  ? teamColorsPublic.green
                    : _ws === 'black'  ? teamColorsPublic.black
-                   : '#7d6849';
+                   : '#8b96a8';
     const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
     return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
@@ -387,7 +425,7 @@ function renderSingleMatchCard(h){
             <div class="mc-sub">Scor: ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru mare':''}</div>
         </div>
         <div class="match-card-body">
-            <div style="background:#fffaf0;border-radius:8px;padding:6px 10px;border:1px solid #e3d3ac;">${teamsHTML}</div>
+            <div style="background:#1b2330;border-radius:8px;padding:6px 10px;border:1px solid #262f3f;">${teamsHTML}</div>
             ${topScorerHTML}
             ${potmHTML}
         </div>
@@ -463,8 +501,8 @@ function renderSessionCard(rows){
     });
     const standingColor = { Portocaliu: teamColorsPublic.orange, Verde: teamColorsPublic.green, Negru: teamColorsPublic.black };
     const standingHTML = Object.keys(teamPlayed).map(t =>
-        `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span><span style="color:#a8916b;font-size:.82em;"> (${teamRoundsWon[t]||0} ture)</span>`
-    ).join('<span style="color:#c9b587;margin:0 6px;">·</span>');
+        `<span style="color:${standingColor[t]||'#f3f6fa'};font-weight:700;">${t}</span> <span style="color:#8b96a8;">${teamWon[t]||0}/${teamPlayed[t]}</span><span style="color:#5b6577;font-size:.82em;"> (${teamRoundsWon[t]||0} ture)</span>`
+    ).join('<span style="color:#3a4759;margin:0 6px;">·</span>');
 
     // ── ⏱ Timp pe teren, per echipă (ca la Live → 📊 Stats) ──────────────
     const teamSeconds = {};
@@ -473,7 +511,7 @@ function renderSessionCard(rows){
         getRowTeamNames(h).forEach(t => { teamSeconds[t] = (teamSeconds[t]||0) + rowSeconds; });
     });
     const teamTimeList = Object.entries(teamSeconds)
-        .map(([name,sec]) => ({ name, sec, hex: standingColor[name] || '#3a2f1f' }))
+        .map(([name,sec]) => ({ name, sec, hex: standingColor[name] || '#f3f6fa' }))
         .sort((a,b) => b.sec - a.sec);
     const maxTeamSec = teamTimeList.length ? teamTimeList[0].sec : 1;
     const teamTimeHtml = teamTimeList.map((t,i) => {
@@ -482,9 +520,9 @@ function renderSessionCard(rows){
         return `<div style="margin-bottom:7px;">
             <div style="display:flex;justify-content:space-between;font-size:.72rem;font-weight:700;margin-bottom:2px;">
                 <span style="color:${t.hex};">${i===0?'👑 ':''}${t.name}</span>
-                <span style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</span>
+                <span style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</span>
             </div>
-            <div style="background:#f1e4c8;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${t.hex};"></div></div>
+            <div style="background:#1b2330;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${t.hex};"></div></div>
         </div>`;
     }).join('');
 
@@ -508,10 +546,10 @@ function renderSessionCard(rows){
     const topScorersList  = scoringPlayersList.slice(0, 5);
     const restScorersList = scoringPlayersList.slice(topScorersList.length); // restul marcatorilor (tot cu goluri > 0), pentru "Vezi mai mult"
     const scorerRowHtml = (s,i) => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
-            <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#3a2f1f'};flex-shrink:0;"></span>
-            <span style="flex:1;font-weight:700;color:#3a2f1f;">${i===0?'🥇 ':''}${s.name}</span>
-            <span style="font-size:.64rem;color:#7d6849;margin-right:2px;">${s.minutes} min</span>
-            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#3a2f1f;">${s.goals}⚽</span>
+            <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#f3f6fa'};flex-shrink:0;"></span>
+            <span style="flex:1;font-weight:700;color:#f3f6fa;">${i===0?'🥇 ':''}${s.name}</span>
+            <span style="font-size:.64rem;color:#8b96a8;margin-right:2px;">${s.minutes} min</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#f3f6fa;">${s.goals}⚽</span>
         </div>`;
     const topScorersHtml = topScorersList.map((s,i) => scorerRowHtml(s,i)).join('');
     const restScorersHtml = restScorersList.map((s,i) => scorerRowHtml(s,i+topScorersList.length)).join('');
@@ -521,7 +559,7 @@ function renderSessionCard(rows){
     const timelineHTML = chrono.map((h,idx) => {
         const [tA,tB] = getRowTeamNames(h);
         const _ws = getWinnerSideFromScore(h);
-        const dotColor = _ws==='orange'?teamColorsPublic.orange:_ws==='green'?teamColorsPublic.green:_ws==='black'?teamColorsPublic.black:'#b89860';
+        const dotColor = _ws==='orange'?teamColorsPublic.orange:_ws==='green'?teamColorsPublic.green:_ws==='black'?teamColorsPublic.black:'#c9a668';
         return `<div class="mc-timeline-item" onclick="openMatchDetail('${h._dbId}')">
             <span class="mc-timeline-dot" style="background:${dotColor};"></span>
             <div class="mc-timeline-content">
@@ -533,28 +571,28 @@ function renderSessionCard(rows){
     }).join('');
 
     return `<div class="match-card">
-        <div class="match-card-hero" style="background:linear-gradient(135deg,#3d5afe,#8e3a9e);">
+        <div class="match-card-hero" style="background:linear-gradient(135deg,#5b7fff,#a78bfa);">
             <div class="mc-date">${first.date||'—'}</div>
             <div class="mc-title">🎮 Sesiune 3 Echipe</div>
             <div class="mc-sub">${chrono.length} meciuri jucate</div>
         </div>
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
-            <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin:8px 0;">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:6px;">⏱ Timp pe teren</div>
-                ${teamTimeHtml || '<div style="font-size:.7rem;color:#a8916b;">Indisponibil</div>'}
+            <div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin:8px 0;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:6px;">⏱ Timp pe teren</div>
+                ${teamTimeHtml || '<div style="font-size:.7rem;color:#5b6577;">Indisponibil</div>'}
             </div>
-            ${topScorersList.length ? `<div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">
-                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
+            ${topScorersList.length ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
+                <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
                 ${topScorersHtml}
                 ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
-                <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #d3bd8c;color:#7d6849;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
+                <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #2c384c;color:#8b96a8;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
             </div>` : ''}
             <div class="mc-badges">
-                ${sessionTop ? `<div class="mc-badge" style="background:rgba(27,122,67,.1);border:1px solid rgba(27,122,67,.3);color:#1b7a43;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
-                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);color:#8a6800;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
-                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#7d6849;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
-                ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(156,39,176,.1);border:1px solid rgba(156,39,176,.3);color:#8e3a9e;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
+                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
+                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
+                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
+                ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
             </div>
             <div class="mc-timeline">${timelineHTML}</div>
         </div>
@@ -644,7 +682,7 @@ function openMatchDetail(dbId){
         // ale acestei perechi au jucat exact aceleași ture, deci timpul e comun.
         const totalSec = h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0),0);
         const mm = Math.floor(totalSec/60), ss = totalSec%60;
-        extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}</div>`;
+        extraHtml += `<div style="font-size:.72rem;color:#8b96a8;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}</div>`;
 
         const reasonLabel = {goals:'goluri',time:'timp',manual:'manual',final:'final',penalty:'penalty'};
         const anyGoalsData = h.roundsDetail.some(r=>Array.isArray(r.goals));
@@ -654,49 +692,49 @@ function openMatchDetail(dbId){
             const ds = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
             const goalsHtml = Array.isArray(r.goals) && r.goals.length
-                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
-                : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
+                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
+                : `<div style="font-size:.66rem;color:#5b6577;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
             const roundWinnerName = getRoundWinnerName(h, r);
             const winnerHtml = roundWinnerName
                 ? `<span style="color:${teamHex(roundWinnerName==='Portocaliu'?'orange':roundWinnerName==='Verde'?'green':'black')};font-weight:700;">🏆 ${roundWinnerName}</span>`
-                : `<span style="color:#a8916b;">Egal</span>`;
-            return `<div style="padding:7px 0;border-bottom:1px solid #e3d3ac;">
-                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#3a2f1f;">
+                : `<span style="color:#5b6577;">Egal</span>`;
+            return `<div style="padding:7px 0;border-bottom:1px solid #262f3f;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#f3f6fa;">
                     <span>Tur ${r.num}</span>
-                    <span style="font-weight:400;color:#7d6849;">${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span>
+                    <span style="font-weight:400;color:#8b96a8;">${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span>
                 </div>
                 <div style="margin-top:2px;font-size:.7rem;">${winnerHtml}</div>
                 <div style="margin-top:3px;">${goalsHtml}</div>
             </div>`;
         }).join('');
-        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#a8916b;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}</div>`;
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}</div>`;
     } else {
         // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
         const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
         if (totalSec != null) {
             const mm = Math.floor(totalSec/60), ss = totalSec%60;
-            extraHtml += `<div style="font-size:.72rem;color:#7d6849;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#3a2f1f;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)</div>`;
+            extraHtml += `<div style="font-size:.72rem;color:#8b96a8;margin:10px 0 4px;">⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)</div>`;
         }
         const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
         const goalsHtml = normalGoals.length
-            ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1e4c8;font-size:.72rem;">
+            ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
                 <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}</span>
-                <span style="color:#7d6849;">${g.minute!=null?`min ${g.minute}`:''}</span>
+                <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
             </div>`).join('')
-            : `<div style="font-size:.7rem;color:#a8916b;padding:4px 0;">Niciun gol înregistrat.</div>`;
-        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}</div>`;
+            : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
+        extraHtml += `<div style="margin-top:6px;"><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}</div>`;
     }
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
-    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:14px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
-        <div style="font-size:.68rem;color:#7d6849;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
-        <div style="background:#fffaf0;border-radius:8px;padding:8px 10px;border:1px solid #e3d3ac;margin-bottom:8px;">${teamsHTML}</div>
+    overlay.innerHTML = `<div style="background:#141a24;border:1px solid #262f3f;box-shadow:0 20px 60px -12px rgba(0,0,0,.7);border-radius:16px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
+        <div style="font-size:.68rem;color:#8b96a8;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
+        <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${teamsHTML}</div>
         ${topScorerHTML}
         ${hasRounds ? '' : potmHTML}
         ${extraHtml}
-        <button id="matchDetailCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>
+        <button id="matchDetailCloseBtn" style="margin-top:14px;width:100%;padding:10px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid #f87171;color:#ef4444;font-weight:700;cursor:pointer;">Închide</button>
     </div>`;
     overlay.querySelector('#matchDetailCloseBtn').onclick = ()=>overlay.remove();
     document.body.appendChild(overlay);
@@ -1134,13 +1172,13 @@ function getFormIndex(p){
     const last5 = history.slice(-5);
     const wins  = last5.filter(r=>r==='W').length;
     const total = last5.length;
-    let label='', color='#555';
-    if(total < 2) { label='—'; color='#555'; }
-    else if(wins >= 4)       { label='🔥 În formă'; color='#2e7d32'; }
-    else if(wins === 3)      { label='📈 OK'; color='#8bc34a'; }
-    else if(wins === 2)      { label='😐 Mediu'; color='#ffd600'; }
-    else if(wins === 1)      { label='📉 Formă slabă'; color='#9c4f00'; }
-    else                      { label='❄️ În cădere'; color='#a52020'; }
+    let label='', color='#64748b';
+    if(total < 2) { label='—'; color='#64748b'; }
+    else if(wins >= 4)       { label='🔥 În formă'; color='#22c55e'; }
+    else if(wins === 3)      { label='📈 OK'; color='#86efac'; }
+    else if(wins === 2)      { label='😐 Mediu'; color='#eab308'; }
+    else if(wins === 1)      { label='📉 Formă slabă'; color='#f97316'; }
+    else                      { label='❄️ În cădere'; color='#ef4444'; }
     return { last5, wins, total, label, color };
 }
 
@@ -1291,7 +1329,7 @@ function renderLeaderboard(){
             sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
             getValue=p=>getSmartRating(p).toFixed(1);
             subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR · '+p.games+'M';};
-            bigColor='#6b46c1';
+            bigColor='#a78bfa';
             break;
         case 'general':
             sorted=[...all].sort((a,b)=>getGeneralAvg(b)-getGeneralAvg(a));
@@ -1303,32 +1341,32 @@ function renderLeaderboard(){
             sorted=[...withGames].filter(p=>goalsOf(p)>0).sort((a,b)=>goalsOf(b)-goalsOf(a));
             getValue=p=>'⚽'+goalsOf(p);
             subLabel=p=>{const g=gamesOf(p);const gpg=g>0?(goalsOf(p)/g).toFixed(1):'—';return gpg+'/meci';};
-            bigColor='#1b7a43';
+            bigColor='#34d399';
             break;
         case 'wins':
             sorted=[...withGames].sort((a,b)=>winsOf(b)-winsOf(a));
             getValue=p=>'🏆'+winsOf(p);
             subLabel=p=>{const g=gamesOf(p);const wr=g>0?((winsOf(p)/g)*100).toFixed(0)+'%':'—';return wr+' WR';};
-            bigColor='#c9820a';
+            bigColor='#fb7185';
             break;
         case 'games':
             sorted=[...withGames].sort((a,b)=>gamesOf(b)-gamesOf(a));
             getValue=p=>'📅'+gamesOf(p);
             subLabel=p=>winsOf(p)+'V / '+(gamesOf(p)-winsOf(p))+'P';
-            bigColor='#1554b3';
+            bigColor='#60a5fa';
             break;
         case 'wr':
             sorted=[...withGames].filter(p=>gamesOf(p)>=LB_MIN_GAMES).sort((a,b)=>(winsOf(b)/gamesOf(b))-(winsOf(a)/gamesOf(a)));
             getValue=p=>((winsOf(p)/gamesOf(p))*100).toFixed(0)+'%';
             subLabel=p=>winsOf(p)+'V / '+gamesOf(p)+'M';
-            bigColor='#2e7d32';
+            bigColor='#22c55e';
             break;
         case 'gpg':
             sorted=[...withGames].filter(p=>gamesOf(p)>=LB_MIN_GAMES && goalsOf(p)>0)
                 .sort((a,b)=>(goalsOf(b)/gamesOf(b))-(goalsOf(a)/gamesOf(a)));
             getValue=p=>(goalsOf(p)/gamesOf(p)).toFixed(2);
             subLabel=p=>goalsOf(p)+' goluri'+(viewingPastSeason ? ' (sezon)' : ' sezon curent');
-            bigColor='#8a6800';
+            bigColor='#eab308';
             break;
         case 'pen':
             sorted=[...db.players, ...ghostPlayers].filter(p=>(periodStats[p.name]?.penaltyGoals||0)>0)
@@ -1340,17 +1378,17 @@ function renderLeaderboard(){
                 const pct=att>0 ? Math.round((g/att)*100)+'% reușită' : '';
                 return g+' goluri la penalty'+(pct?' · '+pct:'');
             };
-            bigColor='#b71c1c';
+            bigColor='#ef4444';
             break;
         default:
             sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            getValue=p=>getSmartRating(p).toFixed(1); subLabel=p=>p.games+'M'; bigColor='#6b46c1';
+            getValue=p=>getSmartRating(p).toFixed(1); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
     }
     if(!sorted.length){
         const emptyMsg = viewingPastSeason
             ? `Niciun jucător cu date în sezonul „${currentSeason}".`
             : (currentLbTab==='pen' ? 'Niciun gol la penalty încă.' : 'Fără date disponibile.');
-        content.innerHTML=`<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
+        content.innerHTML=`<p style="color:#8b96a8;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
         return;
     }
     const maxVal=parseFloat(getValue(sorted[0]).replace(/[^0-9.]/g,''))||1;
@@ -1360,29 +1398,29 @@ function renderLeaderboard(){
             const val=getValue(p);
             const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
             const pct=Math.round((numVal/maxVal)*100);
-            const medalColors=['#ffd700','#c0c0c0','#cd7f32'];
+            const medalColors=['#ffd23f','#cbd5e1','#e0995e'];
             const isMe = highlightPlayer && p.name===highlightPlayer;
-            const bg=isMe?'rgba(61,90,254,.10)':i===0?`rgba(167,139,250,.06)`:i===1?`rgba(192,192,192,.03)`:i===2?`rgba(205,127,50,.03)`:'transparent';
-            const nameColor=i<3?'#3a2f1f':'#7d6849';
+            const bg=isMe?'rgba(91,127,255,.10)':i===0?`rgba(167,139,250,.06)`:i===1?`rgba(203,213,225,.03)`:i===2?`rgba(224,153,94,.03)`:'transparent';
+            const nameColor=i<3?'#f3f6fa':'#8b96a8';
             const form=viewingPastSeason ? {last5:[]} : getFormIndex(p);
             // Pe tab-ul Penalty, bulinele arată ultimele penalty-uri ale jucătorului
             // (verde = gol, roșu = ratat) — NU forma victorii/înfrângeri ca la celelalte tab-uri.
             const dots = currentLbTab==='pen'
                 ? (periodStats[p.name]?.penaltyShots||[]).slice(0,5).reverse()
-                    .map(scored=>`<span title="${scored?'Gol':'Ratat'}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${scored?'#2e7d32':'#a52020'};"></span>`).join('')
-                : form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#4caf50':'#a52020'};"></span>`).join('');
-            return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #e3d3ac;">
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#7d6849'};">${medals[i]||(i+1)}</span>
+                    .map(scored=>`<span title="${scored?'Gol':'Ratat'}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${scored?'#22c55e':'#ef4444'};"></span>`).join('')
+                : form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#22c55e':'#ef4444'};"></span>`).join('');
+            return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #262f3f;">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#8b96a8'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
                     <div style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}${isMe?' 📍':''}</div>
                     ${viewingPastSeason ? '' : renderMilestoneBadges(p)}
                     <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
-                        <div style="flex:1;height:${i===0?'3px':'2px'};background:#e3d3ac;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#d3bd8c'};border-radius:1px;"></div></div>
-                        <span style="font-size:.58rem;color:#6b5840;">${subLabel(p)}</span>
+                        <div style="flex:1;height:${i===0?'3px':'2px'};background:#262f3f;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#2c384c'};border-radius:1px;"></div></div>
+                        <span style="font-size:.58rem;color:#8b96a8;">${subLabel(p)}</span>
                         <span style="font-size:.58rem;">${dots}</span>
                     </div>
                 </div>
-                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i===0?'1.1rem':'.9rem'};color:${i===0?bigColor:i<3?'#7d6849':'#9a8663'};white-space:nowrap;">${val}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:${i===0?'1.1rem':'.9rem'};color:${i===0?bigColor:i<3?'#8b96a8':'#5b6577'};white-space:nowrap;">${val}</span>
             </div>`;
         }).join('')+
         (sorted.length>10 ? `<button class="lb-more-btn" onclick="toggleLbExpand()">${lbExpanded?'▲ Arată doar top 10':'▼ Vezi tot clasamentul ('+sorted.length+')'}</button>` : '')
@@ -1561,7 +1599,7 @@ async function loadAll(){
         renderSeasonMatchesList();
         if (pageTab === 'matches') renderMatchesFeed();
     }catch(err){
-        document.getElementById('lbContent').innerHTML = `<p style="color:#b71c1c;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
+        document.getElementById('lbContent').innerHTML = `<p style="color:#ef4444;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
     }finally{
         showLoading(false);
     }
@@ -1593,7 +1631,7 @@ function showToast(msg){
     if (!t) {
         t = document.createElement('div');
         t.id = 'potmToast';
-        t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#3a2f1f;color:#fff;padding:10px 18px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:99999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);';
+        t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#f3f6fa;color:#fff;padding:10px 18px;border-radius:10px;font-size:.82rem;font-weight:600;z-index:99999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.3);';
         document.body.appendChild(t);
     }
     t.textContent = msg;
@@ -1649,8 +1687,8 @@ function potmModalShell(innerHTML){
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;';
         document.body.appendChild(overlay);
     }
-    overlay.innerHTML = `<div style="background:#f5e9d4;border-radius:16px;padding:20px;max-width:400px;width:100%;max-height:86vh;overflow:auto;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">⭐ Player of The Match</div>
+    overlay.innerHTML = `<div style="background:#141a24;border:1px solid #262f3f;box-shadow:0 20px 60px -12px rgba(0,0,0,.7);border-radius:18px;padding:20px;max-width:400px;width:100%;max-height:86vh;overflow:auto;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:2px;color:#f3f6fa;margin-bottom:4px;">⭐ Player of The Match</div>
         ${innerHTML}
     </div>`;
     overlay.style.display = 'flex';
@@ -1669,8 +1707,8 @@ async function openPotmVoteModal(matchId){
     const h = db.history.find(x=>String(x._dbId)===String(matchId));
     if (!h){
         potmModalShell(`
-            <div style="font-size:.85rem;color:#7d6849;margin:14px 0;">Nu am găsit meciul ăsta — poate a fost șters sau link-ul e greșit.</div>
-            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+            <div style="font-size:.85rem;color:#8b96a8;margin:14px 0;">Nu am găsit meciul ăsta — poate a fost șters sau link-ul e greșit.</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid #f87171;color:#ef4444;font-weight:700;cursor:pointer;">Închide</button>`);
         return;
     }
     // Termenul de vot se aplică pe toată sesiunea (setat din setari.html) —
@@ -1679,19 +1717,19 @@ async function openPotmVoteModal(matchId){
     if (deadline && Date.now() > new Date(deadline).getTime()){
         const fmt = new Date(deadline).toLocaleString('ro-RO', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         potmModalShell(`
-            <div style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+            <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
                 <div style="font-size:1.6rem;margin-bottom:6px;">🔒</div>
-                <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Votarea s-a închis</div>
-                <div style="font-size:.72rem;color:#7d6849;margin-top:4px;">Termenul a expirat pe ${fmt}.</div>
+                <div style="font-size:.88rem;color:#f3f6fa;font-weight:700;">Votarea s-a închis</div>
+                <div style="font-size:.72rem;color:#8b96a8;margin-top:4px;">Termenul a expirat pe ${fmt}.</div>
             </div>
-            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#1b2330;border:1px solid #262f3f;color:#8b96a8;font-weight:700;cursor:pointer;">Închide</button>`);
         return;
     }
     const participants = getMatchParticipants(h);
     if (!participants.length){
         potmModalShell(`
-            <div style="font-size:.85rem;color:#7d6849;margin:14px 0;">Nu găsesc jucătorii acestui meci.</div>
-            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+            <div style="font-size:.85rem;color:#8b96a8;margin:14px 0;">Nu găsesc jucătorii acestui meci.</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid #f87171;color:#ef4444;font-weight:700;cursor:pointer;">Închide</button>`);
         return;
     }
     _potmMatch = h;
@@ -1707,13 +1745,13 @@ function renderPotmStep1(participants){
         ? `${_potmMatch.date||''} · 🎮 Sesiune 3 Echipe`
         : `${_potmMatch.date||''} · ${_potmMatch.score||''}`;
     potmModalShell(`
-        <div style="font-size:.72rem;color:#7d6849;margin-bottom:14px;">${subtitle}</div>
-        <div style="font-size:.8rem;color:#3a2f1f;font-weight:700;margin-bottom:8px;">Cine ești?</div>
-        <select id="potmWhoAmI" style="width:100%;padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #e3d3ac;color:#3a2f1f;font-size:.88rem;margin-bottom:14px;">
+        <div style="font-size:.72rem;color:#8b96a8;margin-bottom:14px;">${subtitle}</div>
+        <div style="font-size:.8rem;color:#f3f6fa;font-weight:700;margin-bottom:8px;">Cine ești?</div>
+        <select id="potmWhoAmI" style="width:100%;padding:11px;border-radius:9px;background:#1b2330;border:1px solid #262f3f;color:#f3f6fa;font-size:.88rem;margin-bottom:14px;">
             <option value="">— alege-ți numele —</option>
             ${options}
         </select>
-        <button id="potmStep1Next" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,#3d5afe);border:1px solid #3d5afe;color:#fff;font-weight:700;cursor:pointer;">Continuă →</button>
+        <button id="potmStep1Next" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#22357a,#5b7fff);border:1px solid #5b7fff;color:#fff;font-weight:700;cursor:pointer;">Continuă →</button>
     `);
     document.getElementById('potmStep1Next').onclick = async ()=>{
         const sel = document.getElementById('potmWhoAmI');
@@ -1726,7 +1764,7 @@ function renderPotmStep1(participants){
 
 // Pasul 2: verificare în DB dacă a votat deja
 async function checkAlreadyVotedAndProceed(){
-    potmModalShell(`<div style="font-size:.85rem;color:#7d6849;margin:20px 0;text-align:center;">⏳ Se verifică...</div>`);
+    potmModalShell(`<div style="font-size:.85rem;color:#8b96a8;margin:20px 0;text-align:center;">⏳ Se verifică...</div>`);
     try{
         const { data, error } = await sb.from('potm_votes')
             .select('id')
@@ -1736,20 +1774,20 @@ async function checkAlreadyVotedAndProceed(){
         if (error) throw error;
         if (data){
             potmModalShell(`
-                <div style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                <div style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
                     <div style="font-size:1.6rem;margin-bottom:6px;">🗳️</div>
-                    <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Ai votat deja pentru acest meci!</div>
-                    <div style="font-size:.72rem;color:#7d6849;margin-top:4px;">Fiecare jucător votează o singură dată per meci.</div>
+                    <div style="font-size:.88rem;color:#f3f6fa;font-weight:700;">Ai votat deja pentru acest meci!</div>
+                    <div style="font-size:.72rem;color:#8b96a8;margin-top:4px;">Fiecare jucător votează o singură dată per meci.</div>
                 </div>
-                <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+                <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#1b2330;border:1px solid #262f3f;color:#8b96a8;font-weight:700;cursor:pointer;">Închide</button>`);
             localStorage.setItem(`potm_voted_${_potmMatch._dbId}_${_potmVoter.id}`, 'true');
             return;
         }
         renderPotmStep3();
     }catch(e){
         potmModalShell(`
-            <div style="font-size:.85rem;color:#b71c1c;margin:14px 0;">⚠️ Eroare la verificare: ${e.message}</div>
-            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(198,40,40,.1);border:1px solid #c62828;color:#b71c1c;font-weight:700;cursor:pointer;">Închide</button>`);
+            <div style="font-size:.85rem;color:#ef4444;margin:14px 0;">⚠️ Eroare la verificare: ${e.message}</div>
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid #f87171;color:#ef4444;font-weight:700;cursor:pointer;">Închide</button>`);
     }
 }
 
@@ -1759,13 +1797,13 @@ function renderPotmStep3(){
     const options = participants.sort((a,b)=>a.name.localeCompare(b.name))
         .map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
     potmModalShell(`
-        <div style="font-size:.72rem;color:#7d6849;margin-bottom:4px;">Votezi ca <b style="color:#3a2f1f;">${_potmVoter.name}</b></div>
-        <div style="font-size:.8rem;color:#3a2f1f;font-weight:700;margin:10px 0 8px;">Pe cine votezi ca Player of The Match?</div>
-        <select id="potmWhoVote" style="width:100%;padding:11px;border-radius:9px;background:#fffaf0;border:1px solid #e3d3ac;color:#3a2f1f;font-size:.88rem;margin-bottom:14px;">
+        <div style="font-size:.72rem;color:#8b96a8;margin-bottom:4px;">Votezi ca <b style="color:#f3f6fa;">${_potmVoter.name}</b></div>
+        <div style="font-size:.8rem;color:#f3f6fa;font-weight:700;margin:10px 0 8px;">Pe cine votezi ca Player of The Match?</div>
+        <select id="potmWhoVote" style="width:100%;padding:11px;border-radius:9px;background:#1b2330;border:1px solid #262f3f;color:#f3f6fa;font-size:.88rem;margin-bottom:14px;">
             <option value="">— alege coechipierul —</option>
             ${options}
         </select>
-        <button id="potmSubmitVote" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;cursor:pointer;">✅ Trimite Votul</button>
+        <button id="potmSubmitVote" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#123322,#2fd66b);border:1px solid #2fd66b;color:#fff;font-weight:700;cursor:pointer;">✅ Trimite Votul</button>
     `);
     document.getElementById('potmSubmitVote').onclick = submitPotmVote;
 }
@@ -1793,11 +1831,11 @@ async function submitPotmVote(){
             // Constraint unique (match_id, voter_player_id) — a votat deja, poate din alt tab
             if (String(error.code)==='23505' || /duplicate/i.test(error.message||'')){
                 potmModalShell(`
-                    <div style="background:rgba(255,204,0,.12);border:1px solid rgba(255,204,0,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
+                    <div style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);border-radius:10px;padding:14px;margin:14px 0;text-align:center;">
                         <div style="font-size:1.6rem;margin-bottom:6px;">🗳️</div>
-                        <div style="font-size:.88rem;color:#3a2f1f;font-weight:700;">Ai votat deja pentru acest meci!</div>
+                        <div style="font-size:.88rem;color:#f3f6fa;font-weight:700;">Ai votat deja pentru acest meci!</div>
                     </div>
-                    <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;">Închide</button>`);
+                    <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:#1b2330;border:1px solid #262f3f;color:#8b96a8;font-weight:700;cursor:pointer;">Închide</button>`);
                 return;
             }
             throw error;
@@ -1805,12 +1843,12 @@ async function submitPotmVote(){
         localStorage.setItem(`potm_voted_${_potmMatch._dbId}_${_potmVoter.id}`, 'true');
         const votedPlayer = db.players.find(p=>p.id===votedId);
         potmModalShell(`
-            <div style="background:rgba(40,167,69,.12);border:1px solid rgba(40,167,69,.4);border-radius:10px;padding:16px;margin:14px 0;text-align:center;">
+            <div style="background:rgba(47,214,107,.12);border:1px solid rgba(47,214,107,.4);border-radius:10px;padding:16px;margin:14px 0;text-align:center;">
                 <div style="font-size:1.8rem;margin-bottom:6px;">🎉</div>
-                <div style="font-size:.9rem;color:#3a2f1f;font-weight:700;">Vot trimis!</div>
-                <div style="font-size:.78rem;color:#7d6849;margin-top:4px;">Ai votat pentru <b>${votedPlayer?votedPlayer.name:'—'}</b></div>
+                <div style="font-size:.9rem;color:#f3f6fa;font-weight:700;">Vot trimis!</div>
+                <div style="font-size:.78rem;color:#8b96a8;margin-top:4px;">Ai votat pentru <b>${votedPlayer?votedPlayer.name:'—'}</b></div>
             </div>
-            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#1a3a2a,#28a745);border:1px solid #28a745;color:#fff;font-weight:700;cursor:pointer;">Gata</button>`);
+            <button onclick="closePotmModal()" style="width:100%;padding:11px;border-radius:9px;background:linear-gradient(135deg,#123322,#2fd66b);border:1px solid #2fd66b;color:#fff;font-weight:700;cursor:pointer;">Gata</button>`);
     }catch(e){
         btn.disabled = false; btn.textContent = '✅ Trimite Votul';
         showToast('⚠️ Eroare: '+e.message);
