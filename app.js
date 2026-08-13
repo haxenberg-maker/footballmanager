@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808j';
+const APP_VERSION = '20260808k';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -467,6 +467,50 @@ async function loadAll() {
                 teamGoals,   // { orange, green, black }
             };
         }).sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+
+        // ── POTM & MVP per jucător — pentru componentele noi din Smart Rating.
+        // Scopate automat la sezonul curent, pentru că se calculează din histRaw
+        // (deja filtrat cu .is('season', null) mai sus) — meciurile arhivate nu
+        // contribuie, la fel ca restul statisticilor.
+        try {
+            const currentSeasonIds = new Set((histRaw||[]).map(h=>h.id));
+
+            // POTM: câștigătorul fiecărui meci — suprascrierea manuală are
+            // prioritate, altfel jucătorul cu cele mai multe voturi la acel meci.
+            const { data: potmRaw } = await sb.from('potm_votes').select('match_id,voted_player_id');
+            const potmVotesByMatch = {};
+            (potmRaw||[]).forEach(v=>{
+                if(!currentSeasonIds.has(v.match_id)) return;
+                if(!potmVotesByMatch[v.match_id]) potmVotesByMatch[v.match_id] = {};
+                potmVotesByMatch[v.match_id][v.voted_player_id] = (potmVotesByMatch[v.match_id][v.voted_player_id]||0)+1;
+            });
+            const potmCountById = {};
+            (histRaw||[]).forEach(h=>{
+                let winnerId = h.manual_potm_player_id;
+                if(winnerId == null){
+                    const counts = potmVotesByMatch[h.id];
+                    if(counts){
+                        const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+                        if(sorted.length) winnerId = parseInt(sorted[0][0]);
+                    }
+                }
+                if(winnerId != null) potmCountById[winnerId] = (potmCountById[winnerId]||0)+1;
+            });
+            db.players.forEach(p=>{ p.potmCount = potmCountById[p.id] || 0; });
+        } catch(e){ console.warn('potm count load:', e.message); db.players.forEach(p=>{ p.potmCount = p.potmCount||0; }); }
+
+        try {
+            const currentSeasonIds = new Set((histRaw||[]).map(h=>h.id));
+            // MVP: număr simplu de voturi primite (nu doar la meciuri câștigate) —
+            // "câte MVP-uri a avut", nu o rată condiționată de rezultat.
+            const { data: mvpRaw } = await sb.from('mvp_votes').select('mvp_player_name,match_id');
+            const mvpCountByName = {};
+            (mvpRaw||[]).forEach(v=>{
+                if(v.match_id && !currentSeasonIds.has(v.match_id)) return;
+                mvpCountByName[v.mvp_player_name] = (mvpCountByName[v.mvp_player_name]||0)+1;
+            });
+            db.players.forEach(p=>{ p.mvpCount = mvpCountByName[p.name] || 0; });
+        } catch(e){ console.warn('mvp count load:', e.message); db.players.forEach(p=>{ p.mvpCount = p.mvpCount||0; }); }
 
         // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
@@ -2795,6 +2839,16 @@ function buildAlgorithmPanel(){
                 <button class="algo-btn" onclick="stepActivityIntensity(10)">+</button>
                 <span class="algo-pct">%</span>
             </div>
+        </div>
+        <div class="algo-weight-cell">
+            <span class="algo-weight-lbl">⚖️ Intensitate penalizare dezechilibru <span style="font-size:.6em;color:#9c7a4a;">(0% = ignorată, 100% = normal)</span></span>
+            <div class="algo-weight-ctrl">
+                <button class="algo-btn" onclick="stepImbalanceIntensity(-10)">−</button>
+                <input class="algo-num" type="number" id="imbalanceIntensityNum" value="${Math.round(IMBALANCE_INTENSITY*100)}" min="0" max="200" step="10"
+                    oninput="syncImbalanceIntensity()">
+                <button class="algo-btn" onclick="stepImbalanceIntensity(10)">+</button>
+                <span class="algo-pct">%</span>
+            </div>
         </div>`;
 
     document.getElementById('weightsList').innerHTML = weightsHtml + modifiersHtml;
@@ -2818,6 +2872,15 @@ function syncActivityIntensity(){
     let v = parseInt(document.getElementById('activityIntensityNum').value);
     if(isNaN(v)) v = 100;
     ACTIVITY_INTENSITY = Math.max(0, Math.min(2, v/100));
+}
+function stepImbalanceIntensity(delta){
+    IMBALANCE_INTENSITY = Math.max(0, Math.min(2, parseFloat(((IMBALANCE_INTENSITY*100+delta)/100).toFixed(2))));
+    const el = document.getElementById('imbalanceIntensityNum'); if(el) el.value = Math.round(IMBALANCE_INTENSITY*100);
+}
+function syncImbalanceIntensity(){
+    let v = parseInt(document.getElementById('imbalanceIntensityNum').value);
+    if(isNaN(v)) v = 100;
+    IMBALANCE_INTENSITY = Math.max(0, Math.min(2, v/100));
 }
 function stepWeight(key, delta){
     let val = Math.round((W[key]||0)*100) + delta;
@@ -2875,7 +2938,7 @@ function applyPreset(name){
 }
 
 function updateWeightsSum(){
-    const sum = ['winrate','goals','tags','chemistry'].reduce((s,k)=>s+(W[k]||0),0);
+    const sum = Object.keys(W_LABELS).reduce((s,k)=>s+(W[k]||0),0);
     const pct = Math.round(sum*100);
     const ok  = Math.abs(pct-100) <= 1;
 
@@ -2983,6 +3046,7 @@ function closeAlgoPreview(revert){
         W = {..._algoSnapshot.W};
         BASE_RATING = _algoSnapshot.BASE_RATING;
         ACTIVITY_INTENSITY = _algoSnapshot.ACTIVITY_INTENSITY;
+        IMBALANCE_INTENSITY = _algoSnapshot.IMBALANCE_INTENSITY ?? 1.0;
         buildAlgorithmPanel();
         showToast('↺ Modificări anulate — a rămas ce era salvat.');
     }
@@ -3565,6 +3629,10 @@ function buildModalStats(p){
                 note = tagDetails + (tagDetails?' → ':'') + `net ${rc.tagsNetSum>=0?'+':''}${rc.tagsNetSum.toFixed(2)}`;
             }
         }
+        else if (part.key === 'defense') note = p.games ? (Math.round(((p.totalGoalsConceded||0)/p.games)*100)/100)+' primite/meci (echipă) vs media poziției' : 'fără meciuri';
+        else if (part.key === 'speed') note = p.speedStatus ? `status: ${getSpeedTier(p.speedStatus)?.label||p.speedStatus} vs media roster` : 'fără status setat (neutru '+BASE_RATING.toFixed(1)+')';
+        else if (part.key === 'potm') note = (p.potmCount||0)+' POTM din '+(p.games||0)+' meciuri';
+        else if (part.key === 'mvp') note = (p.mvpCount||0)+' MVP din '+(p.games||0)+' meciuri';
         steps.push({icon, label, val:null, note, color:col(part.delta), delta:part.delta});
     });
     if (rc.imbalPen > 0) steps.push({icon:'⚠️', label:'Dezechilibru echipă', val:null, note:(p.lastImbalanceLoss||0)+' meci(uri) pierdut cu 3+ goluri', color:'#b71c1c', delta:-rc.imbalPen});
