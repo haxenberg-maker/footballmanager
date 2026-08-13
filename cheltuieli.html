@@ -848,6 +848,28 @@ async function confirmaAlocarea() {
         // Ordinea de afișare a produselor Wishlist.
         const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
 
+
+        function leagaButoaneAlocare() {
+            document.querySelectorAll('#wishlistContainer .btn-allocate').forEach(button => {
+                // Prevent duplicate handlers after every wishlist refresh.
+                button.onclick = null;
+
+                if (button.disabled) return;
+
+                button.addEventListener('click', function handleAllocationClick(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const id = Number(this.dataset.allocationId);
+                    const current = Number(this.dataset.allocationCurrent || 0);
+                    const target = Number(this.dataset.allocationTarget || 0);
+                    const name = window.wishlistNames[String(id)] || 'Produs';
+
+                    deschideModalAlocare(id, name, current, target);
+                }, { once: false });
+            });
+        }
+
         async function incarcaWishlist() {
             try {
                 const { data: cheltuieli, error } = await sb
@@ -949,6 +971,7 @@ async function confirmaAlocarea() {
                                 <button
                                     class="btn-allocate"
                                     ${canAllocate ? '' : 'disabled'}
+                                    type="button"
                                     title="${eComplet ? 'Produs complet finanțat' : (globalSoldDisponibil > 0 ? 'Alocă bani din buget' : 'Nu există buget disponibil')}"
                                     data-allocation-id="${it.id}"
                                     
@@ -962,6 +985,7 @@ async function confirmaAlocarea() {
                 });
 
                 actualizeazaSoldFinal();
+                leagaButoaneAlocare();
             } catch(e) {
                 console.error(e);
             }
