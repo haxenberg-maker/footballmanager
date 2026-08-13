@@ -429,7 +429,6 @@
 </head>
 <body>
 
-    <!-- AUTH SECTION -->
     <div id="loginGate">
         <div class="login-box">
             <h2>🔒 Acces Buget</h2>
@@ -447,119 +446,117 @@
         </div>
     </div>
 
-    <!-- MAIN APP CONTENT -->
     <div id="appContent">
-        <div class="container">
-            <div class="header-area">
-                <h1>💰 Management Buget & Încasări</h1>
-                <div class="header-actions">
-                    <button class="btn-report-icon" title="Copiază Raport Grup" data-action="report">📋</button>
-                    <button class="btn-logout" data-action="logout">Ieși din cont</button>
-                    <a href="index.html" class="btn-back">← Înapoi</a>
+    <div class="container">
+        <div class="header-area">
+            <h1>💰 Management Buget & Încasări</h1>
+            <div class="header-actions">
+                <button class="btn-report-icon" title="Copiază Raport Grup" data-action="report">📋</button>
+                <button class="btn-logout" data-action="logout">Ieși din cont</button>
+                <a href="index.html" class="btn-back">← Înapoi</a>
+            </div>
+        </div>
+
+        <div class="total-budget-box">
+            <div class="budget-summary-grid">
+                <div class="budget-stat">
+                    <span class="budget-label">💰 BUGET TOTAL</span>
+                    <span class="suma budget-total" id="totalBuget">0 RON</span>
+                    <small>Total încasări</small>
+                </div>
+                <div class="budget-stat">
+                    <span class="budget-label">🎯 ALOCAT WISHLIST</span>
+                    <span class="suma budget-allocated" id="totalAlocat">0 RON</span>
+                    <small>Bani puși pe produse</small>
+                </div>
+                <div class="budget-stat budget-available">
+                    <span class="budget-label">💵 DISPONIBIL</span>
+                    <span class="suma" id="totalColectat">0 RON</span>
+                    <small>Poți aloca din această sumă</small>
                 </div>
             </div>
+        </div>
 
-            <div class="total-budget-box">
-                <div class="budget-summary-grid">
-                    <div class="budget-stat">
-                        <span class="budget-label">💰 BUGET TOTAL</span>
-                        <span class="suma budget-total" id="totalBuget">0 RON</span>
-                        <small>Total încasări</small>
+        <div class="main-layout">
+            <!-- COLOANA STÂNGA -->
+            <div>
+                <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Ce trebuie cumpărat? (Produs)</label>
+                        <input type="text" id="itemName" placeholder="Ex: Minge WC26 Trionda Pro">
                     </div>
-                    <div class="budget-stat">
-                        <span class="budget-label">🎯 ALOCAT WISHLIST</span>
-                        <span class="suma budget-allocated" id="totalAlocat">0 RON</span>
-                        <small>Bani puși pe produse</small>
+                    <div class="form-group">
+                        <label>Preț Total Necesar (RON)</label>
+                        <input type="number" id="itemTarget" placeholder="Ex: 470">
                     </div>
-                    <div class="budget-stat budget-available">
-                        <span class="budget-label">💵 DISPONIBIL</span>
-                        <span class="suma" id="totalColectat">0 RON</span>
-                        <small>Poți aloca din această sumă</small>
+                    <div class="form-group">
+                        <label>Prioritate</label>
+                        <select id="itemPriority">
+                            <option value="mare">Mare 🔥</option>
+                            <option value="medie" selected>Medie ⚡</option>
+                            <option value="mica">Mică 💤</option>
+                        </select>
                     </div>
+                    <div style="font-size:0.8rem;color:#64748b;">💡 După adăugare, folosește butonul <strong>Alocă din buget</strong> de pe produs și introdu suma pe care vrei să o pui deoparte.</div>
+                    <button class="btn-add" data-action="add-wishlist">Adaugă în Wishlist</button>
                 </div>
+
+                <h2>📋 Listă Achiziții & Progres</h2>
+                <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
             </div>
 
-            <div class="main-layout">
-                <!-- COLOANA STÂNGA -->
-                <div>
-                    <h2>🎯 Adaugă Necesar / Produse (Wishlist)</h2>
-                    <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
-                        <div class="form-group">
-                            <label>Ce trebuie cumpărat? (Produs)</label>
-                            <input type="text" id="itemName" placeholder="Ex: Minge WC26 Trionda Pro">
-                        </div>
-                        <div class="form-group">
-                            <label>Preț Total Necesar (RON)</label>
-                            <input type="number" id="itemTarget" min="0.01" step="0.01" placeholder="Ex: 470">
-                        </div>
-                        <div class="form-group">
-                            <label>Prioritate</label>
-                            <select id="itemPriority">
-                                <option value="mare">Mare 🔥</option>
-                                <option value="medie" selected>Medie ⚡</option>
-                                <option value="mica">Mică 💤</option>
-                            </select>
-                        </div>
-                        <div style="font-size:0.8rem;color:#64748b;">💡 După adăugare, folosește butonul <strong>Alocă din buget</strong> de pe produs și introdu suma pe care vrei să o pui deoparte.</div>
-                        <button class="btn-add" data-action="add-wishlist">Adaugă în Wishlist</button>
+            <!-- COLOANA DREAPTĂ -->
+            <div>
+                <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Selectează Jucătorul</label>
+                        <select id="paymentPlayer">
+                            <option value="">Se încarcă jucătorii...</option>
+                        </select>
                     </div>
-
-                    <h2>📋 Listă Achiziții & Progres</h2>
-                    <div id="wishlistContainer" style="margin-top: 15px;">Încarcă necesar...</div>
+                    <div class="form-group">
+                        <label>Suma Plătită (RON)</label>
+                        <input type="number" id="paymentAmount" placeholder="Ex: 50">
+                    </div>
+                    <div class="form-group">
+                        <label>Detalii Plată</label>
+                        <input type="text" id="paymentDetails" placeholder="Ex: Cotizatie minge / Rest sintetic">
+                    </div>
+                    <button class="btn-add btn-add-payment" data-action="add-payment">Adaugă Plată</button>
                 </div>
 
-                <!-- COLOANA DREAPTĂ -->
-                <div>
-                    <h2>💵 Înregistrează Plată Nouă (Jucător)</h2>
-                    <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
-                        <div class="form-group">
-                            <label>Selectează Jucătorul</label>
-                            <select id="paymentPlayer">
-                                <option value="">Se încarcă jucătorii...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Suma Plătită (RON)</label>
-                            <input type="number" id="paymentAmount" min="0.01" step="0.01" placeholder="Ex: 50">
-                        </div>
-                        <div class="form-group">
-                            <label>Detalii Plată</label>
-                            <input type="text" id="paymentDetails" placeholder="Ex: Cotizatie minge / Rest sintetic">
-                        </div>
-                        <button class="btn-add btn-add-payment" data-action="add-payment">Adaugă Plată</button>
+                <h2 style="margin-top: 25px;">💸 Adaugă Cheltuială</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Suma Cheltuielii (RON)</label>
+                        <input type="number" id="expenseAmount" min="0.01" step="0.01" placeholder="Ex: 250">
                     </div>
+                    <div class="form-group">
+                        <label>Detalii Cheltuială</label>
+                        <input type="text" id="expenseDetails" placeholder="Ex: Închiriere teren / Echipament">
+                    </div>
+                    <button class="btn-add" style="background:#ef4444;color:#fff;" data-action="add-expense">Adaugă Cheltuială</button>
+                    <div style="font-size:0.8rem;color:#64748b;">
+                        💡 Cheltuiala se scade imediat din bugetul disponibil. Nu afectează procentul produselor din Wishlist.
+                    </div>
+                </div>
 
-                    <h2 style="margin-top: 25px;">💸 Adaugă Cheltuială Directă</h2>
-                    <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
-                        <div class="form-group">
-                            <label>Suma Cheltuielii (RON)</label>
-                            <input type="number" id="expenseAmount" min="0.01" step="0.01" placeholder="Ex: 250">
-                        </div>
-                        <div class="form-group">
-                            <label>Detalii Cheltuială</label>
-                            <input type="text" id="expenseDetails" placeholder="Ex: Închiriere teren / Echipament">
-                        </div>
-                        <button class="btn-add" style="background:#ef4444;color:#fff;" data-action="add-expense">Adaugă Cheltuială</button>
-                        <div style="font-size:0.8rem;color:#64748b;">
-                            💡 Cheltuiala se scade imediat din bugetul disponibil. Nu afectează procentul produselor din Wishlist.
-                        </div>
-                    </div>
+                <div class="panel">
+                    <h2>👥 Istoric Încasări Jucători</h2>
+                    <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+                </div>
 
-                    <div class="panel">
-                        <h2>👥 Istoric Încasări Jucători</h2>
-                        <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
-                    </div>
-
-                    <div class="panel" style="margin-top: 20px;">
-                        <h2>💸 Istoric Cheltuieli Directe</h2>
-                        <div id="expensesHistory" style="margin-top: 15px;">Încarcă cheltuielile...</div>
-                    </div>
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>💸 Istoric Cheltuieli</h2>
+                    <div id="expensesHistory" style="margin-top: 15px;">Încarcă cheltuielile...</div>
                 </div>
             </div>
         </div>
     </div>
+    </div>
 
-    <!-- MODAL ALOCARE FONDURI -->
     <div id="allocationModal" class="allocation-modal">
         <div class="allocation-box">
             <h3>🎯 Alocă din buget</h3>
@@ -571,7 +568,7 @@
             </div>
             <div class="allocation-actions">
                 <button type="button" class="btn-cancel" id="cancelAllocationButton">Anulează</button>
-                <button type="button" class="btn-add" id="confirmAllocationButton">Alocă banii</button>
+                <button type="button" class="btn-add" id="confirmAllocationButton" data-action="confirm-allocation">Alocă banii</button>
             </div>
         </div>
     </div>
@@ -588,7 +585,7 @@
         let dateRaportIncasari = [];
         let dateRaportWishlist = [];
 
-        let currentAllocationItemId = null;
+        let allocationItemId = null;
         let allocationMax = 0;
 
         const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
@@ -605,11 +602,7 @@
         }
 
         function deschideModalAlocare(id, nume, sumaAlocata, tinta) {
-            currentAllocationItemId = Number(id);
-            
-            const confirmBtn = document.getElementById('confirmAllocationButton');
-            confirmBtn.setAttribute('data-target-id', id);
-
+            allocationItemId = id;
             const restProdus = Math.max(0, tinta - sumaAlocata);
             allocationMax = Math.min(globalSoldDisponibil, restProdus);
 
@@ -631,16 +624,13 @@
         function inchideModalAlocare() {
             const modal = document.getElementById('allocationModal');
             if (modal) modal.classList.remove('open');
-            currentAllocationItemId = null;
+            allocationItemId = null;
             allocationMax = 0;
         }
 
         async function confirmaAlocarea() {
-            const confirmBtn = document.getElementById('confirmAllocationButton');
-            const targetId = currentAllocationItemId || Number(confirmBtn.getAttribute('data-target-id'));
-
-            if (!targetId || isNaN(targetId)) {
-                alert('Eroare: Niciun produs selectat. Te rugăm să reîncerci.');
+            if (allocationItemId === null || allocationItemId === undefined || allocationItemId === '') {
+                alert('Eroare: Niciun produs selectat.');
                 return;
             }
 
@@ -648,7 +638,7 @@
             const suma = parseFloat(input.value);
 
             if (isNaN(suma) || suma <= 0) {
-                alert('Te rog introdu o sumă validă mai mare decât 0.');
+                alert('Te rog introdu suma pe care dorești să o aloci!');
                 input.focus();
                 return;
             }
@@ -662,7 +652,7 @@
                 const { data: item, error: fetchError } = await sb
                     .from('cheltuieli')
                     .select('id, descriere, suma')
-                    .eq('id', targetId)
+                    .eq('id', allocationItemId)
                     .single();
 
                 if (fetchError) throw fetchError;
@@ -676,6 +666,11 @@
                 const alocatActual = parseFloat(payload.pret_alocat ?? 0);
                 const nouAlocat = Math.min(tinta, alocatActual + suma);
 
+                if (nouAlocat <= alocatActual) {
+                    alert('Produsul este deja complet finanțat.');
+                    return;
+                }
+
                 payload.isWishlist = true;
                 payload.produs = payload.produs || item.descriere;
                 payload.pret_total = tinta;
@@ -688,7 +683,7 @@
                         descriere: JSON.stringify(payload),
                         suma: tinta
                     })
-                    .eq('id', targetId);
+                    .eq('id', allocationItemId);
 
                 if (updateError) throw updateError;
 
@@ -736,7 +731,7 @@
                                 <div class="player-row-top">
                                     <span>${numeJucator}</span>
                                     <div>
-                                        <span class="amount-paid">+${sumaIncasata.toFixed(2)} RON</span>
+                                        <span class="amount-paid">+${sumaIncasata} RON</span>
                                         <button class="delete-btn" data-delete-payment="${i.id}">🗑️</button>
                                     </div>
                                 </div>
@@ -867,8 +862,8 @@
                         prioritate: it.prioritate
                     });
 
-                    // Curățare nume pentru siguranță completă HTML
-                    const safeName = it.numeProdus.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                    // Curatare nume produs pentru atribute HTML safe
+                    const numeSafe = it.numeProdus.replace(/"/g, '&quot;');
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -894,13 +889,14 @@
                                     ${eComplet ? 'Produsul este finanțat 100%.' : `Progres finanțare: ${procent}%`}
                                 </span>
                                 <button
-                                    class="btn-allocate btn-open-modal"
+                                    class="btn-allocate"
                                     ${eComplet ? 'disabled' : ''}
                                     type="button"
-                                    data-id="${it.id}"
-                                    data-nume="${safeName}"
-                                    data-alocat="${curent}"
-                                    data-tinta="${tinta}">
+                                    data-action="open-allocation"
+                                    data-allocation-id="${it.id}"
+                                    data-allocation-name="${numeSafe}"
+                                    data-allocation-current="${curent}"
+                                    data-allocation-target="${tinta}">
                                     🎯 Alocă din buget
                                 </button>
                             </div>
@@ -970,8 +966,7 @@
         }
 
         async function salveazaCheltuiala() {
-            // Eliminăm ghilimelele la salvare pentru prevenire de erori pe viitor
-            const nume = document.getElementById('itemName').value.trim().replace(/"/g, '');
+            const nume = document.getElementById('itemName').value.trim();
             const tinta = parseFloat(document.getElementById('itemTarget').value);
             const prioritate = document.getElementById('itemPriority').value;
 
@@ -1015,7 +1010,7 @@
                 const { error } = await sb.from('cheltuieli').delete().eq('id', id);
                 if (error) throw error;
                 await incarcaBugetSiJucatori();
-            } catch(e) { alert("Eroare la ștergerea produsului."); }
+            } catch(e) { alert("Eroare"); }
         }
 
         async function stergePlata(id) {
@@ -1024,18 +1019,20 @@
                 const { error } = await sb.from('incasari').delete().eq('id', id);
                 if (error) throw error;
                 await incarcaBugetSiJucatori();
-            } catch(e) { alert("Eroare la ștergerea plății."); }
+            } catch(e) { alert("Eroare"); }
         }
 
         function genereazaTabelaRaport() {
+            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            
             let text = `👑 *UPDATE FINANCIAR - ARENA FC* 👑\n`;
             text += `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n`;
             
             text += `💰 *STARE BUGET:*\n`;
-            text += `└ Buget Disponibil: *${globalSoldDisponibil.toFixed(2)} RON*\n`;
+            text += `└ Buget Disponibil: *${soldFinal.toFixed(2)} RON*\n`;
             text += `└ Total Strâns: _${globalIncasari.toFixed(2)} RON_\n`;
             text += `└ Total Alocat Wishlist: _${globalCheltuieliAlocate.toFixed(2)} RON_\n`;
-            text += `└ Cheltuieli Directe: _${globalCheltuieliReale.toFixed(2)} RON_\n\n`;
+            text += `└ Cheltuieli Reale: _${globalCheltuieliReale.toFixed(2)} RON_\n\n`;
 
             text += `🎯 *CE VREM SĂ CUMPĂRĂM / WISHLIST:*\n`;
             if(dateRaportWishlist.length === 0) {
@@ -1072,47 +1069,51 @@
             text += `⚡ _Raport actualizat în timp real din aplicație._`;
 
             navigator.clipboard.writeText(text).then(() => {
-                alert("📋 Raportul a fost copiat în Clipboard! Îl poți lipi pe WhatsApp.");
+                alert("📋 Raportul formatat a fost copiat! Dă Paste direct pe grupul de WhatsApp.");
             }).catch(err => {
-                alert("Nu am putut copia raportul automat.");
+                alert("Eroare la copiere.");
             });
         }
 
-        // Event listeneri pentru modal
-        document.getElementById('confirmAllocationButton').addEventListener('click', confirmaAlocarea);
-        document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
-
-        // Delegation global pe toată pagina pentru performanță și stabilitate
+        // Delegare globală pentru evenimente
         document.addEventListener('click', async (e) => {
-            const btnOpenModal = e.target.closest('.btn-open-modal');
-            if (btnOpenModal) {
-                const id = btnOpenModal.dataset.id;
-                const nume = btnOpenModal.dataset.nume;
-                const alocat = parseFloat(btnOpenModal.dataset.alocat);
-                const tinta = parseFloat(btnOpenModal.dataset.tinta);
-                deschideModalAlocare(id, nume, alocat, tinta);
+            const btn = e.target.closest('button, [data-action]');
+            
+            // Deschidere Modal Alocare
+            if (btn && btn.dataset.action === 'open-allocation') {
+                if (globalSoldDisponibil <= 0) {
+                    alert("Nu ai suficient buget disponibil pentru a face o alocare!");
+                    return;
+                }
+                const id = btn.dataset.allocationId;
+                const current = Number(btn.dataset.allocationCurrent || 0);
+                const target = Number(btn.dataset.allocationTarget || 0);
+                const name = btn.dataset.allocationName || 'Produs';
+                deschideModalAlocare(id, name, current, target);
                 return;
             }
 
+            // Stergere Wishlist
             const btnWishlist = e.target.closest('[data-delete-wishlist]');
             if (btnWishlist) {
                 stergeObiectiv(btnWishlist.dataset.deleteWishlist);
                 return;
             }
 
+            // Stergere Plata
             const btnPayment = e.target.closest('[data-delete-payment]');
             if (btnPayment) {
                 stergePlata(btnPayment.dataset.deletePayment);
                 return;
             }
 
+            // Stergere Cheltuiala
             const btnExpense = e.target.closest('[data-delete-expense]');
             if (btnExpense) {
                 stergeCheltuiala(btnExpense.dataset.deleteExpense);
                 return;
             }
 
-            const btn = e.target.closest('button, [data-action]');
             if (!btn) return;
 
             const action = btn.dataset.action;
@@ -1122,8 +1123,11 @@
             if (action === 'add-wishlist') salveazaCheltuiala();
             if (action === 'add-payment') salveazaPlata();
             if (action === 'add-expense') salveazaCheltuialaReala();
+            if (action === 'confirm-allocation') confirmaAlocarea();
         });
 
+        document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
+        
         document.getElementById('allocationModal').addEventListener('click', (e) => {
             if (e.target.id === 'allocationModal') inchideModalAlocare();
         });
