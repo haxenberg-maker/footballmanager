@@ -568,7 +568,7 @@
             </div>
             <div class="allocation-actions">
                 <button type="button" class="btn-cancel" id="cancelAllocationButton">Anulează</button>
-                <button type="button" class="btn-add" id="confirmAllocationButton" data-action="confirm-allocation">Alocă banii</button>
+                <button type="button" class="btn-add" id="confirmAllocationButton">Alocă banii</button>
             </div>
         </div>
     </div>
@@ -585,7 +585,7 @@
         let dateRaportIncasari = [];
         let dateRaportWishlist = [];
 
-        let allocationItemId = null;
+        let currentAllocationItemId = null;
         let allocationMax = 0;
 
         const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
@@ -602,7 +602,12 @@
         }
 
         function deschideModalAlocare(id, nume, sumaAlocata, tinta) {
-            allocationItemId = id;
+            currentAllocationItemId = id;
+            
+            // Stocam ID-ul direct si pe buton pentru siguranta 100%
+            const confirmBtn = document.getElementById('confirmAllocationButton');
+            confirmBtn.setAttribute('data-target-id', id);
+
             const restProdus = Math.max(0, tinta - sumaAlocata);
             allocationMax = Math.min(globalSoldDisponibil, restProdus);
 
@@ -624,13 +629,16 @@
         function inchideModalAlocare() {
             const modal = document.getElementById('allocationModal');
             if (modal) modal.classList.remove('open');
-            allocationItemId = null;
+            currentAllocationItemId = null;
             allocationMax = 0;
         }
 
         async function confirmaAlocarea() {
-            if (!allocationItemId) {
-                alert('Eroare: Niciun produs selectat.');
+            const confirmBtn = document.getElementById('confirmAllocationButton');
+            const targetId = currentAllocationItemId || confirmBtn.getAttribute('data-target-id');
+
+            if (!targetId || targetId === 'null' || targetId === 'undefined') {
+                alert('Eroare: Niciun produs selectat. Te rugăm să reîncerci.');
                 return;
             }
 
@@ -638,7 +646,7 @@
             const suma = parseFloat(input.value);
 
             if (isNaN(suma) || suma <= 0) {
-                alert('Te rog introdu suma pe care dorești să o aloci!');
+                alert('Te rog introdu o sumă validă mai mare decât 0.');
                 input.focus();
                 return;
             }
@@ -652,7 +660,7 @@
                 const { data: item, error: fetchError } = await sb
                     .from('cheltuieli')
                     .select('id, descriere, suma')
-                    .eq('id', allocationItemId)
+                    .eq('id', Number(targetId))
                     .single();
 
                 if (fetchError) throw fetchError;
@@ -666,11 +674,6 @@
                 const alocatActual = parseFloat(payload.pret_alocat ?? 0);
                 const nouAlocat = Math.min(tinta, alocatActual + suma);
 
-                if (nouAlocat <= alocatActual) {
-                    alert('Produsul este deja complet finanțat.');
-                    return;
-                }
-
                 payload.isWishlist = true;
                 payload.produs = payload.produs || item.descriere;
                 payload.pret_total = tinta;
@@ -683,7 +686,7 @@
                         descriere: JSON.stringify(payload),
                         suma: tinta
                     })
-                    .eq('id', allocationItemId);
+                    .eq('id', Number(targetId));
 
                 if (updateError) throw updateError;
 
@@ -862,8 +865,7 @@
                         prioritate: it.prioritate
                     });
 
-                    // Curatare nume produs pentru atribute HTML safe
-                    const numeSafe = it.numeProdus.replace(/"/g, '&quot;');
+                    const numeEscaped = String(it.numeProdus).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -892,11 +894,7 @@
                                     class="btn-allocate"
                                     ${eComplet ? 'disabled' : ''}
                                     type="button"
-                                    data-action="open-allocation"
-                                    data-allocation-id="${it.id}"
-                                    data-allocation-name="${numeSafe}"
-                                    data-allocation-current="${curent}"
-                                    data-allocation-target="${tinta}">
+                                    onclick="deschideModalAlocare(${it.id}, '${numeEscaped}', ${curent}, ${tinta})">
                                     🎯 Alocă din buget
                                 </button>
                             </div>
@@ -1075,45 +1073,31 @@
             });
         }
 
-        // Delegare globală pentru evenimente
-        document.addEventListener('click', async (e) => {
-            const btn = e.target.closest('button, [data-action]');
-            
-            // Deschidere Modal Alocare
-            if (btn && btn.dataset.action === 'open-allocation') {
-                if (globalSoldDisponibil <= 0) {
-                    alert("Nu ai suficient buget disponibil pentru a face o alocare!");
-                    return;
-                }
-                const id = Number(btn.dataset.allocationId);
-                const current = Number(btn.dataset.allocationCurrent || 0);
-                const target = Number(btn.dataset.allocationTarget || 0);
-                const name = btn.dataset.allocationName || 'Produs';
-                deschideModalAlocare(id, name, current, target);
-                return;
-            }
+        // Event listener direct pe butonul de confirmare
+        document.getElementById('confirmAllocationButton').addEventListener('click', confirmaAlocarea);
+        document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
 
-            // Stergere Wishlist
+        // Delegare globala pentru butoanele de stergere si actiuni secundare
+        document.addEventListener('click', async (e) => {
             const btnWishlist = e.target.closest('[data-delete-wishlist]');
             if (btnWishlist) {
                 stergeObiectiv(btnWishlist.dataset.deleteWishlist);
                 return;
             }
 
-            // Stergere Plata
             const btnPayment = e.target.closest('[data-delete-payment]');
             if (btnPayment) {
                 stergePlata(btnPayment.dataset.deletePayment);
                 return;
             }
 
-            // Stergere Cheltuiala
             const btnExpense = e.target.closest('[data-delete-expense]');
             if (btnExpense) {
                 stergeCheltuiala(btnExpense.dataset.deleteExpense);
                 return;
             }
 
+            const btn = e.target.closest('button, [data-action]');
             if (!btn) return;
 
             const action = btn.dataset.action;
@@ -1123,11 +1107,8 @@
             if (action === 'add-wishlist') salveazaCheltuiala();
             if (action === 'add-payment') salveazaPlata();
             if (action === 'add-expense') salveazaCheltuialaReala();
-            if (action === 'confirm-allocation') confirmaAlocarea();
         });
 
-        document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
-        
         document.getElementById('allocationModal').addEventListener('click', (e) => {
             if (e.target.id === 'allocationModal') inchideModalAlocare();
         });
