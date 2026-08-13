@@ -270,6 +270,20 @@ function getRowTeamNames(h){
     return names;
 }
 
+// Numele echipei care a câștigat o TURĂ (rând din roundsDetail) a unei perechi
+// dintr-o sesiune 3 echipe. Folosește loser_name (setat pentru orice tură cu
+// un câștigător clar) și penalty_winner_name (pentru turele decise la penalty).
+// Returnează null dacă tura a fost egală și nu s-a jucat penalty.
+function getRoundWinnerName(h, r) {
+    if (!r) return null;
+    if (r.end_reason === 'penalty' && r.penalty_winner_name) return r.penalty_winner_name;
+    if (r.loser_name) {
+        const teams = getRowTeamNames(h);
+        return teams.find(t => t !== r.loser_name) || null;
+    }
+    return null;
+}
+
 function getWinnerSideFromScore(h) {
     const w = (h.winner||'').toLowerCase().trim();
     if (!w || w === 'egal') return 'draw';
@@ -438,14 +452,18 @@ function renderSessionCard(rows){
     const hattricks = [];
     chrono.forEach(h => { if (h.topScorer && h.topScorer.goals >= 3) hattricks.push({ name: h.topScorer.name, goals: h.topScorer.goals, teams: getRowTeamNames(h) }); });
 
-    const teamPlayed = {}, teamWon = {};
+    const teamPlayed = {}, teamWon = {}, teamRoundsWon = {};
     chrono.forEach(h => {
         getRowTeamNames(h).forEach(t => { teamPlayed[t]=(teamPlayed[t]||0)+1; });
         if (h.winner) teamWon[h.winner]=(teamWon[h.winner]||0)+1;
+        (h.roundsDetail||[]).forEach(r => {
+            const rw = getRoundWinnerName(h, r);
+            if (rw) teamRoundsWon[rw] = (teamRoundsWon[rw]||0) + 1;
+        });
     });
     const standingColor = { Portocaliu: teamColorsPublic.orange, Verde: teamColorsPublic.green, Negru: teamColorsPublic.black };
     const standingHTML = Object.keys(teamPlayed).map(t =>
-        `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span>`
+        `<span style="color:${standingColor[t]||'#3a2f1f'};font-weight:700;">${t}</span> <span style="color:#7d6849;">${teamWon[t]||0}/${teamPlayed[t]}</span><span style="color:#a8916b;font-size:.82em;"> (${teamRoundsWon[t]||0} ture)</span>`
     ).join('<span style="color:#c9b587;margin:0 6px;">·</span>');
 
     // ── ⏱ Timp pe teren, per echipă (ca la Live → 📊 Stats) ──────────────
@@ -486,8 +504,9 @@ function renderSessionCard(rows){
         minutes: Math.round((totalSeconds[name]||0) / 60),
         team: playerTeamName[name],
     })).sort((a,b) => b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name));
-    const topScorersList  = allScorersList.filter(s => s.goals > 0).slice(0, 5);
-    const restScorersList = allScorersList.slice(topScorersList.length); // restul (inclusiv cei cu 0 goluri), pentru "Vezi mai mult"
+    const scoringPlayersList = allScorersList.filter(s => s.goals > 0); // fără cei cu 0 goluri
+    const topScorersList  = scoringPlayersList.slice(0, 5);
+    const restScorersList = scoringPlayersList.slice(topScorersList.length); // restul marcatorilor (tot cu goluri > 0), pentru "Vezi mai mult"
     const scorerRowHtml = (s,i) => `<div style="display:flex;align-items:center;gap:7px;padding:3px 0;font-size:.74rem;">
             <span style="width:7px;height:7px;border-radius:50%;background:${standingColor[s.team]||'#3a2f1f'};flex-shrink:0;"></span>
             <span style="flex:1;font-weight:700;color:#3a2f1f;">${i===0?'🥇 ':''}${s.name}</span>
@@ -637,11 +656,16 @@ function openMatchDetail(dbId){
             const goalsHtml = Array.isArray(r.goals) && r.goals.length
                 ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#7d6849;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
                 : `<div style="font-size:.66rem;color:#a8916b;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
+            const roundWinnerName = getRoundWinnerName(h, r);
+            const winnerHtml = roundWinnerName
+                ? `<span style="color:${teamHex(roundWinnerName==='Portocaliu'?'orange':roundWinnerName==='Verde'?'green':'black')};font-weight:700;">🏆 ${roundWinnerName}</span>`
+                : `<span style="color:#a8916b;">Egal</span>`;
             return `<div style="padding:7px 0;border-bottom:1px solid #e3d3ac;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#3a2f1f;">
                     <span>Tur ${r.num}</span>
                     <span style="font-weight:400;color:#7d6849;">${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span>
                 </div>
+                <div style="margin-top:2px;font-size:.7rem;">${winnerHtml}</div>
                 <div style="margin-top:3px;">${goalsHtml}</div>
             </div>`;
         }).join('');
