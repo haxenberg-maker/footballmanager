@@ -1920,17 +1920,24 @@ function openFinalize() {
     const oG = roundG.filter(g=>g.team==='orange').length;
     const gG = roundG.filter(g=>g.team==='green').length;
     if (mode && (oG>0||gG>0)) {
+        const curOTid = getTeamIdByColor('orange')||'teamA';
+        const curGTid = getTeamIdByColor('green')||'teamB';
+        // Tura curentă (neîncheiată) e inclusă ca "tură finală" la finalizarea
+        // întregului meci — trebuie să aibă un câștigător stabilit din scor,
+        // altfel apare "Egal" în istoric deși una din echipe conduce clar.
+        const curLoserTeamId = oG > gG ? curGTid : gG > oG ? curOTid : null;
         allRounds.push({
             id: '__current__',
             num: allRounds.length+1,
-            team_a_id: getTeamIdByColor('orange')||'teamA',
-            team_b_id: getTeamIdByColor('green')||'teamB',
+            team_a_id: curOTid,
+            team_b_id: curGTid,
             score_a: oG, score_b: gG,
             orange_players: players.filter(p=>p.status==='orange').map(p=>p.name),
             green_players:  players.filter(p=>p.status==='green').map(p=>p.name),
             goals: roundG,
             duration_sec: calcRoundElapsedSec(liveState),
             end_reason: 'final',
+            loser_team_id: curLoserTeamId,
         });
     }
     if (mode) {
