@@ -577,6 +577,7 @@ function renderSessionCard(rows){
     }).join('');
 
     const sessDomId = 'sessDetails_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
+    const timeDomId = 'sessTime_' + String(first._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
 
     return `<div class="match-card">
         <div class="match-card-hero" style="background:linear-gradient(135deg,#5b7fff,#a78bfa);">
@@ -587,10 +588,6 @@ function renderSessionCard(rows){
             <div class="mc-standing">${standingHTML}</div>
             <button class="mc-details-toggle" onclick="toggleSessionDetails('${sessDomId}', this)">▼ Afișează detalii</button>
             <div id="${sessDomId}" style="display:none;margin-top:10px;">
-                <div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
-                    <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:6px;">⏱ Timp pe teren</div>
-                    ${teamTimeHtml || '<div style="font-size:.7rem;color:#5b6577;">Indisponibil</div>'}
-                </div>
                 ${topScorersList.length ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
                     <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:2px;">⚽ Golgheteri sesiune</div>
                     ${topScorersHtml}
@@ -604,17 +601,21 @@ function renderSessionCard(rows){
                     ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
                 </div>
                 <div class="mc-timeline">${timelineHTML}</div>
+                <button onclick="event.stopPropagation();toggleSessionDetails('${timeDomId}', this, '▼ Timp pe teren','▲ Ascunde timp pe teren')" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:#1b2330;border:1px dashed #262f3f;color:#8b96a8;font-size:.7rem;font-weight:700;cursor:pointer;">▼ Timp pe teren</button>
+                <div id="${timeDomId}" style="display:none;margin-top:8px;background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;">
+                    ${teamTimeHtml || '<div style="font-size:.7rem;color:#5b6577;">Indisponibil</div>'}
+                </div>
             </div>
         </div>
     </div>`;
 }
 
-function toggleSessionDetails(id, btn) {
+function toggleSessionDetails(id, btn, openLabel, closeLabel) {
     const el = document.getElementById(id);
     if (!el) return;
     const open = el.style.display === 'none';
     el.style.display = open ? 'block' : 'none';
-    btn.textContent = open ? '▲ Ascunde detalii' : '▼ Afișează detalii';
+    btn.textContent = open ? (closeLabel || '▲ Ascunde detalii') : (openLabel || '▼ Afișează detalii');
 }
 
 function toggleSessionScorers(id, btn, count) {
