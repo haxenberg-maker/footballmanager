@@ -96,7 +96,7 @@ body{font-family:var(--font-body);background:
 .streak-banner-sub{font-size:.66rem;color:var(--ink-dim);}
 .milestone-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:4px;}
 .milestone-badge{font-size:.6rem;padding:2px 7px;border-radius:6px;background:rgba(255,210,63,.14);border:1px solid rgba(255,210,63,.38);color:#ffd23f;white-space:nowrap;font-weight:700;}
-.week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px;}
+.week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px;}
 @media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
 .week-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:13px 15px;}
 .week-card-title{font-family:var(--font-display);font-size:.9rem;letter-spacing:1.5px;color:var(--ink-dim);margin-bottom:9px;}
@@ -109,6 +109,15 @@ body{font-family:var(--font-body);background:
 .derby-teams{display:flex;justify-content:space-between;font-size:.7rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
 .derby-summary{font-size:.76rem;color:var(--ink-soft);margin-top:6px;text-align:center;line-height:1.5;}
 .derby-date{text-align:center;font-size:.62rem;color:var(--ink-faint);margin-top:2px;font-family:var(--font-mono);}
+
+/* ── 🏅 Cel mai bun jucător — bandă compactă (games+winrate+goluri+titluri) ── */
+.best-player-strip{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(255,210,63,.09),rgba(167,139,250,.06));border:1px solid rgba(255,210,63,.28);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:16px;}
+.best-player-icon{font-size:1.5rem;line-height:1;flex-shrink:0;}
+.best-player-body{flex-shrink:0;}
+.best-player-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--ink-dim);font-weight:600;}
+.best-player-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:.5px;color:var(--ink);}
+.best-player-stats{flex:1;display:flex;justify-content:flex-end;gap:11px;flex-wrap:wrap;font-family:var(--font-mono);font-size:.72rem;color:#ffd23f;font-weight:700;}
+@media(max-width:420px){.best-player-strip{flex-wrap:wrap;}.best-player-stats{justify-content:flex-start;width:100%;margin-top:2px;}}
 
 /* ── Tab de pagină: Clasament / Meciuri ── */
 .page-tabs{display:flex;gap:7px;margin-bottom:14px;}
@@ -1126,12 +1135,43 @@ function computeLastMatchTopScorer(){
     const h = rows[0];
     return { h, topScorers, goals: topGoals, isSession: last.type==='session' };
 }
+// ── 🏅 Cel mai bun jucător (all-time) — scor compus din 4 factori: meciuri
+// jucate, winrate, goluri, titluri (POTM câștigate). Normalizăm fiecare
+// factor relativ la maximul din grup (ca să nu domine un singur criteriu cu
+// scale foarte diferite), apoi combinăm cu ponderi. Eligibil doar cu minim
+// LB_MIN_GAMES meciuri, ca un singur meci cu 100% winrate să nu câștige.
+function computeBestPlayerOverall(){
+    const potmCounts = {};
+    (db.history||[]).forEach(h => { if (h.potmWinnerName) potmCounts[h.potmWinnerName] = (potmCounts[h.potmWinnerName]||0) + 1; });
+
+    const eligible = db.players.filter(p => p.games >= LB_MIN_GAMES);
+    if (!eligible.length) return null;
+
+    const stats = eligible.map(p => ({
+        name: p.name,
+        games: p.games,
+        winrate: p.games>0 ? p.wins/p.games : 0,
+        goals: p.totalGoals||0,
+        titles: potmCounts[p.name]||0,
+    }));
+    const maxGames = Math.max(...stats.map(s=>s.games), 1);
+    const maxGoals = Math.max(...stats.map(s=>s.goals), 1);
+    const maxTitles = Math.max(...stats.map(s=>s.titles), 1);
+
+    stats.forEach(s => {
+        s.score = (s.games/maxGames)*0.20 + s.winrate*0.30 + (s.goals/maxGoals)*0.20 + (s.titles/maxTitles)*0.30;
+    });
+    stats.sort((a,b) => b.score - a.score);
+    return stats[0];
+}
+
 function renderWeeklyCards(){
     const wrap = document.getElementById('weeklyCards');
     if(!wrap) return;
     const weekTeam = computeWeekTeam();
-    const derby = computeDerbyOfWeek();
-    if(!weekTeam.length && !derby){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+    const bestPlayer = computeBestPlayerOverall();
+    const topScorer = computeLastMatchTopScorer();
+    if(!weekTeam.length && !topScorer){ wrap.style.display='none'; wrap.innerHTML=''; return; }
     wrap.style.display='block';
     const teamHtml = weekTeam.length ? `<div class="week-card">
         <div class="week-card-title">📅 Echipa Săptămânii</div>
@@ -1141,27 +1181,8 @@ function renderWeeklyCards(){
             <span class="week-player-sub">${s.wins}V/${s.games}M${s.goals?' · ⚽'+s.goals:''}</span>
         </div>`).join('')}
     </div>` : '';
-    let derbyHtml = '';
-    if(derby){
-        const h=derby.h;
-        let summary;
-        if(derby.total>=7 && derby.diff<=1)      summary = `🔥🔥 Meci nebun — plin de goluri și super strâns!`;
-        else if(derby.diff===0 && derby.total>=4) summary = `⚡ Egalitate spectaculoasă, plină de goluri!`;
-        else if(derby.diff===0)                   summary = `⚡ Egalitate, ${derby.a}-${derby.b}.`;
-        else if(derby.total>=6)                   summary = `🎯 Meci plin de goluri!`;
-        else if(derby.diff===1)                   summary = `🔥 Decis la un singur gol diferență!`;
-        else                                        summary = `🎬 Cel mai captivant meci recent.`;
-        derbyHtml = `<div class="week-card">
-            <div class="week-card-title">🎬 Meciul Captivant al Săptămânii</div>
-            <div class="derby-teams"><span>${teamNames.orange}</span><span>${teamNames.green}</span></div>
-            <div class="derby-score">${derby.a} : ${derby.b}</div>
-            <div class="derby-summary">${summary}</div>
-            <div class="derby-date">${h.date||''}</div>
-        </div>`;
-    }
 
     let scorerHtml = '';
-    const topScorer = computeLastMatchTopScorer();
     if(topScorer){
         const { h, topScorers, goals, isSession } = topScorer;
         const isTie = topScorers.length > 1;
@@ -1176,7 +1197,21 @@ function renderWeeklyCards(){
         </div>`;
     }
 
-    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${derbyHtml}${scorerHtml}</div>`;
+    const bestPlayerHtml = bestPlayer ? `<div class="best-player-strip">
+        <span class="best-player-icon">🏅</span>
+        <div class="best-player-body">
+            <div class="best-player-lbl">Cel mai bun jucător</div>
+            <div class="best-player-name">${bestPlayer.name}</div>
+        </div>
+        <div class="best-player-stats">
+            <span>📅 ${bestPlayer.games}M</span>
+            <span>📈 ${Math.round(bestPlayer.winrate*100)}%</span>
+            <span>⚽ ${bestPlayer.goals}</span>
+            <span>⭐ ${bestPlayer.titles}</span>
+        </div>
+    </div>` : '';
+
+    wrap.innerHTML = `<div class="week-cards-grid">${teamHtml}${scorerHtml}</div>${bestPlayerHtml}`;
 }
 
 function getFormIndex(p){
