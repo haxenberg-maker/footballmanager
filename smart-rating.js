@@ -161,12 +161,24 @@ function getConcededScoreRelative(p){
 
 // ── Viteză (status admin, 6 trepte) ──────────────────────────────────
 /**
- * Neutru (BASE_RATING) dacă jucătorul nu are status de viteză setat —
- * nu penalizează pe nimeni doar pentru că admin n-a apucat să-l seteze.
+ * La fel ca golurile — NU o scală fixă, ci relativă la media celorlalți
+ * jucători care AU un status de viteză setat (dacă nimeni nu are setat,
+ * media cade pe 'normal'). Neutru (BASE_RATING) dacă jucătorul însuși nu
+ * are status setat — nu penalizează pe nimeni doar pentru că admin n-a
+ * apucat să-l seteze încă.
  */
-const SPEED_SCORE_DELTA = { 'slow-':-3, 'slow':-1.5, 'normal':0, 'fast':1.5, 'fast+':2.5, 'fast++':3.5 };
+const SPEED_TIER_VALUE = { 'slow-':1, 'slow':2, 'normal':3, 'fast':4, 'fast+':5, 'fast++':6 };
+function getGroupAvgSpeedValue(pool){
+    const withSpeed = pool.filter(pl => pl.speedStatus && SPEED_TIER_VALUE[pl.speedStatus] != null);
+    if (!withSpeed.length) return 3; // nimeni nu are setat → bază neutră ('normal')
+    return withSpeed.reduce((s,pl)=> s + SPEED_TIER_VALUE[pl.speedStatus], 0) / withSpeed.length;
+}
 function getSpeedScore(p){
-    const delta = (p.speedStatus && SPEED_SCORE_DELTA[p.speedStatus] != null) ? SPEED_SCORE_DELTA[p.speedStatus] : 0;
+    if (!p.speedStatus || SPEED_TIER_VALUE[p.speedStatus] == null) return BASE_RATING;
+    const myVal  = SPEED_TIER_VALUE[p.speedStatus];
+    const avgVal = getGroupAvgSpeedValue(db.players);
+    const diff   = myVal - avgVal; // interval tipic ~ -2..+2 (scală 1-6, medie ~3)
+    const delta  = Math.max(-3, Math.min(3, diff * 1.5));
     return BASE_RATING + delta;
 }
 
