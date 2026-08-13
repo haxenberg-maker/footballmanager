@@ -569,8 +569,8 @@
                 <div class="allocation-help" id="allocationHelp"></div>
             </div>
             <div class="allocation-actions">
-                <button class="btn-cancel" data-action="close-allocation">Anulează</button>
-                <button class="btn-add" data-action="confirm-allocation">Alocă banii</button>
+                <button type="button" class="btn-cancel" id="cancelAllocationButton">Anulează</button>
+                <button type="button" class="btn-add" id="confirmAllocationButton">Alocă banii</button>
             </div>
         </div>
     </div>
@@ -628,26 +628,7 @@
             allocationItemId = null;
             allocationMax = 0;
         }
-
-        document.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-delete-wishlist]');
-            if (!button) return;
-            stergeObiectiv(Number(button.dataset.deleteWishlist));
-        });
-
-        document.addEventListener('click', (event) => {
-            const button = event.target.closest('[data-allocation-id]');
-            if (!button || button.disabled) return;
-
-            const id = Number(button.dataset.allocationId);
-            const name = decodeURIComponent(button.dataset.allocationName || '');
-            const current = Number(button.dataset.allocationCurrent || 0);
-            const target = Number(button.dataset.allocationTarget || 0);
-
-            deschideModalAlocare(id, name, current, target);
-        });
-
-        async function confirmaAlocarea() {
+async function confirmaAlocarea() {
             if (!allocationItemId) return;
 
             const input = document.getElementById('allocationAmount');
@@ -747,7 +728,7 @@
                                     <span>${numeJucator}</span>
                                     <div>
                                         <span class="amount-paid">+${sumaIncasata} RON</span>
-                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
+                                        <button class="delete-btn" data-delete-payment="${i.id}">🗑️</button>
                                     </div>
                                 </div>
                                 <div class="player-row-details">
@@ -786,7 +767,7 @@
                                             <span>${parsed.detalii || 'Cheltuială'}</span>
                                             <div>
                                                 <span style="color:#ef4444;font-weight:700;">-${sumaCheltuita.toFixed(2)} RON</span>
-                                                <button class="delete-btn" onclick="stergeCheltuiala(${row.id})">🗑️</button>
+                                                <button class="delete-btn" data-delete-expense="${row.id}">🗑️</button>
                                             </div>
                                         </div>
                                         <div class="player-row-details">${row.data || ''}</div>
@@ -1100,33 +1081,6 @@
                 alert("Eroare la copiere.");
             });
         }
-
-                // Centralized click handling: no inline onclick attributes.
-        document.addEventListener('click', function(event) {
-            const el = event.target.closest('[data-action], [data-delete-payment], [data-delete-expense], [data-delete-wishlist], [data-allocation-id]');
-            if (!el) return;
-            if (el.dataset.action === 'stop-propagation') { event.stopPropagation(); return; }
-            if (el.dataset.action === 'report') return genereazaTabelaRaport();
-            if (el.dataset.action === 'logout') return delogare();
-            if (el.dataset.action === 'login') return autentifica();
-            if (el.dataset.action === 'add-wishlist') return salveazaCheltuiala();
-            if (el.dataset.action === 'add-payment') return salveazaPlata();
-            if (el.dataset.action === 'add-expense') return salveazaCheltuialaReala();
-            if (el.dataset.action === 'close-allocation') return inchideModalAlocare();
-            if (el.dataset.action === 'close-allocation-overlay') return inchideModalAlocare(event);
-            if (el.dataset.action === 'confirm-allocation') return confirmaAlocarea();
-            if (el.dataset.deletePayment) return stergePlata(el.dataset.deletePayment);
-            if (el.dataset.deleteExpense) return stergeCheltuiala(Number(el.dataset.deleteExpense));
-            if (el.dataset.deleteWishlist) return stergeObiectiv(Number(el.dataset.deleteWishlist));
-            if (el.dataset.allocationId) {
-                const id = Number(el.dataset.allocationId);
-                const current = Number(el.dataset.allocationCurrent || '0');
-                const target = Number(el.dataset.allocationTarget || '0');
-                const name = (window.wishlistNames && window.wishlistNames[String(id)]) || 'Produs';
-                return deschideModalAlocare(id, name, current, target);
-            }
-        });
-
 async function init() {
             await incarcaJucatoriDropdown();
             await incarcaBugetSiJucatori();
