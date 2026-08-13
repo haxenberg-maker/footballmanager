@@ -602,9 +602,8 @@
         }
 
         function deschideModalAlocare(id, nume, sumaAlocata, tinta) {
-            currentAllocationItemId = id;
+            currentAllocationItemId = Number(id);
             
-            // Stocam ID-ul direct si pe buton pentru siguranta 100%
             const confirmBtn = document.getElementById('confirmAllocationButton');
             confirmBtn.setAttribute('data-target-id', id);
 
@@ -635,9 +634,9 @@
 
         async function confirmaAlocarea() {
             const confirmBtn = document.getElementById('confirmAllocationButton');
-            const targetId = currentAllocationItemId || confirmBtn.getAttribute('data-target-id');
+            const targetId = currentAllocationItemId || Number(confirmBtn.getAttribute('data-target-id'));
 
-            if (!targetId || targetId === 'null' || targetId === 'undefined') {
+            if (!targetId || isNaN(targetId)) {
                 alert('Eroare: Niciun produs selectat. Te rugăm să reîncerci.');
                 return;
             }
@@ -660,7 +659,7 @@
                 const { data: item, error: fetchError } = await sb
                     .from('cheltuieli')
                     .select('id, descriere, suma')
-                    .eq('id', Number(targetId))
+                    .eq('id', targetId)
                     .single();
 
                 if (fetchError) throw fetchError;
@@ -686,7 +685,7 @@
                         descriere: JSON.stringify(payload),
                         suma: tinta
                     })
-                    .eq('id', Number(targetId));
+                    .eq('id', targetId);
 
                 if (updateError) throw updateError;
 
@@ -865,7 +864,8 @@
                         prioritate: it.prioritate
                     });
 
-                    const numeEscaped = String(it.numeProdus).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    // Curățare date pentru HTML safe
+                    const safeName = it.numeProdus.replace(/"/g, '&quot;');
 
                     container.innerHTML += `
                         <div class="wishlist-item ${eComplet ? 'completed' : ''}">
@@ -891,10 +891,13 @@
                                     ${eComplet ? 'Produsul este finanțat 100%.' : `Progres finanțare: ${procent}%`}
                                 </span>
                                 <button
-                                    class="btn-allocate"
+                                    class="btn-allocate btn-open-modal"
                                     ${eComplet ? 'disabled' : ''}
                                     type="button"
-                                    onclick="deschideModalAlocare(${it.id}, '${numeEscaped}', ${curent}, ${tinta})">
+                                    data-id="${it.id}"
+                                    data-nume="${safeName}"
+                                    data-alocat="${curent}"
+                                    data-tinta="${tinta}">
                                     🎯 Alocă din buget
                                 </button>
                             </div>
@@ -1073,12 +1076,24 @@
             });
         }
 
-        // Event listener direct pe butonul de confirmare
+        // Listener modal confirmare & anulare
         document.getElementById('confirmAllocationButton').addEventListener('click', confirmaAlocarea);
         document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
 
-        // Delegare globala pentru butoanele de stergere si actiuni secundare
+        // Delegare globală pentru clicuri
         document.addEventListener('click', async (e) => {
+            // Deschidere Modal Alocare (Rezolvă eroarea de SyntaxError)
+            const btnOpenModal = e.target.closest('.btn-open-modal');
+            if (btnOpenModal) {
+                const id = btnOpenModal.dataset.id;
+                const nume = btnOpenModal.dataset.nume;
+                const alocat = parseFloat(btnOpenModal.dataset.alocat);
+                const tinta = parseFloat(btnOpenModal.dataset.tinta);
+                deschideModalAlocare(id, nume, alocat, tinta);
+                return;
+            }
+
+            // Ștergere produse / plăți / cheltuieli
             const btnWishlist = e.target.closest('[data-delete-wishlist]');
             if (btnWishlist) {
                 stergeObiectiv(btnWishlist.dataset.deleteWishlist);
@@ -1097,6 +1112,7 @@
                 return;
             }
 
+            // Alte acțiuni
             const btn = e.target.closest('button, [data-action]');
             if (!btn) return;
 
