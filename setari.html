@@ -201,6 +201,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('potm')" id="sb-potm">
             <span class="sb-icon">⭐</span><span class="sb-label">Player of The Match</span>
         </div>
+        <div class="sb-item" onclick="switchSection('awards')" id="sb-awards">
+            <span class="sb-icon">🏆</span><span class="sb-label">Premii / Titluri</span>
+        </div>
         <div class="sb-divider"></div>
         <div class="sb-item" onclick="switchSection('data')" id="sb-data">
             <span class="sb-icon">📦</span><span class="sb-label">Date</span>
@@ -222,6 +225,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('tags')">🏷️ Tag-uri</div>
     <div class="mobile-tab" onclick="switchSection('milestones')">🎖️ Milestone</div>
     <div class="mobile-tab" onclick="switchSection('potm')">⭐ POTM</div>
+    <div class="mobile-tab" onclick="switchSection('awards')">🏆 Premii</div>
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
     <div class="mobile-tab" onclick="switchSection('compare')">🆚 Compară</div>
@@ -453,6 +457,40 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         </div>
     </div>
 </div>
+
+
+<!-- ── PREMII / TITLURI ──────────────────────────────────────── -->
+<div class="section" id="sec-awards">
+    <div class="panel-header">
+        <div class="panel-title">🏆 Premii / Titluri</div>
+        <div class="panel-sub">POTM și MVP se numără automat — aici adaugi premii personalizate (ex: Gheata de Aur)</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:8px;">➕ Adaugă un premiu</div>
+            <div style="font-size:.68rem;color:#555;margin-bottom:10px;">Premiul apare pe jucător imediat, și în clasamentul de Premii din pagina publică.</div>
+            <select id="awardPlayerSelect" class="p-input" style="width:100%;margin-bottom:8px;">
+                <option value="">— alege jucătorul —</option>
+            </select>
+            <input id="awardTitleInput" type="text" class="p-input" placeholder="Titlu (ex: Gheata de Aur)" style="width:100%;margin-bottom:8px;box-sizing:border-box;">
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <input id="awardIconInput" type="text" class="p-input" placeholder="🏆" maxlength="4" style="width:60px;text-align:center;box-sizing:border-box;">
+                <input id="awardSeasonInput" type="text" class="p-input" placeholder="Sezon (opțional, ex: Vara 2026)" style="flex:1;box-sizing:border-box;">
+            </div>
+            <input id="awardNoteInput" type="text" class="p-input" placeholder="Notă (opțional)" style="width:100%;margin-bottom:10px;box-sizing:border-box;">
+            <button onclick="addPlayerAward()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#7a5c00,var(--star));border:1px solid var(--star);color:#1a1500;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;font-weight:700;">🏆 Adaugă Premiu</button>
+        </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div class="card-title" style="margin-bottom:0;">📜 Premii acordate</div>
+                <button onclick="buildAwardsPanel()" style="background:none;border:1px solid var(--border);color:#555;padding:3px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;">↻ Reîmprospătează</button>
+            </div>
+            <div id="awardsList" style="font-size:.82rem;"></div>
+        </div>
+    </div>
+</div>
+
 <!-- ── DATE ──────────────────────────────────────────────────── -->
 <div class="section" id="sec-data">
     <div class="panel-header">
@@ -576,9 +614,12 @@ function switchSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sb-item').forEach(s=>s.classList.remove('active'));
     const sb=document.getElementById('sb-'+name);if(sb)sb.classList.add('active');
-    document.querySelectorAll('.mobile-tab').forEach((t,i)=>{
-        const names=['players','algorithm','tags','milestones','data','season','poll','compare'];
-        t.classList.toggle('active',names[i]===name);
+    // Potrivire robustă după numele secțiunii (extras din onclick), nu după poziție
+    // în array — un array poziționat greșit ținea evidențierea vizuală greșită
+    // pentru majoritatea tab-urilor mobile (ex: apăsai "Date" dar se lumina "Sezon").
+    document.querySelectorAll('.mobile-tab').forEach((t)=>{
+        const m = (t.getAttribute('onclick')||'').match(/switchSection\('([^']+)'\)/);
+        t.classList.toggle('active', m && m[1]===name);
     });
     // Show/hide save bar
     document.getElementById('algoSaveBar').classList.toggle('show', name==='algorithm');
@@ -588,6 +629,7 @@ function switchSection(name){
     if(name==='tags') buildTagsPanel();
     if(name==='milestones') buildMilestonesPanel();
     if(name==='potm') buildPotmPanel();
+    if(name==='awards') buildAwardsPanel();
     if(name==='compare') buildComparePanel();
 }
 
@@ -614,9 +656,11 @@ async function loadAll(){
         if(r.key==='weights')Object.assign(W,r.value);
         if(r.key==='base_rating')BASE_RATING=parseFloat(r.value);
         if(r.key==='activity_intensity')ACTIVITY_INTENSITY=parseFloat(r.value);
+        if(r.key==='imbalance_intensity')IMBALANCE_INTENSITY=parseFloat(r.value);
     });
     if(isNaN(BASE_RATING))BASE_RATING=5.0;
     if(isNaN(ACTIVITY_INTENSITY))ACTIVITY_INTENSITY=1.0;
+    if(isNaN(IMBALANCE_INTENSITY))IMBALANCE_INTENSITY=1.0;
     // Migrare: "Voturi colegi" (Rating/Borda/MVP) a fost eliminat complet din
     // formulă — nu mai contează deloc în Smart Rating.
     W.general=0; W.viteza=0; W.tehnica=0; W.strategie=0; W.aparare=0;
@@ -629,7 +673,7 @@ async function loadAll(){
     if(W.tags==null) W.tags=DEFAULT_W.tags;
     // Migrare: configurări salvate înainte de introducerea Chimiei.
     if(W.chemistry==null) W.chemistry=DEFAULT_W.chemistry;
-    _algoSnapshot = { W:{...W}, BASE_RATING, ACTIVITY_INTENSITY }; // baseline pt preview "înainte/după"
+    _algoSnapshot = { W:{...W}, BASE_RATING, ACTIVITY_INTENSITY, IMBALANCE_INTENSITY }; // baseline pt preview "înainte/după"
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -640,7 +684,7 @@ async function loadAll(){
         adminRating:p.admin_rating!=null?parseFloat(p.admin_rating):null,
         adminTags:p.admin_tags?p.admin_tags.split(',').filter(Boolean):[],
         totalGoals:p.total_goals||0,totalGoalsConceded:p.total_goals_conceded||0,
-        lastImbalanceLoss:p.last_imbalance_loss||0,
+        lastImbalanceLoss:p.last_imbalance_loss||0,speedStatus:p.speed_status||null,
         ratings:(p.ratings||[]).map(r=>({general:r.general||5,viteza:r.viteza||5,tehnica:r.tehnica||5,strategie:r.strategie||5,aparare:r.aparare||5}))
     }));
     // History
@@ -650,6 +694,30 @@ async function loadAll(){
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
         potmVoteDeadline:h.potm_vote_deadline||null}));
+    // POTM & MVP per jucător — pentru ca preview-ul de algoritm (componentele
+    // ⭐POTM/👑MVP) să fie corect. Aproximativ scopat (ultimele 200 meciuri,
+    // fără filtrare strictă de sezon aici) — suficient de precis pentru un
+    // preview, sursa de adevăr rămâne calculul din index.html.
+    try{
+        const matchIds=new Set(db.history.map(h=>h._dbId));
+        const{data:potmRaw}=await sb.from('potm_votes').select('match_id,voted_player_id');
+        const votesByMatch={};
+        (potmRaw||[]).forEach(v=>{ if(!matchIds.has(v.match_id))return; if(!votesByMatch[v.match_id])votesByMatch[v.match_id]={}; votesByMatch[v.match_id][v.voted_player_id]=(votesByMatch[v.match_id][v.voted_player_id]||0)+1; });
+        const potmCountById={};
+        db.history.forEach(h=>{
+            let winnerId=h.manualPotmId;
+            if(winnerId==null){
+                const counts=votesByMatch[h._dbId];
+                if(counts){ const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]); if(sorted.length) winnerId=parseInt(sorted[0][0]); }
+            }
+            if(winnerId!=null) potmCountById[winnerId]=(potmCountById[winnerId]||0)+1;
+        });
+        db.players.forEach(p=>{ p.potmCount=potmCountById[p.id]||0; });
+        const{data:mvpRaw}=await sb.from('mvp_votes').select('mvp_player_name,match_id');
+        const mvpCountByName={};
+        (mvpRaw||[]).forEach(v=>{ if(v.match_id && !matchIds.has(v.match_id))return; mvpCountByName[v.mvp_player_name]=(mvpCountByName[v.mvp_player_name]||0)+1; });
+        db.players.forEach(p=>{ p.mvpCount=mvpCountByName[p.name]||0; });
+    }catch(e){ console.warn('potm/mvp count load (preview):',e.message); db.players.forEach(p=>{ p.potmCount=p.potmCount||0; p.mvpCount=p.mvpCount||0; }); }
     // Build initial panel
     buildPlayerEditList();
 }
@@ -789,6 +857,15 @@ function buildAlgorithmPanel(){
                 <button class="w-btn" onclick="stepActivityIntensity(10)">+</button>
                 <span class="w-pct">%</span>
             </div>
+        </div>
+        <div class="w-cell">
+            <span class="w-lbl">⚖️ Intensitate penalizare dezechilibru <span style="font-size:.62em;color:#666;">(0%=ignorată, 100%=normal)</span></span>
+            <div class="w-ctrl">
+                <button class="w-btn" onclick="stepImbalanceIntensity(-10)">−</button>
+                <input class="w-num" type="number" id="imbalanceIntensityNum" value="${Math.round(IMBALANCE_INTENSITY*100)}" min="0" max="200" step="10" oninput="syncImbalanceIntensity()">
+                <button class="w-btn" onclick="stepImbalanceIntensity(10)">+</button>
+                <span class="w-pct">%</span>
+            </div>
         </div>`;
     document.getElementById('weightsList').innerHTML=weightsHtml+modifiersHtml;
     updateWeightsSum();
@@ -814,6 +891,16 @@ function syncActivityIntensity(){
     ACTIVITY_INTENSITY=Math.max(0,Math.min(2,v/100));
     renderFormulaPreview();
 }
+function stepImbalanceIntensity(delta){
+    IMBALANCE_INTENSITY=Math.max(0,Math.min(2,parseFloat(((IMBALANCE_INTENSITY*100+delta)/100).toFixed(2))));
+    const el=document.getElementById('imbalanceIntensityNum');if(el)el.value=Math.round(IMBALANCE_INTENSITY*100);
+    renderFormulaPreview();
+}
+function syncImbalanceIntensity(){
+    let v=parseInt(document.getElementById('imbalanceIntensityNum').value);if(isNaN(v))v=100;
+    IMBALANCE_INTENSITY=Math.max(0,Math.min(2,v/100));
+    renderFormulaPreview();
+}
 
 function stepWeight(key,delta){let v=Math.round((W[key]||0)*100)+delta;v=Math.max(0,Math.min(100,v));W[key]=v/100;const el=document.getElementById('wnum-'+key);if(el)el.value=v;updateWeightsSum();}
 function syncWeightNum(key){let v=parseInt(document.getElementById('wnum-'+key).value)||0;v=Math.max(0,Math.min(100,v));W[key]=v/100;updateWeightsSum();}
@@ -828,7 +915,7 @@ async function saveTagWeight(tid){
     catch(e){console.warn('saveTagWeight:',e.message);}
 }
 function updateWeightsSum(){
-    const allKeys=['winrate','goals','tags','chemistry'];
+    const allKeys=Object.keys(W_LABELS);
     const sum=allKeys.reduce((s,k)=>s+(W[k]||0),0);
     const pct=Math.round(sum*100);
     const ring=document.getElementById('algoRing');const pw=document.getElementById('algoPower');
@@ -917,6 +1004,7 @@ function closeAlgoPreview(revert){
         W={..._algoSnapshot.W};
         BASE_RATING=_algoSnapshot.BASE_RATING;
         ACTIVITY_INTENSITY=_algoSnapshot.ACTIVITY_INTENSITY;
+        IMBALANCE_INTENSITY=_algoSnapshot.IMBALANCE_INTENSITY??1.0;
         buildAlgorithmPanel();
         showToast('↺ Modificări anulate — a rămas ce era salvat.');
     }
@@ -927,25 +1015,27 @@ async function commitAlgorithmSave(){
         await sb.from('algo_settings').upsert([
             {key:'weights',value:W},
             {key:'base_rating',value:BASE_RATING},
-            {key:'activity_intensity',value:ACTIVITY_INTENSITY}
+            {key:'activity_intensity',value:ACTIVITY_INTENSITY},
+            {key:'imbalance_intensity',value:IMBALANCE_INTENSITY}
         ],{onConflict:'key'});
-        _algoSnapshot={W:{...W},BASE_RATING,ACTIVITY_INTENSITY};
+        _algoSnapshot={W:{...W},BASE_RATING,ACTIVITY_INTENSITY,IMBALANCE_INTENSITY};
         closeAlgoPreview(false);
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){showToast('⚠️ '+e.message);}
 }
 async function resetAlgorithm(){
     Object.assign(W,DEFAULT_W);
-    BASE_RATING=5.0;ACTIVITY_INTENSITY=1.0;
+    BASE_RATING=5.0;ACTIVITY_INTENSITY=1.0;IMBALANCE_INTENSITY=1.0;
     tagsConfig.forEach(t=>{TW[String(t.id)]=0;t.tw_weight=0;});
     try{
         await sb.from('algo_settings').upsert([
             {key:'weights',value:DEFAULT_W},
             {key:'base_rating',value:5.0},
-            {key:'activity_intensity',value:1.0}
+            {key:'activity_intensity',value:1.0},
+            {key:'imbalance_intensity',value:1.0}
         ],{onConflict:'key'});
         await Promise.all(tagsConfig.map(t=>sb.from('tags_config').update({tw_weight:0}).eq('id',t.id)));
-        _algoSnapshot={W:{...DEFAULT_W},BASE_RATING:5.0,ACTIVITY_INTENSITY:1.0};
+        _algoSnapshot={W:{...DEFAULT_W},BASE_RATING:5.0,ACTIVITY_INTENSITY:1.0,IMBALANCE_INTENSITY:1.0};
     }catch(e){console.warn(e);}
     buildAlgorithmPanel();buildTagsPanel();showToast('↺ Algoritm resetat (inclusiv coeficienții tag-urilor)!');
 }
