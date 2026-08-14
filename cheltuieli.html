@@ -545,6 +545,12 @@
 
                 <div class="panel">
                     <h2>👥 Istoric Încasări Jucători</h2>
+                    <div class="form-group" style="margin-top:12px;margin-bottom:0;">
+                        <label>🔎 Filtrează după cine a plătit</label>
+                        <select id="paymentNameFilter">
+                            <option value="">Toți</option>
+                        </select>
+                    </div>
                     <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
                 </div>
 
@@ -587,6 +593,8 @@
 
         let allocationItemId = null;
         let allocationMax = 0;
+        const TEAM_MARKER = '[ECHIPA] ';
+        let globalIncasariList = []; // listă completă, sortată descrescător (id desc)
 
         const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
 
@@ -700,7 +708,7 @@
                 const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
                 if (error) throw error;
                 const select = document.getElementById('paymentPlayer');
-                select.innerHTML = '<option value="">-- Alege Jucător --</option>';
+                select.innerHTML = '<option value="">-- Alege Jucător --</option><option value="team">🏆 Toată Echipa (plată comună)</option>';
                 if(data && data.length > 0) {
                     data.forEach(j => { select.innerHTML += `<option value="${j.id}">${j.name}</option>`; });
                 }
@@ -709,41 +717,31 @@
 
         async function incarcaBugetSiJucatori() {
             try {
-                const { data: incasari, error } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
+                const { data: incasari, error } = await sb
+                    .from('incasari')
+                    .select('id, suma, data, detalii, players(name)')
+                    .order('id', { ascending: false }); // cele mai noi primele
                 if (error) throw error;
-
-                const container = document.getElementById('playersContributions');
-                container.innerHTML = '';
 
                 globalIncasari = 0;
                 dateRaportIncasari = [];
+                globalIncasariList = [];
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
-                        const numeJucator = i.players ? i.players.name : 'Jucător Necunoscut';
+                        const esteEchipa = !i.players && (i.detalii || '').startsWith(TEAM_MARKER);
+                        const numeJucator = i.players ? i.players.name : (esteEchipa ? '🏆 Toată Echipa' : 'Jucător Necunoscut');
                         const sumaIncasata = parseFloat(i.suma || 0);
-                        const detaliiMeci = i.detalii || 'Fără detalii';
-                        
+                        const detaliiMeci = esteEchipa
+                            ? ((i.detalii || '').slice(TEAM_MARKER.length) || 'Fără detalii')
+                            : (i.detalii || 'Fără detalii');
+
                         globalIncasari += sumaIncasata;
                         dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
-                        
-                        container.innerHTML += `
-                            <div class="player-row">
-                                <div class="player-row-top">
-                                    <span>${numeJucator}</span>
-                                    <div>
-                                        <span class="amount-paid">+${sumaIncasata} RON</span>
-                                        <button class="delete-btn" data-delete-payment="${i.id}">🗑️</button>
-                                    </div>
-                                </div>
-                                <div class="player-row-details">
-                                    ${detaliiMeci} (${i.data || ''})
-                                </div>
-                            </div>
-                        `;
+                        globalIncasariList.push({ id: i.id, nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci, data: i.data });
                     });
-                } else {
-                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
                 }
+                populeazaFiltruPlati();
+                randeazaIncasari();
 
                 const { data: expenseRows, error: expenseError } = await sb
                     .from('cheltuieli')
@@ -787,6 +785,45 @@
 
                 await incarcaWishlist();
             } catch (e) { console.error(e); }
+        }
+
+        // Populează dropdown-ul de filtrare cu numele distincte care au plătit,
+        // păstrând selecția curentă dacă mai e validă.
+        function populeazaFiltruPlati() {
+            const sel = document.getElementById('paymentNameFilter');
+            if (!sel) return;
+            const curent = sel.value;
+            const unice = [...new Set(globalIncasariList.map(i => i.nume))].sort((a, b) => a.localeCompare(b, 'ro'));
+            sel.innerHTML = '<option value="">Toți</option>' + unice.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`).join('');
+            if (unice.includes(curent)) sel.value = curent;
+        }
+
+        // Randează lista de încasări, filtrată după numele selectat (dacă e cazul).
+        function randeazaIncasari() {
+            const container = document.getElementById('playersContributions');
+            if (!container) return;
+            const filtru = document.getElementById('paymentNameFilter')?.value || '';
+            const lista = filtru ? globalIncasariList.filter(i => i.nume === filtru) : globalIncasariList;
+
+            if (!lista.length) {
+                container.innerHTML = filtru
+                    ? `<p style="color:#64748b;">Nicio încasare de la <strong>${filtru}</strong>.</p>`
+                    : '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
+                return;
+            }
+
+            container.innerHTML = lista.map(i => `
+                <div class="player-row">
+                    <div class="player-row-top">
+                        <span>${i.nume}</span>
+                        <div>
+                            <span class="amount-paid">+${i.suma} RON</span>
+                            <button class="delete-btn" data-delete-payment="${i.id}">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="player-row-details">${i.detalii} (${i.data || ''})</div>
+                </div>
+            `).join('');
         }
 
         async function incarcaWishlist() {
@@ -916,13 +953,21 @@
             const detalii = document.getElementById('paymentDetails').value.trim();
 
             if(!jucatorId || isNaN(suma) || suma <= 0) {
-                alert("Te rog selectează un jucător și introdu o sumă validă!");
+                alert("Te rog selectează un jucător (sau Toată Echipa) și introdu o sumă validă!");
                 return;
             }
 
+            const esteEchipa = jucatorId === 'team';
+
             try {
                 const azi = new Date().toISOString().split('T')[0];
-                const { error } = await sb.from('incasari').insert([{ jucator_id: jucatorId, suma: suma, detalii: detalii || 'Cotizație', data: azi }]);
+                const payload = {
+                    jucator_id: esteEchipa ? null : jucatorId,
+                    suma: suma,
+                    detalii: (esteEchipa ? TEAM_MARKER : '') + (detalii || 'Cotizație'),
+                    data: azi
+                };
+                const { error } = await sb.from('incasari').insert([payload]);
                 if (error) throw error;
                 document.getElementById('paymentAmount').value = '';
                 document.getElementById('paymentDetails').value = '';
@@ -1023,7 +1068,9 @@
         }
 
         function genereazaTabelaRaport() {
-            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            // Bugetul disponibil trebuie să scadă și cheltuielile REALE (nu doar cele
+            // alocate în Wishlist) — la fel ca formula din actualizeazaSoldFinal().
+            const soldFinal = Math.max(0, globalIncasari - globalCheltuieliReale - globalCheltuieliAlocate);
             
             let text = `👑 *UPDATE FINANCIAR - ARENA FC* 👑\n`;
             text += `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n`;
@@ -1127,6 +1174,8 @@
         });
 
         document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
+
+        document.getElementById('paymentNameFilter')?.addEventListener('change', randeazaIncasari);
         
         document.getElementById('allocationModal').addEventListener('click', (e) => {
             if (e.target.id === 'allocationModal') inchideModalAlocare();
