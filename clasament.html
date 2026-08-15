@@ -180,6 +180,7 @@ body{font-family:var(--font-body);background:
     <div class="page-tabs">
         <button class="page-tab active" id="pgt-lb" onclick="setPageTab('leaderboard')">🏅 Clasament</button>
         <button class="page-tab" id="pgt-matches" onclick="setPageTab('matches')">⚽ Meciuri</button>
+        <button class="page-tab" id="pgt-awards" onclick="setPageTab('awards')">🏆 Premii</button>
     </div>
 
     <div id="lbSeasonRow" style="display:none;gap:4px;flex-wrap:wrap;margin-bottom:10px;"></div>
@@ -215,6 +216,12 @@ body{font-family:var(--font-body);background:
         <div id="matchesFeed"></div>
     </div>
 
+    <div class="stats-section" id="awardsSection" style="display:none;">
+        <h3>🏆 Premii / Titluri</h3>
+        <div style="font-size:.72rem;color:#8b96a8;margin-bottom:10px;">Clasament după totalul de premii — ⭐ POTM și 👑 MVP se numără automat, restul sunt titluri acordate manual.</div>
+        <div id="awardsLeaderboard"></div>
+    </div>
+
     <div class="footer-note">Actualizare automată · fără cont necesar</div>
 </div>
 
@@ -228,7 +235,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const highlightPlayer = urlParams.get('player') || urlParams.get('p');
 
 // ── State ──
-let db = { players: [], history: [] };
+let db = { players: [], history: [], playerAwards: [] };
 let tagsConfig = [];
 let PT_BY_ID = {};
 let TW = {};
@@ -265,25 +272,28 @@ function normalizeSearchStr(s){
     return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 }
 
-// ── Tab de pagină: Clasament / Meciuri ──
+// ── Tab de pagină: Clasament / Meciuri / Premii ──
 function setPageTab(tab){
     pageTab = tab;
     document.getElementById('pgt-lb').classList.toggle('active', tab==='leaderboard');
     document.getElementById('pgt-matches').classList.toggle('active', tab==='matches');
+    document.getElementById('pgt-awards').classList.toggle('active', tab==='awards');
     document.getElementById('leaderboardSection').style.display = tab==='leaderboard' ? 'block' : 'none';
     document.getElementById('matchesSection').style.display = tab==='matches' ? 'block' : 'none';
+    document.getElementById('awardsSection').style.display = tab==='awards' ? 'block' : 'none';
 
     // Selectorul de sezon (Sezon curent / sezoane arhivate) e vizibil DOAR pe tabul
-    // Clasament. Pe tabul Meciuri se ascunde complet — jucătorii nu trebuie să poată
-    // răsfoi meciurile din sezoanele vechi, deci acolo se văd mereu doar meciurile
+    // Clasament. Pe Meciuri și Premii se ascunde complet — jucătorii nu trebuie să
+    // poată răsfoi date din sezoanele vechi, deci acolo se văd mereu doar datele
     // sezonului curent, indiferent ce era selectat pe Clasament.
-    if (tab === 'matches') {
+    if (tab === 'matches' || tab === 'awards') {
         const row = document.getElementById('lbSeasonRow');
         const banner = document.getElementById('lbSeasonBanner');
         if (row) row.style.display = 'none';
         if (banner) banner.innerHTML = '';
         currentSeason = null;
-        renderMatchesFeed();
+        if (tab === 'matches') renderMatchesFeed();
+        else renderAwardsLeaderboard();
     } else {
         renderSeasonTabs();
         updateSeasonUI();
@@ -374,6 +384,29 @@ function groupHistoryForDisplay(sorted){
         i = j;
     }
     return items;
+}
+
+// Determină câștigătorul POTM pentru un set de rânduri (o sesiune întreagă
+// sau un singur meci) — suprascrierea manuală (pe orice pereche) are
+// prioritate, altfel câștigă cel cu cele mai multe voturi adunate din toate
+// rândurile date. Reutilizabil și în clasamentul de Premii (unde se
+// calculează pe TOT istoricul, nu doar o sesiune).
+function computePotmWinnerForRows(rows){
+    const votes = {};
+    let manualId = null;
+    rows.forEach(h => {
+        if (manualId == null && h.manualPotmId != null) manualId = h.manualPotmId;
+        Object.entries(h.potmVoteCounts||{}).forEach(([pid,cnt]) => {
+            votes[pid] = (votes[pid]||0) + cnt;
+        });
+    });
+    let winnerId = manualId;
+    let source = winnerId != null ? 'manual' : null;
+    if (winnerId == null) {
+        const sorted = Object.entries(votes).sort((a,b)=>b[1]-a[1]);
+        if (sorted.length) { winnerId = parseInt(sorted[0][0]); source = 'voted'; }
+    }
+    return { winnerId, source, votes };
 }
 
 // Markup comun (scoruri per echipă + golgheter) pentru o pereche
@@ -477,20 +510,7 @@ function renderSessionCard(rows){
     // sesiunii) are prioritate; altfel, adunăm voturile din TOATE perechile
     // sesiunii (fiecare h.potmVoteCounts vine dintr-un match_id diferit) și
     // câștigă cel cu cele mai multe voturi în total, pe toată sesiunea.
-    const sessionPotmVotes = {};
-    let sessionManualPotmId = null;
-    chrono.forEach(h => {
-        if (sessionManualPotmId == null && h.manualPotmId != null) sessionManualPotmId = h.manualPotmId;
-        Object.entries(h.potmVoteCounts||{}).forEach(([pid,cnt]) => {
-            sessionPotmVotes[pid] = (sessionPotmVotes[pid]||0) + cnt;
-        });
-    });
-    let sessionPotmWinnerId = sessionManualPotmId;
-    let sessionPotmSource = sessionPotmWinnerId != null ? 'manual' : null;
-    if (sessionPotmWinnerId == null) {
-        const sortedVotes = Object.entries(sessionPotmVotes).sort((a,b)=>b[1]-a[1]);
-        if (sortedVotes.length) { sessionPotmWinnerId = parseInt(sortedVotes[0][0]); sessionPotmSource = 'voted'; }
-    }
+    const { winnerId: sessionPotmWinnerId, source: sessionPotmSource, votes: sessionPotmVotes } = computePotmWinnerForRows(chrono);
     const sessionPotmPlayer = sessionPotmWinnerId != null ? db.players.find(p=>p.id==sessionPotmWinnerId) : null;
 
     const hattricks = [];
@@ -738,16 +758,18 @@ function openMatchDetail(dbId){
             const hasRoster = pairTeams.length > 0;
             const rosterId = `${modalId}_r${ri}`;
             const rosterHtml = hasRoster ? `<div id="${rosterId}" style="display:none;margin-top:6px;padding:7px 9px;background:#0e131c;border-radius:7px;border:1px solid #1d2531;">${rosterInner}</div>` : '';
-            return `<div style="padding:7px 0;border-bottom:1px solid #262f3f;${hasRoster?'cursor:pointer;':''}" ${hasRoster?`onclick="const el=document.getElementById('${rosterId}');const open=el.style.display==='none';el.style.display=open?'block':'none';this.querySelector('.tur-caret').textContent=open?'▲':'▼';"`:''}>
+            const rosterBtnHtml = hasRoster ? `<button type="button" onclick="event.stopPropagation();const el=document.getElementById('${rosterId}');const open=el.style.display==='none';el.style.display=open?'block':'none';this.textContent=open?'▲ Ascunde jucătorii':'👥 Vezi jucătorii';" style="margin-top:6px;padding:5px 10px;border-radius:6px;background:#1b2330;border:1px solid #2c384c;color:#8b96a8;font-size:.64rem;font-weight:700;cursor:pointer;">👥 Vezi jucătorii</button>` : '';
+            return `<div style="padding:7px 0;border-bottom:1px solid #262f3f;">
                 <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:.74rem;font-weight:700;color:#f3f6fa;">
-                    <span>Tur ${r.num}${hasRoster?' <span class="tur-caret" style="font-size:.6rem;color:#5b6577;font-weight:400;">▼</span>':''}</span>
+                    <span>Tur ${r.num}</span>
                     <span style="font-weight:400;font-size:.7rem;">${winnerHtml} <span style="color:#5b6577;">· ${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span></span>
                 </div>
                 <div style="margin-top:3px;">${goalsHtml}</div>
+                ${rosterBtnHtml}
                 ${rosterHtml}
             </div>`;
         }).join('');
-        listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture <span style="text-transform:none;letter-spacing:0;color:#5b6577;">(atinge o tură pentru jucători)</span></div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}`;
+        listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}`;
     } else {
         // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
         const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
@@ -817,6 +839,67 @@ function renderMatchesFeed(){
     }
 
     feed.innerHTML = items.map(item => item.type==='session' ? renderSessionCard(item.rows) : renderSingleMatchCard(item.rows[0])).join('');
+}
+
+// ── 🏆 Premii / Titluri — clasament pe TOT istoricul (sezonul curent) ──
+function renderAwardsLeaderboard(){
+    const wrap = document.getElementById('awardsLeaderboard');
+    if (!wrap) return;
+
+    // POTM total pe jucător — grupăm istoricul pe sesiuni (ca la sesiuni 3
+    // echipe, unde o sesiune întreagă are UN singur POTM, nu unul per pereche)
+    // și numărăm câștigătorii, la fel ca renderSessionCard dar peste tot istoricul.
+    const potmCountById = {};
+    groupHistoryForDisplay(db.history).forEach(item => {
+        const { winnerId } = computePotmWinnerForRows(item.rows);
+        if (winnerId != null) potmCountById[winnerId] = (potmCountById[winnerId]||0) + 1;
+    });
+
+    // MVP total pe jucător — din voturile mvp_votes încărcate deja în db.players
+    // (mvpWinCount + mvpLossCount = total voturi primite, indiferent de rezultat).
+    const mvpCountByName = {};
+    db.players.forEach(p => {
+        const total = (p.mvpWinCount||0) + (p.mvpLossCount||0);
+        if (total > 0) mvpCountByName[p.name] = total;
+    });
+
+    // Premii custom (din player_awards) — grupate pe jucător
+    const customByPlayerId = {};
+    (db.playerAwards||[]).forEach(a => {
+        if (!customByPlayerId[a.player_id]) customByPlayerId[a.player_id] = [];
+        customByPlayerId[a.player_id].push(a);
+    });
+
+    const rows = db.players.map(p => {
+        const potmCount = potmCountById[p.id] || 0;
+        const mvpCount = mvpCountByName[p.name] || 0;
+        const custom = customByPlayerId[p.id] || [];
+        const total = potmCount + mvpCount + custom.length;
+        return { p, potmCount, mvpCount, custom, total };
+    }).filter(r => r.total > 0).sort((a,b) => b.total - a.total);
+
+    if (!rows.length) {
+        wrap.innerHTML = '<div class="match-empty">Niciun premiu acordat încă (POTM, MVP sau personalizat).</div>';
+        return;
+    }
+
+    const medals = ['🥇','🥈','🥉'];
+    wrap.innerHTML = rows.map((r, i) => {
+        const chips = [];
+        if (r.potmCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM ×${r.potmCount}</span>`);
+        if (r.mvpCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(91,127,255,.1);border:1px solid rgba(91,127,255,.3);color:#60a5fa;">👑 MVP ×${r.mvpCount}</span>`);
+        r.custom.forEach(a => {
+            chips.push(`<span class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;" title="${a.note||''}">${a.icon||'🏆'} ${a.title}${a.season?' · '+a.season:''}</span>`);
+        });
+        return `<div class="match-card" style="padding:12px 16px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:${chips.length?'8px':'0'};">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:26px;text-align:center;color:${medals[i]?'var(--star)':'#8b96a8'};">${medals[i]||(i+1)}</span>
+                <span style="font-weight:700;color:#f3f6fa;flex:1;">${r.p.name}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:#f3f6fa;">${r.total} 🏆</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips.join('')}</div>
+        </div>`;
+    }).join('');
 }
 
 function playerWonMatch(h, playerName) {
@@ -1291,11 +1374,11 @@ function getSeasonMatches(seasonName){
 function renderSeasonTabs(){
     const row = document.getElementById('lbSeasonRow');
     if(!row) return;
-    // Selectorul de sezon nu are voie să apară pe tabul Meciuri (vezi setPageTab).
+    // Selectorul de sezon nu are voie să apară pe tabul Meciuri/Premii (vezi setPageTab).
     // renderSeasonTabs() e apelat și din loadAll() la fiecare reîncărcare —
     // fără verificarea asta, un reload readucea selectorul pe ecran chiar dacă
-    // userul era pe tabul Meciuri.
-    if (pageTab === 'matches') { row.style.display='none'; return; }
+    // userul era pe tabul Meciuri/Premii.
+    if (pageTab === 'matches' || pageTab === 'awards') { row.style.display='none'; return; }
     if(!seasonsList.length){ row.style.display='none'; row.innerHTML=''; return; }
     row.style.display='flex';
     const btn = (key, label) => `<button class="lb-season-btn${currentSeason===key?' active':''}" onclick="setSeason(${key===null?'null':`'${key.replace(/'/g,"\\'")}'`})">${label}</button>`;
@@ -1320,6 +1403,7 @@ function setSeason(seasonName){
     renderLeaderboard();
     renderSeasonMatchesList();
     if (pageTab === 'matches') renderMatchesFeed();
+    else if (pageTab === 'awards') renderAwardsLeaderboard();
 }
 
 function toggleSeasonMatches(){ seasonMatchesOpen = !seasonMatchesOpen; renderSeasonMatchesList(); }
@@ -1663,6 +1747,15 @@ async function loadAll(){
             }
         }catch(e){}
 
+        // Premii personalizate (Gheata de Aur etc.) — POTM/MVP se calculează
+        // automat mai jos/în renderAwardsLeaderboard, astea sunt titluri
+        // acordate manual din setari.html.
+        try{
+            const { data: awardsRaw, error } = await sb.from('player_awards').select('*').order('created_at',{ascending:false});
+            if (error) throw error;
+            db.playerAwards = awardsRaw || [];
+        }catch(e){ console.warn('player_awards load:', e.message); db.playerAwards = []; }
+
         renderMeCard();
         renderStreakBanner();
         renderWeeklyCards();
@@ -1670,6 +1763,7 @@ async function loadAll(){
         renderLeaderboard();
         renderSeasonMatchesList();
         if (pageTab === 'matches') renderMatchesFeed();
+        else if (pageTab === 'awards') renderAwardsLeaderboard();
     }catch(err){
         document.getElementById('lbContent').innerHTML = `<p style="color:#ef4444;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
     }finally{
