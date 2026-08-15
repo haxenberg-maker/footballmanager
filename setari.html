@@ -558,7 +558,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'.');
 
 // ── State ─────────────────────────────────────────────────────────
-let db={players:[],history:[]};
+let db={players:[],history:[],playerAwards:[]};
 let tagsConfig=[];
 let _algoSnapshot=null; // {W, BASE_RATING, ACTIVITY_INTENSITY} — ce e SALVAT în DB, folosit ca bază pt preview
 // DEFAULT_W, W, BASE_RATING, ACTIVITY_INTENSITY, TW, W_LABELS, PRESETS,
@@ -718,6 +718,15 @@ async function loadAll(){
         (mvpRaw||[]).forEach(v=>{ if(v.match_id && !matchIds.has(v.match_id))return; mvpCountByName[v.mvp_player_name]=(mvpCountByName[v.mvp_player_name]||0)+1; });
         db.players.forEach(p=>{ p.mvpCount=mvpCountByName[p.name]||0; });
     }catch(e){ console.warn('potm/mvp count load (preview):',e.message); db.players.forEach(p=>{ p.potmCount=p.potmCount||0; p.mvpCount=p.mvpCount||0; }); }
+
+    // Premii personalizate (Gheata de Aur etc.) — POTM/MVP se numără automat,
+    // astea sunt titluri adăugate manual de admin.
+    try{
+        const{data:awardsRaw,error}=await sb.from('player_awards').select('*').order('created_at',{ascending:false});
+        if(error) throw error;
+        db.playerAwards=awardsRaw||[];
+    }catch(e){ console.warn('player_awards load (ai rulat migrarea SQL?):',e.message); db.playerAwards=[]; }
+
     // Build initial panel
     buildPlayerEditList();
 }
@@ -1306,6 +1315,67 @@ function potmSessionLabel(rows){
         if ((h.blackPlayers||[]).length)  teamSet.add('Negru');
     });
     return `🎮 ${first.date||'—'} · Sesiune 3 Echipe (${[...teamSet].join(', ')}) · ${rows.length} meci${rows.length!==1?'uri':''}`;
+}
+
+// ── Premii / Titluri (custom, admin-set) ────────────────────────────
+function buildAwardsPanel(){
+    const sel=document.getElementById('awardPlayerSelect');
+    if(sel){
+        const current=sel.value;
+        sel.innerHTML='<option value="">— alege jucătorul —</option>'
+            + [...db.players].sort((a,b)=>a.name.localeCompare(b.name,'ro')).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+        if(current) sel.value=current;
+    }
+    const listEl=document.getElementById('awardsList');
+    if(!listEl) return;
+    if(!db.playerAwards.length){
+        listEl.innerHTML='<div style="color:#555;font-size:.75rem;">Niciun premiu personalizat acordat încă.</div>';
+        return;
+    }
+    listEl.innerHTML=db.playerAwards.map(a=>{
+        const p=db.players.find(x=>x.id===a.player_id);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:1.1rem;">${a.icon||'🏆'}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-weight:700;color:#e0e0e0;">${p?p.name:'(jucător șters)'} — ${a.title}</div>
+                <div style="font-size:.65rem;color:#888;">${a.season?a.season+' · ':''}${a.note?a.note+' · ':''}${a.created_at?new Date(a.created_at).toLocaleDateString('ro-RO'):''}</div>
+            </div>
+            <button onclick="deletePlayerAward('${a.id}')" style="background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.35);color:#ef9a9a;padding:4px 9px;border-radius:6px;font-size:.68rem;cursor:pointer;">✕</button>
+        </div>`;
+    }).join('');
+}
+
+async function addPlayerAward(){
+    const playerId=parseInt(document.getElementById('awardPlayerSelect').value);
+    const title=document.getElementById('awardTitleInput').value.trim();
+    const icon=document.getElementById('awardIconInput').value.trim()||'🏆';
+    const season=document.getElementById('awardSeasonInput').value.trim()||null;
+    const note=document.getElementById('awardNoteInput').value.trim()||null;
+    if(!playerId){ showToast('⚠️ Alege un jucător!'); return; }
+    if(!title){ showToast('⚠️ Scrie un titlu pentru premiu!'); return; }
+    try{
+        const{error}=await sb.from('player_awards').insert({player_id:playerId,title,icon,season,note});
+        if(error) throw error;
+        document.getElementById('awardTitleInput').value='';
+        document.getElementById('awardIconInput').value='';
+        document.getElementById('awardSeasonInput').value='';
+        document.getElementById('awardNoteInput').value='';
+        const{data}=await sb.from('player_awards').select('*').order('created_at',{ascending:false});
+        db.playerAwards=data||[];
+        buildAwardsPanel();
+        const p=db.players.find(x=>x.id===playerId);
+        showToast(`🏆 Premiu adăugat: ${p?p.name:''} → ${title}`);
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru player_awards?)'); }
+}
+
+async function deletePlayerAward(id){
+    try{
+        const{error}=await sb.from('player_awards').delete().eq('id',id);
+        if(error) throw error;
+        db.playerAwards=db.playerAwards.filter(a=>a.id!==id);
+        buildAwardsPanel();
+        showToast('🗑️ Premiu șters.');
+    }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 function buildPotmPanel(){
