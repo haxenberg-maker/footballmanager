@@ -375,7 +375,7 @@ main, body{padding-bottom:80px;}
     <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
     <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
     <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
-    <button class="hd-key-btn" id="swapTeamsBtn" onclick="swapTeams()" title="Schimbă echipele între ele" style="display:none;">⇄</button>
+    <button class="hd-key-btn" id="swapTeamsBtn" onclick="openTeamSwapMenu()" title="Schimbă identitatea echipelor" style="display:none;">⇄</button>
     <button class="icon-btn" id="threeBtn" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;cursor:default;" title="Modul (2/3 echipe) se setează din pagina principală, la Start Meci — nu se poate schimba din Live.">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
   </div>
@@ -674,6 +674,13 @@ function goalsMap() {
     const src = liveState?.three_team_mode ? allMatchGoals() : goals;
     const m = {};
     src.forEach(g => { m[g.player_name] = (m[g.player_name]||0)+1; });
+    return m;
+}
+function assistsMap() {
+    // Analog cu goalsMap(), dar numără asisturile (assist_name) — folosit pentru badge-ul (n pas) din lista de jucători
+    const src = liveState?.three_team_mode ? allMatchGoals() : goals;
+    const m = {};
+    src.forEach(g => { if (g.assist_name) m[g.assist_name] = (m[g.assist_name]||0)+1; });
     return m;
 }
 
@@ -1311,6 +1318,7 @@ function render() {
     } else {
         // Define gpm and conc FIRST before makeRows uses them
         const gpm  = goalsMap();
+        const apm  = assistsMap();
         const conc = mode ? getRoundConceded() : { orange:0, green:0 };
         const bench = players.filter(p => p.status === 'bench');
 
@@ -1320,12 +1328,14 @@ function render() {
         // Mark temp players in rows
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
+            const ast = apm[p.name] || 0;
             const isTemp = !!p._temp;
             const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#8a6307;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
+            const astBadge  = ast ? `<span style="font-size:.65rem;color:#7d6849;font-weight:600;margin-left:4px;">(${ast} pas)</span>` : '';
             const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#6b5840;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
             const plusDisabled = matchStarted ? '' : 'disabled style="opacity:.3;pointer-events:none;" title="Apasă ▶ Start Meci mai întâi"';
             return '<div class="pr">'
-                + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}">${p.name}${tempBadge}</div>`
+                + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}">${p.name}${tempBadge}${astBadge}</div>`
                 + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
@@ -2572,39 +2582,63 @@ async function confirmTransfer() {
     catch(e) { showToast('⚠️ '+e.message); }
     showToast(`✓ ${p.name} → ${getTeamName(_transferTarget)}`);
 }
-async function swapTeams() {
+// ── Schimbă identitatea a 2 echipe (color_map) ─────────────────────
+// Jucătorii NU se mută între sloturi — doar numele/culoarea echipei asociate
+// slotului se schimbă (ex: Negru ⇄ Verde), pentru a corecta/ajusta identitatea
+// afișată fără să amesteci roster-urile.
+function openTeamSwapMenu() {
     if (isSaving) return;
-    const orangePl = players.filter(p => p.status === 'orange');
-    const greenPl  = players.filter(p => p.status === 'green');
-    if (!orangePl.length && !greenPl.length) { showToast('⚠️ Nicio echipă activă!'); return; }
+    const mode3 = !!liveState?.three_team_mode;
+    const slots = mode3 ? ['orange','green','bench'] : ['orange','green'];
+    const teams = slots
+        .map(slot => ({ slot, name: getTeamName(slot), hex: getTeamHex(slot), count: players.filter(p=>p.status===slot).length }))
+        .filter(t => t.count > 0 || !mode3);
 
-    // Swap optimistic
-    players = players.map(p => {
-        if (p.status === 'orange') return { ...p, status: 'green' };
-        if (p.status === 'green')  return { ...p, status: 'orange' };
-        return p;
-    });
+    const pairs = [];
+    for (let i = 0; i < teams.length; i++)
+        for (let j = i + 1; j < teams.length; j++)
+            pairs.push([teams[i], teams[j]]);
 
-    // Also swap color_map if 3-team mode
-    if (liveState?.three_team_mode) {
-        const cm = { ...getColorMap() };
-        const tmp = cm.orange;
-        cm.orange = cm.green;
-        cm.green = tmp;
-        await patchState({ color_map: cm });
-    }
+    const list = pairs.map(([a, b]) => `
+        <div onclick="doIdentitySwap('${a.slot}','${b.slot}')"
+            style="display:flex;align-items:center;justify-content:center;gap:10px;padding:13px 14px;border-radius:9px;border:1px solid #e3d3ac;background:#fffaf0;cursor:pointer;touch-action:manipulation;margin-bottom:8px;-webkit-tap-highlight-color:transparent;">
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:${a.hex};">${a.name}</span>
+            <span style="color:#7d6849;font-size:1.1rem;">⇄</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:${b.hex};">${b.name}</span>
+        </div>`).join('');
 
-    render();
+    document.getElementById('teamSwapList').innerHTML = list
+        || '<div style="padding:10px;color:#7d6849;font-size:.8rem;text-align:center;">Nicio pereche de echipe disponibilă.</div>';
+    document.getElementById('teamSwapOverlay').classList.add('show');
+}
+function closeTeamSwapMenu() {
+    document.getElementById('teamSwapOverlay').classList.remove('show');
+}
+async function doIdentitySwap(slotA, slotB) {
+    closeTeamSwapMenu();
+    if (isSaving) return;
+    const nameA = getTeamName(slotA), nameB = getTeamName(slotB);
 
-    // Persist to DB
+    // Populează color_map cu fallback-urile curente înainte de swap, ca să nu rămână chei lipsă
+    const cm = { ...getColorMap() };
+    if (!cm.orange) cm.orange = getTeamIdForSlot('orange');
+    if (!cm.green)  cm.green  = getTeamIdForSlot('green');
+    if (liveState?.three_team_mode && !cm.bench) cm.bench = getTeamIdForSlot('bench');
+
+    const tmp = cm[slotA];
+    cm[slotA] = cm[slotB];
+    cm[slotB] = tmp;
+
     isSaving = true;
     try {
-        await Promise.all([
-            ...orangePl.map(p => sb.from('players').update({ status: 'green'  }).eq('id', p.id)),
-            ...greenPl.map(p  => sb.from('players').update({ status: 'orange' }).eq('id', p.id)),
-        ]);
-    } finally { isSaving = false; }
-    showToast('⇄ Echipele au fost schimbate!');
+        await patchState({ color_map: cm });
+    } catch(e) {
+        showToast('⚠️ ' + e.message);
+    } finally {
+        isSaving = false;
+    }
+    render();
+    showToast(`⇄ ${nameA} ↔ ${nameB} — identitate schimbată!`);
 }
 function confirmReset() {
     document.getElementById('resetOverlay').classList.add('show');
@@ -2821,19 +2855,18 @@ async function showRotationConfirm(loserColor, reason, triggerMsg) {
     const oG = roundG.filter(g=>g.team==='orange').length;
     const gG = roundG.filter(g=>g.team==='green').length;
 
-    const scorers = {};
-    roundG.forEach(g => { scorers[g.player_name]=(scorers[g.player_name]||0)+1; });
-    const scorerHtml = Object.entries(scorers).length
-        ? Object.entries(scorers).sort((a,b)=>b[1]-a[1])
-            .map(([n,cnt])=>{
-                const team = roundG.find(g=>g.player_name===n)?.team||'orange';
-                const col  = getTeamHex(team);
-                return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #f5e9d4;">
-                    <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
-                    <span style="flex:1;font-weight:700;font-size:.82rem;">${n}</span>
-                    <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#1b7a43;">⚽${cnt}</span>
-                </div>`;
-            }).join('')
+    const scorerHtml = roundG.length
+        ? roundG.map(g => {
+            const col = getTeamHex(g.team);
+            const assistTxt = g.assist_name
+                ? ` <span style="font-weight:400;color:#7d6849;font-size:.7rem;">(assist: ${g.assist_name})</span>`
+                : '';
+            return `<div style="display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid #f5e9d4;">
+                <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+                <span style="flex:1;font-weight:700;font-size:.82rem;">${g.player_name}${assistTxt}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:#1b7a43;">⚽</span>
+            </div>`;
+        }).join('')
         : '<div style="color:#7d6849;font-size:.75rem;padding:4px 0;">Niciun gol marcat în tur</div>';
 
     document.getElementById('rotConfirmTitle').innerHTML =
@@ -3128,6 +3161,20 @@ init();
     <div style="padding:0 12px 12px;">
       <button onclick="skipAssist()" style="width:100%;padding:11px;border-radius:9px;border:1px dashed #7d684955;background:#7d68490d;color:#7d6849;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;">Fără assist</button>
     </div>
+  </div>
+</div>
+
+<!-- Team Swap Menu — schimbă identitatea (numele/culoarea) a 2 echipe între ele -->
+<div class="add-temp-overlay" id="teamSwapOverlay" onclick="if(event.target===this)closeTeamSwapMenu()">
+  <div class="add-temp-box">
+    <div class="add-temp-hd">
+      <div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:1.5px;">⇄ Schimbă echipele</div>
+        <div style="font-size:.6rem;color:#6b5840;margin-top:2px;">Alege ce 2 echipe își schimbă identitatea (jucătorii rămân pe loc, doar numele/culoarea se schimbă)</div>
+      </div>
+      <button onclick="closeTeamSwapMenu()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div class="add-temp-body" id="teamSwapList"></div>
   </div>
 </div>
 
