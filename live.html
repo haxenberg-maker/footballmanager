@@ -109,6 +109,20 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .pr-minus.show{display:flex;}
 .pr-minus:active{background:#fdf3df;color:#b71c1c;}
 .pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+/* ── Pe telefon: echipele se așează una sub alta (rând întreg pe lățime),
+   nu una lângă alta — numele au loc, iar butoanele +/- devin mai mari
+   și mai depărtate ca să nu se apese greșit. ── */
+@media(max-width:640px){
+    .teams-wrap{grid-template-columns:1fr;}
+    .team-col.o-col{border-right:none;border-bottom:2px solid var(--b);}
+    .team-col{padding:6px 6px 10px;}
+    .pr{min-height:52px;gap:10px;padding:5px 4px;border-bottom:1px solid #f5e9d4;}
+    .pr:last-child{border-bottom:none;}
+    .pr-name{font-size:.92rem;}
+    .pr-cnt{min-width:24px;font-size:1.35rem;}
+    .pr-minus{width:44px;height:48px;font-size:1.05rem;}
+    .pr-plus{width:50px;height:48px;font-size:1.5rem;}
+}
 .pr-plus:active,.pr-plus.busy{transform:scale(.88);}
 .pr-plus.busy{opacity:.4;pointer-events:none;}
 .o-col .pr-plus{background:rgba(255,140,0,.08);border-color:rgba(255,140,0,.2);color:var(--o);}
@@ -909,23 +923,25 @@ function closeUfScorerPicker() {
     document.getElementById('ufScorerOverlay').classList.remove('show');
 }
 
-async function ufConfirmScorerAndRotate(name, team) {
+function ufConfirmScorerAndRotate(name, team) {
     closeUfScorerPicker();
     closeUltimaFaza();
-    // Record the goal directly (this IS the confirmation — no need for double confirm)
-    await addGoal(name, team);
-    // After goal recorded, compute new score and auto-rotate (echipa de pe bancă intră)
-    const roundG = getRoundGoals();
-    const oG = roundG.filter(g => g.team === 'orange').length;
-    const gG = roundG.filter(g => g.team === 'green').length;
-    if (oG === gG) {
-        // Egalare exactă → penalty
-        showRotationToast('⚽ Egalare în ultima fază — PENALTYURI!');
-        setTimeout(() => openPenaltyModal(), 800);
-        return;
-    }
-    const loser = oG > gG ? 'green' : 'orange';
-    setTimeout(() => doRotation(loser, 'time'), 500);
+    // Cine a marcat e deja confirmat — întrebăm și de assist înainte de a înregistra golul
+    openAssistPicker(name, team, async (assistName) => {
+        await addGoal(name, team, assistName);
+        // După golul înregistrat, calculăm scorul și rotim automat (echipa de pe bancă intră)
+        const roundG = getRoundGoals();
+        const oG = roundG.filter(g => g.team === 'orange').length;
+        const gG = roundG.filter(g => g.team === 'green').length;
+        if (oG === gG) {
+            // Egalare exactă → penalty
+            showRotationToast('⚽ Egalare în ultima fază — PENALTYURI!');
+            setTimeout(() => openPenaltyModal(), 800);
+            return;
+        }
+        const loser = oG > gG ? 'green' : 'orange';
+        setTimeout(() => doRotation(loser, 'time'), 500);
+    });
 }
 
 function closeUltimaFaza() {
@@ -1529,9 +1545,12 @@ function showRoundDetail(roundId) {
             // Use team_a_id hex for orange slot, team_b_id hex for green slot
             const col = g.team === 'orange' ? hA : hB;
             const min = g.minute != null ? g.minute+"'" : '';
+            const assistTxt = g.assist_name
+                ? ` <span style="font-weight:400;color:#7d6849;font-size:.68rem;">(assist: ${g.assist_name})</span>`
+                : '';
             return `<div class="rd-goal-row">
                 <div class="rd-goal-dot" style="background:${col};"></div>
-                <span class="rd-goal-name">${g.player_name}</span>
+                <span class="rd-goal-name">${g.player_name}${assistTxt}</span>
                 <span class="rd-goal-min">${min}</span>
             </div>`;
         }).join('')
@@ -1608,10 +1627,13 @@ function renderLog() {
         const dot = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
         const min = g.minute != null ? g.minute+"'" : "—'";
         const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#7d6849;">T${g._roundNum}</span> ` : '';
+        const assistTxt = g.assist_name
+            ? ' <span style="font-weight:400;color:#7d6849;font-size:.68rem;">(assist: '+g.assist_name+')</span>'
+            : '';
         div.innerHTML = roundLbl
             + '<span class="log-min">'+min+'</span>'
             + '<div class="log-dot" style="background:'+dot+';"></div>'
-            + '<span class="log-name">'+g.player_name+'</span>'
+            + '<span class="log-name">'+g.player_name+assistTxt+'</span>'
             + '<span class="log-badge">⚽</span>';
         frag.appendChild(div);
     });
@@ -1651,12 +1673,44 @@ function cancelGoalConfirm() {
 async function doConfirmGoal() {
     document.getElementById('goalConfirmOverlay').classList.remove('show');
     if (!_pendingGoal) return;
-    await addGoal(_pendingGoal.name, _pendingGoal.team);
+    const { name, team } = _pendingGoal;
     _pendingGoal = null;
+    openAssistPicker(name, team, (assistName) => addGoal(name, team, assistName));
+}
+
+// ── Assist picker — deschis după ce se confirmă cine a marcat golul ──
+let _assistDone = null;
+function openAssistPicker(name, team, onDone) {
+    const teammates = players.filter(p => p.status === team && p.name !== name);
+    if (!teammates.length) { onDone(null); return; }
+
+    _assistDone = onDone;
+    const hex = getTeamHex(team);
+    const list = teammates.map(p => `
+        <div onclick="pickAssist('${p.name.replace(/'/g,"\\'")}')"
+            style="display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:9px;border:1px solid #e3d3ac;background:#fffaf0;cursor:pointer;touch-action:manipulation;margin-bottom:6px;-webkit-tap-highlight-color:transparent;">
+            <div style="width:30px;height:30px;border-radius:50%;background:${hex}22;border:1px solid ${hex}44;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:${hex};flex-shrink:0;">${p.name[0]}</div>
+            <div style="flex:1;font-weight:700;font-size:.88rem;color:#3a2f1f;">${p.name}</div>
+            <span style="color:#7d6849;">›</span>
+        </div>`).join('');
+
+    document.getElementById('apTitle').textContent = 'Cine a dat assist? — ⚽ ' + name;
+    document.getElementById('assistList').innerHTML = list;
+    document.getElementById('assistPickerOverlay').classList.add('show');
+}
+function pickAssist(assistName) {
+    document.getElementById('assistPickerOverlay').classList.remove('show');
+    const done = _assistDone; _assistDone = null;
+    if (done) done(assistName);
+}
+function skipAssist() {
+    document.getElementById('assistPickerOverlay').classList.remove('show');
+    const done = _assistDone; _assistDone = null;
+    if (done) done(null);
 }
 
 let _goalBusy = false;
-async function addGoal(name, team) {
+async function addGoal(name, team, assistName) {
     if (_goalBusy) return;
     _goalBusy = true;
     setTimeout(() => { _goalBusy = false; }, 900);
@@ -1666,12 +1720,12 @@ async function addGoal(name, team) {
     const minute = liveState?.timer_status !== 'idle'
         ? Math.floor(calcElapsedSec(liveState) / 60) : null;
     const tmpId  = 'tmp_' + Date.now();
-    goals.push({ id: tmpId, player_name: name, team, minute, created_at: new Date().toISOString() });
+    goals.push({ id: tmpId, player_name: name, team, minute, assist_name: assistName || null, created_at: new Date().toISOString() });
     render(); bump(team);
 
     try {
         const { data, error } = await sb.from('live_goals')
-            .insert({ player_name: name, team, minute }).select().single();
+            .insert({ player_name: name, team, minute, assist_name: assistName || null }).select().single();
         if (error) throw error;
         goals = goals.map(g => g.id === tmpId ? data : g);
         render();
@@ -3056,6 +3110,23 @@ init();
     <div class="dialog-actions">
       <button class="dia-cancel" onclick="cancelGoalConfirm()">✕ Anulează</button>
       <button class="dia-confirm" onclick="doConfirmGoal()">✅ Confirmă Golul</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assist Picker -->
+<div class="add-temp-overlay" id="assistPickerOverlay" onclick="if(event.target===this)skipAssist()">
+  <div class="add-temp-box">
+    <div class="add-temp-hd">
+      <div>
+        <div id="apTitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:1.5px;">Cine a dat assist?</div>
+        <div style="font-size:.6rem;color:#6b5840;margin-top:2px;">Opțional — apasă un coechipier sau sari peste</div>
+      </div>
+      <button onclick="skipAssist()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;flex-shrink:0;">✕</button>
+    </div>
+    <div class="add-temp-body" id="assistList"></div>
+    <div style="padding:0 12px 12px;">
+      <button onclick="skipAssist()" style="width:100%;padding:11px;border-radius:9px;border:1px dashed #7d684955;background:#7d68490d;color:#7d6849;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;">Fără assist</button>
     </div>
   </div>
 </div>
