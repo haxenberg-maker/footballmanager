@@ -1422,7 +1422,6 @@ function setSeason(seasonName){
     renderLeaderboard();
     renderSeasonMatchesList();
     if (pageTab === 'matches') renderMatchesFeed();
-    else if (pageTab === 'awards') renderAwardsLeaderboard();
 }
 
 function toggleSeasonMatches(){ seasonMatchesOpen = !seasonMatchesOpen; renderSeasonMatchesList(); }
@@ -1790,7 +1789,6 @@ async function loadAll(){
         renderLeaderboard();
         renderSeasonMatchesList();
         if (pageTab === 'matches') renderMatchesFeed();
-        else if (pageTab === 'awards') renderAwardsLeaderboard();
     }catch(err){
         document.getElementById('lbContent').innerHTML = `<p style="color:#ef4444;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
     }finally{
