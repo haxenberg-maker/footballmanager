@@ -5880,17 +5880,58 @@ async function launchLive(){
     const benchKey = has3 ? (startBenchChoice || 'bench') : null;
     const playKeys = has3 ? ['orange','green','bench'].filter(k=>k!==benchKey) : [];
 
+    // Maparea FIXĂ grup-dashboard → identitate (Portocaliu/Verde/Negru) — NU se schimbă
+    // niciodată, indiferent unde stă fizic grupul în meciul live.
+    const GROUP_TO_TEAM_ID = { orange: 'teamA', green: 'teamB', bench: 'teamC' };
+
     try{
+        let colorMap = {};
+
+        if (has3) {
+            // playKeys[0] ocupă slotul live 'orange', playKeys[1] slotul 'green',
+            // benchKey slotul 'bench' — identitatea (nume/culoare) urmează grupul
+            // de ORIGINE (dashboard), nu slotul nou, ca să nu se mai amestece.
+            colorMap = {
+                orange: GROUP_TO_TEAM_ID[playKeys[0]],
+                green:  GROUP_TO_TEAM_ID[playKeys[1]],
+                bench:  GROUP_TO_TEAM_ID[benchKey],
+            };
+
+            // *** BUGFIX: live.html citește direct player.status ca să știe cine
+            // e pe teren (slot orange/green) și cine stă pe bancă (slot bench).
+            // Până acum alegerea din acest modal NU muta efectiv jucătorii — doar
+            // rescria color_map — deci grupul care chiar avea status='bench' în DB
+            // rămânea pe bancă mereu, indiferent ce alegea adminul aici, iar
+            // identitatea (numele) afișată se amesteca. Acum mutăm jucătorii ca
+            // statusul lor din DB să reflecte chiar alegerea făcută mai sus. ***
+            const groupPlayers = {
+                orange: db.players.filter(p=>p.status==='orange'),
+                green:  db.players.filter(p=>p.status==='green'),
+                bench:  db.players.filter(p=>p.status==='bench'),
+            };
+            const targetSlotForGroup = { [playKeys[0]]:'orange', [playKeys[1]]:'green', [benchKey]:'bench' };
+
+            const moves = [];
+            ['orange','green','bench'].forEach(origGroup => {
+                const targetSlot = targetSlotForGroup[origGroup];
+                groupPlayers[origGroup].forEach(p => {
+                    if (p.status !== targetSlot) {
+                        p.status = targetSlot; // optimistic local update (reflectat și pe dashboard)
+                        moves.push(dbUpdatePlayer(p));
+                    }
+                });
+            });
+            if (moves.length) await Promise.all(moves);
+            render();
+        }
+
         const patch = {
             timer_status: 'idle',
             timer_elapsed_ms: 0,
             timer_started_at: null,
             round_start_sec: 0,
             three_team_mode: has3,
-            // Echipa aleasă să stea pe bancă la acest meci devine teamC (indiferent
-            // dacă e orange/green/bench) — celelalte două ocupă teamA/teamB.
-            // Identitatea (culoarea/numele) echipelor NU se schimbă în dashboard.
-            color_map: has3 ? { [playKeys[0]]:'teamA', [playKeys[1]]:'teamB', [benchKey]:'teamC' } : {},
+            color_map: colorMap,
             match_started_at: null,
         };
 
