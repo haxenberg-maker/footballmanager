@@ -1331,7 +1331,7 @@ function render() {
             const ast = apm[p.name] || 0;
             const isTemp = !!p._temp;
             const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#8a6307;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
-            const astBadge  = ast ? `<span style="font-size:.65rem;color:#7d6849;font-weight:600;margin-left:4px;">(${ast} pas)</span>` : '';
+            const astBadge  = ast ? `<span style="font-size:.62rem;font-weight:800;color:#1554b3;background:rgba(21,84,179,.1);border:1px solid rgba(21,84,179,.3);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;white-space:nowrap;">🅰️${ast}</span>` : '';
             const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#6b5840;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
             const plusDisabled = matchStarted ? '' : 'disabled style="opacity:.3;pointer-events:none;" title="Apasă ▶ Start Meci mai întâi"';
             return '<div class="pr">'
@@ -1919,12 +1919,23 @@ function computeLiveStats() {
         scorerMap[g.player_name].count++;
         scorerMap[g.player_name].team = g.team;
     };
+    // Assisturi (cumulat pe tot meciul, la fel ca marcatorii)
+    const assisterMap = {};
+    const trackAssist = (g) => {
+        if (!g.assist_name) return;
+        if (!assisterMap[g.assist_name]) assisterMap[g.assist_name] = { count:0, team:g.team };
+        assisterMap[g.assist_name].count++;
+        assisterMap[g.assist_name].team = g.team;
+    };
     if (mode) {
-        allRoundsForStats.forEach(r => (r.goals||[]).forEach(trackGoal));
+        allRoundsForStats.forEach(r => (r.goals||[]).forEach(g => { trackGoal(g); trackAssist(g); }));
     } else {
-        goals.filter(g=>!String(g.id).startsWith('tmp_')).forEach(trackGoal);
+        goals.filter(g=>!String(g.id).startsWith('tmp_')).forEach(g => { trackGoal(g); trackAssist(g); });
     }
     const scorers = Object.entries(scorerMap)
+        .map(([name,d])=>({name, count:d.count, team:d.team}))
+        .sort((a,b)=>b.count-a.count);
+    const assisters = Object.entries(assisterMap)
         .map(([name,d])=>({name, count:d.count, team:d.team}))
         .sort((a,b)=>b.count-a.count);
 
@@ -1942,7 +1953,7 @@ function computeLiveStats() {
         .map(([tid,sec])=>({tid, name:getTeamNameById(tid), hex:getTeamHexById(tid), sec}))
         .sort((a,b)=>b.sec-a.sec);
 
-    return { scorers, teamTimes };
+    return { scorers, assisters, teamTimes };
 }
 
 function fmtMinSec(totalSec){
@@ -1951,7 +1962,7 @@ function fmtMinSec(totalSec){
 }
 
 function openLiveStats(){
-    const { scorers, teamTimes } = computeLiveStats();
+    const { scorers, assisters, teamTimes } = computeLiveStats();
     const maxSec = teamTimes.length ? teamTimes[0].sec : 1;
     const timeHtml = teamTimes.length
         ? teamTimes.map((t,i)=>{
@@ -1965,12 +1976,17 @@ function openLiveStats(){
     const scorersHtml = scorers.length
         ? scorers.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(s.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals">'+s.count+'⚽</span></div>').join('')
         : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun gol încă.</div>';
+    const assistersHtml = assisters.length
+        ? assisters.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(s.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals" style="color:#1554b3;">'+s.count+' 🅰️</span></div>').join('')
+        : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun assist încă.</div>';
     document.getElementById('dialogBox').innerHTML =
         '<div class="dialog-title">📊 Statistici Live</div>'
         + '<div class="dialog-section">⏱ Timp pe teren</div>'
         + '<div>' + timeHtml + '</div>'
         + '<div class="dialog-section">⚽ Marcatori</div>'
         + '<div>' + scorersHtml + '</div>'
+        + '<div class="dialog-section">🅰️ Assisturi</div>'
+        + '<div>' + assistersHtml + '</div>'
         + '<div class="dialog-actions">'
         + '<button class="dia-cancel" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
         + '</div>';
