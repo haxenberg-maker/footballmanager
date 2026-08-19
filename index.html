@@ -128,7 +128,7 @@
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
         .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
-        #list-active,#list-bench{max-height:520px;overflow-y:auto;}
+        #list-active{max-height:520px;overflow-y:auto;}
         #matchStatsBanner{grid-column:1/-1;}
         .dash-stats-hidden .rating-badge,
         .dash-stats-hidden .rating-badge-smart,
@@ -140,6 +140,8 @@
         .dash-stats-hidden #probGreen { visibility:hidden; }
         .dash-tags-hidden .ptag-row { display:none !important; }
         .dash-roles-hidden .role-badge-inline { display:none !important; }
+        .dash-milestones-hidden .milestone-row { display:none !important; }
+        .dash-speed-hidden .speed-badge { display:none !important; }
         /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
@@ -169,6 +171,8 @@
         .player-card.team-orange::before{background:linear-gradient(135deg,rgba(255,140,0,.08) 0%,transparent 60%);}
         .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#dff3df,#c5e8c0);}
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
+        .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
+        .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
@@ -345,6 +349,18 @@
         .lobby-players{display:flex;flex-wrap:wrap;gap:8px;}
         .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#faf0dc;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
         .lobby-player-chip:hover{border-color:#1554b3;background:#e8f0ff;}
+        /* Prezență — fundal colorat direct, proporțional cu cât de des a jucat în
+           ultimele meciuri (rate). Declarate ÎNAINTE de confirmed/absent, ca starea
+           meciului viitor (mai importantă/acțiune imediată) să câștige mereu în
+           cascadă dacă un chip e și "prezent recent" ȘI confirmat/absent. */
+        .lobby-player-chip.presence-elite{background:linear-gradient(135deg,#ff9800,#e65100);border-color:#bf360c;}
+        .lobby-player-chip.presence-elite .chip-name{color:#fff3e0;}
+        .lobby-player-chip.presence-high{background:linear-gradient(135deg,#ffd54f,#ffa726);border-color:#e65100;}
+        .lobby-player-chip.presence-high .chip-name{color:#5d3a00;}
+        .lobby-player-chip.presence-mid{background:linear-gradient(135deg,#fff3c4,#ffe082);border-color:#c9920a;}
+        .lobby-player-chip.presence-mid .chip-name{color:#6b5000;}
+        .lobby-player-chip.presence-low{background:linear-gradient(135deg,#fffbe8,#fff3c4);border-color:#e0c468;}
+        .lobby-player-chip.presence-low .chip-name{color:#7d6849;}
         .lobby-player-chip.confirmed{background:#dde9ff;border-color:#1554b3;}
         .lobby-player-chip.absent{background:#fce0e0;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#dcc89a;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
@@ -901,13 +917,18 @@
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
+    <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
+    <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
     <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
+    <button class="admin-only" onclick="recalculateConcededOnly()" title="Recalculează STRICT golurile primite — nu atinge victorii/meciuri/goluri date" style="background:rgba(198,40,40,.08);border:1px solid rgba(198,40,40,.35);color:#b71c1c;font-size:.78rem;">🥅 Recalculează doar golurile primite</button>
     <div class="controls-separator"></div>
     <button class="btn-nav-clasament" onclick="window.location.href='clasament.html'" title="Clasament">🏆 Clasament</button>
     <button class="btn-nav-cheltuieli" onclick="window.location.href='cheltuieli.html'" title="Cheltuieli">💰 Cheltuieli</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
+    <button id="customShortcutBtn" onclick="openCustomShortcut()" style="display:none;background:linear-gradient(135deg,#ede3fa,#c9a8f0);border:1px solid #9c27b0;color:#6a1b9a;"></button>
+    <button id="customShortcutEditBtn" class="admin-only" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat" style="background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.78rem;">➕ Shortcut</button>
 </div>
 
 <!-- QUICK NAV — sticky bottom bar, always reachable on mobile with one thumb -->
@@ -1087,7 +1108,6 @@
         <!-- Leaderboard tabs -->
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
-            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')">⭐ General</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
@@ -1184,8 +1204,6 @@
     <!-- FIFA Tabs -->
     <div class="modal-tabs" id="modalTabs">
         <button class="modal-tab active" onclick="switchModalTab('stats')">👑 Rating</button>
-        <button class="modal-tab" onclick="switchModalTab('evolution')">📈 Evoluție</button>
-        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Hex</button>
         <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
         <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
     </div>
@@ -1195,33 +1213,10 @@
         <div id="modalQuickGlance" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
         <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
+        <div id="adminSpeedPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#7d6849;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div id="modalChemPreview" style="margin-top:10px;"></div>
-    </div>
-
-    <!-- Tab: Evoluție (grafic rating în timp) -->
-    <div class="modal-tab-panel" id="tabEvolution">
-        <div class="chart-section">
-            <div class="chart-toggle-label" id="chartLabel" style="padding:2px 0 8px;font-size:.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">📈 Evoluție Rating</div>
-            <div class="chart-body open" id="chartBody">
-                <div class="chart-body-inner">
-                    <div class="cat-tabs" id="catTabs"></div>
-                    <canvas id="ratingChart" height="90"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab: Hex/Radar -->
-    <div class="modal-tab-panel" id="tabRadar">
-        <div class="hex-stats-wrap" id="hexStatsWrap">
-            <svg class="hex-svg" id="hexSvg" width="220" height="220" viewBox="0 0 220 220"></svg>
-            <div class="hex-labels" id="hexLabels"></div>
-        </div>
-        <!-- Legacy radar hidden but kept for chart.js compat -->
-        <canvas id="radarChart" width="1" height="1" style="display:none;"></canvas>
-        <div id="radarLegend" style="display:none;"></div>
     </div>
 
     <!-- Tab: Match History Timeline -->
@@ -1363,12 +1358,12 @@
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
         <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-            <div style="text-align:center;">
+            <div style="text-align:center;" id="meScoreBlockO">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">Portocaliu</div>
                 <input type="number" min="0" max="99" id="meScoreO" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:var(--orange);padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
+            <div id="meScoreSepOG" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
             <div style="text-align:center;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--green);margin-bottom:4px;">Verde</div>
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
@@ -1686,7 +1681,8 @@
 </div>
 </div>
 
-<script src="app.js?v=20260801"></script>
+<script src="smart-rating.js?v=20260808k"></script>
+<script src="app.js?v=20260808k"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">

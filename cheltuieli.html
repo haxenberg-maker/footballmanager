@@ -95,6 +95,160 @@
             display: block;
             margin-top: 5px;
         }
+        .budget-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .budget-stat {
+            background: rgba(15, 19, 28, 0.55);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 10px;
+        }
+
+        .budget-stat .suma {
+            font-size: 2rem;
+            margin-top: 3px;
+        }
+
+        .budget-stat small {
+            color: #64748b;
+            font-size: 0.78rem;
+        }
+
+        .budget-label {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: .7px;
+        }
+
+        .budget-available {
+            border-color: var(--success-green);
+            box-shadow: 0 0 18px rgba(16,185,129,.08);
+        }
+
+        .budget-available .suma {
+            color: var(--success-green);
+        }
+
+        .allocation-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .btn-allocate {
+            background: #334155;
+            color: #fff;
+            border: 1px solid #475569;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 700;
+            transition: .2s;
+        }
+
+        .btn-allocate:hover {
+            background: var(--accent-gold);
+            color: #0b0e14;
+            border-color: var(--accent-gold);
+        }
+
+        .btn-allocate:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        .allocation-info {
+            color: #94a3b8;
+            font-size: .82rem;
+        }
+
+        .allocation-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.72);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .allocation-modal.open {
+            display: flex;
+        }
+
+        .allocation-box {
+            width: 100%;
+            max-width: 420px;
+            background: var(--panel-bg);
+            border: 1px solid var(--accent-gold);
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 20px 60px rgba(0,0,0,.5);
+        }
+
+        .allocation-box h3 {
+            margin-bottom: 8px;
+        }
+
+        .allocation-product {
+            color: #94a3b8;
+            margin-bottom: 15px;
+        }
+
+        .allocation-box input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #1c2433;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1.1rem;
+        }
+
+        .allocation-help {
+            color: #64748b;
+            font-size: .8rem;
+            margin-top: 7px;
+        }
+
+        .allocation-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .allocation-actions button {
+            flex: 1;
+        }
+
+        .btn-cancel {
+            background: #1c2433;
+            color: #94a3b8;
+            border: 1px solid var(--border-color);
+            padding: 11px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 700;
+        }
+
+        @media (max-width: 700px) {
+            .budget-summary-grid { grid-template-columns: 1fr; }
+            .budget-stat .suma { font-size: 1.7rem; }
+            .allocation-row { align-items: stretch; flex-direction: column; }
+        }
 
         .main-layout {
             display: grid;
@@ -253,7 +407,7 @@
 
         .amount-paid { color: var(--success-green); font-weight: 700; }
 
-        /* ── Login gate ── */
+        /* Login gate */
         #loginGate {
             position: fixed; inset: 0; background: var(--bg-dark);
             display: flex; align-items: center; justify-content: center; z-index: 999;
@@ -287,7 +441,7 @@
                 <label>Parolă</label>
                 <input type="password" id="loginPassword" placeholder="••••••••">
             </div>
-            <button class="btn-add" style="width:100%;" onclick="autentifica()">Intră</button>
+            <button class="btn-add" style="width:100%;" data-action="login">Intră</button>
             <div class="login-error" id="loginError">Email sau parolă greșită.</div>
         </div>
     </div>
@@ -297,15 +451,30 @@
         <div class="header-area">
             <h1>💰 Management Buget & Încasări</h1>
             <div class="header-actions">
-                <button class="btn-report-icon" title="Copiază Raport Grup" onclick="genereazaTabelaRaport()">📋</button>
-                <button class="btn-logout" onclick="delogare()">Ieși din cont</button>
+                <button class="btn-report-icon" title="Copiază Raport Grup" data-action="report">📋</button>
+                <button class="btn-logout" data-action="logout">Ieși din cont</button>
                 <a href="index.html" class="btn-back">← Înapoi</a>
             </div>
         </div>
 
         <div class="total-budget-box">
-            <span>SOLD TOTAL DISPONIBIL (ÎNCASĂRI - ALOCĂRI CHELTUIELI)</span>
-            <span class="suma" id="totalColectat">0 RON</span>
+            <div class="budget-summary-grid">
+                <div class="budget-stat">
+                    <span class="budget-label">💰 BUGET TOTAL</span>
+                    <span class="suma budget-total" id="totalBuget">0 RON</span>
+                    <small>Total încasări</small>
+                </div>
+                <div class="budget-stat">
+                    <span class="budget-label">🎯 ALOCAT WISHLIST</span>
+                    <span class="suma budget-allocated" id="totalAlocat">0 RON</span>
+                    <small>Bani puși pe produse</small>
+                </div>
+                <div class="budget-stat budget-available">
+                    <span class="budget-label">💵 DISPONIBIL</span>
+                    <span class="suma" id="totalColectat">0 RON</span>
+                    <small>Poți aloca din această sumă</small>
+                </div>
+            </div>
         </div>
 
         <div class="main-layout">
@@ -329,8 +498,8 @@
                             <option value="mica">Mică 💤</option>
                         </select>
                     </div>
-                    <div style="font-size:0.8rem;color:#64748b;">💡 Suma se alocă automat din sold, în ordinea priorității — nu mai trebuie introdusă manual.</div>
-                    <button class="btn-add" onclick="salveazaCheltuiala()">Adaugă în Wishlist</button>
+                    <div style="font-size:0.8rem;color:#64748b;">💡 După adăugare, folosește butonul <strong>Alocă din buget</strong> de pe produs și introdu suma pe care vrei să o pui deoparte.</div>
+                    <button class="btn-add" data-action="add-wishlist">Adaugă în Wishlist</button>
                 </div>
 
                 <h2>📋 Listă Achiziții & Progres</h2>
@@ -355,16 +524,59 @@
                         <label>Detalii Plată</label>
                         <input type="text" id="paymentDetails" placeholder="Ex: Cotizatie minge / Rest sintetic">
                     </div>
-                    <button class="btn-add btn-add-payment" onclick="salveazaPlata()">Adaugă Plată</button>
+                    <button class="btn-add btn-add-payment" data-action="add-payment">Adaugă Plată</button>
+                </div>
+
+                <h2 style="margin-top: 25px;">💸 Adaugă Cheltuială</h2>
+                <div class="budget-form" style="margin-top:15px; margin-bottom: 25px;">
+                    <div class="form-group">
+                        <label>Suma Cheltuielii (RON)</label>
+                        <input type="number" id="expenseAmount" min="0.01" step="0.01" placeholder="Ex: 250">
+                    </div>
+                    <div class="form-group">
+                        <label>Detalii Cheltuială</label>
+                        <input type="text" id="expenseDetails" placeholder="Ex: Închiriere teren / Echipament">
+                    </div>
+                    <button class="btn-add" style="background:#ef4444;color:#fff;" data-action="add-expense">Adaugă Cheltuială</button>
+                    <div style="font-size:0.8rem;color:#64748b;">
+                        💡 Cheltuiala se scade imediat din bugetul disponibil. Nu afectează procentul produselor din Wishlist.
+                    </div>
                 </div>
 
                 <div class="panel">
                     <h2>👥 Istoric Încasări Jucători</h2>
+                    <div class="form-group" style="margin-top:12px;margin-bottom:0;">
+                        <label>🔎 Filtrează după cine a plătit</label>
+                        <select id="paymentNameFilter">
+                            <option value="">Toți</option>
+                        </select>
+                    </div>
                     <div id="playersContributions" style="margin-top: 15px;">Încarcă lista de încasări...</div>
+                </div>
+
+                <div class="panel" style="margin-top: 20px;">
+                    <h2>💸 Istoric Cheltuieli</h2>
+                    <div id="expensesHistory" style="margin-top: 15px;">Încarcă cheltuielile...</div>
                 </div>
             </div>
         </div>
     </div>
+    </div>
+
+    <div id="allocationModal" class="allocation-modal">
+        <div class="allocation-box">
+            <h3>🎯 Alocă din buget</h3>
+            <div class="allocation-product" id="allocationProductName">Produs</div>
+            <div class="form-group">
+                <label>Cât vrei să aloci? (RON)</label>
+                <input type="number" id="allocationAmount" min="0.01" step="0.01" placeholder="Ex: 100">
+                <div class="allocation-help" id="allocationHelp"></div>
+            </div>
+            <div class="allocation-actions">
+                <button type="button" class="btn-cancel" id="cancelAllocationButton">Anulează</button>
+                <button type="button" class="btn-add" id="confirmAllocationButton" data-action="confirm-allocation">Alocă banii</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -374,12 +586,121 @@
 
         let globalIncasari = 0;
         let globalCheltuieliAlocate = 0;
+        let globalCheltuieliReale = 0;
+        let globalSoldDisponibil = 0;
         let dateRaportIncasari = [];
         let dateRaportWishlist = [];
 
+        let allocationItemId = null;
+        let allocationMax = 0;
+        const TEAM_MARKER = '[ECHIPA] ';
+        let globalIncasariList = []; // listă completă, sortată descrescător (id desc)
+
+        const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
+
         function actualizeazaSoldFinal() {
-            const soldFinal = globalIncasari - globalCheltuieliAlocate;
-            document.getElementById('totalColectat').textContent = `${soldFinal.toFixed(2)} RON`;
+            globalSoldDisponibil = Math.max(
+                0,
+                globalIncasari - globalCheltuieliReale - globalCheltuieliAlocate
+            );
+
+            document.getElementById('totalBuget').textContent = `${globalIncasari.toFixed(2)} RON`;
+            document.getElementById('totalAlocat').textContent = `${globalCheltuieliAlocate.toFixed(2)} RON`;
+            document.getElementById('totalColectat').textContent = `${globalSoldDisponibil.toFixed(2)} RON`;
+        }
+
+        function deschideModalAlocare(id, nume, sumaAlocata, tinta) {
+            allocationItemId = id;
+            const restProdus = Math.max(0, tinta - sumaAlocata);
+            allocationMax = Math.min(globalSoldDisponibil, restProdus);
+
+            document.getElementById('allocationProductName').textContent =
+                `${nume} — ${sumaAlocata.toFixed(2)} / ${tinta.toFixed(2)} RON`;
+
+            document.getElementById('allocationHelp').textContent =
+                `Disponibil în buget: ${globalSoldDisponibil.toFixed(2)} RON • Mai trebuie pentru produs: ${restProdus.toFixed(2)} RON`;
+
+            const input = document.getElementById('allocationAmount');
+            input.value = '';
+            input.max = allocationMax.toFixed(2);
+
+            const modal = document.getElementById('allocationModal');
+            modal.classList.add('open');
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function inchideModalAlocare() {
+            const modal = document.getElementById('allocationModal');
+            if (modal) modal.classList.remove('open');
+            allocationItemId = null;
+            allocationMax = 0;
+        }
+
+        async function confirmaAlocarea() {
+            if (allocationItemId === null || allocationItemId === undefined || allocationItemId === '') {
+                alert('Eroare: Niciun produs selectat.');
+                return;
+            }
+
+            const input = document.getElementById('allocationAmount');
+            const suma = parseFloat(input.value);
+
+            if (isNaN(suma) || suma <= 0) {
+                alert('Te rog introdu suma pe care dorești să o aloci!');
+                input.focus();
+                return;
+            }
+
+            if (suma > allocationMax + 0.001) {
+                alert(`Poți aloca maximum ${allocationMax.toFixed(2)} RON pentru acest produs.`);
+                return;
+            }
+
+            try {
+                const { data: item, error: fetchError } = await sb
+                    .from('cheltuieli')
+                    .select('id, descriere, suma')
+                    .eq('id', allocationItemId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                let payload = {};
+                try {
+                    payload = JSON.parse(item.descriere || '{}');
+                } catch (e) {}
+
+                const tinta = parseFloat(payload.pret_total ?? item.suma ?? 0);
+                const alocatActual = parseFloat(payload.pret_alocat ?? 0);
+                const nouAlocat = Math.min(tinta, alocatActual + suma);
+
+                if (nouAlocat <= alocatActual) {
+                    alert('Produsul este deja complet finanțat.');
+                    return;
+                }
+
+                payload.isWishlist = true;
+                payload.produs = payload.produs || item.descriere;
+                payload.pret_total = tinta;
+                payload.pret_alocat = nouAlocat;
+                payload.prioritate = payload.prioritate || 'medie';
+
+                const { error: updateError } = await sb
+                    .from('cheltuieli')
+                    .update({
+                        descriere: JSON.stringify(payload),
+                        suma: tinta
+                    })
+                    .eq('id', allocationItemId);
+
+                if (updateError) throw updateError;
+
+                inchideModalAlocare();
+                await incarcaBugetSiJucatori();
+            } catch (e) {
+                console.error(e);
+                alert('Nu am putut salva alocarea: ' + e.message);
+            }
         }
 
         async function incarcaJucatoriDropdown() {
@@ -387,7 +708,7 @@
                 const { data, error } = await sb.from('players').select('id, name').order('name', { ascending: true });
                 if (error) throw error;
                 const select = document.getElementById('paymentPlayer');
-                select.innerHTML = '<option value="">-- Alege Jucător --</option>';
+                select.innerHTML = '<option value="">-- Alege Jucător --</option><option value="team">🏆 Toată Echipa (plată comună)</option>';
                 if(data && data.length > 0) {
                     data.forEach(j => { select.innerHTML += `<option value="${j.id}">${j.name}</option>`; });
                 }
@@ -396,43 +717,234 @@
 
         async function incarcaBugetSiJucatori() {
             try {
-                const { data: incasari, error } = await sb.from('incasari').select('id, suma, data, detalii, players(name)');
+                const { data: incasari, error } = await sb
+                    .from('incasari')
+                    .select('id, suma, data, detalii, players(name)')
+                    .order('id', { ascending: false }); // cele mai noi primele
                 if (error) throw error;
-
-                const container = document.getElementById('playersContributions');
-                container.innerHTML = '';
 
                 globalIncasari = 0;
                 dateRaportIncasari = [];
+                globalIncasariList = [];
                 if(incasari && incasari.length > 0) {
                     incasari.forEach(i => {
-                        const numeJucator = i.players ? i.players.name : 'Jucător Necunoscut';
+                        const esteEchipa = !i.players && (i.detalii || '').startsWith(TEAM_MARKER);
+                        const numeJucator = i.players ? i.players.name : (esteEchipa ? '🏆 Toată Echipa' : 'Jucător Necunoscut');
                         const sumaIncasata = parseFloat(i.suma || 0);
-                        const detaliiMeci = i.detalii || 'Fără detalii';
-                        
+                        const detaliiMeci = esteEchipa
+                            ? ((i.detalii || '').slice(TEAM_MARKER.length) || 'Fără detalii')
+                            : (i.detalii || 'Fără detalii');
+
                         globalIncasari += sumaIncasata;
                         dateRaportIncasari.push({ nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci });
-                        
-                        container.innerHTML += `
-                            <div class="player-row">
-                                <div class="player-row-top">
-                                    <span>${numeJucator}</span>
-                                    <div>
-                                        <span class="amount-paid">+${sumaIncasata} RON</span>
-                                        <button class="delete-btn" onclick="stergePlata('${i.id}')">🗑️</button>
-                                    </div>
-                                </div>
-                                <div class="player-row-details">
-                                    ${detaliiMeci} (${i.data || ''})
-                                </div>
-                            </div>
-                        `;
+                        globalIncasariList.push({ id: i.id, nume: numeJucator, suma: sumaIncasata, detalii: detaliiMeci, data: i.data });
                     });
-                } else {
-                    container.innerHTML = '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
                 }
+                populeazaFiltruPlati();
+                randeazaIncasari();
+
+                const { data: expenseRows, error: expenseError } = await sb
+                    .from('cheltuieli')
+                    .select('id, descriere, suma, data')
+                    .order('id', { ascending: false });
+
+                if (expenseError) throw expenseError;
+
+                globalCheltuieliReale = 0;
+                const expensesHistory = document.getElementById('expensesHistory');
+                if (expensesHistory) expensesHistory.innerHTML = '';
+
+                (expenseRows || []).forEach(row => {
+                    try {
+                        const parsed = JSON.parse(row.descriere || '{}');
+                        if (parsed.isExpense === true) {
+                            const sumaCheltuita = Math.max(0, parseFloat(parsed.suma || row.suma || 0));
+                            globalCheltuieliReale += sumaCheltuita;
+
+                            if (expensesHistory) {
+                                expensesHistory.innerHTML += `
+                                    <div class="player-row">
+                                        <div class="player-row-top">
+                                            <span>${parsed.detalii || 'Cheltuială'}</span>
+                                            <div>
+                                                <span style="color:#ef4444;font-weight:700;">-${sumaCheltuita.toFixed(2)} RON</span>
+                                                <button class="delete-btn" data-delete-expense="${row.id}">🗑️</button>
+                                            </div>
+                                        </div>
+                                        <div class="player-row-details">${row.data || ''}</div>
+                                    </div>
+                                `;
+                            }
+                        }
+                    } catch (e) {}
+                });
+
+                if (expensesHistory && !expensesHistory.innerHTML.trim()) {
+                    expensesHistory.innerHTML = '<p style="color:#64748b;">Nicio cheltuială înregistrată.</p>';
+                }
+
                 await incarcaWishlist();
             } catch (e) { console.error(e); }
+        }
+
+        // Populează dropdown-ul de filtrare cu numele distincte care au plătit,
+        // păstrând selecția curentă dacă mai e validă.
+        function populeazaFiltruPlati() {
+            const sel = document.getElementById('paymentNameFilter');
+            if (!sel) return;
+            const curent = sel.value;
+            const unice = [...new Set(globalIncasariList.map(i => i.nume))].sort((a, b) => a.localeCompare(b, 'ro'));
+            sel.innerHTML = '<option value="">Toți</option>' + unice.map(n => `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`).join('');
+            if (unice.includes(curent)) sel.value = curent;
+        }
+
+        // Randează lista de încasări, filtrată după numele selectat (dacă e cazul).
+        function randeazaIncasari() {
+            const container = document.getElementById('playersContributions');
+            if (!container) return;
+            const filtru = document.getElementById('paymentNameFilter')?.value || '';
+            const lista = filtru ? globalIncasariList.filter(i => i.nume === filtru) : globalIncasariList;
+
+            if (!lista.length) {
+                container.innerHTML = filtru
+                    ? `<p style="color:#64748b;">Nicio încasare de la <strong>${filtru}</strong>.</p>`
+                    : '<p style="color:#64748b;">Nicio încasare înregistrată.</p>';
+                return;
+            }
+
+            container.innerHTML = lista.map(i => `
+                <div class="player-row">
+                    <div class="player-row-top">
+                        <span>${i.nume}</span>
+                        <div>
+                            <span class="amount-paid">+${i.suma} RON</span>
+                            <button class="delete-btn" data-delete-payment="${i.id}">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="player-row-details">${i.detalii} (${i.data || ''})</div>
+                </div>
+            `).join('');
+        }
+
+        async function incarcaWishlist() {
+            try {
+                const { data: cheltuieli, error } = await sb
+                    .from('cheltuieli')
+                    .select('id, descriere, suma, data')
+                    .order('id', { ascending: true });
+
+                if (error) throw error;
+
+                const container = document.getElementById('wishlistContainer');
+                dateRaportWishlist = [];
+
+                const wishlistRows = (cheltuieli || []).filter(item => {
+                    try {
+                        const parsed = JSON.parse(item.descriere || '{}');
+                        return parsed.isWishlist === true;
+                    } catch (e) {
+                        return false;
+                    }
+                });
+
+                if (wishlistRows.length === 0) {
+                    container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
+                    globalCheltuieliAlocate = 0;
+                    actualizeazaSoldFinal();
+                    return;
+                }
+
+                const items = wishlistRows.map(item => {
+                    let parsed = {};
+                    try { parsed = JSON.parse(item.descriere || '{}'); } catch (e) {}
+
+                    const tinta = Math.max(0, parseFloat(parsed.pret_total ?? item.suma ?? 0));
+                    const alocat = Math.max(
+                        0,
+                        Math.min(parseFloat(parsed.pret_alocat || 0), tinta)
+                    );
+
+                    return {
+                        id: item.id,
+                        numeProdus: parsed.produs || 'Produs',
+                        tinta,
+                        prioritate: parsed.prioritate || 'medie',
+                        alocat
+                    };
+                });
+
+                const sortedItems = [...items].sort((a, b) =>
+                    (PRIO_RANK[a.prioritate] || 2) - (PRIO_RANK[b.prioritate] || 2) || a.id - b.id
+                );
+
+                globalCheltuieliAlocate = items.reduce((total, item) => total + item.alocat, 0);
+                actualizeazaSoldFinal();
+                container.innerHTML = '';
+
+                sortedItems.forEach(it => {
+                    const curent = it.alocat;
+                    const tinta = it.tinta;
+                    const rest = Math.max(0, tinta - curent);
+                    let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
+                    if (procent > 100) procent = 100;
+
+                    const eComplet = procent >= 100;
+
+                    dateRaportWishlist.push({
+                        produs: it.numeProdus,
+                        tinta,
+                        curent,
+                        procent,
+                        complet: eComplet,
+                        prioritate: it.prioritate
+                    });
+
+                    // Curatare nume produs pentru atribute HTML safe
+                    const numeSafe = it.numeProdus.replace(/"/g, '&quot;');
+
+                    container.innerHTML += `
+                        <div class="wishlist-item ${eComplet ? 'completed' : ''}">
+                            <div class="item-header">
+                                <div>
+                                    <span class="item-name">${it.numeProdus}</span>
+                                    <button class="delete-btn" data-delete-wishlist="${it.id}">🗑️</button>
+                                </div>
+                                <span class="priority-badge prio-${it.prioritate}">${it.prioritate}</span>
+                            </div>
+
+                            <div class="item-finances">
+                                <span>Alocat: <strong>${curent.toFixed(2)} RON</strong> din ${tinta.toFixed(2)} RON</span>
+                                <span>${eComplet ? '🎉 Buget complet!' : `Mai trebuie: ${rest.toFixed(2)} RON (${procent}%)`}</span>
+                            </div>
+
+                            <div class="progress-container">
+                                <div class="progress-bar" style="width: ${procent}%"></div>
+                            </div>
+
+                            <div class="allocation-row">
+                                <span class="allocation-info">
+                                    ${eComplet ? 'Produsul este finanțat 100%.' : `Progres finanțare: ${procent}%`}
+                                </span>
+                                <button
+                                    class="btn-allocate"
+                                    ${eComplet ? 'disabled' : ''}
+                                    type="button"
+                                    data-action="open-allocation"
+                                    data-allocation-id="${it.id}"
+                                    data-allocation-name="${numeSafe}"
+                                    data-allocation-current="${curent}"
+                                    data-allocation-target="${tinta}">
+                                    🎯 Alocă din buget
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                actualizeazaSoldFinal();
+            } catch(e) {
+                console.error(e);
+            }
         }
 
         async function salveazaPlata() {
@@ -441,13 +953,21 @@
             const detalii = document.getElementById('paymentDetails').value.trim();
 
             if(!jucatorId || isNaN(suma) || suma <= 0) {
-                alert("Te rog selectează un jucător și introdu o sumă validă!");
+                alert("Te rog selectează un jucător (sau Toată Echipa) și introdu o sumă validă!");
                 return;
             }
 
+            const esteEchipa = jucatorId === 'team';
+
             try {
                 const azi = new Date().toISOString().split('T')[0];
-                const { error } = await sb.from('incasari').insert([{ jucator_id: jucatorId, suma: suma, detalii: detalii || 'Cotizație', data: azi }]);
+                const payload = {
+                    jucator_id: esteEchipa ? null : jucatorId,
+                    suma: suma,
+                    detalii: (esteEchipa ? TEAM_MARKER : '') + (detalii || 'Cotizație'),
+                    data: azi
+                };
+                const { error } = await sb.from('incasari').insert([payload]);
                 if (error) throw error;
                 document.getElementById('paymentAmount').value = '';
                 document.getElementById('paymentDetails').value = '';
@@ -455,95 +975,39 @@
             } catch(e) { alert(e.message); }
         }
 
-        // Ordinea de alocare automată: prioritate mare → medie → mică, iar la
-        // aceeași prioritate, cel adăugat primul (id mai mic) e servit primul.
-        const PRIO_RANK = { mare: 1, medie: 2, mica: 3 };
+        async function salveazaCheltuialaReala() {
+            const suma = parseFloat(document.getElementById('expenseAmount').value);
+            const detalii = document.getElementById('expenseDetails').value.trim();
 
-        async function incarcaWishlist() {
+            if (isNaN(suma) || suma <= 0) {
+                alert('Introdu o sumă validă pentru cheltuială.');
+                return;
+            }
+
+            if (suma > globalSoldDisponibil + 0.001) {
+                alert(`Nu poți înregistra o cheltuială de ${suma.toFixed(2)} RON. Buget disponibil: ${globalSoldDisponibil.toFixed(2)} RON.`);
+                return;
+            }
+
             try {
-                const { data: cheltuieli, error } = await sb.from('cheltuieli').select('id, descriere, suma, data').order('id', { ascending: true });
+                const azi = new Date().toISOString().split('T')[0];
+                const payload = { isExpense: true, suma, detalii: detalii || 'Cheltuială' };
+
+                const { error } = await sb.from('cheltuieli').insert([{
+                    descriere: JSON.stringify(payload),
+                    suma,
+                    data: azi
+                }]);
+
                 if (error) throw error;
 
-                const container = document.getElementById('wishlistContainer');
-                dateRaportWishlist = [];
+                document.getElementById('expenseAmount').value = '';
+                document.getElementById('expenseDetails').value = '';
 
-                if(!cheltuieli || cheltuieli.length === 0) {
-                    container.innerHTML = '<p style="color:#64748b;">Nu există produse în Wishlist.</p>';
-                    globalCheltuieliAlocate = 0;
-                    actualizeazaSoldFinal();
-                    return;
-                }
-
-                // Parsăm targetul și prioritatea fiecărui produs (fără suma alocată —
-                // aia se calculează automat mai jos, nu mai vine din DB).
-                const items = cheltuieli.map(item => {
-                    let numeProdus = item.descriere;
-                    let tinta = parseFloat(item.suma || 0);
-                    let prioritate = 'medie';
-                    if (item.descriere && item.descriere.startsWith('{"isWishlist"')) {
-                        try {
-                            const parsed = JSON.parse(item.descriere);
-                            numeProdus = parsed.produs;
-                            tinta = parseFloat(parsed.pret_total);
-                            prioritate = parsed.prioritate;
-                        } catch(e) { console.error(e); }
-                    }
-                    return { id: item.id, numeProdus, tinta, prioritate };
-                });
-
-                // Sortăm după prioritate, apoi după ordinea în care au fost adăugate
-                const sortedItems = [...items].sort((a, b) =>
-                    (PRIO_RANK[a.prioritate]||2) - (PRIO_RANK[b.prioritate]||2) || a.id - b.id
-                );
-
-                // Alocare automată: tot ce s-a strâns (globalIncasari) curge, în ordine,
-                // către produse până se umple fiecare la ținta lui, apoi trece la
-                // următorul. Ce rămâne necheltuit e "Sold Disponibil".
-                let pool = globalIncasari;
-                const allocatedById = {};
-                sortedItems.forEach(it => {
-                    const alloc = Math.max(0, Math.min(pool, it.tinta));
-                    allocatedById[it.id] = alloc;
-                    pool -= alloc;
-                });
-
-                globalCheltuieliAlocate = 0;
-                container.innerHTML = '';
-
-                // Afișăm în ordinea de prioritate (nu ordinea brută din DB), ca să fie
-                // clar vizual "ce e la coadă acum" pentru următorul ban care intră.
-                sortedItems.forEach(it => {
-                    const curent = allocatedById[it.id];
-                    const tinta = it.tinta;
-                    globalCheltuieliAlocate += curent;
-                    let procent = tinta > 0 ? Math.round((curent / tinta) * 100) : 0;
-                    if(procent > 100) procent = 100;
-                    const rest = tinta - curent;
-                    const eComplet = procent === 100;
-
-                    dateRaportWishlist.push({ produs: it.numeProdus, tinta, curent, procent, complet: eComplet, prioritate: it.prioritate });
-
-                    container.innerHTML += `
-                        <div class="wishlist-item ${eComplet ? 'completed' : ''}">
-                            <div class="item-header">
-                                <div>
-                                    <span class="item-name">${it.numeProdus}</span>
-                                    <button class="delete-btn" onclick="stergeObiectiv(${it.id})">🗑️</button>
-                                </div>
-                                <span class="priority-badge prio-${it.prioritate}">${it.prioritate}</span>
-                            </div>
-                            <div class="item-finances">
-                                <span>Alocat automat: <strong>${curent.toFixed(2)} RON</strong> din ${tinta} RON</span>
-                                <span>${eComplet ? '🎉 Achiziționat!' : `Mai trebuie: ${rest.toFixed(2)} RON (${procent}%)`}</span>
-                            </div>
-                            <div class="progress-container">
-                                <div class="progress-bar" style="width: ${procent}%"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-                actualizeazaSoldFinal();
-            } catch(e) { console.error(e); }
+                await incarcaBugetSiJucatori();
+            } catch (e) {
+                alert('Eroare la salvarea cheltuielii: ' + e.message);
+            }
         }
 
         async function salveazaCheltuiala() {
@@ -556,10 +1020,13 @@
                 return;
             }
 
-            // pret_alocat nu se mai folosește la citire (se recalculează automat din
-            // sold la fiecare încărcare) — îl păstrăm 0 doar pentru compatibilitate
-            // cu formatul vechi de date.
-            const wishlistPayload = { isWishlist: true, produs: nume, pret_total: tinta, pret_alocat: 0, prioritate: prioritate };
+            const wishlistPayload = {
+                isWishlist: true,
+                produs: nume,
+                pret_total: tinta,
+                pret_alocat: 0,
+                prioritate: prioritate
+            };
 
             try {
                 const azi = new Date().toISOString().split('T')[0];
@@ -569,6 +1036,17 @@
                 document.getElementById('itemTarget').value = '';
                 await incarcaBugetSiJucatori();
             } catch(e) { alert(e.message); }
+        }
+
+        async function stergeCheltuiala(id) {
+            if (!confirm('Sigur vrei să ștergi această cheltuială?')) return;
+            try {
+                const { error } = await sb.from('cheltuieli').delete().eq('id', id);
+                if (error) throw error;
+                await incarcaBugetSiJucatori();
+            } catch (e) {
+                alert('Eroare la ștergerea cheltuielii: ' + e.message);
+            }
         }
 
         async function stergeObiectiv(id) {
@@ -589,17 +1067,19 @@
             } catch(e) { alert("Eroare"); }
         }
 
-        // Generează un format mult mai jmeker, curat și aerisit pentru WhatsApp
         function genereazaTabelaRaport() {
-            const soldFinal = globalIncasari - globalCheltuieliAlocate;
+            // Bugetul disponibil trebuie să scadă și cheltuielile REALE (nu doar cele
+            // alocate în Wishlist) — la fel ca formula din actualizeazaSoldFinal().
+            const soldFinal = Math.max(0, globalIncasari - globalCheltuieliReale - globalCheltuieliAlocate);
             
             let text = `👑 *UPDATE FINANCIAR - ARENA FC* 👑\n`;
             text += `▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n\n`;
             
-            text += `💰 *STARE CASIERIE:*\n`;
-            text += `└ Sold Disponibil: *${soldFinal.toFixed(2)} RON*\n`;
+            text += `💰 *STARE BUGET:*\n`;
+            text += `└ Buget Disponibil: *${soldFinal.toFixed(2)} RON*\n`;
             text += `└ Total Strâns: _${globalIncasari.toFixed(2)} RON_\n`;
-            text += `└ Total Alocat: _${globalCheltuieliAlocate.toFixed(2)} RON_\n\n`;
+            text += `└ Total Alocat Wishlist: _${globalCheltuieliAlocate.toFixed(2)} RON_\n`;
+            text += `└ Cheltuieli Reale: _${globalCheltuieliReale.toFixed(2)} RON_\n\n`;
 
             text += `🎯 *CE VREM SĂ CUMPĂRĂM / WISHLIST:*\n`;
             if(dateRaportWishlist.length === 0) {
@@ -621,7 +1101,6 @@
             if(dateRaportIncasari.length === 0) {
                 text += `└ _Nicio plată înregistrată în baza de date._\n`;
             } else {
-                // Grupăm contribuțiile pe jucători pentru a nu repeta numele aiurea în mesaj
                 const sumePeJucator = {};
                 dateRaportIncasari.forEach(i => {
                     if(!sumePeJucator[i.nume]) sumePeJucator[i.nume] = [];
@@ -637,11 +1116,74 @@
             text += `⚡ _Raport actualizat în timp real din aplicație._`;
 
             navigator.clipboard.writeText(text).then(() => {
-                alert("📋 Raportul formatat „jmeker” a fost copiat! Dă Paste direct pe grupul de WhatsApp.");
+                alert("📋 Raportul formatat a fost copiat! Dă Paste direct pe grupul de WhatsApp.");
             }).catch(err => {
                 alert("Eroare la copiere.");
             });
         }
+
+        // Delegare globală pentru evenimente
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('button, [data-action]');
+            
+            // Deschidere Modal Alocare
+            if (btn && btn.dataset.action === 'open-allocation') {
+                if (globalSoldDisponibil <= 0) {
+                    alert("Nu ai suficient buget disponibil pentru a face o alocare!");
+                    return;
+                }
+                const id = btn.dataset.allocationId;
+                const current = Number(btn.dataset.allocationCurrent || 0);
+                const target = Number(btn.dataset.allocationTarget || 0);
+                const name = btn.dataset.allocationName || 'Produs';
+                deschideModalAlocare(id, name, current, target);
+                return;
+            }
+
+            // Stergere Wishlist
+            const btnWishlist = e.target.closest('[data-delete-wishlist]');
+            if (btnWishlist) {
+                stergeObiectiv(btnWishlist.dataset.deleteWishlist);
+                return;
+            }
+
+            // Stergere Plata
+            const btnPayment = e.target.closest('[data-delete-payment]');
+            if (btnPayment) {
+                stergePlata(btnPayment.dataset.deletePayment);
+                return;
+            }
+
+            // Stergere Cheltuiala
+            const btnExpense = e.target.closest('[data-delete-expense]');
+            if (btnExpense) {
+                stergeCheltuiala(btnExpense.dataset.deleteExpense);
+                return;
+            }
+
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+            if (action === 'login') autentifica();
+            if (action === 'logout') delogare();
+            if (action === 'report') genereazaTabelaRaport();
+            if (action === 'add-wishlist') salveazaCheltuiala();
+            if (action === 'add-payment') salveazaPlata();
+            if (action === 'add-expense') salveazaCheltuialaReala();
+            if (action === 'confirm-allocation') confirmaAlocarea();
+        });
+
+        document.getElementById('cancelAllocationButton').addEventListener('click', inchideModalAlocare);
+
+        document.getElementById('paymentNameFilter')?.addEventListener('change', randeazaIncasari);
+        
+        document.getElementById('allocationModal').addEventListener('click', (e) => {
+            if (e.target.id === 'allocationModal') inchideModalAlocare();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') inchideModalAlocare();
+        });
 
         async function init() {
             await incarcaJucatoriDropdown();
@@ -683,6 +1225,7 @@
                 document.getElementById('loginGate').style.display = 'flex';
             }
         }
+
         verificaSesiune();
     </script>
 </body>
