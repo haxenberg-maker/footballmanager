@@ -1458,15 +1458,63 @@ async function loadPotmMatchDetails(){
     _potmAdminMatch = db.history.find(h=>String(h._dbId)===String(matchId));
     if (!_potmAdminMatch) return;
 
-    // Populează dropdown-ul de suprascriere manuală
+    // Populează dropdown-ul de suprascriere manuală (POTM)
     const participants = potmMatchParticipants(_potmAdminMatch);
     const manualSel = document.getElementById('potmManualSelect');
     manualSel.innerHTML = '<option value="">— fără suprascriere (folosește voturile) —</option>'
         + participants.sort((a,b)=>a.name.localeCompare(b.name))
             .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualPotmId==p.id?'selected':''}>${p.name}</option>`).join('');
 
+    // Populează dropdown-ul de suprascriere manuală (MVP) — aceiași participanți
+    const mvpManualSel = document.getElementById('mvpManualSelect');
+    if (mvpManualSel) {
+        mvpManualSel.innerHTML = '<option value="">— fără suprascriere (folosește calculul) —</option>'
+            + participants.sort((a,b)=>a.name.localeCompare(b.name))
+                .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualMvpId==p.id?'selected':''}>${p.name}</option>`).join('');
+    }
+
     document.getElementById('potmMatchPanel').style.display = 'block';
     await refreshPotmVotes();
+    refreshMvpBreakdown();
+}
+
+// Arată transparent, pentru sesiunea/meciul selectat, exact clasamentul
+// goluri+minute care a decis MVP-ul — ca să vezi de ce a ieșit cineva
+// (de-asta unii "n-au luat niciodată MVP" par totuși cu MVP: e din calcul,
+// nu din vot, și aici vezi exact componentele).
+function refreshMvpBreakdown(){
+    const listEl = document.getElementById('mvpBreakdownList');
+    if (!listEl || !_potmAdminMatch) return;
+    const rows = getSessionRowsFor(_potmAdminMatch);
+    const { winner, source, candidates } = computeSessionMvpWinner(rows);
+    if (!candidates.length) {
+        listEl.innerHTML = '<div style="color:#555;">Niciun jucător cu goluri/minute înregistrate pentru asta.</div>';
+        return;
+    }
+    listEl.innerHTML = candidates.slice(0,8).map((c,i)=>{
+        const isWinner = winner && c.name===winner.name;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+            <span style="font-weight:700;color:${isWinner?'var(--star)':'#e0e0e0'};">${isWinner?'⭐ ':''}${c.name}</span>
+            <span style="color:#888;font-size:.72rem;">${c.goals} goluri · ${c.minutes} min · scor ${c.score.toFixed(2)}</span>
+        </div>`;
+    }).join('') + (source==='manual' ? `<div style="margin-top:6px;font-size:.68rem;color:#ffcc00;">🔒 Suprascris manual — câștigătorul calculat era altcineva mai sus.</div>` : '');
+}
+
+async function saveMvpManual(){
+    if (!_potmAdminMatch) return;
+    const sel = document.getElementById('mvpManualSelect');
+    const val = sel.value ? parseInt(sel.value) : null;
+    try{
+        // La fel ca la POTM: se salvează pe TOATE perechile sesiunii, o singură
+        // sursă de adevăr indiferent care pereche o citește prima clasament.html.
+        const sessionRows = getSessionRowsFor(_potmAdminMatch);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
+        sessionRows.forEach(r => { r.manualMvpId = val; });
+        _potmAdminMatch.manualMvpId = val;
+        showToast(val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
+        refreshMvpBreakdown();
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
 }
 
 async function refreshPotmVotes(){
