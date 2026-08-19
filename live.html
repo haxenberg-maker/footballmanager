@@ -1939,30 +1939,37 @@ function computeLiveStats() {
     }
 
     // Marcatori (cumulat pe tot meciul, inclusiv turele deja încheiate)
+    // IMPORTANT: reținem identitatea REALĂ a echipei (team_a_id/team_b_id, salvată
+    // per rundă) — NU slotul curent (orange/green) — altfel, după o rotație, un
+    // jucător apare cu culoarea echipei care ocupă ACUM acel slot, nu cu culoarea
+    // lui reală (bug-ul "bulină neagră la un jucător Verde").
     const scorerMap = {};
-    const trackGoal = (g) => {
-        if (!scorerMap[g.player_name]) scorerMap[g.player_name] = { count:0, team:g.team };
+    const trackGoal = (g, tidO, tidG) => {
+        const tid = g.team === 'orange' ? tidO : tidG;
+        if (!scorerMap[g.player_name]) scorerMap[g.player_name] = { count:0, teamId: tid };
         scorerMap[g.player_name].count++;
-        scorerMap[g.player_name].team = g.team;
+        scorerMap[g.player_name].teamId = tid;
     };
     // Assisturi (cumulat pe tot meciul, la fel ca marcatorii)
     const assisterMap = {};
-    const trackAssist = (g) => {
+    const trackAssist = (g, tidO, tidG) => {
         if (!g.assist_name) return;
-        if (!assisterMap[g.assist_name]) assisterMap[g.assist_name] = { count:0, team:g.team };
+        const tid = g.team === 'orange' ? tidO : tidG;
+        if (!assisterMap[g.assist_name]) assisterMap[g.assist_name] = { count:0, teamId: tid };
         assisterMap[g.assist_name].count++;
-        assisterMap[g.assist_name].team = g.team;
+        assisterMap[g.assist_name].teamId = tid;
     };
     if (mode) {
-        allRoundsForStats.forEach(r => (r.goals||[]).forEach(g => { trackGoal(g); trackAssist(g); }));
+        allRoundsForStats.forEach(r => (r.goals||[]).forEach(g => { trackGoal(g, r.team_a_id, r.team_b_id); trackAssist(g, r.team_a_id, r.team_b_id); }));
     } else {
-        goals.filter(g=>!String(g.id).startsWith('tmp_')).forEach(g => { trackGoal(g); trackAssist(g); });
+        const tidO = getTeamIdByColor('orange'), tidG = getTeamIdByColor('green');
+        goals.filter(g=>!String(g.id).startsWith('tmp_')).forEach(g => { trackGoal(g, tidO, tidG); trackAssist(g, tidO, tidG); });
     }
     const scorers = Object.entries(scorerMap)
-        .map(([name,d])=>({name, count:d.count, team:d.team}))
+        .map(([name,d])=>({name, count:d.count, hex:getTeamHexById(d.teamId)}))
         .sort((a,b)=>b.count-a.count);
     const assisters = Object.entries(assisterMap)
-        .map(([name,d])=>({name, count:d.count, team:d.team}))
+        .map(([name,d])=>({name, count:d.count, hex:getTeamHexById(d.teamId)}))
         .sort((a,b)=>b.count-a.count);
 
     // Timp petrecut pe teren, per echipă
