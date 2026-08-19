@@ -2038,23 +2038,36 @@ function renderFinalizeDialog() {
     // ── 2-team mode ───────────────────────────────────────────────
     const allGoals = goals.filter(g=>!String(g.id).startsWith('tmp_'));
     const scorerMap = {};
+    const assistMap = {};
+    const ensure = (name, team) => { if (!scorerMap[name]) scorerMap[name]={count:0,team,mins:[]}; return scorerMap[name]; };
     allGoals.forEach(g => {
-        if (!scorerMap[g.player_name]) scorerMap[g.player_name]={count:0,team:g.team,mins:[]};
-        scorerMap[g.player_name].count++;
-        if (g.minute!=null) scorerMap[g.player_name].mins.push(g.minute+"'");
+        const s = ensure(g.player_name, g.team);
+        s.count++;
+        if (g.minute!=null) s.mins.push(g.minute+"'");
+        if (g.assist_name) {
+            ensure(g.assist_name, g.team); // ca playerul care doar dă assist să apară și el în listă
+            assistMap[g.assist_name] = (assistMap[g.assist_name]||0)+1;
+        }
     });
-    const sorted = Object.entries(scorerMap).sort((a,b)=>b[1].count-a[1].count);
+    // Departajare MVP: goluri, apoi (la egalitate) asisturi
+    const sorted = Object.entries(scorerMap).sort((a,b)=>
+        b[1].count-a[1].count || (assistMap[b[0]]||0)-(assistMap[a[0]]||0));
     const mvp = sorted[0];
+    const mvpAst = mvp ? (assistMap[mvp[0]]||0) : 0;
     const mvpHtml = mvp
-        ? '<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">'+mvp[0]+' · '+mvp[1].count+' gol'+(mvp[1].count!==1?'uri':'')+'</div></div></div>'
+        ? '<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">'+mvp[0]+' · '+mvp[1].count+' gol'+(mvp[1].count!==1?'uri':'')+(mvpAst?' · '+mvpAst+' 🅰️':'')+'</div></div></div>'
         : '';
     const scorersHtml = sorted.length
-        ? sorted.map(([name,d])=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+d.count+'⚽</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>').join('')
+        ? sorted.map(([name,d])=>{
+            const ast = assistMap[name]||0;
+            const astTxt = ast ? ' <span style="color:#1554b3;font-weight:700;">'+ast+'🅰️</span>' : '';
+            return '<div class="scorer-row"><div class="scorer-dot" style="background:'+(d.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+name+'</span><span class="scorer-goals">'+(d.count?d.count+'⚽':'')+astTxt+'</span><span class="scorer-mins">'+(d.mins.length?' · '+d.mins.join(', '):'')+'</span></div>';
+        }).join('')
         : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun marcator.</div>';
     document.getElementById('dialogBox').innerHTML =
         '<div class="dialog-title">🏁 Finalizează Meciul</div>'
         +mvpHtml
-        +'<div class="dialog-section">Marcatori</div>'
+        +'<div class="dialog-section">Marcatori & Assisturi</div>'
         +'<div>'+scorersHtml+'</div>'
         +'<div class="dialog-actions">'
         +'<button class="dia-cancel" onclick="closeDialog()">✕ Înapoi</button>'
@@ -2063,12 +2076,18 @@ function renderFinalizeDialog() {
 }
 
 function renderFinalize3Team() {
-    // MVP overall
+    // MVP overall (departajare: goluri, apoi asisturi la egalitate)
     const allGoals3 = editPairs.flatMap(p => p.all_goals);
-    const sc3 = {}; allGoals3.forEach(g => { sc3[g.player_name]=(sc3[g.player_name]||0)+1; });
-    const topScorer = Object.entries(sc3).sort((a,b)=>b[1]-a[1])[0];
+    const sc3 = {}, as3 = {};
+    allGoals3.forEach(g => {
+        sc3[g.player_name]=(sc3[g.player_name]||0)+1;
+        if (g.assist_name) as3[g.assist_name]=(as3[g.assist_name]||0)+1;
+    });
+    const topScorer = Object.entries(sc3).sort((a,b)=>
+        b[1]-a[1] || (as3[b[0]]||0)-(as3[a[0]]||0))[0];
+    const topAst = topScorer ? (as3[topScorer[0]]||0) : 0;
     const mvpHtml = topScorer
-        ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${topScorer[0]} · ${topScorer[1]} goluri</div></div></div>`
+        ? `<div class="mvp-row"><div class="mvp-icon">🥇</div><div><div class="mvp-info-lbl">MVP Meci</div><div class="mvp-info-name">${topScorer[0]} · ${topScorer[1]} goluri${topAst?' · '+topAst+' 🅰️':''}</div></div></div>`
         : '';
 
     const reasonIcon  = {goals:'⚽',time:'⏱',manual:'✋',final:'🏁',penalty:'🥅'};
@@ -2082,13 +2101,20 @@ function renderFinalize3Team() {
         const sA = pair.score_a, sB = pair.score_b; // ture câștigate
         const winA = sA > sB, winB = sB > sA;
 
-        // Scorers for this pair
-        const pairSc = {};
-        pair.all_goals.forEach(g => { pairSc[g.player_name]=(pairSc[g.player_name]||0)+1; });
-        const scorersList = Object.entries(pairSc).sort((a,b)=>b[1]-a[1])
-            .map(([n,c]) => {
+        // Scorers for this pair (goluri + asisturi, inclusiv jucători care doar au dat assist)
+        const pairSc = {}, pairAs = {};
+        pair.all_goals.forEach(g => {
+            pairSc[g.player_name]=(pairSc[g.player_name]||0)+1;
+            if (g.assist_name) pairAs[g.assist_name]=(pairAs[g.assist_name]||0)+1;
+        });
+        const pairNames = new Set([...Object.keys(pairSc), ...Object.keys(pairAs)]);
+        const scorersList = Array.from(pairNames)
+            .map(n => ({ n, c: pairSc[n]||0, a: pairAs[n]||0 }))
+            .sort((x,y)=> y.c-x.c || y.a-x.a)
+            .map(({n,c,a}) => {
                 const isA = pair.a_players.includes(n);
-                return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n} ⚽${c}</span>`;
+                const astTxt = a ? ' <span style="color:#1554b3;">🅰️'+a+'</span>' : '';
+                return `<span style="font-size:.68rem;color:${isA?hA:hB};font-weight:700;">${n}${c?' ⚽'+c:''}${astTxt}</span>`;
             }).join('<span style="color:#7d6849;margin:0 4px;">·</span>');
 
         // Marcatori la penalty — STRICT separat de golurile normale (nu se adună cu ele)
@@ -2291,8 +2317,12 @@ async function finalizeMatch3Team(pairs) {
                         goals: 1, goals_conceded: 0, minute: g.minute ?? null,
                     })));
                 } catch(e) {}
-                const sc = {}; pair.all_goals.forEach(g=>{sc[g.player_name]=(sc[g.player_name]||0)+1;});
-                const mvpE = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
+                const sc = {}; const as_ = {};
+                pair.all_goals.forEach(g=>{
+                    sc[g.player_name]=(sc[g.player_name]||0)+1;
+                    if (g.assist_name) as_[g.assist_name]=(as_[g.assist_name]||0)+1;
+                });
+                const mvpE = Object.entries(sc).sort((a,b)=>b[1]-a[1]||(as_[b[0]]||0)-(as_[a[0]]||0))[0];
                 if (mvpE) { try { await sb.from('mvp_votes').insert({match_id:mh.id,voter:'system',mvp_player_name:mvpE[0],mvp_type:'goals'}); } catch(e){} }
             }
 
@@ -2371,7 +2401,12 @@ async function finalizeMatch2Team(finalRounds) {
         const orange=players.filter(p=>p.status==='orange').map(p=>p.name);
         const green=players.filter(p=>p.status==='green').map(p=>p.name);
         const realGoals=goals.filter(g=>!String(g.id).startsWith('tmp_'));
-        const goalMap={};realGoals.forEach(g=>{if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};goalMap[g.player_name].count++;});
+        const goalMap={};const assistMap2={};
+        realGoals.forEach(g=>{
+            if(!goalMap[g.player_name])goalMap[g.player_name]={count:0,team:g.team};
+            goalMap[g.player_name].count++;
+            if(g.assist_name) assistMap2[g.assist_name]=(assistMap2[g.assist_name]||0)+1;
+        });
         const oScore=realGoals.filter(g=>g.team==='orange').length;
         const gScore=realGoals.filter(g=>g.team==='green').length;
         const winner=oScore>gScore?'orange':gScore>oScore?'green':'draw';
@@ -2383,7 +2418,7 @@ async function finalizeMatch2Team(finalRounds) {
         if(mhErr) throw mhErr;
         if(mh?.id){
             const mvpRows=[];
-            ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count);if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
+            ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0));if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
             if(mvpRows.length){try{await sb.from('mvp_votes').insert(mvpRows);}catch(e){}}
             if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null})));
         }
@@ -2415,10 +2450,11 @@ async function finalizeMatch2Team(finalRounds) {
         try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
         await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
         goals=[];render();applyTimerUI(liveState);
-        const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)[0];
-        showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]:''));
-        const scorerLines = Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count)
-            .map(([name,g]) => `⚽ ${name} (${g.count===1?'1 gol':g.count+' goluri'})`);
+        const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0))[0];
+        const topAst=top?(assistMap2[top[0]]||0):0;
+        showToast('🏆 '+winnerLabel+' câștigă! '+(top?'🥇 MVP: '+top[0]+(topAst?' ('+topAst+' 🅰️)':''):''));
+        const scorerLines = Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0))
+            .map(([name,g]) => `⚽ ${name} (${g.count===1?'1 gol':g.count+' goluri'}${assistMap2[name]?', '+assistMap2[name]+' assist'+(assistMap2[name]!==1?'uri':''):''})`);
         const shareText = `⚽ Arena FC — ${today}\n🏆 ${winnerLabel} câștigă ${oScore}:${gScore}\n\n`
             + (scorerLines.length ? scorerLines.join('\n') : 'Fără goluri înregistrate.');
         showResultShare('🏆 '+winnerLabel+' câștigă!', shareText, shareText);
