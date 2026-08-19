@@ -109,19 +109,20 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .pr-minus.show{display:flex;}
 .pr-minus:active{background:#fdf3df;color:#b71c1c;}
 .pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
-/* ── Pe telefon: echipele se așează una sub alta (rând întreg pe lățime),
-   nu una lângă alta — numele au loc, iar butoanele +/- devin mai mari
-   și mai depărtate ca să nu se apese greșit. ── */
+/* ── Echipa din dreapta (verde) e "în oglindă": ordinea rândului se
+   inversează, ca butoanele +/- ale ambelor echipe să cadă spre mijlocul
+   ecranului (unde e loc mai mult și degetul ajunge natural), iar numele
+   rămân spre marginile exterioare. ── */
+.g-col .pr{flex-direction:row-reverse;}
+.g-col .pr-name{text-align:right;}
+/* Pe telefon: aceleași 2 coloane, dar butoane +/- mai mari și mai
+   depărtate între ele ca să nu se apese greșit unul în locul celuilalt. */
 @media(max-width:640px){
-    .teams-wrap{grid-template-columns:1fr;}
-    .team-col.o-col{border-right:none;border-bottom:2px solid var(--b);}
-    .team-col{padding:6px 6px 10px;}
-    .pr{min-height:52px;gap:10px;padding:5px 4px;border-bottom:1px solid #f5e9d4;}
-    .pr:last-child{border-bottom:none;}
-    .pr-name{font-size:.92rem;}
-    .pr-cnt{min-width:24px;font-size:1.35rem;}
-    .pr-minus{width:44px;height:48px;font-size:1.05rem;}
-    .pr-plus{width:50px;height:48px;font-size:1.5rem;}
+    .pr{min-height:52px;gap:6px;padding:5px 3px;}
+    .pr-name{font-size:.86rem;}
+    .pr-cnt{min-width:20px;font-size:1.25rem;}
+    .pr-minus{width:38px;height:46px;font-size:1rem;}
+    .pr-plus{width:44px;height:46px;font-size:1.35rem;}
 }
 .pr-plus:active,.pr-plus.busy{transform:scale(.88);}
 .pr-plus.busy{opacity:.4;pointer-events:none;}
@@ -2315,6 +2316,8 @@ async function finalizeMatch3Team(pairs) {
                         match_id: mh.id, player_name: g.player_name,
                         team: g.canon_team === 'a' ? colA : colB,
                         goals: 1, goals_conceded: 0, minute: g.minute ?? null,
+                        assist_name: g.assist_name || null,
+                        assist_minute: g.assist_name ? (g.minute ?? null) : null,
                     })));
                 } catch(e) {}
                 const sc = {}; const as_ = {};
@@ -2420,7 +2423,7 @@ async function finalizeMatch2Team(finalRounds) {
             const mvpRows=[];
             ['orange','green'].forEach(team=>{const tg=Object.entries(goalMap).filter(([,g])=>g.team===team).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0));if(tg.length&&tg[0][1].count>0)mvpRows.push({match_id:mh.id,voter:'system',mvp_player_name:tg[0][0],mvp_type:'goals'});});
             if(mvpRows.length){try{await sb.from('mvp_votes').insert(mvpRows);}catch(e){}}
-            if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null})));
+            if(realGoals.length) await sb.from('match_goals').insert(realGoals.map(g=>({match_id:mh.id,player_name:g.player_name,team:g.team,goals:1,goals_conceded:0,minute:g.minute??null,assist_name:g.assist_name||null,assist_minute:g.assist_name?(g.minute??null):null})));
         }
         for(const name of [...orange,...green]){
             const p=players.find(x=>x.name===name);if(!p)continue;
