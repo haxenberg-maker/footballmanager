@@ -416,6 +416,16 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 </select>
                 <button onclick="savePotmManual()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">💾 Salvează POTM Oficial</button>
             </div>
+
+            <div class="card">
+                <div class="card-title">⭐ MVP din meciuri (goluri + minute)</div>
+                <div style="font-size:.68rem;color:#555;margin-bottom:8px;">MVP NU e votat de colegi — se calculează automat: goluri + minute jucate/90, pe TOATĂ selecția de mai sus. Aici vezi exact clasamentul care a decis câștigătorul, ca să înțelegi de ce a ieșit cineva, și poți suprascrie dacă nu ți se pare corect.</div>
+                <div id="mvpBreakdownList" style="font-size:.8rem;margin-bottom:10px;"></div>
+                <select id="mvpManualSelect" class="p-input" style="width:100%;margin-bottom:8px;">
+                    <option value="">— fără suprascriere (folosește calculul) —</option>
+                </select>
+                <button onclick="saveMvpManual()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#7a5c00,var(--star));border:1px solid var(--star);color:#1a1500;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;font-weight:700;">💾 Salvează MVP Oficial</button>
+            </div>
         </div>
     </div>
 </div>
@@ -689,10 +699,23 @@ async function loadAll(){
     }));
     // History
     const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(200);
+    // Goluri per meci per jucător — necesare pentru calculul "MVP din meciuri"
+    // (goluri + minute jucate), afișat/suprascris în panoul MVP de mai jos.
+    let goalsPerMatch={};
+    try{
+        const{data:goalsRaw}=await sb.from('match_goals').select('match_id,player_name,goals,is_penalty');
+        (goalsRaw||[]).forEach(g=>{
+            if(g.is_penalty) return;
+            if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]={};
+            goalsPerMatch[g.match_id][g.player_name]=(goalsPerMatch[g.match_id][g.player_name]||0)+(g.goals||1);
+        });
+    }catch(e){ console.warn('match_goals load (mvp panel):',e.message); }
     db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
         orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
+        playerGoals:goalsPerMatch[h.id]||{},
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
+        manualMvpId:h.manual_mvp_player_id!=null?h.manual_mvp_player_id:null,
         potmVoteDeadline:h.potm_vote_deadline||null}));
     // POTM & MVP per jucător — pentru ca preview-ul de algoritm (componentele
     // ⭐POTM/👑MVP) să fie corect. Aproximativ scopat (ultimele 200 meciuri,
@@ -1281,6 +1304,34 @@ function getSessionRowsFor(h){
     const groups = groupHistoryForDisplay(db.history);
     const g = groups.find(item => item.rows.some(r => r._dbId === h._dbId));
     return g ? g.rows : [h];
+}
+
+// "MVP din meciuri" — golgheterul cu cele mai multe minute jucate (goluri +
+// minute/90), pe o sesiune (rows = toate perechile) sau un meci simplu
+// (rows = [h]). Suprascrierea manuală (pe orice rând din grup) are prioritate.
+function computeSessionMvpWinner(rows){
+    const manualId = rows.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
+    const totalGoals = {};
+    rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const totalSeconds = {};
+    rows.forEach(h => {
+        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
+        playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
+    });
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const candidates = [...allNames].map(name => {
+        const goals = totalGoals[name] || 0;
+        const minutes = Math.round((totalSeconds[name]||0) / 60);
+        return { name, goals, minutes, score: goals + minutes/90 };
+    }).sort((a,b) => b.score - a.score);
+    let winner = candidates[0] || null;
+    let source = winner ? 'computed' : null;
+    if (manualId != null) {
+        const p = db.players.find(x=>x.id===manualId);
+        if (p) { winner = candidates.find(c=>c.name===p.name) || { name:p.name, goals:0, minutes:0, score:0 }; source = 'manual'; }
+    }
+    return { winner, source, candidates };
 }
 
 function potmMatchParticipants(h){
