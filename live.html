@@ -105,10 +105,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .pr-name{flex:1;font-weight:700;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
 .pr-cnt{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;min-width:18px;text-align:center;color:#dcc89a;transition:color .15s;flex-shrink:0;}
 .pr-cnt.has{color:#3a2f1f;}
-.pr-minus{width:34px;height:42px;background:none;border:none;color:#7d6849;font-size:.9rem;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:6px;flex-shrink:0;touch-action:manipulation;}
-.pr-minus.show{display:flex;}
-.pr-minus:active{background:#fdf3df;color:#b71c1c;}
-.pr-plus{width:40px;height:42px;border-radius:9px;border:1px solid;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.pr-plus{width:34px;height:36px;border-radius:8px;border:1px solid;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .1s,background .1s;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 /* ── Echipa din dreapta (verde) e "în oglindă": ordinea rândului se
    inversează, ca butoanele +/- ale ambelor echipe să cadă spre mijlocul
    ecranului (unde e loc mai mult și degetul ajunge natural), iar numele
@@ -117,11 +114,10 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 /* Pe telefon: aceleași 2 coloane, dar butoane +/- mai mari și mai
    depărtate între ele ca să nu se apese greșit unul în locul celuilalt. */
 @media(max-width:640px){
-    .pr{min-height:52px;gap:5px;padding:5px 2px;}
-    .pr-name{font-size:.76rem;}
-    .pr-cnt{min-width:18px;font-size:1.15rem;}
-    .pr-minus{width:34px;height:46px;font-size:.95rem;}
-    .pr-plus{width:40px;height:46px;font-size:1.25rem;}
+    .pr{min-height:48px;gap:6px;padding:4px 2px;}
+    .pr-name{font-size:.82rem;}
+    .pr-cnt{min-width:16px;font-size:1.1rem;}
+    .pr-plus{width:32px;height:38px;font-size:1.05rem;}
 }
 .pr-plus:active,.pr-plus.busy{transform:scale(.88);}
 .pr-plus.busy{opacity:.4;pointer-events:none;}
@@ -1348,7 +1344,6 @@ function render() {
             return '<div class="pr">'
                 + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}" title="${p.name}">${displayName}${tempBadge}${astBadge}</div>`
                 + removeTempBtn
-                + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
                 + `<button class="pr-plus" ${plusDisabled} onclick="confirmGoal('${p.name}','${team}')">+</button>`
                 + '</div>';
