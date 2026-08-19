@@ -977,10 +977,15 @@ function getRoundGoals() {
 
 // ── All match goals = past rounds + current round ─────────────────
 function allMatchGoals() {
+    // Fiecare gol istoric primește ID-ul REAL al echipei (team_a_id/team_b_id
+    // salvat cu runda respectivă) — nu slotul curent — ca să nu se coloreze
+    // greșit după o rotație (vezi bug "bulină neagră la un jucător Verde").
     const past = rounds.flatMap(r =>
-        (Array.isArray(r.goals) ? r.goals : []).map(g => ({ ...g, _roundNum: r.num }))
+        (Array.isArray(r.goals) ? r.goals : []).map(g => ({ ...g, _roundNum: r.num, _tidO: r.team_a_id, _tidG: r.team_b_id }))
     );
-    return [...past, ...goals.filter(g => !String(g.id).startsWith('tmp_'))];
+    const curTidO = getTeamIdByColor('orange'), curTidG = getTeamIdByColor('green');
+    const current = goals.filter(g => !String(g.id).startsWith('tmp_')).map(g => ({ ...g, _tidO: curTidO, _tidG: curTidG }));
+    return [...past, ...current];
 }
 
 function getRoundConceded() {
@@ -1659,8 +1664,9 @@ function renderLog() {
     [...allGoals].reverse().forEach(g => {
         const div = document.createElement('div');
         div.className = 'log-entry';
-        // In past rounds, team slot may have rotated — use team field as stored
-        const dot = g.team === 'orange' ? 'var(--o)' : 'var(--g)';
+        // Culoare corectă pe baza identității reale a echipei din runda respectivă
+        // (team_a_id/team_b_id), nu a slotului curent orange/green.
+        const dot = g._tidO ? getTeamHexById(g.team === 'orange' ? g._tidO : g._tidG) : (g.team === 'orange' ? 'var(--o)' : 'var(--g)');
         const min = g.minute != null ? g.minute+"'" : "—'";
         const roundLbl = g._roundNum ? `<span style="font-size:.55rem;color:#7d6849;">T${g._roundNum}</span> ` : '';
         const assistTxt = g.assist_name
@@ -2007,10 +2013,10 @@ function openLiveStats(){
         }).join('')
         : '<div style="color:#7d6849;font-size:.78rem;">Niciun minut jucat încă.</div>';
     const scorersHtml = scorers.length
-        ? scorers.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(s.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals">'+s.count+'⚽</span></div>').join('')
+        ? scorers.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+s.hex+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals">'+s.count+'⚽</span></div>').join('')
         : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun gol încă.</div>';
     const assistersHtml = assisters.length
-        ? assisters.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+(s.team==='orange'?'var(--o)':'var(--g)')+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals" style="color:#1554b3;">'+s.count+' 🅰️</span></div>').join('')
+        ? assisters.map((s,i)=>'<div class="scorer-row"><div class="scorer-dot" style="background:'+s.hex+'"></div><span class="scorer-name">'+(i===0?'🥇 ':'')+s.name+'</span><span class="scorer-goals" style="color:#1554b3;">'+s.count+' 🅰️</span></div>').join('')
         : '<div style="color:#7d6849;font-size:.78rem;padding:4px 0;">Niciun assist încă.</div>';
     document.getElementById('dialogBox').innerHTML =
         '<div class="dialog-title">📊 Statistici Live</div>'
