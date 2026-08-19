@@ -114,15 +114,14 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
    ecranului (unde e loc mai mult și degetul ajunge natural), iar numele
    rămân spre marginile exterioare. ── */
 .g-col .pr{flex-direction:row-reverse;}
-.g-col .pr-name{text-align:right;}
 /* Pe telefon: aceleași 2 coloane, dar butoane +/- mai mari și mai
    depărtate între ele ca să nu se apese greșit unul în locul celuilalt. */
 @media(max-width:640px){
-    .pr{min-height:52px;gap:6px;padding:5px 3px;}
-    .pr-name{font-size:.86rem;}
-    .pr-cnt{min-width:20px;font-size:1.25rem;}
-    .pr-minus{width:38px;height:46px;font-size:1rem;}
-    .pr-plus{width:44px;height:46px;font-size:1.35rem;}
+    .pr{min-height:52px;gap:5px;padding:5px 2px;}
+    .pr-name{font-size:.76rem;}
+    .pr-cnt{min-width:18px;font-size:1.15rem;}
+    .pr-minus{width:34px;height:46px;font-size:.95rem;}
+    .pr-plus{width:40px;height:46px;font-size:1.25rem;}
 }
 .pr-plus:active,.pr-plus.busy{transform:scale(.88);}
 .pr-plus.busy{opacity:.4;pointer-events:none;}
@@ -1326,23 +1325,35 @@ function render() {
         // Meciul nu a început încă (Start Meci neapăsat) — blocăm adăugarea de goluri
         const matchStarted = !!liveState?.match_started_at;
 
+        // Plasă de siguranță: nume foarte lungi (ex. "Serbanoiu Radu") se scurtează
+        // automat la "Serbanoiu R." ca să nu mai iasă din rând pe ecrane înguste.
+        // Numele complet rămâne folosit peste tot în DB/logică — doar AFIȘAREA se scurtează.
+        const shortDisplayName = (name) => {
+            if (!name || name.length <= 13) return name;
+            const parts = name.trim().split(/\s+/);
+            if (parts.length < 2) return name;
+            return parts[0] + ' ' + parts.slice(1).map(w => w[0] + '.').join(' ');
+        };
+
         // Mark temp players in rows
         const makeRows = (pls, team) => pls.map(p => {
             const cnt = gpm[p.name] || 0;
             const ast = apm[p.name] || 0;
             const isTemp = !!p._temp;
+            const displayName = shortDisplayName(p.name);
             const tempBadge = isTemp ? `<span style="font-size:.5rem;color:#8a6307;background:rgba(255,213,79,.12);border:1px solid rgba(255,213,79,.3);border-radius:4px;padding:1px 4px;margin-left:2px;vertical-align:middle;">TEMP</span>` : '';
             const astBadge  = ast ? `<span style="font-size:.62rem;font-weight:800;color:#1554b3;background:rgba(21,84,179,.1);border:1px solid rgba(21,84,179,.3);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;white-space:nowrap;">🅰️${ast}</span>` : '';
             const removeTempBtn = isTemp ? `<button onclick="removeTempPlayer('${p.id}')" style="background:none;border:none;color:#6b5840;font-size:.7rem;cursor:pointer;padding:0 4px;flex-shrink:0;" title="Elimină jucător temporar">✕</button>` : '';
             const plusDisabled = matchStarted ? '' : 'disabled style="opacity:.3;pointer-events:none;" title="Apasă ▶ Start Meci mai întâi"';
             return '<div class="pr">'
-                + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}">${p.name}${tempBadge}${astBadge}</div>`
+                + `<div class="pr-name" style="${isTemp?'color:#8a6307;':''}" title="${p.name}">${displayName}${tempBadge}${astBadge}</div>`
                 + removeTempBtn
                 + '<button class="pr-minus'+(cnt?' show':'')+'" onclick="removeGoal(\''+p.name+'\',\''+team+'\')">−</button>'
                 + '<div class="pr-cnt'+(cnt?' has':'')+'">'+( cnt||'·' )+'</div>'
                 + `<button class="pr-plus" ${plusDisabled} onclick="confirmGoal('${p.name}','${team}')">+</button>`
                 + '</div>';
         }).join('');
+
 
         const makeAddBtn = (team, hex) => {
             return `<div style="padding:4px 2px 2px;">
