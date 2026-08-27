@@ -630,6 +630,12 @@ function renderSessionCard(rows){
         </div>
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
+            <div class="mc-badges">
+                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
+                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
+                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
+                ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
+            </div>
             <button class="mc-details-toggle" onclick="toggleSessionDetails('${sessDomId}', this)">▼ Afișează detalii</button>
             <div id="${sessDomId}" style="display:none;margin-top:10px;">
                 ${topScorersList.length ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-bottom:8px;">
@@ -638,12 +644,6 @@ function renderSessionCard(rows){
                     ${restScorersList.length ? `<div id="${scorersDomId}" style="display:none;margin-top:2px;">${restScorersHtml}</div>
                     <button onclick="event.stopPropagation();toggleSessionScorers('${scorersDomId}', this, ${restScorersList.length})" style="width:100%;margin-top:6px;padding:6px;border-radius:6px;background:none;border:1px dashed #2c384c;color:#8b96a8;font-size:.68rem;font-weight:700;cursor:pointer;">▼ Vezi mai mult (${restScorersList.length})</button>` : ''}
                 </div>` : ''}
-                <div class="mc-badges">
-                    ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
-                    ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
-                    ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
-                    ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
-                </div>
                 <div class="mc-timeline">${timelineHTML}</div>
                 <button onclick="event.stopPropagation();toggleSessionDetails('${timeDomId}', this, '▼ Timp pe teren','▲ Ascunde timp pe teren')" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:#1b2330;border:1px dashed #262f3f;color:#8b96a8;font-size:.7rem;font-weight:700;cursor:pointer;">▼ Timp pe teren</button>
                 <div id="${timeDomId}" style="display:none;margin-top:8px;background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;">
