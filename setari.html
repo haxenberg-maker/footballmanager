@@ -1325,6 +1325,11 @@ function computeSessionMvpWinner(rows){
         const minutes = Math.round((totalSeconds[name]||0) / 60);
         return { name, goals, minutes, score: goals + minutes/90 };
     }).sort((a,b) => b.score - a.score);
+    // -1 e o santinelă specială: "NICIUN MVP la acest meci", diferit de null
+    // ("fără suprascriere, folosește calculul"). Fără asta, singurul mod de a
+    // "șterge" MVP-ul greșit era să alegi pe altcineva — nu puteai pur și
+    // simplu să spui "nimeni nu era MVP aici".
+    if (manualId === -1) return { winner: null, source: 'manual-none', candidates };
     let winner = candidates[0] || null;
     let source = winner ? 'computed' : null;
     if (manualId != null) {
