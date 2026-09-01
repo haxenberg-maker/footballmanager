@@ -403,3 +403,254 @@ function getSmartRating(p, context = {}){
     if (p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
     return computeSmartRatingComponents(p, context).final;
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * MOTOR EA FC / FIFA (extensie) — atribute stil card (1-99), OVR
+ * pozițional, Weak Foot ★ / Skill Moves ★.
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ * Complet ADITIV — nu modifică nimic din formula Smart Rating de mai
+ * sus (W, TW, computeSmartRatingComponents, getSmartRating rămân
+ * exact cum erau). E un strat separat, derivat automat din ACELEAȘI
+ * date deja calculate în acest fișier (goluri/poziție, goluri
+ * încasate/poziție, viteză, win rate, tag-uri) — fără input manual de
+ * atribute din partea adminului.
+ *
+ * Punct de intrare pentru UI: eaGetPlayerCard(p).
+ * Pentru echilibrare pe linii de poziție: eaComputeTeamLineOVR(team).
+ */
+
+const EA_ATTR_KEYS = ['PAC','SHO','PAS','DRI','DEF','PHY'];
+const GK_ATTR_KEYS = ['DIV','HAN','KIC','REF','POS','SPD'];
+
+// O ligă recreativă 6v6 nu e "90 OVR ca la profesioniști" — pornim de
+// la un centru mai jos ca scala 1-99 să aibă sens vizual (jucătorul
+// mediu ~62, nu ~75).
+const EA_BASE99 = 62;
+// Cât "cântărește" o abatere de 1 punct pe scala internă 0-10
+// (centrată pe BASE_RATING) atunci când e proiectată pe scala 1-99.
+const EA_SCALE99 = 6.5;
+// Clamp pe suma impact_profile a UNUI jucător per atribut de bază, ca
+// 4-5 tag-uri suprapuse să nu explodeze un atribut EA la extreme.
+const EA_PROFILE_CLAMP = 6;
+
+function eaMapScoreTo99(score0to10){
+    const val = EA_BASE99 + (score0to10 - BASE_RATING) * EA_SCALE99;
+    return Math.max(1, Math.min(99, Math.round(val)));
+}
+
+/**
+ * getPlayerImpactProfile — suma impact_profile (cele 9 atribute de
+ * bază din tags_config) pentru tag-urile ACTIVE ale UNUI SINGUR
+ * jucător, NECLAMPUITĂ. Refolosită și de computeTeamAttrProfile din
+ * app.js (însumează peste toată echipa) — comportament IDENTIC cu
+ * varianta veche inline de acolo (o singură buclă de calcul, nu
+ * duplicată). Clamp-ul pentru motorul EA (mai jos) se aplică separat,
+ * per-jucător, DOAR când se transformă în scor 0-10 — vezi
+ * eaProfileAttrScore.
+ */
+function getPlayerImpactProfile(p){
+    const profile = {};
+    PROFILE_ATTRS.forEach(a=>{ profile[a]=0; });
+    getPlayerActiveTagObjects(p).forEach(obj=>{
+        const ip = obj.tag?.impact_profile || {};
+        PROFILE_ATTRS.forEach(a=>{
+            const v = parseFloat(ip[a]);
+            if(!isNaN(v)) profile[a]+=v;
+        });
+    });
+    return profile;
+}
+
+/** Un atribut de bază individual (din profilul de tag-uri al unui
+ * jucător) → scor 0-10 centrat pe BASE_RATING, ca să poată fi combinat
+ * cu celelalte semnale (goluri, viteză, win rate) pe aceeași scală.
+ * Clamp-ul (EA_PROFILE_CLAMP) se aplică AICI, nu în profilul brut, ca
+ * să nu afecteze computeTeamAttrProfile din app.js. */
+function eaProfileAttrScore(profile, key){
+    const clamped = Math.max(-EA_PROFILE_CLAMP, Math.min(EA_PROFILE_CLAMP, profile[key]||0));
+    return BASE_RATING + clamped * (5/EA_PROFILE_CLAMP); // ±6 (clamp) → ±5 pe scala 0-10
+}
+
+function eaBlend(parts){
+    const wSum = parts.reduce((s,x)=>s+x.w,0);
+    return BASE_RATING + parts.reduce((s,x)=>s+(x.score-BASE_RATING)*x.w,0)/(wSum||1);
+}
+
+/**
+ * eaComputeOutfieldAttributes — cele 6 atribute EA FC (1-99) pentru un
+ * jucător de câmp: PACE, SHOOTING, PASSING, DRIBBLING, DEFENDING,
+ * PHYSICAL. Derivate din statistici (goluri/poziție, goluri
+ * încasate/poziție, status viteză, win rate) + profilul de tag-uri.
+ */
+function eaComputeOutfieldAttributes(p){
+    const profile = getPlayerImpactProfile(p);
+    const goalsScore   = getGoalsScoreRelative(p);
+    const defenseScore = getConcededScoreRelative(p);
+    const speedScore   = getSpeedScore(p);
+
+    const viteza      = eaProfileAttrScore(profile,'viteza');
+    const tehnica     = eaProfileAttrScore(profile,'tehnica');
+    const strategie   = eaProfileAttrScore(profile,'strategie');
+    const aparare     = eaProfileAttrScore(profile,'aparare');
+    const efort       = eaProfileAttrScore(profile,'efort');
+    const mentalitate = eaProfileAttrScore(profile,'mentalitate');
+    const fizic       = eaProfileAttrScore(profile,'fizic');
+    const executie    = eaProfileAttrScore(profile,'executie');
+    const pozitionare = eaProfileAttrScore(profile,'pozitionare');
+
+    const PAC = eaBlend([ {score:speedScore, w:.55}, {score:viteza, w:.30}, {score:efort, w:.15} ]);
+    const SHO = eaBlend([ {score:goalsScore, w:.55}, {score:executie, w:.25}, {score:tehnica, w:.10}, {score:strategie, w:.10} ]);
+    const PAS = eaBlend([ {score:tehnica, w:.35}, {score:strategie, w:.35}, {score:mentalitate, w:.15}, {score:pozitionare, w:.15} ]);
+    const DRI = eaBlend([ {score:tehnica, w:.45}, {score:viteza, w:.25}, {score:executie, w:.30} ]);
+    const DEF = eaBlend([ {score:defenseScore, w:.50}, {score:aparare, w:.30}, {score:pozitionare, w:.20} ]);
+    const PHY = eaBlend([ {score:fizic, w:.45}, {score:efort, w:.35}, {score:viteza, w:.20} ]);
+
+    return {
+        PAC: eaMapScoreTo99(PAC), SHO: eaMapScoreTo99(SHO), PAS: eaMapScoreTo99(PAS),
+        DRI: eaMapScoreTo99(DRI), DEF: eaMapScoreTo99(DEF), PHY: eaMapScoreTo99(PHY),
+        _raw: {PAC,SHO,PAS,DRI,DEF,PHY}, // scala internă 0-10, utilă pt. un breakdown UI ulterior
+    };
+}
+
+/**
+ * eaComputeGkAttributes — atributele de portar (1-99): DIVING,
+ * HANDLING, KICKING, REFLEXES, POSITIONING, SPEED. Formulă separată de
+ * cea a jucătorilor de câmp (SHO/DRI nu sunt relevante pentru portar).
+ * Acoperă explicit tag-urile de portar din tags_config (Shot Stopper,
+ * Sweeper Keeper, Distribuție cu Piciorul).
+ */
+function eaComputeGkAttributes(p){
+    const profile = getPlayerImpactProfile(p);
+    const defenseScore = getConcededScoreRelative(p); // goluri primite, relativ la ceilalți portari
+    const speedScore   = getSpeedScore(p);
+    const aparare      = eaProfileAttrScore(profile,'aparare');
+    const tehnica      = eaProfileAttrScore(profile,'tehnica');
+    const strategie    = eaProfileAttrScore(profile,'strategie');
+    const pozitionare  = eaProfileAttrScore(profile,'pozitionare');
+    const mentalitate  = eaProfileAttrScore(profile,'mentalitate');
+
+    const DIV = eaBlend([ {score:defenseScore,w:.60}, {score:aparare,w:.25}, {score:mentalitate,w:.15} ]);
+    const HAN = eaBlend([ {score:defenseScore,w:.50}, {score:aparare,w:.35}, {score:tehnica,w:.15} ]);
+    const KIC = eaBlend([ {score:tehnica,w:.55}, {score:strategie,w:.45} ]); // ← „Distribuție cu Piciorul"
+    const REF = eaBlend([ {score:defenseScore,w:.65}, {score:aparare,w:.20}, {score:mentalitate,w:.15} ]);
+    const POS = eaBlend([ {score:pozitionare,w:.45}, {score:strategie,w:.35}, {score:defenseScore,w:.20} ]); // ← „Sweeper Keeper"
+    const SPD = eaBlend([ {score:speedScore,w:.75}, {score:pozitionare,w:.25} ]);
+
+    return {
+        DIV: eaMapScoreTo99(DIV), HAN: eaMapScoreTo99(HAN), KIC: eaMapScoreTo99(KIC),
+        REF: eaMapScoreTo99(REF), POS: eaMapScoreTo99(POS), SPD: eaMapScoreTo99(SPD),
+        _raw: {DIV,HAN,KIC,REF,POS,SPD},
+    };
+}
+
+/**
+ * eaComputeStarRatings — Weak Foot ★ / Skill Moves ★ (1-5), derivate
+ * din atributele deja calculate (nu input manual). Formulă simplă și
+ * ușor de recalibrat dacă distribuția rezultată nu arată bine în
+ * practică (ex: dacă toată lumea iese 3★, strânge intervalul /13, /14).
+ */
+function eaComputeStarRatings(attrs){
+    const skillMoves = Math.max(1, Math.min(5, Math.round(1 + (attrs.DRI - 40) / 13)));
+    const weakFoot    = Math.max(1, Math.min(5, Math.round(1 + ((attrs.PAS + attrs.SHO)/2 - 40) / 14)));
+    return { skillMoves, weakFoot };
+}
+
+// ── Matrice de ponderi per poziție (transformă cele 6 atribute în OVR) ──
+// Grupurile (GK/DEF/MID/FWD) vin din POSITIONS[...].group (definit în
+// pagina care include acest fișier — vezi getPlayerPrimaryGroup mai
+// sus). Suma ponderilor pe fiecare linie = 1. (FWD = "ATT" din cerință,
+// redenumit ca să fie consistent cu gruparea deja existentă în cod.)
+const EA_POSITION_WEIGHTS = {
+    FWD: { PAC:.20, SHO:.35, PAS:.10, DRI:.25, DEF:.02, PHY:.08 },
+    MID: { PAC:.12, SHO:.10, PAS:.30, DRI:.25, DEF:.13, PHY:.10 },
+    DEF: { PAC:.15, SHO:.03, PAS:.12, DRI:.10, DEF:.45, PHY:.15 },
+};
+
+/**
+ * eaComputeBaseOVR — OVR (1-99) pe baza istoricului COMPLET al
+ * jucătorului — nivelul lui de bază, stabil (spre deosebire de
+ * eaComputeFormDelta, care e volatil pe termen scurt). Pentru portari,
+ * folosește direct media (ponderată) a atributelor GK.
+ */
+function eaComputeBaseOVR(p){
+    // Fără poziție setată → tratat ca mijlocaș (profilul de ponderi cel
+    // mai "neutru", nu penalizează/favorizează artificial).
+    const group = getPlayerPrimaryGroup(p) || 'MID';
+    if (group === 'GK'){
+        const gk = eaComputeGkAttributes(p);
+        const ovr = Math.round((gk.DIV + gk.HAN + gk.REF + gk.POS + gk.KIC*0.6 + gk.SPD*0.4) / 4.2);
+        return { ovr: Math.max(1, Math.min(99, ovr)), group, attrs: gk, isGk: true };
+    }
+    const attrs = eaComputeOutfieldAttributes(p);
+    const weights = EA_POSITION_WEIGHTS[group] || EA_POSITION_WEIGHTS.MID;
+    const ovr = Math.round(EA_ATTR_KEYS.reduce((s,k)=> s + attrs[k]*weights[k], 0));
+    return { ovr: Math.max(1, Math.min(99, ovr)), group, attrs, isGk: false };
+}
+
+/**
+ * eaComputeFormDelta — modificator ± bazat pe ultimele meciuri (aceeași
+ * fereastră ca getActivityMultiplier: ultimele 8 din db.history), dar
+ * aici măsurăm win-rate RECENT vs. win-rate general — nu prezența.
+ * Independent de Base OVR; se adună la final (Current = Base + Form).
+ */
+function eaComputeFormDelta(p){
+    if (!p.games || p.games < 3) return 0;
+    const recent = db.history.slice(0, 8);
+    let played = 0, wins = 0;
+    recent.forEach(h=>{
+        const w = playerWonMatch(h, p.name);
+        if (w === null) return;
+        played++;
+        if (w) wins++;
+    });
+    if (played < 3) return 0; // istoric recent insuficient → fără modificator, nu ghici
+    const recentWr = wins / played;
+    const baseWr   = getWinrateShrunk(p);
+    const diff = recentWr - baseWr; // -1..+1
+    return Math.round(Math.max(-6, Math.min(6, diff * 14)));
+}
+
+/**
+ * eaGetPlayerCard — punctul de intrare principal pentru UI (echivalent
+ * cu getSmartRating(p) de mai sus, dar pentru stratul EA FC). Complet
+ * paralel — NU atinge getSmartRating()/computeSmartRatingComponents().
+ */
+function eaGetPlayerCard(p){
+    const base = eaComputeBaseOVR(p);
+    // Form deocamdată doar pt. jucători de câmp — eșantionul de meciuri
+    // per-portar e de regulă prea mic pt. un semnal de formă fiabil.
+    const form = base.isGk ? 0 : eaComputeFormDelta(p);
+    const current = Math.max(1, Math.min(99, base.ovr + form));
+    const stars = base.isGk ? { skillMoves:1, weakFoot:3 } : eaComputeStarRatings(base.attrs);
+    return {
+        group: base.group,
+        isGk: base.isGk,
+        baseOVR: base.ovr,
+        formDelta: form,
+        currentOVR: current,
+        attrs: base.attrs,      // {PAC,SHO,PAS,DRI,DEF,PHY} sau {DIV,HAN,KIC,REF,POS,SPD}
+        skillMoves: stars.skillMoves,
+        weakFoot: stars.weakFoot,
+    };
+}
+
+/**
+ * eaComputeTeamLineOVR — media Current OVR a unei echipe, per linie de
+ * poziție (GK/DEF/MID/FWD) — semnal suplimentar pentru echilibrarea pe
+ * 3 echipe (folosibil alături de/în completarea Smart Rating existent
+ * din doBalance(), fără să-l înlocuiască).
+ */
+function eaComputeTeamLineOVR(teamPlayers){
+    const lines = { GK:[], DEF:[], MID:[], FWD:[] };
+    teamPlayers.forEach(p=>{
+        const g = getPlayerPrimaryGroup(p) || 'MID';
+        (lines[g]||lines.MID).push(eaGetPlayerCard(p).currentOVR);
+    });
+    const avg = arr => arr.length ? Math.round(arr.reduce((s,v)=>s+v,0)/arr.length) : null;
+    return {
+        GK:avg(lines.GK), DEF:avg(lines.DEF), MID:avg(lines.MID), FWD:avg(lines.FWD),
+        overall: avg(teamPlayers.map(p=>eaGetPlayerCard(p).currentOVR)),
+    };
+}
