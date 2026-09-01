@@ -1510,7 +1510,7 @@ function refreshMvpBreakdown(){
 async function saveMvpManual(){
     if (!_potmAdminMatch) return;
     const sel = document.getElementById('mvpManualSelect');
-    const val = sel.value ? parseInt(sel.value) : null;
+    const val = sel.value === 'none' ? -1 : (sel.value ? parseInt(sel.value) : null);
     try{
         // La fel ca la POTM: se salvează pe TOATE perechile sesiunii, o singură
         // sursă de adevăr indiferent care pereche o citește prima clasament.html.
@@ -1519,7 +1519,7 @@ async function saveMvpManual(){
         await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
         sessionRows.forEach(r => { r.manualMvpId = val; });
         _potmAdminMatch.manualMvpId = val;
-        showToast(val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
+        showToast(val===-1 ? '✅ MVP eliminat pentru acest meci.' : val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
         refreshMvpBreakdown();
     }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
 }
