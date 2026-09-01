@@ -674,11 +674,12 @@ function getPlayerSecondaryPos(p) {
 function computeTeamAttrProfile(teamPlayers){
     const profile = {};
     PROFILE_ATTRS.forEach(a=>{ profile[a]=0; });
+    // getPlayerImpactProfile → definit în smart-rating.js (sursă unică);
+    // aici doar însumăm peste toată echipa (fără clamp-ul per-jucător
+    // aplicat acolo, ca să nu tăiem artificial suma de grup).
     teamPlayers.forEach(p=>{
-        getPlayerActiveTagObjects(p).forEach(obj=>{
-            const ip = obj.tag?.impact_profile || {};
-            PROFILE_ATTRS.forEach(a=>{ profile[a]+=(parseFloat(ip[a])||0); });
-        });
+        const pProfile = getPlayerImpactProfile(p);
+        PROFILE_ATTRS.forEach(a=>{ profile[a]+=(pProfile[a]||0); });
     });
     return profile;
 }
@@ -950,6 +951,41 @@ function renderSpeedBadge(p){
     const tier = getSpeedTier(p.speedStatus);
     if(!tier) return '';
     return `<div class="speed-badge" style="display:inline-flex;align-items:center;gap:3px;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:6px;background:${tier.color}22;border:1px solid ${tier.color}66;color:${tier.color};white-space:nowrap;margin-top:3px;">${tier.emoji} ${tier.label}</div>`;
+}
+
+// ── EA FC-style card (UI) ──────────────────────────────────────────
+// Randare pură — TOT calculul vine din eaGetPlayerCard(p), definit în
+// smart-rating.js (sursă unică de adevăr). Acest fișier doar desenează.
+const EA_ATTR_LABELS = { PAC:'PAC', SHO:'SHO', PAS:'PAS', DRI:'DRI', DEF:'DEF', PHY:'PHY' };
+const EA_GK_LABELS   = { DIV:'DIV', HAN:'HAN', KIC:'KIC', REF:'REF', POS:'POS', SPD:'SPD' };
+function eaAttrColor(v){ return v>=80?'#1b7a43':v>=65?'#8bc34a':v>=50?'#8a6800':v>=35?'#9c4f00':'#e57373'; }
+function eaStars(n){ return '★'.repeat(n)+'☆'.repeat(5-n); }
+function renderEaCard(p){
+    const card = eaGetPlayerCard(p);
+    const labels = card.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
+    const attrHtml = Object.keys(labels).map(k=>{
+        const v = card.attrs[k];
+        return `<div style="text-align:center;min-width:44px;">
+            <div style="font-size:.95rem;font-weight:800;color:${eaAttrColor(v)};">${v}</div>
+            <div style="font-size:.55rem;color:rgba(255,255,255,.45);letter-spacing:.5px;">${labels[k]}</div>
+        </div>`;
+    }).join('');
+    const formStr = card.formDelta === 0 ? '' :
+        `<span style="font-size:.65rem;font-weight:700;color:${card.formDelta>0?'#1b7a43':'#e57373'};margin-left:6px;">${card.formDelta>0?'▲':'▼'}${Math.abs(card.formDelta)}</span>`;
+    return `
+    <div class="ea-card" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:baseline;gap:6px;">
+                <span style="font-size:1.4rem;font-weight:900;color:${eaAttrColor(card.currentOVR)};">${card.currentOVR}</span>
+                <span style="font-size:.65rem;color:rgba(255,255,255,.45);">OVR · ${card.group}</span>
+                ${formStr}
+            </div>
+            <div style="font-size:.6rem;color:rgba(255,255,255,.4);">
+                Base ${card.baseOVR}${!card.isGk?` · WF ${eaStars(card.weakFoot)} · SM ${eaStars(card.skillMoves)}`:''}
+            </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:4px;margin-top:8px;flex-wrap:wrap;">${attrHtml}</div>
+    </div>`;
 }
 
 // ── 📅 Echipa Săptămânii + 🎬 Derby-ul săptămânii ──────────────────
@@ -3424,6 +3460,10 @@ function openModal(id){
             nemesisEl.innerHTML=''; nemesisEl.style.display='none';
         }
     }
+
+    // EA FC card (atribute 1-99, OVR pozițional, ★) — vezi eaGetPlayerCard în smart-rating.js
+    const eaEl = document.getElementById('modalEaCard');
+    if(eaEl) eaEl.innerHTML = renderEaCard(p);
 
     // Build tabs
     buildModalStats(p);
