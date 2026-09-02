@@ -1379,7 +1379,7 @@ function getFormIndex(p){
 // singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, assists;0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
@@ -1387,6 +1387,13 @@ function computeSeasonStats(seasonName){
         (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
         (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
         if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (h.goalsList) {
+          h.goalsList.forEach(g => {
+              if (g.assist_name && !g.is_penalty) {
+                  ensure(g.assist_name).assists++;
+              }
+          });
+      }
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
             if (Array.isArray(r.penalty_shots)) {
                 r.penalty_shots.forEach(s=>{
@@ -1488,7 +1495,19 @@ function renderMeCard(){
         </div>
     </div>`;
 }
+function getCurrentAssists(playerName) {
+    let count = 0;
 
+    db.history.forEach(h => {
+        (h.goalsList || []).forEach(g => {
+            if (!g.is_penalty && g.assist_name === playerName) {
+                count++;
+            }
+        });
+    });
+
+    return count;
+}
 function renderLeaderboard(){
     const medals=['🥇','🥈','🥉'];
     const content=document.getElementById('lbContent');
@@ -1509,6 +1528,9 @@ function renderLeaderboard(){
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
     const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
+    const assistsOf = p => usesPeriodStats
+      ? (periodStats[p.name]?.assists||0)
+      : getCurrentAssists(p.name);
 
     const all = db.players;
     // La sezoane arhivate, un jucător poate să nu mai fie în roster-ul curent
@@ -1541,6 +1563,24 @@ function renderLeaderboard(){
             getValue=p=>'⚽'+goalsOf(p);
             subLabel=p=>{const g=gamesOf(p);const gpg=g>0?(goalsOf(p)/g).toFixed(1):'—';return gpg+'/meci';};
             bigColor='#34d399';
+            break;
+        case 'assist':
+            sorted = [...withGames]
+                .filter(p => assistsOf(p) > 0)
+                .sort((a,b) =>
+                    assistsOf(b) - assistsOf(a) ||
+                    goalsOf(b) - goalsOf(a)
+                );
+            getValue = p => '🅰️' + assistsOf(p);
+        
+            subLabel = p => {
+                const g = gamesOf(p);
+                const apg = g > 0
+                    ? (assistsOf(p) / g).toFixed(1)
+                    : '—';
+                return apg + '/meci';
+            };
+            bigColor = '#60a5fa';
             break;
         case 'wins':
             sorted=[...withGames].sort((a,b)=>winsOf(b)-winsOf(a));
