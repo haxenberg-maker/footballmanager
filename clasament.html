@@ -705,7 +705,12 @@ function backfillSessionRoundGoals(sessionRows) {
     const allGoals = [];
     sessionRows.forEach(h => (h.goalsList||[]).forEach(g => {
         if (g.is_penalty || g.minute == null) return;
-        allGoals.push({ player_name: g.player_name, team: g.team, minute: g.minute });
+        allGoals.push({
+    player_name: g.player_name,
+    team: g.team,
+    minute: g.minute,
+    assist_name: g.assist_name || null
+});
     }));
 
     // 4) Plasăm fiecare gol în tura a cărei fereastră de timp îl conține
@@ -721,7 +726,13 @@ function backfillSessionRoundGoals(sessionRows) {
         }
         if (target) {
             if (!Array.isArray(target.goals)) target.goals = [];
-            target.goals.push({ player_name: g.player_name, team: g.team, minute: g.minute, _reconstructed: true });
+            target.goals.push({
+    player_name: g.player_name,
+    team: g.team,
+    minute: g.minute,
+    assist_name: g.assist_name || null,
+    _reconstructed: true
+});
         }
     });
 
