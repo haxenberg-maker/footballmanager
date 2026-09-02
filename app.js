@@ -927,20 +927,20 @@ function renderEaCard(p){
         const v = card.attrs[k];
         return `<div style="text-align:center;min-width:44px;">
             <div style="font-size:.95rem;font-weight:800;color:${eaAttrColor(v)};">${v}</div>
-            <div style="font-size:.55rem;color:rgba(255,255,255,.45);letter-spacing:.5px;">${labels[k]}</div>
+            <div style="font-size:.55rem;color:#7d6849;letter-spacing:.5px;">${labels[k]}</div>
         </div>`;
     }).join('');
     const formStr = card.formDelta === 0 ? '' :
-        `<span style="font-size:.65rem;font-weight:700;color:${card.formDelta>0?'#1b7a43':'#e57373'};margin-left:6px;">${card.formDelta>0?'▲':'▼'}${Math.abs(card.formDelta)}</span>`;
+        `<span style="font-size:.65rem;font-weight:700;color:${card.formDelta>0?'#1b7a43':'#b71c1c'};margin-left:6px;">${card.formDelta>0?'▲':'▼'}${Math.abs(card.formDelta)}</span>`;
     return `
-    <div class="ea-card" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 12px;margin-top:8px;">
+    <div class="ea-card" style="background:rgba(255,255,255,.55);border:1px solid rgba(58,47,31,.12);border-radius:12px;padding:10px 12px;margin-top:8px;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div style="display:flex;align-items:baseline;gap:6px;">
                 <span style="font-size:1.4rem;font-weight:900;color:${eaAttrColor(card.currentOVR)};">${card.currentOVR}</span>
-                <span style="font-size:.65rem;color:rgba(255,255,255,.45);">OVR · ${card.group}</span>
+                <span style="font-size:.65rem;color:#7d6849;font-weight:600;">OVR · ${card.group}</span>
                 ${formStr}
             </div>
-            <div style="font-size:.6rem;color:rgba(255,255,255,.4);">
+            <div style="font-size:.6rem;color:#7d6849;font-weight:600;">
                 Base ${card.baseOVR}${!card.isGk?` · WF ${eaStars(card.weakFoot)} · SM ${eaStars(card.skillMoves)}`:''}
             </div>
         </div>
