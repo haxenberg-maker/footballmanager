@@ -1107,7 +1107,7 @@
         <div id="weeklyCards" style="display:none;margin-bottom:12px;"></div>
         <!-- Leaderboard tabs -->
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
+            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ OVR</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
@@ -1498,53 +1498,9 @@
                 </div>
             </div>
 
-            <!-- Presets row -->
-            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚡ Presetări rapide</div>
-            <div class="algo-presets">
-                <button class="algo-preset-btn" onclick="applyPreset('balanced')">⚖️ Balanced</button>
-                <button class="algo-preset-btn" onclick="applyPreset('defensive')">🛡️ Defensive</button>
-                <button class="algo-preset-btn" onclick="applyPreset('performance')">🏆 Performance</button>
-            </div>
-
-            <!-- Power ring + weights grid side by side -->
-            <div style="display:flex;gap:12px;align-items:flex-start;">
-                <!-- Ring -->
-                <div class="algo-power-wrap" style="flex-shrink:0;">
-                    <div class="algo-power-ring">
-                        <svg width="80" height="80" viewBox="0 0 80 80">
-                            <circle class="algo-power-ring-bg" cx="40" cy="40" r="33"/>
-                            <circle class="algo-power-ring-fill" id="algoRingFill" cx="40" cy="40" r="33"
-                                stroke-dasharray="207.3" stroke-dashoffset="207.3" stroke="#3d5afe"/>
-                        </svg>
-                        <div class="algo-power-label">
-                            <span class="algo-power-pct" id="algoPowerPct" style="color:#3d5afe;">0%</span>
-                            <span class="algo-power-sub">/ 100%</span>
-                        </div>
-                    </div>
-                    <div style="font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;">Putere</div>
-                </div>
-                <!-- Weights grid -->
-                <div style="flex:1;">
-                    <div class="algo-panel-grid" id="weightsList"></div>
-                    <!-- Tag Net Cap -->
-                    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #e3d3ac;margin-top:4px;">
-                        <span style="font-size:.7rem;color:#7d6849;flex:1;">🏷️ Net maxim tag-uri</span>
-                        <button onclick="stepTagCap(-0.5)" class="algo-btn">−</button>
-                        <span id="tagCapVal" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#6b46c1;min-width:28px;text-align:center;">2.0</span>
-                        <button onclick="stepTagCap(+0.5)" class="algo-btn">+</button>
-                        <span style="font-size:.62rem;color:#6b5840;">pt</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tag weights section -->
-            <div style="margin-top:12px;padding-top:10px;border-top:1px solid #e3d3ac;">
-                <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
-                    🏷️ Coeficienți Tag-uri
-                    <span style="font-weight:400;color:#7d6849;font-size:.58rem;"> — bonus/penalizare per tag activ (±2 max)</span>
-                </div>
-                <div id="tagWeightsList"></div>
-            </div>
+            <!-- EA FC OVR — panou simplificat radical: doar 2 constante -->
+            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚙️ Algoritm (OVR 1-99)</div>
+            <div class="algo-panel-grid" id="weightsList"></div>
 
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="saveAlgorithm()" id="btnSaveAlgo" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#3a2f1f;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
