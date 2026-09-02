@@ -808,7 +808,7 @@ function openMatchDetail(dbId){
         const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
         const goalsHtml = normalGoals.length
             ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
-                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}</span>
+                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}</span>
                 <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
             </div>`).join('')
             : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
