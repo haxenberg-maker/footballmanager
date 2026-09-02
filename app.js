@@ -1464,12 +1464,12 @@ function renderLeaderboard(){
         content.innerHTML=`<p style="color:#6b5840;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
         return;
     }
-    const maxVal=parseFloat(getValue(sorted[0]).replace(/[^0-9.]/g,''))||1;
+    const maxVal=parseFloat(String(getValue(sorted[0])).replace(/[^0-9.]/g,''))||1;
     const visibleCount = lbExpanded ? sorted.length : Math.min(10, sorted.length);
     content.innerHTML='<div style="display:flex;flex-direction:column;gap:4px;">'+
         sorted.slice(0,visibleCount).map((p,i)=>{
             const val=getValue(p);
-            const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
+            const numVal=parseFloat(String(val).replace(/[^0-9.]/g,''))||0;
             const pct=Math.round((numVal/maxVal)*100);
             const medalColors=['#ffd700','#c0c0c0','#cd7f32'];
             const bg=i===0?`rgba(167,139,250,.06)`:i===1?`rgba(192,192,192,.03)`:i===2?`rgba(205,127,50,.03)`:'transparent';
