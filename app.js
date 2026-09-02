@@ -3439,6 +3439,14 @@ function buildModalStats(p){
             gridHtml += `<div style="font-size:.6rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin:10px 0 5px;">${catLabel}</div>`;
             items.forEach(({tag,tid,isAdminSet})=>{
                 const cls = tag.type==='pos'?'tag-pos':tag.type==='neg'?'tag-neg':'tag-neu';
+                // Impact EXACT al acestui tag pe Base OVR — izolat de restul
+                // (vezi eaComputeTagImpact în smart-rating.js). Același număr
+                // indiferent dacă tag-ul e activ acum sau nu — arată "cât ai
+                // câștiga/pierde de la EL, separat de tot restul".
+                const impact = eaComputeTagImpact(p, tid);
+                const impactBadge = impact.delta !== 0
+                    ? `<span style="font-size:.62rem;font-weight:800;margin-left:4px;color:${impact.delta>0?'#1b7a43':'#b71c1c'};">${impact.delta>0?'+':''}${impact.delta} OVR</span>`
+                    : `<span style="font-size:.6rem;color:#9c7a4a;margin-left:4px;">±0</span>`;
                 const toggleBtn = admin ? `<button class="tag-toggle-btn"
                     style="background:${isAdminSet?'rgba(255,140,0,.15)':'rgba(61,90,254,.08)'};
                     border:1px solid ${isAdminSet?'var(--orange)':'#d3bd8c'};
@@ -3449,6 +3457,7 @@ function buildModalStats(p){
                 gridHtml += `<div class="tag-act-row">
                     <div class="tag-act-top">
                         <span class="ptag ${cls}">${tag.emoji} ${tag.label}</span>
+                        ${impactBadge}
                         <span class="tag-act-status">${isAdminSet?'👑':'○'}</span>
                         ${toggleBtn}
                     </div>

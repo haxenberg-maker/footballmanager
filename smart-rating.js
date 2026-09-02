@@ -422,6 +422,32 @@ function eaComputeBaseOVR(p){
     return { ovr: Math.max(1, Math.min(99, ovr)), group, attrs, isGk: false };
 }
 
+/**
+ * eaComputeTagImpact — cât Base OVR câștigă/pierde jucătorul DOAR din
+ * tag-ul `tagId`, izolat de restul — se calculează Base OVR cu tag-ul
+ * activ vs. inactiv, cu toate celelalte tag-uri active neschimbate
+ * (contează, din cauza clamp-ului per-atribut: un tag poate adăuga mai
+ * puțin dacă alte tag-uri active împing deja atributul spre plafon).
+ * Returnează {delta, isActive} — delta e ACELAȘI număr indiferent dacă
+ * tag-ul e activ sau nu acum (e efectul marginal de "a avea tag-ul"),
+ * doar `isActive` schimbă cum îl explici în UI (câștigat vs. ce-ai pierde).
+ */
+function eaComputeTagImpact(p, tagId){
+    const tid = String(tagId);
+    const current = (p.adminTags||[]).map(String);
+    const isActive = current.includes(tid);
+
+    const withSet = new Set(current); withSet.add(tid);
+    const withoutSet = new Set(current); withoutSet.delete(tid);
+
+    const pWith = { ...p, adminTags: [...withSet] };
+    const pWithout = { ...p, adminTags: [...withoutSet] };
+
+    const ovrWith = eaComputeBaseOVR(pWith).ovr;
+    const ovrWithout = eaComputeBaseOVR(pWithout).ovr;
+    return { delta: ovrWith - ovrWithout, isActive };
+}
+
 // ── FORM RATING — modificator ± peste Base OVR ──────────────────────
 // Aici sunt "topite" Win Rate recent, Chimia cu coechipierii, POTM,
 // MVP, Activitatea recentă (absențe) și penalizarea de Dezechilibru —
