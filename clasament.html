@@ -788,7 +788,7 @@ function openMatchDetail(dbId){
             const ds = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
             const goalsHtml = Array.isArray(r.goals) && r.goals.length
-                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}${g.minute!=null ? ` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>` : ''}</div>`).join('')
+                r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}${g.minute!=null ? ` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>` : ''}</div>`).join('')
                 : `<div style="font-size:.66rem;color:#5b6577;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
             const roundWinnerName = getRoundWinnerName(h, r);
             const winnerHtml = roundWinnerName
@@ -1754,6 +1754,35 @@ async function loadAll(){
                 potmVotesByMatch[v.match_id][pid] = (potmVotesByMatch[v.match_id][pid]||0)+1;
             });
         }catch(e){ console.warn('potm_votes load (ai rulat migrarea SQL?):', e.message); }
+      function enrichRoundGoalsWithAssists(roundsDetail, goals) {
+    if (!Array.isArray(roundsDetail)) return roundsDetail;
+
+    const assistMap = {};
+
+    (goals || [])
+        .filter(g => !g.is_penalty)
+        .forEach(g => {
+            const key = `${g.player_name}|||${g.team}|||${g.minute ?? ''}`;
+
+            if (!assistMap[key]) assistMap[key] = [];
+            assistMap[key].push(g.assist_name || null);
+        });
+
+    return roundsDetail.map(r => ({
+        ...r,
+        goals: Array.isArray(r.goals)
+            ? r.goals.map(g => {
+                const key = `${g.player_name}|||${g.team}|||${g.minute ?? ''}`;
+                const assists = assistMap[key] || [];
+
+                return {
+                    ...g,
+                    assist_name: g.assist_name || (assists.length ? assists.shift() : null)
+                };
+            })
+            : r.goals
+    }));
+}
         db.history = (histRaw||[]).map(h=>{
             const goals = goalsPerMatch[h.id]||[];
             // Golurile de penalty (is_penalty:true) se țin STRICT separat, nu se adună
@@ -1786,7 +1815,7 @@ async function loadAll(){
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
-                roundsDetail: h.rounds_detail||null, playerGoals, playerPenaltyGoals, topScorer, teamGoals,
+                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerPenaltyGoals, topScorer, teamGoals,
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
