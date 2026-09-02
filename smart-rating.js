@@ -263,13 +263,34 @@ function eaMapScoreTo99(score0to10){
  * bază din tags_config) pentru tag-urile ACTIVE ale UNUI SINGUR
  * jucător, NECLAMPUITĂ. Refolosită și de computeTeamAttrProfile din
  * app.js (însumează peste toată echipa, pt echilibrare pe posturi).
+ *
+ * Unele tag-uri (Power Shot, Tiki-Taka, Through Ball, Long Ball,
+ * Centrator, Scut, Pase Riscante — vezi tags_config_rows.sql) au
+ * impact_profile scris direct cu chei EA (PAC/SHO/PAS/DRI/DEF/PHY),
+ * nu cu cele 9 atribute de bază. Sunt colectate separat (eaDirect) și
+ * aplicate direct pe atributele EA finale — vezi eaComputeOutfieldAttributes.
  */
+const EA_DIRECT_KEYS = ['PAC','SHO','PAS','DRI','DEF','PHY'];
 function getPlayerImpactProfile(p){
     const profile = {};
     PROFILE_ATTRS.forEach(a=>{ profile[a]=0; });
     getPlayerActiveTagObjects(p).forEach(obj=>{
         const ip = obj.tag?.impact_profile || {};
         PROFILE_ATTRS.forEach(a=>{
+            const v = parseFloat(ip[a]);
+            if(!isNaN(v)) profile[a]+=v;
+        });
+    });
+    return profile;
+}
+/** La fel ca getPlayerImpactProfile, dar pentru tag-uri scrise direct
+ * cu chei EA (PAC/SHO/PAS/DRI/DEF/PHY) — vezi comentariul de mai sus. */
+function getPlayerDirectEaProfile(p){
+    const profile = {};
+    EA_DIRECT_KEYS.forEach(a=>{ profile[a]=0; });
+    getPlayerActiveTagObjects(p).forEach(obj=>{
+        const ip = obj.tag?.impact_profile || {};
+        EA_DIRECT_KEYS.forEach(a=>{
             const v = parseFloat(ip[a]);
             if(!isNaN(v)) profile[a]+=v;
         });
@@ -322,9 +343,14 @@ function eaComputeOutfieldAttributes(p){
     const DEF = eaBlend([ {score:defenseScore, w:.50}, {score:aparare, w:.30}, {score:pozitionare, w:.20} ]);
     const PHY = eaBlend([ {score:fizic, w:.45}, {score:efort, w:.35}, {score:viteza, w:.20} ]);
 
+    // Tag-uri cu chei EA directe (Power Shot, Tiki-Taka, etc.) — aplicate
+    // ca deltă directă pe scala 0-10, la fel ca un atribut de bază.
+    const direct = getPlayerDirectEaProfile(p);
+    const applyDirect = (base, key) => base + Math.max(-EA_PROFILE_CLAMP, Math.min(EA_PROFILE_CLAMP, direct[key])) * (5/EA_PROFILE_CLAMP);
+
     return {
-        PAC: eaMapScoreTo99(PAC), SHO: eaMapScoreTo99(SHO), PAS: eaMapScoreTo99(PAS),
-        DRI: eaMapScoreTo99(DRI), DEF: eaMapScoreTo99(DEF), PHY: eaMapScoreTo99(PHY),
+        PAC: eaMapScoreTo99(applyDirect(PAC,'PAC')), SHO: eaMapScoreTo99(applyDirect(SHO,'SHO')), PAS: eaMapScoreTo99(applyDirect(PAS,'PAS')),
+        DRI: eaMapScoreTo99(applyDirect(DRI,'DRI')), DEF: eaMapScoreTo99(applyDirect(DEF,'DEF')), PHY: eaMapScoreTo99(applyDirect(PHY,'PHY')),
         _raw: {PAC,SHO,PAS,DRI,DEF,PHY},
     };
 }
