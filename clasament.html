@@ -1379,7 +1379,7 @@ function getFormIndex(p){
 // singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, assists;0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, assists:0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
