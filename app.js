@@ -210,6 +210,9 @@ let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
 let rolesVisible = localStorage.getItem('dash_roles_visible') !== 'false';
 let milestonesVisible = localStorage.getItem('dash_milestones_visible') !== 'false';
 let speedVisible = localStorage.getItem('dash_speed_visible') !== 'false';
+// Atributele EA (PAC/SHO/PAS/DRI/DEF/PHY) pe cardurile mici — vizibile
+// implicit (cerute explicit), admin poate ascunde din buton dacă aglomerează.
+let attrsVisible = localStorage.getItem('dash_attrs_visible') !== 'false';
 let pushPlayerName = localStorage.getItem('pushPlayerName') || null;
 
 
@@ -927,11 +930,16 @@ function renderEaCard(p){
     const admin = isAdmin();
     const attrHtml = Object.keys(labels).map(k=>{
         const v = card.attrs[k];
+        const manual = card.attrs._manual?.[k] ?? v;
         const bonus = card.attrs._bonus?.[k]||0;
         const bonusStr = bonus!==0 ? `<span style="font-size:.5rem;color:${bonus>0?'#1b7a43':'#b71c1c'};">${bonus>0?'+':''}${bonus} tag</span>` : '';
-        const steppers = admin ? `<div style="display:flex;justify-content:center;gap:3px;margin-top:2px;">
-                <button onclick="adjustManualAttr(${p.id},'${k}',-1)" style="width:18px;height:18px;line-height:16px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">−</button>
-                <button onclick="adjustManualAttr(${p.id},'${k}',+1)" style="width:18px;height:18px;line-height:16px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">+</button>
+        const steppers = admin ? `<div style="display:flex;align-items:center;justify-content:center;gap:2px;margin-top:3px;">
+                <button onclick="adjustManualAttr(${p.id},'${k}',-1)" style="width:18px;height:20px;line-height:18px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">−</button>
+                <input type="number" value="${manual}" min="1" max="99" step="1"
+                    onkeydown="if(event.key==='Enter')this.blur();"
+                    onchange="setManualAttr(${p.id},'${k}',this.value)"
+                    style="width:30px;height:20px;text-align:center;font-size:.65rem;padding:0;border-radius:4px;border:1px solid #d3bd8c;background:#fff;color:#3a2f1f;-moz-appearance:textfield;">
+                <button onclick="adjustManualAttr(${p.id},'${k}',+1)" style="width:18px;height:20px;line-height:18px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">+</button>
             </div>` : '';
         return `<div style="text-align:center;min-width:44px;">
             <div style="font-size:.95rem;font-weight:800;color:${eaAttrColor(v)};">${v}</div>
@@ -955,25 +963,66 @@ function renderEaCard(p){
             </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:4px;margin-top:8px;flex-wrap:wrap;">${attrHtml}</div>
-        ${admin?'<div style="font-size:.55rem;color:#9c7a4a;text-align:center;margin-top:6px;">Numărul mare = atribut final (manual + bonus tag-uri). Cu +/− ajustezi valoarea MANUALĂ.</div>':''}
+        ${admin?'<div style="font-size:.55rem;color:#9c7a4a;text-align:center;margin-top:6px;">Numărul mare = atribut final (manual + bonus tag-uri). Cifra editabilă de jos = valoarea MANUALĂ.</div>':''}
     </div>`;
 }
 
-/** adjustManualAttr — admin ajustează DIRECT atributul manual al unui
- * jucător (PAC/SHO/PAS/DRI/DEF/PHY sau, la portari, DIV/HAN/KIC/REF/
- * POS/SPD) cu +/−1. Persistă imediat în Supabase (coloana manual_attrs,
- * jsonb) — vezi eaGetManualAttrs în smart-rating.js pt. cum se citește. */
+/** refreshPlayerModalRatings — reactualizează TOT ce arată un rating în
+ * modalul deschis (cardul EA + numărul mare din header), plus tab-ul
+ * de breakdown și cardurile din spate. Un singur loc de apelat după
+ * orice schimbare de atribut/tag, ca nimic să nu rămână desincronizat
+ * vizual (bug-ul de dinainte: adjustManualAttr chema doar
+ * buildModalStats, care nu atinge deloc #modalEaCard). */
+function refreshPlayerModalRatings(p){
+    const eaEl = document.getElementById('modalEaCard');
+    if(eaEl) eaEl.innerHTML = renderEaCard(p);
+    if(p.adminRating == null){
+        const card = eaGetPlayerCard(p);
+        const bigEl = document.getElementById('modalRatingBig');
+        if(bigEl){
+            bigEl.textContent = card.currentOVR;
+            bigEl.style.color = card.currentOVR>=80?'#1b7a43':card.currentOVR>=65?'#8a6800':card.currentOVR>=50?'#9c4f00':'#e57373';
+        }
+    }
+    buildModalStats(p);
+    render();
+}
+
+/** saveManualAttr — scrie DIRECT o valoare (nu doar +/−1) pt. un
+ * atribut manual al jucătorului. Actualizează UI-ul INSTANT (optimist),
+ * apoi salvează în fundal — dacă salvarea eșuează, revine la valoarea
+ * dinainte și arată eroarea. */
+async function saveManualAttr(playerId, key, newValue){
+    const p = db.players.find(x=>x.id==playerId); if(!p) return;
+    const isGk = getPlayerPrimaryGroup(p) === 'GK';
+    const current = eaGetManualAttrs(p, isGk);
+    const clamped = Math.max(1, Math.min(99, Math.round(newValue)));
+    if(clamped === (current[key]||EA_MANUAL_DEFAULT)) return; // fără schimbare reală
+    const previous = p.manualAttrs;
+    const updated = { ...current, [key]: clamped };
+    p.manualAttrs = updated;
+    refreshPlayerModalRatings(p); // instant, înainte să aștepți răspunsul serverului
+    try{
+        await sb.from('players').update({ manual_attrs: updated }).eq('id', playerId);
+    }catch(e){
+        p.manualAttrs = previous;
+        refreshPlayerModalRatings(p);
+        showToast('⚠️ '+e.message);
+    }
+}
+/** adjustManualAttr — +/−1 pe un atribut manual. */
 async function adjustManualAttr(playerId, key, delta){
     const p = db.players.find(x=>x.id==playerId); if(!p) return;
     const isGk = getPlayerPrimaryGroup(p) === 'GK';
     const current = eaGetManualAttrs(p, isGk);
-    const updated = { ...current, [key]: Math.max(1, Math.min(99, (current[key]||EA_MANUAL_DEFAULT) + delta)) };
-    p.manualAttrs = updated;
-    try{
-        await sb.from('players').update({ manual_attrs: updated }).eq('id', playerId);
-        render();
-        buildModalStats(p);
-    }catch(e){ showToast('⚠️ '+e.message); }
+    await saveManualAttr(playerId, key, (current[key]||EA_MANUAL_DEFAULT) + delta);
+}
+/** setManualAttr — admin tastează direct o valoare în input, nu mai
+ * apasă +/− de zeci de ori. */
+function setManualAttr(playerId, key, rawValue){
+    const v = parseInt(rawValue, 10);
+    if(isNaN(v)){ showToast('⚠️ Valoare invalidă'); return; }
+    saveManualAttr(playerId, key, v);
 }
 
 // ── 📅 Echipa Săptămânii + 🎬 Derby-ul săptămânii ──────────────────
@@ -1220,6 +1269,14 @@ function render(){
                 : ((p.totalPenaltyGoals||0)>0 ? `<div class="fifa-stat" style="color:#7d6849;font-size:.55rem;">🥅${p.totalPenaltyGoals} pen</div>` : '');
             const gcLine = (p.totalGoalsConceded||0)>0
                 ? `<div class="fifa-stat" style="color:#b71c1c;">🧤<span>${p.totalGoalsConceded}</span></div>` : '';
+            // Rând compact cu cele 6 atribute EA (PAC/SHO/PAS/DRI/DEF/PHY,
+            // sau DIV/HAN/KIC/REF/POS/SPD la portari) — ascunde/arată cu
+            // butonul 📊 din bara de sus (toggleDashAttrs).
+            const eaCardMini = eaGetPlayerCard(p);
+            const eaMiniLabels = eaCardMini.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
+            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;">
+                ${Object.keys(eaMiniLabels).map(k=>`<span style="font-size:.56rem;font-weight:700;color:${eaAttrColor(eaCardMini.attrs[k])};">${eaMiniLabels[k]} <span style="color:#3a2f1f;">${eaCardMini.attrs[k]}</span></span>`).join('')}
+            </div>`;
             card.innerHTML=`
                 <div class="player-rank-label ${rankClass}"></div>
                 <div class="fifa-card-body">
@@ -1237,6 +1294,7 @@ function render(){
                             <div class="fifa-stat">M:<span>${p.games}</span></div>
                             ${goalsLine}${gcLine}
                         </div>
+                        ${attrsRowHtml}
                         <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
                         ${renderMilestoneBadges(p)}
                         ${renderSpeedBadge(p)}
@@ -1256,6 +1314,7 @@ function render(){
     applyDashRolesVisibility();
     applyDashMilestonesVisibility();
     applyDashSpeedVisibility();
+    applyDashAttrsVisibility();
 }
 
 function analyzeTeamBalance(teamPlayers){
@@ -3054,6 +3113,24 @@ function applyDashSpeedVisibility(){
     } else {
         dashboard.classList.add('dash-speed-hidden');
         if(btn){ btn.style.opacity='0.6'; btn.style.color='#7d6849'; }
+    }
+}
+
+function toggleDashAttrs(){
+    attrsVisible = !attrsVisible;
+    localStorage.setItem('dash_attrs_visible', attrsVisible);
+    applyDashAttrsVisibility();
+}
+function applyDashAttrsVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleAttrs');
+    if(attrsVisible){
+        dashboard.classList.remove('dash-attrs-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.color=''; btn.title='Ascunde atribute (PAC/SHO/...)'; }
+    } else {
+        dashboard.classList.add('dash-attrs-hidden');
+        if(btn){ btn.style.opacity='0.6'; btn.style.color='#7d6849'; btn.title='Arată atribute (PAC/SHO/...)'; }
     }
 }
 

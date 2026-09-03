@@ -142,7 +142,7 @@
         .dash-roles-hidden .role-badge-inline { display:none !important; }
         .dash-milestones-hidden .milestone-row { display:none !important; }
         .dash-speed-hidden .speed-badge { display:none !important; }
-        /* FIFA attr bars */
+        .dash-attrs-hidden .fifa-attrs-row { display:none !important; }        /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
         .fifa-attr-lbl{font-size:.52rem;color:#6b5840;text-transform:uppercase;width:22px;flex-shrink:0;letter-spacing:.5px;}
@@ -919,6 +919,7 @@
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
     <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
     <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
+    <button id="btnToggleAttrs" onclick="toggleDashAttrs()" title="Ascunde/Arată atribute (PAC/SHO/...)">📊 Atribute</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
     <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
@@ -1638,8 +1639,8 @@
 </div>
 </div>
 
-<script src="smart-rating.js?v=20260903a"></script>
-<script src="app.js?v=20260903a"></script>
+<script src="smart-rating.js?v=20260903b"></script>
+<script src="app.js?v=20260903b"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
