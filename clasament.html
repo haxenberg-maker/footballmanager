@@ -1557,14 +1557,11 @@ function renderLeaderboard(){
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
     const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
-    const assistsOf = p =>
-      periodStats?.[p.name]?.assists || 0;
-  
+    const assistsOf = p => usesPeriodStats ? (periodStats[p.name]?.assists||0): getCurrentAssists(p.name);
+    const assistsOf = p => periodStats?.[p.name]?.assists || 0;
     const contribOf = p =>
         goalsOf(p) + assistsOf(p);
-    const assistsOf = p => usesPeriodStats
-      ? (periodStats[p.name]?.assists||0)
-      : getCurrentAssists(p.name);
+    
 
     const all = db.players;
     // La sezoane arhivate, un jucător poate să nu mai fie în roster-ul curent
