@@ -172,20 +172,20 @@ function getPlayerArchetype(p){
         adminSet: false
     };
 }
-// EA_BASE99, EA_SCALE99 — definite (mutabile) în smart-rating.js.
-// Singurele 2 "cadrane" ale formulei care mai sunt reglabile din admin
-// (panoul de algoritm a fost radical simplificat — restul formulei e
-// fix, vezi comentariile din smart-rating.js).
+// EA_TAG_BONUS_CAP, EA_TAG_BONUS_SCALE — definite (mutabile) în
+// smart-rating.js. Singurele 2 "cadrane" ale formulei care mai sunt
+// reglabile din admin — atributele de bază (PAC/SHO/PAS/DRI/DEF/PHY)
+// se setează acum MANUAL, per jucător, din modalul lui.
 async function loadAlgoSettings(){
     try{
         const {data} = await sb.from('algo_settings').select('key,value');
         if(!data?.length) return;
         data.forEach(row=>{
-            if(row.key==='ea_base99')  EA_BASE99  = parseFloat(row.value);
-            if(row.key==='ea_scale99') EA_SCALE99 = parseFloat(row.value);
+            if(row.key==='ea_tag_bonus_cap')   EA_TAG_BONUS_CAP   = parseFloat(row.value);
+            if(row.key==='ea_tag_bonus_scale') EA_TAG_BONUS_SCALE = parseFloat(row.value);
         });
-        if(isNaN(EA_BASE99))  EA_BASE99  = DEFAULT_EA_BASE99;
-        if(isNaN(EA_SCALE99)) EA_SCALE99 = DEFAULT_EA_SCALE99;
+        if(isNaN(EA_TAG_BONUS_CAP))   EA_TAG_BONUS_CAP   = DEFAULT_EA_TAG_BONUS_CAP;
+        if(isNaN(EA_TAG_BONUS_SCALE)) EA_TAG_BONUS_SCALE = DEFAULT_EA_TAG_BONUS_SCALE;
     }catch(e){ console.warn('loadAlgoSettings:', e.message); }
 }
 // buildTWFromConfig/saveTagWeights au fost eliminate — tw_weight
@@ -340,7 +340,7 @@ async function loadAll() {
         await loadTagsConfig();
         await loadMilestoneConfig();
         await loadAlgoSettings();
-        _algoSnapshot = { base: EA_BASE99, scale: EA_SCALE99 }; // baseline pt preview "înainte/după"
+        _algoSnapshot = { cap: EA_TAG_BONUS_CAP, scale: EA_TAG_BONUS_SCALE }; // baseline pt preview "înainte/după"
         await loadScenarios();
         await loadTeamConfigs(); // ← load team names + colors from Supabase
         // Players + Ratings (joined)
@@ -504,6 +504,7 @@ function rowToPlayer(p) {
         speedStatus: p.speed_status||null,
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
+        manualAttrs: p.manual_attrs || null,
         totalGoals: p.total_goals||0,
         totalGoalsConceded: p.total_goals_conceded||0,
         totalPenaltyGoals: p.total_penalty_goals||0,
@@ -923,11 +924,20 @@ function eaStars(n){ return '★'.repeat(n)+'☆'.repeat(5-n); }
 function renderEaCard(p){
     const card = eaGetPlayerCard(p);
     const labels = card.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
+    const admin = isAdmin();
     const attrHtml = Object.keys(labels).map(k=>{
         const v = card.attrs[k];
+        const bonus = card.attrs._bonus?.[k]||0;
+        const bonusStr = bonus!==0 ? `<span style="font-size:.5rem;color:${bonus>0?'#1b7a43':'#b71c1c'};">${bonus>0?'+':''}${bonus} tag</span>` : '';
+        const steppers = admin ? `<div style="display:flex;justify-content:center;gap:3px;margin-top:2px;">
+                <button onclick="adjustManualAttr(${p.id},'${k}',-1)" style="width:18px;height:18px;line-height:16px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">−</button>
+                <button onclick="adjustManualAttr(${p.id},'${k}',+1)" style="width:18px;height:18px;line-height:16px;padding:0;border-radius:5px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.75rem;cursor:pointer;">+</button>
+            </div>` : '';
         return `<div style="text-align:center;min-width:44px;">
             <div style="font-size:.95rem;font-weight:800;color:${eaAttrColor(v)};">${v}</div>
             <div style="font-size:.55rem;color:#7d6849;letter-spacing:.5px;">${labels[k]}</div>
+            ${bonusStr}
+            ${steppers}
         </div>`;
     }).join('');
     const formStr = card.formDelta === 0 ? '' :
@@ -945,7 +955,25 @@ function renderEaCard(p){
             </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:4px;margin-top:8px;flex-wrap:wrap;">${attrHtml}</div>
+        ${admin?'<div style="font-size:.55rem;color:#9c7a4a;text-align:center;margin-top:6px;">Numărul mare = atribut final (manual + bonus tag-uri). Cu +/− ajustezi valoarea MANUALĂ.</div>':''}
     </div>`;
+}
+
+/** adjustManualAttr — admin ajustează DIRECT atributul manual al unui
+ * jucător (PAC/SHO/PAS/DRI/DEF/PHY sau, la portari, DIV/HAN/KIC/REF/
+ * POS/SPD) cu +/−1. Persistă imediat în Supabase (coloana manual_attrs,
+ * jsonb) — vezi eaGetManualAttrs în smart-rating.js pt. cum se citește. */
+async function adjustManualAttr(playerId, key, delta){
+    const p = db.players.find(x=>x.id==playerId); if(!p) return;
+    const isGk = getPlayerPrimaryGroup(p) === 'GK';
+    const current = eaGetManualAttrs(p, isGk);
+    const updated = { ...current, [key]: Math.max(1, Math.min(99, (current[key]||EA_MANUAL_DEFAULT) + delta)) };
+    p.manualAttrs = updated;
+    try{
+        await sb.from('players').update({ manual_attrs: updated }).eq('id', playerId);
+        render();
+        buildModalStats(p);
+    }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 // ── 📅 Echipa Săptămânii + 🎬 Derby-ul săptămânii ──────────────────
@@ -2705,14 +2733,14 @@ function buildTagsPanel(){
                             onchange="updateTagField(${t.id},'category',this.value)">
                             ${['atac','aparare','efort','portar','negativ'].map(a=>`<option value="${a}" ${t.category===a?'selected':''}>${a}</option>`).join('')}
                         </select>
-                        <button onclick="toggleTagProfile('${expandId}')" title="Profil (impact_profile): ${profileStr} — alimentează direct atributele EA (PAC/SHO/PAS/DRI/DEF/PHY)"
+                        <button onclick="toggleTagProfile('${expandId}')" title="Profil (impact_profile): ${profileStr} — bonus mic peste atributele EA setate manual"
                             style="padding:3px 8px;border-radius:6px;background:rgba(61,90,254,.1);border:1px solid #d3bd8c;color:#1554b3;font-size:.65rem;cursor:pointer;">📊 Profil atribute</button>
                         <button onclick="deleteTag(${t.id})"
                             style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
                     </div>
                     <div id="${expandId}" style="display:none;background:#f3e6cf;border-radius:8px;padding:10px;margin-top:6px;border:1px solid #e3d3ac;">
                         <div style="font-size:.6rem;color:#7d6849;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">📊 Profil (−3 → +3)</div>
-                        <div style="font-size:.58rem;color:#9c7a4a;margin-bottom:6px;">Acesta e SINGURUL lucru care contează din tag — alimentează direct atributele EA (PAC/SHO/PAS/DRI/DEF/PHY) și, pt. portari, DIV/HAN/KIC/REF/POS/SPD. Nu mai există un coeficient separat de rating.</div>
+                        <div style="font-size:.58rem;color:#9c7a4a;margin-bottom:6px;">Alimentează un BONUS mic (±${EA_TAG_BONUS_CAP} puncte max, per atribut) peste valorile setate manual — nu mai e motorul principal al OVR-ului.</div>
                         <div id="ipSliders-${t.id}"></div>
                     </div>
                 </div>`;
@@ -2794,50 +2822,51 @@ function buildAlgorithmPanel(){
 
     const html = `
         <div class="algo-weight-cell">
-            <span class="algo-weight-lbl">🎯 Centrul scalei (OVR mediu al ligii) <span style="font-size:.6em;color:#9c7a4a;">(implicit ${DEFAULT_EA_BASE99})</span></span>
+            <span class="algo-weight-lbl">🏷️ Cât poate un tag să tragă un atribut <span style="font-size:.6em;color:#9c7a4a;">(implicit ±${DEFAULT_EA_TAG_BONUS_CAP})</span></span>
             <div class="algo-weight-ctrl">
                 <button class="algo-btn" onclick="stepEaBase(-1)">−</button>
-                <input class="algo-num" type="number" id="eaBaseNum" value="${Math.round(EA_BASE99)}" min="30" max="90" step="1"
+                <input class="algo-num" type="number" id="eaBaseNum" value="${Math.round(EA_TAG_BONUS_CAP)}" min="0" max="20" step="1"
                     oninput="syncEaBase()">
                 <button class="algo-btn" onclick="stepEaBase(1)">+</button>
                 <span class="algo-pct">OVR</span>
             </div>
         </div>
         <div class="algo-weight-cell">
-            <span class="algo-weight-lbl">📏 Cât de "întinsă" e scala <span style="font-size:.6em;color:#9c7a4a;">(implicit ${DEFAULT_EA_SCALE99}) — mai mare = diferențe mai mari între jucători</span></span>
+            <span class="algo-weight-lbl">📏 Intensitatea bonusului de tag-uri <span style="font-size:.6em;color:#9c7a4a;">(implicit ${DEFAULT_EA_TAG_BONUS_SCALE}) — mai mare = tag-urile contează mai mult</span></span>
             <div class="algo-weight-ctrl">
                 <button class="algo-btn" onclick="stepEaScale(-0.5)">−</button>
-                <input class="algo-num" type="number" id="eaScaleNum" value="${EA_SCALE99.toFixed(1)}" min="2" max="14" step="0.5"
+                <input class="algo-num" type="number" id="eaScaleNum" value="${EA_TAG_BONUS_SCALE.toFixed(1)}" min="0" max="3" step="0.1"
                     oninput="syncEaScale()">
                 <button class="algo-btn" onclick="stepEaScale(0.5)">+</button>
                 <span class="algo-pct">×</span>
             </div>
         </div>
         <div style="font-size:.62rem;color:#9c7a4a;margin-top:8px;line-height:1.4;">
-            Restul formulei (atribute PAC/SHO/PAS/DRI/DEF/PHY, ponderi per poziție, Form Rating) e fix —
-            vezi comentariile din <code>smart-rating.js</code> dacă vrei să reglezi ceva mai fin, direct în cod.
+            Atributele de bază (PAC/SHO/PAS/DRI/DEF/PHY) se setează acum MANUAL, per jucător, cu +/− direct din
+            modalul lui. Restul (ponderi per poziție, Form Rating) e fix — vezi comentariile din
+            <code>smart-rating.js</code> dacă vrei să reglezi ceva mai fin, direct în cod.
         </div>`;
     document.getElementById('weightsList').innerHTML = html;
     renderAlgoPreviewInline();
 }
 function stepEaBase(delta){
-    EA_BASE99 = Math.max(30, Math.min(90, Math.round(EA_BASE99+delta)));
-    const el=document.getElementById('eaBaseNum'); if(el) el.value=EA_BASE99;
+    EA_TAG_BONUS_CAP = Math.max(0, Math.min(20, Math.round(EA_TAG_BONUS_CAP+delta)));
+    const el=document.getElementById('eaBaseNum'); if(el) el.value=EA_TAG_BONUS_CAP;
     renderAlgoPreviewInline();
 }
 function syncEaBase(){
-    let v=parseFloat(document.getElementById('eaBaseNum').value); if(isNaN(v)) v=DEFAULT_EA_BASE99;
-    EA_BASE99=Math.max(30,Math.min(90,Math.round(v)));
+    let v=parseFloat(document.getElementById('eaBaseNum').value); if(isNaN(v)) v=DEFAULT_EA_TAG_BONUS_CAP;
+    EA_TAG_BONUS_CAP=Math.max(0,Math.min(20,Math.round(v)));
     renderAlgoPreviewInline();
 }
 function stepEaScale(delta){
-    EA_SCALE99 = Math.max(2, Math.min(14, parseFloat((EA_SCALE99+delta).toFixed(1))));
-    const el=document.getElementById('eaScaleNum'); if(el) el.value=EA_SCALE99.toFixed(1);
+    EA_TAG_BONUS_SCALE = Math.max(0, Math.min(3, parseFloat((EA_TAG_BONUS_SCALE+delta).toFixed(1))));
+    const el=document.getElementById('eaScaleNum'); if(el) el.value=EA_TAG_BONUS_SCALE.toFixed(1);
     renderAlgoPreviewInline();
 }
 function syncEaScale(){
-    let v=parseFloat(document.getElementById('eaScaleNum').value); if(isNaN(v)) v=DEFAULT_EA_SCALE99;
-    EA_SCALE99=Math.max(2,Math.min(14,v));
+    let v=parseFloat(document.getElementById('eaScaleNum').value); if(isNaN(v)) v=DEFAULT_EA_TAG_BONUS_SCALE;
+    EA_TAG_BONUS_SCALE=Math.max(0,Math.min(3,v));
     renderAlgoPreviewInline();
 }
 function renderAlgoPreviewInline(){
@@ -2845,7 +2874,7 @@ function renderAlgoPreviewInline(){
     // Ring rămas din UI vechi — îl repurposăm ca simplu indicator "OK"
     const pctEl = document.getElementById('algoPowerPct');
     const fill = document.getElementById('algoRingFill');
-    if(pctEl){ pctEl.textContent = Math.round(EA_BASE99); pctEl.style.color='#2e7d32'; }
+    if(pctEl){ pctEl.textContent = '±'+Math.round(EA_TAG_BONUS_CAP); pctEl.style.color='#2e7d32'; }
     if(fill){ fill.style.strokeDashoffset = 0; fill.style.stroke='#2e7d32'; }
 }
 
@@ -2854,15 +2883,15 @@ function renderAlgoPreviewInline(){
  * VECHI (salvate) vs cele NOI (editate acum, încă nesalvate).
  */
 function computeAlgoPreviewDeltas(){
-    const before = _algoSnapshot || { base: DEFAULT_EA_BASE99, scale: DEFAULT_EA_SCALE99 };
+    const before = _algoSnapshot || { cap: DEFAULT_EA_TAG_BONUS_CAP, scale: DEFAULT_EA_TAG_BONUS_SCALE };
     const players = db.players.filter(p => p.games > 0 && p.adminRating == null);
 
     const results = players.map(p => ({ p, after: getSmartRating(p) }));
 
-    const liveBase = EA_BASE99, liveScale = EA_SCALE99;
-    EA_BASE99 = before.base; EA_SCALE99 = before.scale;
+    const liveCap = EA_TAG_BONUS_CAP, liveScale = EA_TAG_BONUS_SCALE;
+    EA_TAG_BONUS_CAP = before.cap; EA_TAG_BONUS_SCALE = before.scale;
     results.forEach(r => { r.before = getSmartRating(r.p); });
-    EA_BASE99 = liveBase; EA_SCALE99 = liveScale;
+    EA_TAG_BONUS_CAP = liveCap; EA_TAG_BONUS_SCALE = liveScale;
 
     results.forEach(r => { r.delta = r.after - r.before; });
     results.sort((a,b) => b.delta - a.delta);
@@ -2920,8 +2949,8 @@ function closeAlgoPreview(revert){
     const overlay = document.getElementById('algoPreviewOverlay');
     if (overlay) overlay.style.display = 'none';
     if (revert && _algoSnapshot) {
-        EA_BASE99 = _algoSnapshot.base;
-        EA_SCALE99 = _algoSnapshot.scale;
+        EA_TAG_BONUS_CAP = _algoSnapshot.cap;
+        EA_TAG_BONUS_SCALE = _algoSnapshot.scale;
         buildAlgorithmPanel();
         showToast('↺ Modificări anulate — a rămas ce era salvat.');
     }
@@ -2930,10 +2959,10 @@ function closeAlgoPreview(revert){
 async function commitAlgorithmSave(){
     try{
         await sb.from('algo_settings').upsert([
-            {key:'ea_base99', value: EA_BASE99},
-            {key:'ea_scale99', value: EA_SCALE99}
+            {key:'ea_tag_bonus_cap', value: EA_TAG_BONUS_CAP},
+            {key:'ea_tag_bonus_scale', value: EA_TAG_BONUS_SCALE}
         ], {onConflict:'key'});
-        _algoSnapshot = { base: EA_BASE99, scale: EA_SCALE99 };
+        _algoSnapshot = { cap: EA_TAG_BONUS_CAP, scale: EA_TAG_BONUS_SCALE };
         closeAlgoPreview(false);
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){ showToast('⚠️ Eroare: '+e.message); return; }
@@ -2941,14 +2970,14 @@ async function commitAlgorithmSave(){
 }
 
 async function resetAlgorithm(){
-    EA_BASE99 = DEFAULT_EA_BASE99;
-    EA_SCALE99 = DEFAULT_EA_SCALE99;
+    EA_TAG_BONUS_CAP = DEFAULT_EA_TAG_BONUS_CAP;
+    EA_TAG_BONUS_SCALE = DEFAULT_EA_TAG_BONUS_SCALE;
     try{
         await sb.from('algo_settings').upsert([
-            {key:'ea_base99', value: DEFAULT_EA_BASE99},
-            {key:'ea_scale99', value: DEFAULT_EA_SCALE99}
+            {key:'ea_tag_bonus_cap', value: DEFAULT_EA_TAG_BONUS_CAP},
+            {key:'ea_tag_bonus_scale', value: DEFAULT_EA_TAG_BONUS_SCALE}
         ], {onConflict:'key'});
-        _algoSnapshot = { base: DEFAULT_EA_BASE99, scale: DEFAULT_EA_SCALE99 };
+        _algoSnapshot = { cap: DEFAULT_EA_TAG_BONUS_CAP, scale: DEFAULT_EA_TAG_BONUS_SCALE };
     }catch(e){ console.warn('reset algo error:',e.message); }
     buildAlgorithmPanel();
     render();
@@ -3474,10 +3503,15 @@ function buildModalStats(p){
     const fmt = v => (v>0?'+':'')+v;
 
     const attrLabels = _card.isGk ? GK_ATTR_KEYS : EA_ATTR_KEYS;
-    const attrStepsHtml = attrLabels.map(k => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;">
+    const attrStepsHtml = attrLabels.map(k => {
+        const manual = _card.attrs._manual?.[k];
+        const bonus  = _card.attrs._bonus?.[k]||0;
+        const bonusStr = bonus!==0 ? ` <span style="font-size:.62rem;color:${bonus>0?'#1b7a43':'#b71c1c'};">(${manual}${bonus>0?'+':''}${bonus} tag)</span>` : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;">
         <span style="font-size:.75rem;color:#7d6849;">${k}</span>
-        <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:${eaAttrColor(_card.attrs[k])};">${_card.attrs[k]}</span>
-       </div>`).join('');
+        <span><span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:${eaAttrColor(_card.attrs[k])};">${_card.attrs[k]}</span>${bonusStr}</span>
+       </div>`;
+    }).join('');
 
     const formStepsHtml = _card.formSignals.length
         ? _card.formSignals.map(s => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid #f5e9d4;">
@@ -3500,7 +3534,7 @@ function buildModalStats(p){
 
     document.getElementById('algoBreakdown').innerHTML =
         `<div style="background:#f3e6cf;border-radius:10px;padding:12px;margin-bottom:8px;">
-            <div style="font-size:.6rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📐 Base OVR (${_card.baseOVR}) — atribute</div>
+            <div style="font-size:.6rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">📐 Base OVR (${_card.baseOVR}) — atribute (manual + bonus tag-uri)</div>
             ${attrStepsHtml}
             ${!_card.isGk?`<div style="font-size:.65rem;color:#6b5840;margin-top:6px;">Weak Foot ${'★'.repeat(_card.weakFoot)}${'☆'.repeat(5-_card.weakFoot)} · Skill Moves ${'★'.repeat(_card.skillMoves)}${'☆'.repeat(5-_card.skillMoves)}</div>`:''}
             <div style="font-size:.6rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;border-top:1px dashed #d3bd8c;padding-top:8px;">📈 Form Rating (${_card.formDelta>=0?'+':''}${_card.formDelta})</div>
