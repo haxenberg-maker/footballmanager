@@ -423,7 +423,6 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 <div id="mvpBreakdownList" style="font-size:.8rem;margin-bottom:10px;"></div>
                 <select id="mvpManualSelect" class="p-input" style="width:100%;margin-bottom:8px;">
                     <option value="">— fără suprascriere (folosește calculul) —</option>
-                    <option value="none">🚫 Niciun MVP la acest meci</option>
                 </select>
                 <button onclick="saveMvpManual()" style="width:100%;padding:10px;border-radius:9px;background:linear-gradient(135deg,#7a5c00,var(--star));border:1px solid var(--star);color:#1a1500;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;font-weight:700;">💾 Salvează MVP Oficial</button>
             </div>
@@ -1475,7 +1474,6 @@ async function loadPotmMatchDetails(){
     const mvpManualSel = document.getElementById('mvpManualSelect');
     if (mvpManualSel) {
         mvpManualSel.innerHTML = '<option value="">— fără suprascriere (folosește calculul) —</option>'
-            + `<option value="none" ${_potmAdminMatch.manualMvpId===-1?'selected':''}>🚫 Niciun MVP la acest meci</option>`
             + participants.sort((a,b)=>a.name.localeCompare(b.name))
                 .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualMvpId==p.id?'selected':''}>${p.name}</option>`).join('');
     }
@@ -1510,7 +1508,7 @@ function refreshMvpBreakdown(){
 async function saveMvpManual(){
     if (!_potmAdminMatch) return;
     const sel = document.getElementById('mvpManualSelect');
-    const val = sel.value === 'none' ? -1 : (sel.value ? parseInt(sel.value) : null);
+    const val = sel.value ? parseInt(sel.value) : null;
     try{
         // La fel ca la POTM: se salvează pe TOATE perechile sesiunii, o singură
         // sursă de adevăr indiferent care pereche o citește prima clasament.html.
@@ -1519,7 +1517,7 @@ async function saveMvpManual(){
         await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
         sessionRows.forEach(r => { r.manualMvpId = val; });
         _potmAdminMatch.manualMvpId = val;
-        showToast(val===-1 ? '✅ MVP eliminat pentru acest meci.' : val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
+        showToast(val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
         refreshMvpBreakdown();
     }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
 }
