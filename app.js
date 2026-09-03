@@ -418,6 +418,7 @@ async function loadAll() {
             return {
                 _dbId: h.id,
                 createdAt: h.created_at || null, // pentru ordonarea cronologică a sesiunilor de 3 echipe
+                manualMvpId: h.manual_mvp_player_id!=null ? h.manual_mvp_player_id : null, // suprascriere/ștergere MVP din setari.html — necesar pentru sincronizarea mvpCount cu Smart Rating
                 date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null,
@@ -465,14 +466,15 @@ async function loadAll() {
         } catch(e){ console.warn('potm count load:', e.message); db.players.forEach(p=>{ p.potmCount = p.potmCount||0; }); }
 
         try {
-            const currentSeasonIds = new Set((histRaw||[]).map(h=>h.id));
-            // MVP: număr simplu de voturi primite (nu doar la meciuri câștigate) —
-            // "câte MVP-uri a avut", nu o rată condiționată de rezultat.
-            const { data: mvpRaw } = await sb.from('mvp_votes').select('mvp_player_name,match_id');
+            // MVP: NU mai e din voturile colegilor (mvp_votes, sistem eliminat) —
+            // e "MVP din meciuri" (goluri + minute/90), calculat per sesiune, cu
+            // suprascrierea/ștergerea manuală din setari.html respectată. Înainte,
+            // acest calcul rămânea legat de mvp_votes, deci schimbarea sau ștergerea
+            // unui MVP din setari.html nu se reflecta niciodată în OVR (Form Rating).
             const mvpCountByName = {};
-            (mvpRaw||[]).forEach(v=>{
-                if(v.match_id && !currentSeasonIds.has(v.match_id)) return;
-                mvpCountByName[v.mvp_player_name] = (mvpCountByName[v.mvp_player_name]||0)+1;
+            groupHistoryForDisplay(db.history).forEach(item => {
+                const winner = computeSessionMvpWinner(item.rows);
+                if (winner) mvpCountByName[winner.name] = (mvpCountByName[winner.name]||0) + 1;
             });
             db.players.forEach(p=>{ p.mvpCount = mvpCountByName[p.name] || 0; });
         } catch(e){ console.warn('mvp count load:', e.message); db.players.forEach(p=>{ p.mvpCount = p.mvpCount||0; }); }
@@ -1622,6 +1624,41 @@ function groupHistoryForDisplay(sorted){
         i = j;
     }
     return items;
+}
+
+// "MVP din meciuri" — NU voturile colegilor (mvp_votes, sistem eliminat), ci
+// golgheterul cu cele mai multe minute jucate: goluri + minute/90, calculat pe
+// o sesiune întreagă sau pe un meci simplu. Aceeași logică ca în clasament.html
+// și setari.html — sursă unică de adevăr pentru mvpCount (Smart Rating).
+function computeSessionMvpWinner(rows){
+    const manualId = rows.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
+    // -1 e sentinela "NICIUN MVP la acest meci" (setată explicit din setari.html) —
+    // diferită de null ("fără suprascriere, folosește calculul").
+    if (manualId === -1) return null;
+
+    const totalGoals = {};
+    rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const totalSeconds = {};
+    rows.forEach(h => {
+        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
+        playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
+    });
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const candidates = [...allNames].map(name => {
+        const goals = totalGoals[name] || 0;
+        const minutes = Math.round((totalSeconds[name]||0) / 60);
+        return { name, goals, minutes, score: goals + minutes/90 };
+    }).sort((a,b) => b.score - a.score);
+
+    if (manualId != null) {
+        const p = db.players.find(x=>x.id===manualId);
+        if (p) {
+            const existing = candidates.find(c=>c.name===p.name);
+            return existing || { name: p.name, goals: 0, minutes: 0, score: 0 };
+        }
+    }
+    return candidates[0] || null;
 }
 
 function renderHistory(){

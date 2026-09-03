@@ -189,9 +189,10 @@ body{font-family:var(--font-body);background:
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
-            <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
+            <button class="lb-tab"        id="lbt-assist"  onclick="setLbTab('assist')" >🅰️ Asisturi</button>
+            <button class="lb-tab"        id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
+            <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
             <button class="lb-tab"        id="lbt-awards"  onclick="setLbTab('awards')" >🏆 Premii</button>
         </div>
@@ -407,6 +408,11 @@ function computePotmWinnerForRows(rows){
 // Premii (numărătoarea totală).
 function computeSessionMvpWinner(chrono){
     const manualId = chrono.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
+    // -1 e sentinela "NICIUN MVP la acest meci" (setată explicit din setari.html) —
+    // fără verificarea asta, ștergerea manuală a MVP-ului era ignorată aici (și în
+    // clasamentul de Premii), pentru că db.players.find(id===-1) nu găsea niciodată
+    // pe nimeni și codul cădea pe candidatul calculat automat.
+    if (manualId === -1) return null;
 
     const totalGoals = {};
     chrono.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
@@ -634,7 +640,6 @@ function renderSessionCard(rows){
                 ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
                 ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
                 ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
-                ${hattricks.map(ht => `<div class="mc-badge" style="background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#a78bfa;">🎩 Hattrick: ${ht.name} (${ht.goals}, ${ht.teams.join(' vs ')})</div>`).join('')}
             </div>
             <button class="mc-details-toggle" onclick="toggleSessionDetails('${sessDomId}', this)">▼ Afișează detalii</button>
             <div id="${sessDomId}" style="display:none;margin-top:10px;">
@@ -704,7 +709,12 @@ function backfillSessionRoundGoals(sessionRows) {
     const allGoals = [];
     sessionRows.forEach(h => (h.goalsList||[]).forEach(g => {
         if (g.is_penalty || g.minute == null) return;
-        allGoals.push({ player_name: g.player_name, team: g.team, minute: g.minute });
+        allGoals.push({
+    player_name: g.player_name,
+    team: g.team,
+    minute: g.minute,
+    assist_name: g.assist_name || null
+});
     }));
 
     // 4) Plasăm fiecare gol în tura a cărei fereastră de timp îl conține
@@ -720,7 +730,13 @@ function backfillSessionRoundGoals(sessionRows) {
         }
         if (target) {
             if (!Array.isArray(target.goals)) target.goals = [];
-            target.goals.push({ player_name: g.player_name, team: g.team, minute: g.minute, _reconstructed: true });
+            target.goals.push({
+    player_name: g.player_name,
+    team: g.team,
+    minute: g.minute,
+    assist_name: g.assist_name || null,
+    _reconstructed: true
+});
         }
     });
 
@@ -776,7 +792,7 @@ function openMatchDetail(dbId){
             const ds = r.duration_sec ? r.duration_sec%60 : 0;
             const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
             const goalsHtml = Array.isArray(r.goals) && r.goals.length
-                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.minute!=null?` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>`:''}</div>`).join('')
+                ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}${g.minute!=null ? ` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>` : ''}</div>`).join('')
                 : `<div style="font-size:.66rem;color:#5b6577;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
             const roundWinnerName = getRoundWinnerName(h, r);
             const winnerHtml = roundWinnerName
@@ -807,7 +823,7 @@ function openMatchDetail(dbId){
         const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
         const goalsHtml = normalGoals.length
             ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
-                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}</span>
+                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}</span>
                 <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
             </div>`).join('')
             : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
@@ -1217,7 +1233,22 @@ function computeWeekPlayerStats(){
         (h.orangePlayers||[]).forEach(n=>{const s=ensure(n);s.games++;if(winO)s.wins++;});
         (h.greenPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winG)s.wins++;});
         (h.blackPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winB)s.wins++;});
-        if(h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (Array.isArray(h.goalsList)) {
+    h.goalsList.forEach(g => {
+        // Penalty-urile nu intră în statisticile normale de goluri/assisturi
+        if (g.is_penalty) return;
+
+        const scorer = (g.player_name || '').trim();
+        if (scorer) {
+            ensure(scorer).goals += (g.goals || 1);
+        }
+
+        const assister = (g.assist_name || '').trim();
+        if (assister) {
+            ensure(assister).assists += 1;
+        }
+    });
+}
     });
     return stats;
 }
@@ -1378,14 +1409,24 @@ function getFormIndex(p){
 // singura sursă de adevăr e tabela match_history (+ match_goals).
 function computeSeasonStats(seasonName){
     const stats = {};
-    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
+    const ensure = n => stats[n] || (stats[n] = {name:n, games:0, wins:0, goals:0, assists:0, penaltyGoals:0, penaltyAttempts:0, penaltyShots:[]});
     db.history.forEach(h=>{
         if (h.season !== seasonName) return;
         const winO = h.winner==='Portocaliu', winG = h.winner==='Verde', winB = h.winner==='Negru';
         (h.orangePlayers||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winO) s.wins++; });
         (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
         (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
-        if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (Array.isArray(h.goalsList)) {
+    h.goalsList.forEach(g => {
+        if (g.is_penalty) return;
+
+        const name = (g.player_name || '').trim();
+        if (!name) return;
+
+        ensure(name).goals += (g.goals || 1);
+    });
+}
+        if (h.goalsList) {h.goalsList.forEach(g => { if (g.assist_name && !g.is_penalty) { ensure(g.assist_name).assists++; }})};
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
             if (Array.isArray(r.penalty_shots)) {
                 r.penalty_shots.forEach(s=>{
@@ -1487,7 +1528,19 @@ function renderMeCard(){
         </div>
     </div>`;
 }
+function getCurrentAssists(playerName) {
+    let count = 0;
 
+    db.history.forEach(h => {
+        (h.goalsList || []).forEach(g => {
+            if (!g.is_penalty && g.assist_name === playerName) {
+                count++;
+            }
+        });
+    });
+
+    return count;
+}
 function renderLeaderboard(){
     const medals=['🥇','🥈','🥉'];
     const content=document.getElementById('lbContent');
@@ -1502,12 +1555,16 @@ function renderLeaderboard(){
     }
 
     const viewingPastSeason = !!currentSeason;
-    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen';
+    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen' || currentLbTab==='goals' || currentLbTab==='assist' || currentLbTab==='contrib' ;
     const periodStats = usesPeriodStats ? computeSeasonStats(currentSeason) : null;
 
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
     const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
+    const assistsOf = p => usesPeriodStats ? (periodStats[p.name]?.assists||0): getCurrentAssists(p.name);
+    const contribOf = p =>
+        goalsOf(p) + assistsOf(p);
+    
 
     const all = db.players;
     // La sezoane arhivate, un jucător poate să nu mai fie în roster-ul curent
@@ -1541,6 +1598,46 @@ function renderLeaderboard(){
             subLabel=p=>{const g=gamesOf(p);const gpg=g>0?(goalsOf(p)/g).toFixed(1):'—';return gpg+'/meci';};
             bigColor='#34d399';
             break;
+        case 'assist':
+            sorted = [...withGames]
+                .filter(p => assistsOf(p) > 0)
+                .sort((a,b) =>
+                    assistsOf(b) - assistsOf(a) ||
+                    goalsOf(b) - goalsOf(a)
+                );
+            getValue = p => '🅰️' + assistsOf(p);
+        
+            subLabel = p => {
+                const g = gamesOf(p);
+                const apg = g > 0
+                    ? (assistsOf(p) / g).toFixed(1)
+                    : '—';
+                return apg + '/meci';
+            };
+            bigColor = '#60a5fa';
+            break;
+        case 'contrib':
+          sorted = [...withGames]
+              .filter(p => contribOf(p) > 0)
+              .sort((a,b) =>
+                  contribOf(b) - contribOf(a) ||
+                  goalsOf(b) - goalsOf(a) ||
+                  assistsOf(b) - assistsOf(a)
+              );
+      
+          getValue = p => '🔥' + contribOf(p);
+      
+          subLabel = p => {
+              const g = gamesOf(p);
+              const cpg = g > 0
+                  ? (contribOf(p) / g).toFixed(1)
+                  : '—';
+      
+              return `${goalsOf(p)} ⚽ + ${assistsOf(p)} 🅰️ · ${cpg}/meci`;
+          };
+      
+          bigColor = '#f59e0b';
+        break;
         case 'wins':
             sorted=[...withGames].sort((a,b)=>winsOf(b)-winsOf(a));
             getValue=p=>'🏆'+winsOf(p);
@@ -1708,6 +1805,35 @@ async function loadAll(){
                 potmVotesByMatch[v.match_id][pid] = (potmVotesByMatch[v.match_id][pid]||0)+1;
             });
         }catch(e){ console.warn('potm_votes load (ai rulat migrarea SQL?):', e.message); }
+      function enrichRoundGoalsWithAssists(roundsDetail, goals) {
+    if (!Array.isArray(roundsDetail)) return roundsDetail;
+
+    const assistMap = {};
+
+    (goals || [])
+        .filter(g => !g.is_penalty)
+        .forEach(g => {
+            const key = `${g.player_name}|||${g.team}|||${g.minute ?? ''}`;
+
+            if (!assistMap[key]) assistMap[key] = [];
+            assistMap[key].push(g.assist_name || null);
+        });
+
+    return roundsDetail.map(r => ({
+        ...r,
+        goals: Array.isArray(r.goals)
+            ? r.goals.map(g => {
+                const key = `${g.player_name}|||${g.team}|||${g.minute ?? ''}`;
+                const assists = assistMap[key] || [];
+
+                return {
+                    ...g,
+                    assist_name: g.assist_name || (assists.length ? assists.shift() : null)
+                };
+            })
+            : r.goals
+    }));
+}
         db.history = (histRaw||[]).map(h=>{
             const goals = goalsPerMatch[h.id]||[];
             // Golurile de penalty (is_penalty:true) se țin STRICT separat, nu se adună
@@ -1740,7 +1866,7 @@ async function loadAll(){
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
-                roundsDetail: h.rounds_detail||null, playerGoals, playerPenaltyGoals, topScorer, teamGoals,
+                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerPenaltyGoals, topScorer, teamGoals,
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,

@@ -473,6 +473,15 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             </div>
             <div id="awardsList" style="font-size:.82rem;"></div>
         </div>
+
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div class="card-title" style="margin-bottom:0;">📋 Istoric meciuri — POTM & MVP</div>
+                <button onclick="buildPotmMvpHistoryList()" style="background:none;border:1px solid var(--border);color:#555;padding:3px 10px;border-radius:6px;font-size:.68rem;cursor:pointer;">↻ Reîmprospătează</button>
+            </div>
+            <div style="font-size:.68rem;color:#555;margin-bottom:10px;">Toate meciurile/sesiunile, cu POTM și MVP curent. Schimbă sau șterge direct din listă — se salvează imediat.</div>
+            <div id="potmMvpHistoryList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
     </div>
 </div>
 
@@ -614,7 +623,7 @@ function switchSection(name){
     if(name==='tags') buildTagsPanel();
     if(name==='milestones') buildMilestonesPanel();
     if(name==='potm') buildPotmPanel();
-    if(name==='awards') buildAwardsPanel();
+    if(name==='awards'){ buildAwardsPanel(); buildPotmMvpHistoryList(); }
     if(name==='compare') buildComparePanel();
 }
 
@@ -685,6 +694,7 @@ async function loadAll(){
         const{data:potmRaw}=await sb.from('potm_votes').select('match_id,voted_player_id');
         const votesByMatch={};
         (potmRaw||[]).forEach(v=>{ if(!matchIds.has(v.match_id))return; if(!votesByMatch[v.match_id])votesByMatch[v.match_id]={}; votesByMatch[v.match_id][v.voted_player_id]=(votesByMatch[v.match_id][v.voted_player_id]||0)+1; });
+        db.potmVotesByMatch=votesByMatch; // reutilizat de lista POTM & MVP din Premii, ca să nu mai facem un fetch separat
         const potmCountById={};
         db.history.forEach(h=>{
             let winnerId=h.manualPotmId;
@@ -695,9 +705,14 @@ async function loadAll(){
             if(winnerId!=null) potmCountById[winnerId]=(potmCountById[winnerId]||0)+1;
         });
         db.players.forEach(p=>{ p.potmCount=potmCountById[p.id]||0; });
-        const{data:mvpRaw}=await sb.from('mvp_votes').select('mvp_player_name,match_id');
+        // MVP: NU voturile vechi (mvp_votes, sistem eliminat) — "MVP din meciuri"
+        // calculat (goluri+minute), cu suprascrierea manuală/ștergerea din panoul
+        // de mai jos respectată (altfel un MVP șters manual tot conta la OVR).
         const mvpCountByName={};
-        (mvpRaw||[]).forEach(v=>{ if(v.match_id && !matchIds.has(v.match_id))return; mvpCountByName[v.mvp_player_name]=(mvpCountByName[v.mvp_player_name]||0)+1; });
+        groupHistoryForDisplay(db.history).forEach(item=>{
+            const {winner}=computeSessionMvpWinner(item.rows);
+            if(winner) mvpCountByName[winner.name]=(mvpCountByName[winner.name]||0)+1;
+        });
         db.players.forEach(p=>{ p.mvpCount=mvpCountByName[p.name]||0; });
     }catch(e){ console.warn('potm/mvp count load (preview):',e.message); db.players.forEach(p=>{ p.potmCount=p.potmCount||0; p.mvpCount=p.mvpCount||0; }); }
 
@@ -1292,6 +1307,105 @@ async function deletePlayerAward(id){
         buildAwardsPanel();
         showToast('🗑️ Premiu șters.');
     }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Listă completă meciuri — POTM & MVP (secțiunea Premii) ──────────────
+// Afișează TOATE meciurile/sesiunile deodată (spre deosebire de panoul de mai
+// sus, care arată unul singur, ales dintr-un dropdown), cu POTM + MVP curent
+// (și motivul MVP-ului) pe fiecare rând, plus controale inline de suprascriere
+// și ștergere — fără să mai fie nevoie să intri în fiecare meci pe rând.
+function potmMvpHistoryRowLabel(item){
+    return item.type==='session' ? potmSessionLabel(item.rows) : potmMatchLabel(item.rows[0]);
+}
+
+function buildPotmMvpHistoryList(){
+    const wrap = document.getElementById('potmMvpHistoryList');
+    if (!wrap) return;
+    if (!db.history || !db.history.length){
+        wrap.innerHTML = '<div style="color:#555;font-size:.75rem;">Niciun meci în istoric.</div>';
+        return;
+    }
+    const items = groupHistoryForDisplay(db.history);
+    const votesByMatch = db.potmVotesByMatch || {};
+
+    wrap.innerHTML = items.map(item => {
+        const anchor = item.rows[0]; // rândul "reprezentant" al sesiunii/meciului
+        const anchorId = anchor._dbId;
+        const participants = potmMatchParticipants(anchor).sort((a,b)=>a.name.localeCompare(b.name,'ro'));
+
+        // POTM curent: suprascriere manuală, altfel câștigătorul voturilor (agregate pe toate perechile sesiunii)
+        let potmCounts = {};
+        item.rows.forEach(r => { const c = votesByMatch[r._dbId]; if (c) Object.entries(c).forEach(([pid,n])=>{ potmCounts[pid]=(potmCounts[pid]||0)+n; }); });
+        const potmSorted = Object.entries(potmCounts).sort((a,b)=>b[1]-a[1]);
+        let potmWinnerId = anchor.manualPotmId;
+        let potmSource = potmWinnerId!=null ? 'manual' : null;
+        if (potmWinnerId==null && potmSorted.length){ potmWinnerId=parseInt(potmSorted[0][0]); potmSource='voted'; }
+        const potmWinner = potmWinnerId!=null ? db.players.find(p=>p.id===potmWinnerId) : null;
+        const potmVoteCount = potmWinner ? (potmCounts[String(potmWinner.id)]||0) : 0;
+
+        // MVP curent: computeSessionMvpWinner respectă deja suprascrierea/ștergerea (-1)
+        const { winner: mvpWinner, source: mvpSource } = computeSessionMvpWinner(item.rows);
+
+        const potmOptions = '<option value="">— auto (voturi) —</option>'
+            + participants.map(p=>`<option value="${p.id}" ${anchor.manualPotmId===p.id?'selected':''}>${p.name}</option>`).join('');
+        const mvpOptions = '<option value="">— auto (calcul) —</option>'
+            + `<option value="none" ${anchor.manualMvpId===-1?'selected':''}>🚫 Niciun MVP</option>`
+            + participants.map(p=>`<option value="${p.id}" ${anchor.manualMvpId===p.id?'selected':''}>${p.name}</option>`).join('');
+
+        const potmLine = potmWinner
+            ? `⭐ <b style="color:#eab308;">${potmWinner.name}</b> ${potmSource==='voted' ? `<span style="color:#888;">(${potmVoteCount} vot${potmVoteCount!==1?'uri':''})</span>` : '<span style="color:#888;">(manual)</span>'}`
+            : '<span style="color:#555;">⭐ — niciun POTM —</span>';
+        const mvpLine = mvpWinner
+            ? `👑 <b style="color:var(--star);">${mvpWinner.name}</b> <span style="color:#888;">(${mvpWinner.goals} goluri · ${mvpWinner.minutes} min${mvpSource==='manual'?' · manual':''})</span>`
+            : (mvpSource==='manual-none' ? '<span style="color:#555;">👑 🚫 niciun MVP (setat manual)</span>' : '<span style="color:#555;">👑 — fără candidați —</span>');
+
+        return `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+            <div style="font-weight:700;font-size:.78rem;color:#e0e0e0;margin-bottom:6px;">${potmMvpHistoryRowLabel(item)}</div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.76rem;margin-bottom:4px;">
+                <div style="min-width:150px;">${potmLine}</div>
+                <select class="p-input" style="flex:1;min-width:140px;padding:4px 6px;font-size:.7rem;" onchange="savePotmManualForRow('${anchorId}', this.value)">${potmOptions}</select>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.76rem;">
+                <div style="min-width:150px;">${mvpLine}</div>
+                <select class="p-input" style="flex:1;min-width:140px;padding:4px 6px;font-size:.7rem;" onchange="saveMvpManualForRow('${anchorId}', this.value)">${mvpOptions}</select>
+                <button onclick="saveMvpManualForRow('${anchorId}', 'none')" title="Șterge MVP-ul acestui meci" style="background:rgba(198,40,40,.12);border:1px solid rgba(198,40,40,.35);color:#ef9a9a;padding:4px 9px;border-radius:6px;font-size:.68rem;cursor:pointer;">🗑</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// Suprascrie/șterge POTM pentru un meci/sesiune anume, identificat prin _dbId-ul
+// rândului reprezentant — la fel ca savePotmManual(), dar fără să depindă de
+// panoul cu un singur meci selectat (_potmAdminMatch), ca să meargă din listă.
+async function savePotmManualForRow(anchorId, rawVal){
+    const h = db.history.find(x=>String(x._dbId)===String(anchorId));
+    if (!h) return;
+    const val = rawVal ? parseInt(rawVal) : null;
+    try{
+        const sessionRows = getSessionRowsFor(h);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        await sb.from('match_history').update({ manual_potm_player_id: val }).in('id', sessionMatchIds);
+        sessionRows.forEach(r => { r.manualPotmId = val; });
+        showToast(val ? '✅ POTM oficial salvat!' : '✅ Suprascriere eliminată — folosește voturile.');
+        buildPotmMvpHistoryList();
+        if (_potmAdminMatch && sessionMatchIds.includes(_potmAdminMatch._dbId)) loadPotmMatchDetails();
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// Suprascrie/șterge MVP pentru un meci/sesiune anume — vezi savePotmManualForRow.
+async function saveMvpManualForRow(anchorId, rawVal){
+    const h = db.history.find(x=>String(x._dbId)===String(anchorId));
+    if (!h) return;
+    const val = rawVal==='none' ? -1 : (rawVal ? parseInt(rawVal) : null);
+    try{
+        const sessionRows = getSessionRowsFor(h);
+        const sessionMatchIds = sessionRows.map(r=>r._dbId);
+        await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
+        sessionRows.forEach(r => { r.manualMvpId = val; });
+        showToast(val===-1 ? '✅ MVP eliminat pentru acest meci.' : val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
+        buildPotmMvpHistoryList();
+        if (_potmAdminMatch && sessionMatchIds.includes(_potmAdminMatch._dbId)) loadPotmMatchDetails();
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
 }
 
 function buildPotmPanel(){
