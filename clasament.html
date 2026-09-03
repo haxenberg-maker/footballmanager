@@ -1558,7 +1558,6 @@ function renderLeaderboard(){
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
     const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
     const assistsOf = p => usesPeriodStats ? (periodStats[p.name]?.assists||0): getCurrentAssists(p.name);
-    const assistsOf = p => periodStats?.[p.name]?.assists || 0;
     const contribOf = p =>
         goalsOf(p) + assistsOf(p);
     
