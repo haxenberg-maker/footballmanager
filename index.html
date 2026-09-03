@@ -133,11 +133,11 @@
         .dash-stats-hidden .rating-badge,
         .dash-stats-hidden .rating-badge-smart,
         .dash-stats-hidden .player-stats,
-        .dash-stats-hidden .fifa-rating-col,
-        .dash-stats-hidden .fifa-stats-row { display:none !important; }
+        .dash-stats-hidden .fifa-rating-col { display:none !important; }
         .dash-stats-hidden .team-avg-badge { display:none !important; }
         .dash-stats-hidden .probOrange, .dash-stats-hidden #probOrange,
         .dash-stats-hidden #probGreen { visibility:hidden; }
+        .dash-wrstats-hidden .fifa-stats-row { display:none !important; }
         .dash-tags-hidden .ptag-row { display:none !important; }
         .dash-roles-hidden .role-badge-inline { display:none !important; }
         .dash-milestones-hidden .milestone-row { display:none !important; }
@@ -173,6 +173,23 @@
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
         .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
         .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
+        /* Tier-uri de card stil EA FC, în funcție de OVR — independent de
+           culoarea de echipă (background) de mai sus; adaugă un inel/glow
+           pe margine + accent pe coloana de rating. */
+        .player-card.tier-bronze{box-shadow:0 0 0 1.5px rgba(160,106,60,.4) inset;}
+        .player-card.tier-bronze .fifa-rating-col{border-right-color:rgba(160,106,60,.5);}
+        .player-card.tier-silver{box-shadow:0 0 0 1.5px rgba(150,150,160,.55) inset,0 0 10px rgba(150,150,160,.25);}
+        .player-card.tier-silver .fifa-rating-col{border-right-color:rgba(150,150,160,.6);}
+        .player-card.tier-gold{box-shadow:0 0 0 1.5px rgba(212,175,55,.65) inset,0 0 14px rgba(212,175,55,.35);}
+        .player-card.tier-gold .fifa-rating-col{border-right-color:rgba(212,175,55,.7);}
+        .player-card.tier-gold .fifa-rating-num{text-shadow:0 0 8px rgba(212,175,55,.5);}
+        .player-card.tier-special{box-shadow:0 0 0 2px rgba(107,70,193,.65) inset,0 0 18px rgba(107,70,193,.4);}
+        .player-card.tier-special .fifa-rating-col{border-right-color:rgba(107,70,193,.7);}
+        .player-card.tier-special .fifa-rating-num{text-shadow:0 0 8px rgba(107,70,193,.55);}
+        .player-card.tier-special::after{
+            content:'✨';position:absolute;top:6px;left:10px;font-size:.8rem;
+            filter:drop-shadow(0 0 3px rgba(107,70,193,.6));pointer-events:none;
+        }
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
@@ -915,6 +932,7 @@
     <div class="controls-separator admin-only"></div>
     <div class="controls-separator"></div>
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
+    <button id="btnToggleWrStats" onclick="toggleDashWrStats()" title="Ascunde/Arată WR/goluri">⚽ WR/Goluri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
     <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
@@ -1639,8 +1657,8 @@
 </div>
 </div>
 
-<script src="smart-rating.js?v=20260903b"></script>
-<script src="app.js?v=20260903b"></script>
+<script src="smart-rating.js?v=20260903c"></script>
+<script src="app.js?v=20260903c"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">

@@ -206,6 +206,7 @@ let activeCatTab = 'general', ratingChartInstance = null, csvParsed = null;
 let detailsOpen=false, ratingsListOpen=false;
 let qvVotes = {}, confirmCallback = null;
 let statsVisible = localStorage.getItem('dash_stats_visible') !== 'false';
+let wrStatsVisible = localStorage.getItem('dash_wrstats_visible') !== 'false';
 let tagsVisible  = localStorage.getItem('dash_tags_visible')  !== 'false';
 let rolesVisible = localStorage.getItem('dash_roles_visible') !== 'false';
 let milestonesVisible = localStorage.getItem('dash_milestones_visible') !== 'false';
@@ -1255,7 +1256,9 @@ function render(){
             const smartNum = smart;
             const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=80?'#1b7a43':smartNum>=65?'#8a6800':smartNum>=50?'#9c4f00':'#e57373';
             const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':p.status==='bench'?'team-bench':'';
-            card.className=`player-card ${teamCls}`;
+            // Tier de card stil EA FC, în funcție de OVR — bronze/silver/gold/special.
+            const tierCls = smartNum>=85?'tier-special':smartNum>=75?'tier-gold':smartNum>=65?'tier-silver':'tier-bronze';
+            card.className=`player-card ${teamCls} ${tierCls}`;
 
             // Active tag badges (max 6, grouped pos/neg)
             const posTagObjs = playerTagObjs.filter(t=>t.tag?.type==='pos').slice(0,3);
@@ -1310,6 +1313,7 @@ function render(){
     // Keep mobile tab active after re-render
     if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
     applyDashStatsVisibility();
+    applyDashWrStatsVisibility();
     applyDashTagsVisibility();
     applyDashRolesVisibility();
     applyDashMilestonesVisibility();
@@ -3059,6 +3063,23 @@ function applyDashStatsVisibility(){
         dashboard.classList.add('dash-stats-hidden');
         document.getElementById('btnToggleStats').style.opacity='0.5';
         document.getElementById('btnToggleStats').style.color='#555';
+    }
+}
+function toggleDashWrStats(){
+    wrStatsVisible = !wrStatsVisible;
+    localStorage.setItem('dash_wrstats_visible', wrStatsVisible);
+    applyDashWrStatsVisibility();
+}
+function applyDashWrStatsVisibility(){
+    const dashboard = document.getElementById('mainPage');
+    if(!dashboard) return;
+    const btn = document.getElementById('btnToggleWrStats');
+    if(wrStatsVisible){
+        dashboard.classList.remove('dash-wrstats-hidden');
+        if(btn){ btn.style.opacity='1'; btn.style.color=''; }
+    } else {
+        dashboard.classList.add('dash-wrstats-hidden');
+        if(btn){ btn.style.opacity='0.5'; btn.style.color='#555'; }
     }
 }
 
