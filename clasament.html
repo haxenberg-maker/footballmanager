@@ -192,6 +192,7 @@ body{font-family:var(--font-body);background:
             <button class="lb-tab" id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-assist"  onclick="setLbTab('assist')" >🅰️ Asisturi</button>
+            <button class="lb-tab" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
             <button class="lb-tab"        id="lbt-gpg"     onclick="setLbTab('gpg')"    >⚡ G/Meci</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
             <button class="lb-tab"        id="lbt-awards"  onclick="setLbTab('awards')" >🏆 Premii</button>
@@ -1228,7 +1229,22 @@ function computeWeekPlayerStats(){
         (h.orangePlayers||[]).forEach(n=>{const s=ensure(n);s.games++;if(winO)s.wins++;});
         (h.greenPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winG)s.wins++;});
         (h.blackPlayers ||[]).forEach(n=>{const s=ensure(n);s.games++;if(winB)s.wins++;});
-        if(h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (Array.isArray(h.goalsList)) {
+    h.goalsList.forEach(g => {
+        // Penalty-urile nu intră în statisticile normale de goluri/assisturi
+        if (g.is_penalty) return;
+
+        const scorer = (g.player_name || '').trim();
+        if (scorer) {
+            ensure(scorer).goals += (g.goals || 1);
+        }
+
+        const assister = (g.assist_name || '').trim();
+        if (assister) {
+            ensure(assister).assists += 1;
+        }
+    });
+}
     });
     return stats;
 }
@@ -1535,12 +1551,17 @@ function renderLeaderboard(){
     }
 
     const viewingPastSeason = !!currentSeason;
-    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen' || currentLbTab==='goals' || currentLbTab==='assist';
+    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen' || currentLbTab==='goals' || currentLbTab==='assist' || currentLbTab==='contrib' ;
     const periodStats = usesPeriodStats ? computeSeasonStats(currentSeason) : null;
 
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
     const winsOf  = p => usesPeriodStats ? (periodStats[p.name]?.wins ||0) : p.wins;
     const goalsOf = p => usesPeriodStats ? (periodStats[p.name]?.goals||0) : (p.totalGoals||0);
+    const assistsOf = p =>
+      periodStats?.[p.name]?.assists || 0;
+  
+    const contribOf = p =>
+        goalsOf(p) + assistsOf(p);
     const assistsOf = p => usesPeriodStats
       ? (periodStats[p.name]?.assists||0)
       : getCurrentAssists(p.name);
@@ -1595,6 +1616,28 @@ function renderLeaderboard(){
             };
             bigColor = '#60a5fa';
             break;
+        case 'contrib':
+          sorted = [...withGames]
+              .filter(p => contribOf(p) > 0)
+              .sort((a,b) =>
+                  contribOf(b) - contribOf(a) ||
+                  goalsOf(b) - goalsOf(a) ||
+                  assistsOf(b) - assistsOf(a)
+              );
+      
+          getValue = p => '🔥' + contribOf(p);
+      
+          subLabel = p => {
+              const g = gamesOf(p);
+              const cpg = g > 0
+                  ? (contribOf(p) / g).toFixed(1)
+                  : '—';
+      
+              return `${goalsOf(p)} ⚽ + ${assistsOf(p)} 🅰️ · ${cpg}/meci`;
+          };
+      
+          bigColor = '#f59e0b';
+        break;
         case 'wins':
             sorted=[...withGames].sort((a,b)=>winsOf(b)-winsOf(a));
             getValue=p=>'🏆'+winsOf(p);
