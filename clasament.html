@@ -1397,7 +1397,16 @@ function computeSeasonStats(seasonName){
         (h.orangePlayers||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winO) s.wins++; });
         (h.greenPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winG) s.wins++; });
         (h.blackPlayers ||[]).forEach(n=>{ const s=ensure(n); s.games++; if(winB) s.wins++; });
-        if (h.playerGoals) Object.entries(h.playerGoals).forEach(([n,g])=>{ ensure(n).goals += (g||0); });
+        if (Array.isArray(h.goalsList)) {
+    h.goalsList.forEach(g => {
+        if (g.is_penalty) return;
+
+        const name = (g.player_name || '').trim();
+        if (!name) return;
+
+        ensure(name).goals += (g.goals || 1);
+    });
+}
         if (h.goalsList) {h.goalsList.forEach(g => { if (g.assist_name && !g.is_penalty) { ensure(g.assist_name).assists++; }})};
         if (Array.isArray(h.roundsDetail)) h.roundsDetail.forEach(r=>{
             if (Array.isArray(r.penalty_shots)) {
@@ -1527,7 +1536,7 @@ function renderLeaderboard(){
     }
 
     const viewingPastSeason = !!currentSeason;
-    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen';
+    const usesPeriodStats = viewingPastSeason || currentLbTab==='pen' || currentLbTab==='goals' || currentLbTab==='assist';
     const periodStats = usesPeriodStats ? computeSeasonStats(currentSeason) : null;
 
     const gamesOf = p => usesPeriodStats ? (periodStats[p.name]?.games||0) : p.games;
