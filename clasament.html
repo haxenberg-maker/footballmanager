@@ -993,12 +993,30 @@ function renderAwardsLeaderboard(wrap){
 // victorie, POTM, MVP), recalculăm OVR-ul cu acele statistici, și comparăm.
 // INTENȚIONAT limitat la 10, ca să nu devină un clasament complet al tuturor
 // ratingurilor (evită discuții/frustrări legate de ratinguri mici). ──
+// Multe funcții din smart-rating.js (eaComputeFormDelta, getActivityMultiplier,
+// getTeamSynergyBonus) citesc db.history GLOBAL direct — fereastra "ultimele 8
+// meciuri" o iau de-acolo. app.js încarcă DOAR sezonul curent din Supabase, deci
+// OVR-ul lui e mereu scopat automat; clasament.html încarcă TOATE sezoanele (ca
+// să poți răsfoi arhiva din selectorul de sezon), deci trebuie să restrângem
+// manual db.history la sezonul curent ORI DE CÂTE ORI calculăm OVR — altfel
+// iese diferit față de app.js pentru același jucător (meciuri/POTM/MVP arhivate
+// intrând în calcul pe pagina publică, dar nu în panoul de admin).
+function withCurrentSeasonHistory(fn){
+    const saved = db.history;
+    db.history = db.history.filter(h => !h.season);
+    try { return fn(); } finally { db.history = saved; }
+}
+
 function computeOvrDeltaSinceLastMatch(){
-    const items = groupHistoryForDisplay(db.history);
+    // Doar sezonul curent — vezi withCurrentSeasonHistory. "Ultimul meci" trebuie
+    // să fie ultimul din sezonul curent, nu ultimul din tot istoricul (care ar
+    // putea fi din alt sezon dacă sezonul curent tocmai a început).
+    const seasonHistory = db.history.filter(h => !h.season);
+    const items = groupHistoryForDisplay(seasonHistory);
     if (!items.length) return {};
-    const lastItem = items[0]; // cel mai recent meci/sesiune (db.history e sortat descrescător)
+    const lastItem = items[0]; // cel mai recent meci/sesiune (sortat descrescător)
     const lastIds = new Set(lastItem.rows.map(r=>r._dbId));
-    const historyBefore = db.history.filter(h => !lastIds.has(h._dbId));
+    const historyBefore = seasonHistory.filter(h => !lastIds.has(h._dbId));
 
     // Ce a adus ultimul meci/sesiune fiecărui jucător implicat — scădem asta
     // din statisticile curente ca să reconstituim starea de "înainte".
@@ -1056,9 +1074,11 @@ function renderOvrLeaderboard(wrap){
         wrap.innerHTML = '<div class="match-empty">Niciun jucător activ încă.</div>';
         return;
     }
-    const ranked = active
+    // Scopat la sezonul curent — vezi withCurrentSeasonHistory — altfel OVR-ul
+    // de aici iese diferit de cel din app.js pentru același jucător.
+    const ranked = withCurrentSeasonHistory(() => active
         .map(p => ({ p, card: eaGetPlayerCard(p) }))
-        .sort((a,b) => b.card.currentOVR - a.card.currentOVR);
+        .sort((a,b) => b.card.currentOVR - a.card.currentOVR));
     const beforeMap = computeOvrDeltaSinceLastMatch();
     const top10 = ranked.slice(0, 10);
 
@@ -1260,12 +1280,13 @@ function computeWeekPlayerStats(){
 }
 function computeWeekTeam(){
     const stats = computeWeekPlayerStats();
-    const arr = Object.values(stats).map(s=>{
+    // Scopat la sezonul curent — vezi withCurrentSeasonHistory.
+    const arr = withCurrentSeasonHistory(() => Object.values(stats).map(s=>{
         const p = db.players.find(x=>x.name===s.name);
         const wr = s.games>0 ? s.wins/s.games : 0;
         const smartBonus = p ? getSmartRating(p)/99 : 0; // normalizat 1-99 → ~0-1 (era /10 pe scala veche 1-10)
         return { ...s, player:p, score: wr*3 + s.goals*0.6 + smartBonus };
-    });
+    }));
     arr.sort((a,b)=>b.score-a.score);
     return arr.slice(0,5);
 }
@@ -1522,9 +1543,12 @@ function renderMeCard(){
     if(!highlightPlayer){ wrap.innerHTML=''; return; }
     const p = db.players.find(x=>x.name===highlightPlayer);
     if(!p){ wrap.innerHTML=''; return; }
-    const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    const rank = sorted.findIndex(x=>x.name===highlightPlayer)+1;
-    const smart = getSmartRating(p); // OVR (1-99), acum întreg — fără .toFixed
+    // Scopat la sezonul curent — vezi withCurrentSeasonHistory — ca OVR-ul de
+    // aici să fie identic cu cel din app.js pentru același jucător.
+    const { rank, smart } = withCurrentSeasonHistory(() => {
+        const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
+        return { rank: sorted.findIndex(x=>x.name===highlightPlayer)+1, smart: getSmartRating(p) };
+    });
     const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
     wrap.innerHTML = `<div class="me-card">
         <div class="me-card-rank">#${rank||'—'}</div>
@@ -1596,8 +1620,8 @@ function renderLeaderboard(){
     let sorted=[], getValue, subLabel, bigColor='var(--star)';
     switch(currentLbTab){
         case 'smart':
-            sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            getValue=p=>String(getSmartRating(p));
+            sorted=withCurrentSeasonHistory(()=>[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a)));
+            getValue=p=>withCurrentSeasonHistory(()=>String(getSmartRating(p)));
             subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR · '+p.games+'M';};
             bigColor='#a78bfa';
             break;
@@ -1691,8 +1715,8 @@ function renderLeaderboard(){
             bigColor='#ef4444';
             break;
         default:
-            sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            getValue=p=>String(getSmartRating(p)); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
+            sorted=withCurrentSeasonHistory(()=>[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a)));
+            getValue=p=>withCurrentSeasonHistory(()=>String(getSmartRating(p))); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
     }
     if(!sorted.length){
         const emptyMsg = viewingPastSeason
@@ -1948,11 +1972,15 @@ async function loadAll(){
         }catch(e){ console.warn('player_awards load:', e.message); db.playerAwards = []; }
 
         // p.potmCount / p.mvpCount — necesare de eaComputeFormDelta (din
-        // smart-rating.js) pentru semnalele ⭐/👑 din Form Rating. Aceeași
-        // logică folosită la clasamentul de Premii (renderAwardsLeaderboard),
-        // calculată o singură dată aici ca s-o poată citi orice jucător.
+        // smart-rating.js) pentru semnalele ⭐/👑 din Form Rating. IMPORTANT:
+        // NU e aceeași sursă ca la clasamentul de Premii (care numără din
+        // TOATE sezoanele, intenționat) — aici trebuie neapărat doar sezonul
+        // curent (season == null), la fel ca app.js (.is('season', null)),
+        // altfel OVR-ul iese diferit între pagina publică și panoul de admin
+        // pentru același jucător, din cauza unor POTM/MVP-uri arhivate.
         db.players.forEach(p=>{ p.potmCount=0; p.mvpCount=0; });
-        groupHistoryForDisplay(db.history).forEach(item => {
+        const currentSeasonHistory = db.history.filter(h => !h.season);
+        groupHistoryForDisplay(currentSeasonHistory).forEach(item => {
             const { winnerId } = computePotmWinnerForRows(item.rows);
             if (winnerId != null) { const pl = db.players.find(x=>x.id===winnerId); if (pl) pl.potmCount++; }
             const chrono = [...item.rows].reverse();

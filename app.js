@@ -424,6 +424,7 @@ async function loadAll() {
                 createdAt: h.created_at || null, // pentru ordonarea cronologică a sesiunilor de 3 echipe
                 manualMvpId: h.manual_mvp_player_id!=null ? h.manual_mvp_player_id : null, // suprascriere/ștergere MVP din setari.html — necesar pentru sincronizarea mvpCount cu Smart Rating
                 mvpCleared: !!h.mvp_cleared, // "Niciun MVP" setat explicit (coloană separată, nu mai e -1 în manual_mvp_player_id — vezi computeSessionMvpWinner)
+                manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null, // suprascriere POTM din setari.html — necesar pentru numărarea per sesiune (nu per pereche) mai jos
                 date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null,
@@ -447,8 +448,13 @@ async function loadAll() {
         try {
             const currentSeasonIds = new Set((histRaw||[]).map(h=>h.id));
 
-            // POTM: câștigătorul fiecărui meci — suprascrierea manuală are
-            // prioritate, altfel jucătorul cu cele mai multe voturi la acel meci.
+            // POTM: câștigătorul fiecărei SESIUNI (nu al fiecărei perechi) —
+            // suprascrierea manuală are prioritate, altfel jucătorul cu cele mai
+            // multe voturi adunate din toate perechile sesiunii. La o sesiune de
+            // 3 echipe (3 perechi), numărarea veche (per rând din histRaw) putea
+            // da 2 POTM-uri pentru ACEEAȘI sesiune dacă același jucător câștiga
+            // votul pe 2 din cele 3 perechi — inconsecvent cu mvpCount (deja
+            // grupat pe sesiune, mai jos) și cu potmCount din clasament.html.
             const { data: potmRaw } = await sb.from('potm_votes').select('match_id,voted_player_id');
             const potmVotesByMatch = {};
             (potmRaw||[]).forEach(v=>{
@@ -457,16 +463,20 @@ async function loadAll() {
                 potmVotesByMatch[v.match_id][v.voted_player_id] = (potmVotesByMatch[v.match_id][v.voted_player_id]||0)+1;
             });
             const potmCountById = {};
-            (histRaw||[]).forEach(h=>{
-                let winnerId = h.manual_potm_player_id;
-                if(winnerId == null){
-                    const counts = potmVotesByMatch[h.id];
-                    if(counts){
-                        const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-                        if(sorted.length) winnerId = parseInt(sorted[0][0]);
-                    }
+            groupHistoryForDisplay(db.history).forEach(item => {
+                const votes = {};
+                let manualId = null;
+                item.rows.forEach(h => {
+                    if (manualId == null && h.manualPotmId != null) manualId = h.manualPotmId;
+                    const c = potmVotesByMatch[h._dbId] || {};
+                    Object.entries(c).forEach(([pid,n]) => { votes[pid] = (votes[pid]||0) + n; });
+                });
+                let winnerId = manualId;
+                if (winnerId == null) {
+                    const sorted = Object.entries(votes).sort((a,b)=>b[1]-a[1]);
+                    if (sorted.length) winnerId = parseInt(sorted[0][0]);
                 }
-                if(winnerId != null) potmCountById[winnerId] = (potmCountById[winnerId]||0)+1;
+                if (winnerId != null) potmCountById[winnerId] = (potmCountById[winnerId]||0)+1;
             });
             db.players.forEach(p=>{ p.potmCount = potmCountById[p.id] || 0; });
         } catch(e){ console.warn('potm count load:', e.message); db.players.forEach(p=>{ p.potmCount = p.potmCount||0; }); }
