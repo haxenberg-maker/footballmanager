@@ -695,6 +695,7 @@ async function loadAll(){
         playerGoals:goalsPerMatch[h.id]||{},playerAssists:assistsPerMatch[h.id]||{},
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
         manualMvpId:h.manual_mvp_player_id!=null?h.manual_mvp_player_id:null,
+        mvpCleared:!!h.mvp_cleared, // "Niciun MVP" setat explicit — vezi computeSessionMvpWinner
         potmVoteDeadline:h.potm_vote_deadline||null}));
     // POTM & MVP per jucător — pentru ca preview-ul de algoritm (componentele
     // ⭐POTM/👑MVP) să fie corect. Aproximativ scopat (ultimele 200 meciuri,
@@ -1196,6 +1197,12 @@ function getSessionRowsFor(h){
 // minute/90), pe o sesiune (rows = toate perechile) sau un meci simplu
 // (rows = [h]). Suprascrierea manuală (pe orice rând din grup) are prioritate.
 function computeSessionMvpWinner(rows){
+    // "Niciun MVP" era înainte codat ca manualMvpId=-1, salvat direct în coloana
+    // manual_mvp_player_id (foreign key către players.id) — Supabase respingea
+    // update-ul (id -1 nu există), dar codul nu verifica eroarea, deci în UI
+    // părea salvat, iar la refresh MVP-ul calculat reapărea. Acum "niciun MVP"
+    // e o coloană separată (mvp_cleared, boolean), care nu are restricția asta.
+    const cleared = rows.some(h=>h.mvpCleared);
     const manualId = rows.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
     const totalGoals = {};
     rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
@@ -1218,11 +1225,11 @@ function computeSessionMvpWinner(rows){
         const minutes = Math.round((totalSeconds[name]||0) / 60);
         return { name, goals, assists, minutes, score: goals + assists + minutes/90 };
     }).sort((a,b) => b.score - a.score);
-    // -1 e o santinelă specială: "NICIUN MVP la acest meci", diferit de null
-    // ("fără suprascriere, folosește calculul"). Fără asta, singurul mod de a
-    // "șterge" MVP-ul greșit era să alegi pe altcineva — nu puteai pur și
-    // simplu să spui "nimeni nu era MVP aici".
-    if (manualId === -1) return { winner: null, source: 'manual-none', candidates };
+    // cleared = "NICIUN MVP la acest meci", diferit de manualId==null ("fără
+    // suprascriere, folosește calculul"). Fără asta, singurul mod de a "șterge"
+    // MVP-ul greșit era să alegi pe altcineva — nu puteai pur și simplu să spui
+    // "nimeni nu era MVP aici".
+    if (cleared) return { winner: null, source: 'manual-none', candidates };
     let winner = candidates[0] || null;
     let source = winner ? 'computed' : null;
     if (manualId != null) {
@@ -1367,7 +1374,7 @@ function buildPotmMvpHistoryList(){
         const potmOptions = '<option value="">— auto (voturi) —</option>'
             + participants.map(p=>`<option value="${p.id}" ${anchor.manualPotmId===p.id?'selected':''}>${p.name}</option>`).join('');
         const mvpOptions = '<option value="">— auto (calcul) —</option>'
-            + `<option value="none" ${anchor.manualMvpId===-1?'selected':''}>🚫 Niciun MVP</option>`
+            + `<option value="none" ${anchor.mvpCleared?'selected':''}>🚫 Niciun MVP</option>`
             + participants.map(p=>`<option value="${p.id}" ${anchor.manualMvpId===p.id?'selected':''}>${p.name}</option>`).join('');
 
         const potmLine = potmWinner
@@ -1418,12 +1425,12 @@ async function saveMvpManualForRow(anchorId, rawVal){
     try{
         const sessionRows = getSessionRowsFor(h);
         const sessionMatchIds = sessionRows.map(r=>r._dbId);
-        await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
-        sessionRows.forEach(r => { r.manualMvpId = val; });
+        await persistMvpOverride(sessionMatchIds, val);
+        sessionRows.forEach(r => { r.manualMvpId = val===-1?null:val; r.mvpCleared = val===-1; });
         showToast(val===-1 ? '✅ MVP eliminat pentru acest meci.' : val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
         buildPotmMvpHistoryList();
         if (_potmAdminMatch && sessionMatchIds.includes(_potmAdminMatch._dbId)) loadPotmMatchDetails();
-    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru mvp_cleared?)'); }
 }
 
 function buildPotmPanel(){
@@ -1466,7 +1473,7 @@ async function loadPotmMatchDetails(){
     const mvpManualSel = document.getElementById('mvpManualSelect');
     if (mvpManualSel) {
         mvpManualSel.innerHTML = '<option value="">— fără suprascriere (folosește calculul) —</option>'
-            + `<option value="none" ${_potmAdminMatch.manualMvpId===-1?'selected':''}>🚫 Niciun MVP la acest meci</option>`
+            + `<option value="none" ${_potmAdminMatch.mvpCleared?'selected':''}>🚫 Niciun MVP la acest meci</option>`
             + participants.sort((a,b)=>a.name.localeCompare(b.name))
                 .map(p=>`<option value="${p.id}" ${_potmAdminMatch.manualMvpId==p.id?'selected':''}>${p.name}</option>`).join('');
     }
@@ -1498,6 +1505,18 @@ function refreshMvpBreakdown(){
     }).join('') + (source==='manual' ? `<div style="margin-top:6px;font-size:.68rem;color:#ffcc00;">🔒 Suprascris manual — câștigătorul calculat era altcineva mai sus.</div>` : '');
 }
 
+// Scrie suprascrierea MVP în DB — manual_mvp_player_id + mvp_cleared (coloană
+// separată pentru "niciun MVP", ca să nu mai depindă de un id de -1 într-o
+// coloană foreign key, care era respins de Postgres fără ca eroarea să fie
+// verificată vreodată — UI-ul zicea "salvat", dar DB-ul rămânea neschimbat.
+async function persistMvpOverride(sessionMatchIds, val){
+    const payload = val === -1
+        ? { manual_mvp_player_id: null, mvp_cleared: true }
+        : { manual_mvp_player_id: val, mvp_cleared: false };
+    const { error } = await sb.from('match_history').update(payload).in('id', sessionMatchIds);
+    if (error) throw error;
+}
+
 async function saveMvpManual(){
     if (!_potmAdminMatch) return;
     const sel = document.getElementById('mvpManualSelect');
@@ -1507,12 +1526,13 @@ async function saveMvpManual(){
         // sursă de adevăr indiferent care pereche o citește prima clasament.html.
         const sessionRows = getSessionRowsFor(_potmAdminMatch);
         const sessionMatchIds = sessionRows.map(r=>r._dbId);
-        await sb.from('match_history').update({ manual_mvp_player_id: val }).in('id', sessionMatchIds);
-        sessionRows.forEach(r => { r.manualMvpId = val; });
-        _potmAdminMatch.manualMvpId = val;
+        await persistMvpOverride(sessionMatchIds, val);
+        sessionRows.forEach(r => { r.manualMvpId = val===-1?null:val; r.mvpCleared = val===-1; });
+        _potmAdminMatch.manualMvpId = val===-1?null:val;
+        _potmAdminMatch.mvpCleared = val===-1;
         showToast(val===-1 ? '✅ MVP eliminat pentru acest meci.' : val ? '✅ MVP oficial salvat!' : '✅ Suprascriere eliminată — folosește calculul.');
         refreshMvpBreakdown();
-    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru manual_mvp_player_id?)'); }
+    }catch(e){ showToast('⚠️ '+e.message+' (ai rulat migrarea SQL pentru mvp_cleared?)'); }
 }
 
 async function refreshPotmVotes(){

@@ -423,6 +423,7 @@ async function loadAll() {
                 _dbId: h.id,
                 createdAt: h.created_at || null, // pentru ordonarea cronologică a sesiunilor de 3 echipe
                 manualMvpId: h.manual_mvp_player_id!=null ? h.manual_mvp_player_id : null, // suprascriere/ștergere MVP din setari.html — necesar pentru sincronizarea mvpCount cu Smart Rating
+                mvpCleared: !!h.mvp_cleared, // "Niciun MVP" setat explicit (coloană separată, nu mai e -1 în manual_mvp_player_id — vezi computeSessionMvpWinner)
                 date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null,
@@ -1637,9 +1638,11 @@ function groupHistoryForDisplay(sorted){
 // și setari.html — sursă unică de adevăr pentru mvpCount (Smart Rating).
 function computeSessionMvpWinner(rows){
     const manualId = rows.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
-    // -1 e sentinela "NICIUN MVP la acest meci" (setată explicit din setari.html) —
-    // diferită de null ("fără suprascriere, folosește calculul").
-    if (manualId === -1) return null;
+    // cleared = "NICIUN MVP la acest meci" (setat explicit din setari.html, prin
+    // coloana mvp_cleared) — diferit de manualId==null ("fără suprascriere,
+    // folosește calculul"). Nu mai e -1 în manual_mvp_player_id (coloană foreign
+    // key către players.id) — acel -1 era respins silențios de Postgres.
+    if (rows.some(h=>h.mvpCleared)) return null;
 
     const totalGoals = {};
     rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });

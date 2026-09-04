@@ -408,11 +408,14 @@ function computePotmWinnerForRows(rows){
 // Premii (numărătoarea totală).
 function computeSessionMvpWinner(chrono){
     const manualId = chrono.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
-    // -1 e sentinela "NICIUN MVP la acest meci" (setată explicit din setari.html) —
-    // fără verificarea asta, ștergerea manuală a MVP-ului era ignorată aici (și în
-    // clasamentul de Premii), pentru că db.players.find(id===-1) nu găsea niciodată
-    // pe nimeni și codul cădea pe candidatul calculat automat.
-    if (manualId === -1) return null;
+    // cleared = "NICIUN MVP la acest meci" (coloană separată mvp_cleared, setată
+    // explicit din setari.html) — diferit de manualId==null ("fără suprascriere,
+    // folosește calculul"). Înainte era codat ca manualMvpId=-1 direct în
+    // manual_mvp_player_id (foreign key către players.id) — Postgres respingea
+    // acel update (id -1 nu există), iar eroarea nu era verificată niciodată, deci
+    // ștergerea manuală a MVP-ului "reușea" doar în UI, nu și în DB, și la refresh
+    // MVP-ul calculat automat reapărea (și în clasamentul de Premii).
+    if (chrono.some(h=>h.mvpCleared)) return null;
 
     const totalGoals = {};
     chrono.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
@@ -1879,6 +1882,7 @@ async function loadAll(){
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
                 manualMvpId: h.manual_mvp_player_id!=null ? h.manual_mvp_player_id : null,
+                mvpCleared: !!h.mvp_cleared, // "Niciun MVP" setat explicit — vezi computeSessionMvpWinner
                 potmVoteDeadline: h.potm_vote_deadline||null,
                 potmVoteCounts: voteCounts,
                 potmWinnerId, potmSource,
