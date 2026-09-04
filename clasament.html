@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="smart-rating.js?v=20260904a"></script>
 <style>
 :root {
   /* surfaces */
@@ -195,6 +196,7 @@ body{font-family:var(--font-body);background:
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
             <button class="lb-tab"        id="lbt-awards"  onclick="setLbTab('awards')" >🏆 Premii</button>
+            <button class="lb-tab"        id="lbt-ovr"     onclick="setLbTab('ovr')"    >🔥 Top 10</button>
         </div>
         <div id="lbContent"></div>
         <div id="seasonMatchesWrap" style="display:none;"></div>
@@ -235,9 +237,34 @@ let tagsConfig = [];
 let PT_BY_ID = {};
 let TW = {};
 let TAG_BONUS_CAP = 10.0;
-const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
+// PROFILE_ATTRS acum vine din smart-rating.js (identic) — declarat aici DUBLU
+// ar arunca "Identifier 'PROFILE_ATTRS' has already been declared", pentru că
+// mai multe <script>-uri clasice din aceeași pagină partajează un singur scope
+// lexical global pentru const/let (spre deosebire de function, care doar se
+// suprascrie). Nefolosit oricum acum — bonusul de tag-uri e calculat de
+// eaComputeTagBonus (din smart-rating.js).
 const DEFAULT_W = {winrate:0.40,borda:0.30,general:0.10,viteza:0.0,tehnica:0.0,strategie:0.0,aparare:0.0,mvpWin:0.0,mvpLoss:0.0};
 let W = {...DEFAULT_W};
+
+// POSITIONS — necesar de smart-rating.js (getPlayerPrimaryGroup/eaComputeBaseOVR)
+// ca să știe ce pondere per atribut să aplice (portar vs fundaș vs mijlocaș vs
+// atacant). Copiat identic din app.js, ca OVR-ul public să fie EXACT același
+// cu cel din panoul de admin, pentru același jucător.
+const POSITIONS = {
+    GK:  { label: 'Portar',           group: 'GK',  emoji: '🧤', color: '#8e3a9e' },
+    CB:  { label: 'Fundaș Central',   group: 'DEF', emoji: '🛡️', color: '#1b7a43' },
+    LB:  { label: 'Fundaș Stânga',    group: 'DEF', emoji: '🛡️', color: '#1b7a43' },
+    RB:  { label: 'Fundaș Dreapta',   group: 'DEF', emoji: '🛡️', color: '#1b7a43' },
+    CDM: { label: 'Mijlocaș Defensiv',group: 'MID', emoji: '🎯', color: '#1554b3' },
+    CM:  { label: 'Mijlocaș Central', group: 'MID', emoji: '🎯', color: '#1554b3' },
+    CAM: { label: 'Mijlocaș Ofensiv', group: 'MID', emoji: '🎯', color: '#1554b3' },
+    LM:  { label: 'Mijlocaș Stânga',  group: 'MID', emoji: '🎯', color: '#1554b3' },
+    RM:  { label: 'Mijlocaș Dreapta', group: 'MID', emoji: '🎯', color: '#1554b3' },
+    LW:  { label: 'Extremă Stânga',   group: 'FWD', emoji: '⚽', color: '#9c4f00' },
+    RW:  { label: 'Extremă Dreapta',  group: 'FWD', emoji: '⚽', color: '#9c4f00' },
+    ST:  { label: 'Vârf',             group: 'FWD', emoji: '⚽', color: '#9c4f00' },
+    FW:  { label: 'Atacant',          group: 'FWD', emoji: '⚽', color: '#9c4f00' },
+};
 let currentLbTab = 'goals';
 let lbExpanded = false;
 let currentSeason = null; // null = sezonul curent (nearhivat); altfel numele sezonului arhivat
@@ -957,6 +984,48 @@ function renderAwardsLeaderboard(wrap){
     }).join('');
 }
 
+// ── 🔥 Top 10 Formă — Current OVR (Base OVR + Form Delta, din
+// smart-rating.js) + tendință (▲/▼/=). INTENȚIONAT limitat la 10, ca să nu
+// devină un clasament complet al tuturor ratingurilor (evită discuții/
+// frustrări legate de ratinguri mici) — vezi eaGetPlayerCard pentru cum se
+// calculează exact OVR-ul și delta de formă. ──
+function renderOvrLeaderboard(wrap){
+    if (!wrap) return;
+    const active = db.players.filter(p => p.games > 0);
+    if (!active.length){
+        wrap.innerHTML = '<div class="match-empty">Niciun jucător activ încă.</div>';
+        return;
+    }
+    const top10 = active
+        .map(p => ({ p, card: eaGetPlayerCard(p) }))
+        .sort((a,b) => b.card.currentOVR - a.card.currentOVR)
+        .slice(0, 10);
+
+    const medals = ['🥇','🥈','🥉'];
+    wrap.innerHTML = '<div style="font-size:.72rem;color:#8b96a8;margin-bottom:10px;">Top 10 după Overall Rating (Current OVR) — restul jucătorilor nu sunt afișați public.</div>'
+        + top10.map((r, i) => {
+        const { p, card } = r;
+        const d = card.formDelta;
+        const trend = d > 0
+            ? `<span style="color:#34d399;font-weight:700;">▲ +${d}</span>`
+            : d < 0
+                ? `<span style="color:#ef4444;font-weight:700;">▼ ${d}</span>`
+                : `<span style="color:#8b96a8;font-weight:700;">= 0</span>`;
+        const chips = [];
+        if (p.potmCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM ×${p.potmCount}</span>`);
+        if (p.mvpCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(91,127,255,.1);border:1px solid rgba(91,127,255,.3);color:#60a5fa;">👑 MVP ×${p.mvpCount}</span>`);
+        return `<div class="match-card" style="padding:12px 16px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:${chips.length?'8px':'0'};">
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:30px;text-align:center;color:${medals[i]?'var(--star)':'#8b96a8'};">${medals[i]||'#'+(i+1)}</span>
+                <span style="font-weight:700;color:#f3f6fa;flex:1;">${p.name}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#f3f6fa;">${card.currentOVR}</span>
+                ${trend}
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips.join('')}</div>
+        </div>`;
+    }).join('');
+}
+
 function playerWonMatch(h, playerName) {
     const inOrange = (h.orangePlayers||[]).includes(playerName);
     const inGreen  = (h.greenPlayers||[]).includes(playerName);
@@ -973,152 +1042,12 @@ function playerWonMatch(h, playerName) {
 function buildPTById(){ PT_BY_ID = Object.fromEntries(tagsConfig.map(t=>[String(t.id),t])); }
 function buildTWFromConfig(){ TW = {}; tagsConfig.forEach(t=>{ TW[String(t.id)] = parseFloat(t.tw_weight)||0; }); }
 
-function computeTagStats(p){
-    const voteMap = {};
-    (p.ratings||[]).forEach(r=>{
-        (r.tags||'').split(',').filter(Boolean).forEach(tid=>{
-            if(!voteMap[tid]) voteMap[tid]=[];
-            voteMap[tid].push({rater:r.rater||'?', date:r.date||''});
-        });
-    });
-    const myMatches = [...db.history]
-        .filter(h=>(h.orangePlayers||[]).includes(p.name)||(h.greenPlayers||[]).includes(p.name)||(h.blackPlayers||[]).includes(p.name))
-        .sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
-    const stats = {};
-    tagsConfig.forEach(tag=>{
-        const tid = String(tag.id);
-        const votes = voteMap[tid] || [];
-        const distinctVoters = new Set(votes.map(v=>v.rater)).size;
-        let missedMatches = 0;
-        if(distinctVoters >= 3 && myMatches.length >= 1){
-            myMatches.slice(0,2).forEach(match=>{
-                const matchDate = parseDateToObj(match.date);
-                const hasVote = votes.some(v=>{
-                    if(!v.date) return false;
-                    const vd = parseDateToObj(v.date);
-                    return vd >= matchDate && (vd - matchDate) <= 2*24*60*60*1000;
-                });
-                if(!hasVote) missedMatches++;
-            });
-        }
-        stats[tid] = { votes, distinctVoters, missedMatches, expired: missedMatches >= 2 && distinctVoters >= 3 };
-    });
-    return stats;
-}
-
-function getPlayerActiveTagObjects(p){
-    const adminSet = new Set((p.adminTags||[]).map(String));
-    const stats = computeTagStats(p);
-    const result = [];
-    tagsConfig.forEach(tag=>{
-        const tid = String(tag.id);
-        const isAdmin = adminSet.has(tid);
-        const s = stats[tid]||{distinctVoters:0,missedMatches:0,expired:false};
-        const communityActive = s.distinctVoters >= 3 && !s.expired;
-        if(!isAdmin && !communityActive) return;
-        result.push({ id: tid, tag, adminSet: isAdmin, nearExpiry: !isAdmin && communityActive && s.missedMatches === 1, distinctVoters: s.distinctVoters, votes: s.votes||[] });
-    });
-    return result;
-}
-
-function getTagProfileStrength(tag){
-    const p = tag.impact_profile || {};
-    const sum = PROFILE_ATTRS.reduce((s,a)=>s+Math.abs(parseFloat(p[a])||0),0);
-    return sum || 1.0;
-}
-function getTagProfileNet(tag){
-    const p = tag.impact_profile || {};
-    return PROFILE_ATTRS.reduce((s,a)=>s+(parseFloat(p[a])||0),0);
-}
-
-function computeTagBonus(activeTags){
-    if(!activeTags.length) return {bonus:0, signals:[], buckets:{}};
-    let totalBonus = 0;
-    const signals = [];
-    activeTags.forEach(obj=>{
-        const tag = obj.tag;
-        const tw = TW[String(obj.id)] || 0;
-        const strength = getTagProfileStrength(tag);
-        const scaledStrength = Math.min(strength / 9, 1.0);
-        const dir = tag.type==='pos' ? 1 : tag.type==='neg' ? -1 : 0;
-        if(dir === 0){
-            const net = getTagProfileNet(tag);
-            const contrib = (net / 27) * 0.2 + tw * 0.1;
-            signals.push({id:obj.id, tag, raw:contrib, dir:0});
-            totalBonus += contrib;
-            return;
-        }
-        const base = dir * (0.25 + scaledStrength * 0.25);
-        const twContrib = tw * 0.30;
-        const contrib = base + twContrib;
-        signals.push({id:obj.id, tag, raw:contrib, dir, strength, scaledStrength});
-        totalBonus += contrib;
-    });
-    const bonus = TAG_BONUS_CAP <= 0 ? totalBonus : Math.max(-TAG_BONUS_CAP, Math.min(TAG_BONUS_CAP, totalBonus));
-    return {bonus: parseFloat(bonus.toFixed(3)), signals, buckets:{}};
-}
-
-function getSynergyScore(pName, mateName) {
-    let together = 0, wins = 0;
-    db.history.forEach(h => {
-        const inOrange = h.orangePlayers.includes(pName) && h.orangePlayers.includes(mateName);
-        const inGreen  = h.greenPlayers.includes(pName)  && h.greenPlayers.includes(mateName);
-        const inBlack  = (h.blackPlayers||[]).includes(pName) && (h.blackPlayers||[]).includes(mateName);
-        if (!inOrange && !inGreen && !inBlack) return;
-        together++;
-        const won = playerWonMatch(h, pName);
-        if (won === true) wins++;
-    });
-    if (together < 2) return 0.5;
-    return wins / together;
-}
-function getTeamSynergyBonus(playerName, teammates) {
-    if (!teammates.length) return 0;
-    const scores = teammates.map(m => getSynergyScore(playerName, m.name));
-    const avg = scores.reduce((s, v) => s + v, 0) / scores.length;
-    return (avg - 0.5) * 1.0;
-}
-function getActivityMultiplier(p) {
-    const recentMatches = db.history.slice(0, 8);
-    if (recentMatches.length < 3) return 1.0;
-    let absent = 0;
-    recentMatches.forEach(h => {
-        const played = h.orangePlayers.includes(p.name) || h.greenPlayers.includes(p.name) || (h.blackPlayers||[]).includes(p.name);
-        if (!played) absent++;
-    });
-    return Math.max(0.80, 1.0 - absent * 0.06);
-}
-
-function getSmartRating(p, context = {}) {
-    if (p.adminRating != null) return parseFloat(p.adminRating.toFixed(2));
-    let base = 5.0;
-    const wrRaw = p.games > 0 ? p.wins / p.games : 0.5;
-    base += (wrRaw - 0.5) * 4 * W.winrate;
-    if (wrRaw > 0.60 && p.games >= 3) base += 0.2;
-    if ((p.totalGoals || 0) > 0 && p.games > 0) {
-        const gpg = Math.min(p.totalGoals / p.games, 3);
-        base += Math.min(gpg * 0.33, 1.0);
-    }
-    if ((p.bordaScore || 0) > 0 && W.borda > 0) {
-        base += ((p.bordaScore - 5) / 5) * 4 * W.borda;
-    }
-    if (W.mvpWin > 0 || W.mvpLoss > 0) {
-        const games = Math.max(p.games, 1);
-        if ((p.mvpWinCount || 0) > 0)  base += Math.min(((p.mvpWinCount||0)/games)*10, 10) * W.mvpWin * 0.5;
-        if ((p.mvpLossCount || 0) > 0) base += Math.min(((p.mvpLossCount||0)/games)*10, 10) * W.mvpLoss * 0.3;
-    }
-    base -= Math.min((p.lastImbalanceLoss || 0), 3) * 0.20;
-    const activeTags = getPlayerActiveTagObjects(p);
-    const { bonus: tagBonus } = computeTagBonus(activeTags);
-    const actMult = getActivityMultiplier(p);
-    base = base * actMult + 5.0 * (1 - actMult);
-    let synergyBonus = 0;
-    if (context.teammates && context.teammates.length) {
-        synergyBonus = getTeamSynergyBonus(p.name, context.teammates) * 0.4;
-    }
-    const raw = base + tagBonus + synergyBonus;
-    return parseFloat(Math.max(1, Math.min(10, raw)).toFixed(2));
-}
+// computeTagStats / getPlayerActiveTagObjects / getTagProfileStrength /
+// getTagProfileNet / computeTagBonus / getSynergyScore / getTeamSynergyBonus /
+// getActivityMultiplier / getSmartRating (vechi, scală 1-10) — ȘTERSE. Acum
+// vin toate din smart-rating.js (EA FC, scală 1-99, Base OVR + Form Delta),
+// exact aceleași funcții folosite în app.js/setari.html — un singur motor de
+// rating pentru tot site-ul, nu unul separat/învechit doar pe pagina publică.
 
 function getCatAvg(p,cat){return p.ratings?.length?p.ratings.reduce((s,r)=>s+(r[cat]||5),0)/p.ratings.length:5;}
 function getGeneralAvg(p){return getCatAvg(p,'general');}
@@ -1266,7 +1195,7 @@ function computeWeekTeam(){
     const arr = Object.values(stats).map(s=>{
         const p = db.players.find(x=>x.name===s.name);
         const wr = s.games>0 ? s.wins/s.games : 0;
-        const smartBonus = p ? getSmartRating(p)/10 : 0;
+        const smartBonus = p ? getSmartRating(p)/99 : 0; // normalizat 1-99 → ~0-1 (era /10 pe scala veche 1-10)
         return { ...s, player:p, score: wr*3 + s.goals*0.6 + smartBonus };
     });
     arr.sort((a,b)=>b.score-a.score);
@@ -1527,7 +1456,7 @@ function renderMeCard(){
     if(!p){ wrap.innerHTML=''; return; }
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
     const rank = sorted.findIndex(x=>x.name===highlightPlayer)+1;
-    const smart = getSmartRating(p).toFixed(1);
+    const smart = getSmartRating(p); // OVR (1-99), acum întreg — fără .toFixed
     const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
     wrap.innerHTML = `<div class="me-card">
         <div class="me-card-rank">#${rank||'—'}</div>
@@ -1564,6 +1493,14 @@ function renderLeaderboard(){
         return;
     }
 
+    // Top 10 Formă — Current OVR (Base OVR + Form Delta din smart-rating.js) +
+    // tendință (▲/▼/=). La fel ca Premii: randat direct, fără logica de
+    // period/season de mai jos — OVR-ul e "acum", nu per sezon selectat.
+    if (currentLbTab === 'ovr') {
+        renderOvrLeaderboard(content);
+        return;
+    }
+
     const viewingPastSeason = !!currentSeason;
     const usesPeriodStats = viewingPastSeason || currentLbTab==='pen' || currentLbTab==='goals' || currentLbTab==='assist' || currentLbTab==='contrib' ;
     const periodStats = usesPeriodStats ? computeSeasonStats(currentSeason) : null;
@@ -1592,7 +1529,7 @@ function renderLeaderboard(){
     switch(currentLbTab){
         case 'smart':
             sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            getValue=p=>getSmartRating(p).toFixed(1);
+            getValue=p=>String(getSmartRating(p));
             subLabel=p=>{const wr=p.games>0?((p.wins/p.games)*100).toFixed(0)+'%':'—';return wr+' WR · '+p.games+'M';};
             bigColor='#a78bfa';
             break;
@@ -1687,7 +1624,7 @@ function renderLeaderboard(){
             break;
         default:
             sorted=[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-            getValue=p=>getSmartRating(p).toFixed(1); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
+            getValue=p=>String(getSmartRating(p)); subLabel=p=>p.games+'M'; bigColor='#a78bfa';
     }
     if(!sorted.length){
         const emptyMsg = viewingPastSeason
@@ -1734,11 +1671,13 @@ function renderLeaderboard(){
 
 function rowToPlayer(p) {
     return {
-        id: p.id, name: p.name, status: p.status||'bench',
+        id: p.id, name: p.name, status: p.status||'bench', role: p.role||null,
+        positionPrimary: p.position_primary || null,
         wins: p.wins||0, games: p.games||0,
         matchHistory: p.match_history||[],
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
+        manualAttrs: p.manual_attrs || null,
         totalGoals: p.total_goals||0,
         totalGoalsConceded: p.total_goals_conceded||0,
         lastImbalanceLoss: p.last_imbalance_loss||0,
@@ -1939,6 +1878,19 @@ async function loadAll(){
             if (error) throw error;
             db.playerAwards = awardsRaw || [];
         }catch(e){ console.warn('player_awards load:', e.message); db.playerAwards = []; }
+
+        // p.potmCount / p.mvpCount — necesare de eaComputeFormDelta (din
+        // smart-rating.js) pentru semnalele ⭐/👑 din Form Rating. Aceeași
+        // logică folosită la clasamentul de Premii (renderAwardsLeaderboard),
+        // calculată o singură dată aici ca s-o poată citi orice jucător.
+        db.players.forEach(p=>{ p.potmCount=0; p.mvpCount=0; });
+        groupHistoryForDisplay(db.history).forEach(item => {
+            const { winnerId } = computePotmWinnerForRows(item.rows);
+            if (winnerId != null) { const pl = db.players.find(x=>x.id===winnerId); if (pl) pl.potmCount++; }
+            const chrono = [...item.rows].reverse();
+            const mvpWinner = computeSessionMvpWinner(chrono);
+            if (mvpWinner) { const pl = db.players.find(x=>x.name===mvpWinner.name); if (pl) pl.mvpCount++; }
+        });
 
         renderMeCard();
         renderStreakBanner();
