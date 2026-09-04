@@ -66,6 +66,9 @@ body{font-family:var(--font-body);background:
 .lb-tab{padding:6px 12px;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;white-space:nowrap;}
 .lb-tab:hover{color:var(--ink);border-color:#334155;}
 .lb-tab.active{background:rgba(167,139,250,.16);border-color:var(--purple);color:#c4b5fd;box-shadow:0 0 14px -4px rgba(167,139,250,.5);}
+.lb-subtab{padding:4px 10px;border-radius:20px;font-size:.68rem;font-weight:700;cursor:pointer;background:transparent;border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;white-space:nowrap;}
+.lb-subtab:hover{color:var(--ink);border-color:#334155;}
+.lb-subtab.active{background:rgba(245,158,11,.14);border-color:#f59e0b;color:#fbbf24;}
 .lb-period-btn{padding:5px 10px;border-radius:7px;font-size:.66rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid var(--line);color:var(--ink-faint);transition:all .15s;}
 .lb-period-btn:hover{color:var(--ink);}
 .lb-period-btn.active{background:rgba(201,166,104,.14);border-color:var(--gold-muted);color:#e8cd94;}
@@ -190,14 +193,13 @@ body{font-family:var(--font-body);background:
         <h3>🏅 Clasament</h3>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
-            <button class="lb-tab"        id="lbt-assist"  onclick="setLbTab('assist')" >🅰️ Asisturi</button>
-            <button class="lb-tab"        id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
+            <button class="lb-tab active" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
             <button class="lb-tab"        id="lbt-awards"  onclick="setLbTab('awards')" >🏆 Premii</button>
             <button class="lb-tab"        id="lbt-ovr"     onclick="setLbTab('ovr')"    >🔥 Top 10</button>
         </div>
+        <div id="contribSubTabs" style="display:flex;gap:4px;margin-bottom:8px;"></div>
         <div id="lbContent"></div>
         <div id="seasonMatchesWrap" style="display:none;"></div>
     </div>
@@ -265,7 +267,8 @@ const POSITIONS = {
     ST:  { label: 'Vârf',             group: 'FWD', emoji: '⚽', color: '#9c4f00' },
     FW:  { label: 'Atacant',          group: 'FWD', emoji: '⚽', color: '#9c4f00' },
 };
-let currentLbTab = 'goals';
+let currentLbTab = 'contrib';
+let currentContribSubTab = 'total'; // 'total' | 'goals' | 'assists' — doar când currentLbTab==='contrib'
 let lbExpanded = false;
 let currentSeason = null; // null = sezonul curent (nearhivat); altfel numele sezonului arhivat
 let seasonsList = [];     // nume sezoane arhivate, cele mai recente primele
@@ -1534,7 +1537,24 @@ function setLbTab(tab){
     document.querySelectorAll('.lb-tab').forEach(b=>b.classList.remove('active'));
     const btn=document.getElementById('lbt-'+tab);
     if(btn) btn.classList.add('active');
+    renderContribSubTabs();
     renderLeaderboard();
+}
+function setContribSubTab(sub){
+    currentContribSubTab=sub;
+    lbExpanded=false;
+    renderContribSubTabs();
+    renderLeaderboard();
+}
+function renderContribSubTabs(){
+    const wrap=document.getElementById('contribSubTabs');
+    if(!wrap) return;
+    if(currentLbTab!=='contrib'){ wrap.style.display='none'; wrap.innerHTML=''; return; }
+    wrap.style.display='flex';
+    const subs=[['total','Total'],['goals','⚽ Goluri'],['assists','🅰️ Asisturi']];
+    wrap.innerHTML=subs.map(([id,label])=>
+        `<button class="lb-subtab${currentContribSubTab===id?' active':''}" onclick="setContribSubTab('${id}')">${label}</button>`
+    ).join('');
 }
 function toggleLbExpand(){ lbExpanded=!lbExpanded; renderLeaderboard(); }
 
@@ -1656,6 +1676,29 @@ function renderLeaderboard(){
             bigColor = '#60a5fa';
             break;
         case 'contrib':
+          // Sub-taburi: Total (goluri+asisturi) / Goluri / Asisturi — vezi
+          // currentContribSubTab și renderContribSubTabs().
+          if (currentContribSubTab === 'goals') {
+              sorted=[...withGames].filter(p=>goalsOf(p)>0).sort((a,b)=>goalsOf(b)-goalsOf(a));
+              getValue=p=>'⚽'+goalsOf(p);
+              subLabel=p=>{const g=gamesOf(p);const gpg=g>0?(goalsOf(p)/g).toFixed(1):'—';return gpg+'/meci';};
+              bigColor='#34d399';
+              break;
+          }
+          if (currentContribSubTab === 'assists') {
+              sorted = [...withGames]
+                  .filter(p => assistsOf(p) > 0)
+                  .sort((a,b) => assistsOf(b) - assistsOf(a) || goalsOf(b) - goalsOf(a));
+              getValue = p => '🅰️' + assistsOf(p);
+              subLabel = p => {
+                  const g = gamesOf(p);
+                  const apg = g > 0 ? (assistsOf(p) / g).toFixed(1) : '—';
+                  return apg + '/meci';
+              };
+              bigColor = '#60a5fa';
+              break;
+          }
+          // 'total' (implicit)
           sorted = [...withGames]
               .filter(p => contribOf(p) > 0)
               .sort((a,b) =>
@@ -1992,6 +2035,7 @@ async function loadAll(){
         renderStreakBanner();
         renderWeeklyCards();
         updateSeasonUI();
+        renderContribSubTabs();
         renderLeaderboard();
         renderSeasonMatchesList();
         if (pageTab === 'matches') renderMatchesFeed();
