@@ -11,7 +11,7 @@
  *     (goluri/viteză/goluri încasate). Adminul le setează DIRECT, din
  *     modalul jucătorului, cu butoane +/− (vezi eaGetManualAttrs).
  *     Implicit, un jucător fără nimic setat pornește de la
- *     EA_MANUAL_DEFAULT (${''}) la toate — adminul le ajustează după
+ *     EA_MANUAL_DEFAULT (40) la toate — adminul le ajustează după
  *     cum crede de cuviință.
  *   - Tag-urile rămân — dar acum sunt un BONUS mic peste valoarea
  *     manuală (±EA_TAG_BONUS_CAP puncte per atribut), nu mai sunt
@@ -151,7 +151,7 @@ const EA_DIRECT_KEYS = ['PAC','SHO','PAS','DRI','DEF','PHY'];
 // Valoarea de start pentru un atribut nesetat încă de admin — un
 // jucător nou pornește de la un profil "mediu" pe toate, și adminul îl
 // ajustează manual din modal.
-const EA_MANUAL_DEFAULT = 65;
+const EA_MANUAL_DEFAULT = 40;
 
 // Cât de mult poate un tag să tragă (în sus/jos) un atribut — și cât
 // de "tare" contează, per unitate de profil. Astea 2 sunt SINGURELE

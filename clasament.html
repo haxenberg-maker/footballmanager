@@ -984,11 +984,71 @@ function renderAwardsLeaderboard(wrap){
     }).join('');
 }
 
-// ── 🔥 Top 10 Formă — Current OVR (Base OVR + Form Delta, din
-// smart-rating.js) + tendință (▲/▼/=). INTENȚIONAT limitat la 10, ca să nu
-// devină un clasament complet al tuturor ratingurilor (evită discuții/
-// frustrări legate de ratinguri mici) — vezi eaGetPlayerCard pentru cum se
-// calculează exact OVR-ul și delta de formă. ──
+// ── 🔥 Top 10 Formă — Current OVR (din smart-rating.js) + schimbare față de
+// ÎNAINTE de ultimul meci/sesiune jucat(ă) (nu formDelta-ul general din
+// smart-rating.js, care e o medie pe ultimele 8 meciuri — aici e strict
+// "de la ultimul meci încoace", cum jucați voi de obicei o dată/săptămână).
+// Fără instantaneu stocat în Supabase: reconstituim starea "înainte" scăzând
+// din statisticile curente exact ce a adus ultimul meci/sesiune (goluri,
+// victorie, POTM, MVP), recalculăm OVR-ul cu acele statistici, și comparăm.
+// INTENȚIONAT limitat la 10, ca să nu devină un clasament complet al tuturor
+// ratingurilor (evită discuții/frustrări legate de ratinguri mici). ──
+function computeOvrDeltaSinceLastMatch(){
+    const items = groupHistoryForDisplay(db.history);
+    if (!items.length) return {};
+    const lastItem = items[0]; // cel mai recent meci/sesiune (db.history e sortat descrescător)
+    const lastIds = new Set(lastItem.rows.map(r=>r._dbId));
+    const historyBefore = db.history.filter(h => !lastIds.has(h._dbId));
+
+    // Ce a adus ultimul meci/sesiune fiecărui jucător implicat — scădem asta
+    // din statisticile curente ca să reconstituim starea de "înainte".
+    const deltas = {};
+    const ensure = n => deltas[n] || (deltas[n] = {games:0,wins:0,goals:0,potm:0,mvp:0});
+    lastItem.rows.forEach(row => {
+        const participants = [...(row.orangePlayers||[]), ...(row.greenPlayers||[]), ...(row.blackPlayers||[])];
+        participants.forEach(name => {
+            const d = ensure(name);
+            d.games++;
+            if (playerWonMatch(row, name) === true) d.wins++;
+            d.goals += (row.playerGoals?.[name]||0);
+        });
+    });
+    const { winnerId: potmWinnerId } = computePotmWinnerForRows(lastItem.rows);
+    if (potmWinnerId != null) {
+        const pl = db.players.find(x=>x.id===potmWinnerId);
+        if (pl) ensure(pl.name).potm = 1;
+    }
+    const mvpWinner = computeSessionMvpWinner([...lastItem.rows].reverse());
+    if (mvpWinner) ensure(mvpWinner.name).mvp = 1;
+
+    // eaComputeFormDelta/getActivityMultiplier citesc db.history global (fereastra
+    // "ultimele 8 meciuri") — îl schimbăm temporar, recalculăm, apoi îl refacem.
+    const savedHistory = db.history;
+    db.history = historyBefore;
+    const beforeRanked = db.players
+        .map(p => {
+            const d = deltas[p.name] || {games:0,wins:0,goals:0,potm:0,mvp:0};
+            return {
+                name: p.name,
+                snap: { ...p,
+                    games: Math.max(0, p.games - d.games),
+                    wins: Math.max(0, p.wins - d.wins),
+                    totalGoals: Math.max(0, (p.totalGoals||0) - d.goals),
+                    potmCount: Math.max(0, (p.potmCount||0) - d.potm),
+                    mvpCount: Math.max(0, (p.mvpCount||0) - d.mvp),
+                }
+            };
+        })
+        .filter(x => x.snap.games > 0) // n-a jucat încă niciun meci "înainte" → nu intră în comparație
+        .map(x => ({ name: x.name, ovr: eaGetPlayerCard(x.snap).currentOVR }))
+        .sort((a,b) => b.ovr - a.ovr);
+    db.history = savedHistory;
+
+    const result = {};
+    beforeRanked.forEach((r,i) => { result[r.name] = { rank: i+1, ovr: r.ovr }; });
+    return result;
+}
+
 function renderOvrLeaderboard(wrap){
     if (!wrap) return;
     const active = db.players.filter(p => p.games > 0);
@@ -996,32 +1056,40 @@ function renderOvrLeaderboard(wrap){
         wrap.innerHTML = '<div class="match-empty">Niciun jucător activ încă.</div>';
         return;
     }
-    const top10 = active
+    const ranked = active
         .map(p => ({ p, card: eaGetPlayerCard(p) }))
-        .sort((a,b) => b.card.currentOVR - a.card.currentOVR)
-        .slice(0, 10);
+        .sort((a,b) => b.card.currentOVR - a.card.currentOVR);
+    const beforeMap = computeOvrDeltaSinceLastMatch();
+    const top10 = ranked.slice(0, 10);
 
     const medals = ['🥇','🥈','🥉'];
     wrap.innerHTML = '<div style="font-size:.72rem;color:#8b96a8;margin-bottom:10px;">Top 10 după Overall Rating (Current OVR) — restul jucătorilor nu sunt afișați public.</div>'
         + top10.map((r, i) => {
         const { p, card } = r;
-        const d = card.formDelta;
-        const trend = d > 0
-            ? `<span style="color:#34d399;font-weight:700;">▲ +${d}</span>`
-            : d < 0
-                ? `<span style="color:#ef4444;font-weight:700;">▼ ${d}</span>`
-                : `<span style="color:#8b96a8;font-weight:700;">= 0</span>`;
-        const chips = [];
-        if (p.potmCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM ×${p.potmCount}</span>`);
-        if (p.mvpCount > 0) chips.push(`<span class="mc-badge" style="background:rgba(91,127,255,.1);border:1px solid rgba(91,127,255,.3);color:#60a5fa;">👑 MVP ×${p.mvpCount}</span>`);
+        const currentRank = i + 1;
+        const before = beforeMap[p.name];
+        // Fără nimic dacă n-a fost nicio schimbare (nici de OVR, nici de poziție)
+        // — nu o liniuță "= 0" care ocupă loc degeaba.
+        let trend = '';
+        if (before) {
+            const ovrDelta = card.currentOVR - before.ovr;
+            const rankDelta = before.rank - currentRank; // pozitiv = a urcat în clasament
+            const parts = [];
+            if (ovrDelta !== 0) parts.push(`${ovrDelta>0?'+':''}${ovrDelta} OVR`);
+            if (rankDelta !== 0) parts.push(`#${before.rank}→#${currentRank}`);
+            if (parts.length) {
+                const up = ovrDelta > 0 || rankDelta > 0;
+                const color = up ? '#34d399' : '#ef4444';
+                trend = `<span style="color:${color};font-weight:700;">${up?'▲':'▼'} ${parts.join(' · ')}</span>`;
+            }
+        }
         return `<div class="match-card" style="padding:12px 16px;">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:${chips.length?'8px':'0'};">
+            <div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:30px;text-align:center;color:${medals[i]?'var(--star)':'#8b96a8'};">${medals[i]||'#'+(i+1)}</span>
                 <span style="font-weight:700;color:#f3f6fa;flex:1;">${p.name}</span>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#f3f6fa;">${card.currentOVR}</span>
                 ${trend}
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:5px;">${chips.join('')}</div>
         </div>`;
     }).join('');
 }
