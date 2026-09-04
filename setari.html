@@ -700,20 +700,27 @@ async function loadAll(){
     // POTM & MVP per jucător — pentru ca preview-ul de algoritm (componentele
     // ⭐POTM/👑MVP) să fie corect. Aproximativ scopat (ultimele 200 meciuri,
     // fără filtrare strictă de sezon aici) — suficient de precis pentru un
-    // preview, sursa de adevăr rămâne calculul din index.html.
+    // preview, sursa de adevăr rămâne calculul din index.html (app.js).
     try{
         const matchIds=new Set(db.history.map(h=>h._dbId));
         const{data:potmRaw}=await sb.from('potm_votes').select('match_id,voted_player_id');
         const votesByMatch={};
         (potmRaw||[]).forEach(v=>{ if(!matchIds.has(v.match_id))return; if(!votesByMatch[v.match_id])votesByMatch[v.match_id]={}; votesByMatch[v.match_id][v.voted_player_id]=(votesByMatch[v.match_id][v.voted_player_id]||0)+1; });
         db.potmVotesByMatch=votesByMatch; // reutilizat de lista POTM & MVP din Premii, ca să nu mai facem un fetch separat
+        // Numărat pe SESIUNE (nu pe fiecare pereche din sesiunile de 3 echipe) —
+        // altfel un jucător putea ieși cu 2 POTM-uri pentru aceeași sesiune dacă
+        // câștiga votul pe 2 din cele 3 perechi, inconsecvent cu app.js (sursa
+        // reală de adevăr pentru OVR) și cu clasament.html.
         const potmCountById={};
-        db.history.forEach(h=>{
-            let winnerId=h.manualPotmId;
-            if(winnerId==null){
-                const counts=votesByMatch[h._dbId];
-                if(counts){ const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]); if(sorted.length) winnerId=parseInt(sorted[0][0]); }
-            }
+        groupHistoryForDisplay(db.history).forEach(item=>{
+            const votes={}; let manualId=null;
+            item.rows.forEach(h=>{
+                if(manualId==null && h.manualPotmId!=null) manualId=h.manualPotmId;
+                const c=votesByMatch[h._dbId]||{};
+                Object.entries(c).forEach(([pid,n])=>{ votes[pid]=(votes[pid]||0)+n; });
+            });
+            let winnerId=manualId;
+            if(winnerId==null){ const sorted=Object.entries(votes).sort((a,b)=>b[1]-a[1]); if(sorted.length) winnerId=parseInt(sorted[0][0]); }
             if(winnerId!=null) potmCountById[winnerId]=(potmCountById[winnerId]||0)+1;
         });
         db.players.forEach(p=>{ p.potmCount=potmCountById[p.id]||0; });

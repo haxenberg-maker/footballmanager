@@ -1083,7 +1083,7 @@ function renderOvrLeaderboard(wrap){
     const top10 = ranked.slice(0, 10);
 
     const medals = ['🥇','🥈','🥉'];
-    wrap.innerHTML = '<div style="font-size:.72rem;color:#8b96a8;margin-bottom:10px;">Top 10 după Overall Rating (Current OVR)</div>'
+    wrap.innerHTML = '<div style="font-size:.72rem;color:#8b96a8;margin-bottom:10px;">Top 10 după Overall Rating (Current OVR) — restul jucătorilor nu sunt afișați public.</div>'
         + top10.map((r, i) => {
         const { p, card } = r;
         const currentRank = i + 1;
@@ -1095,7 +1095,7 @@ function renderOvrLeaderboard(wrap){
             const ovrDelta = card.currentOVR - before.ovr;
             const rankDelta = before.rank - currentRank; // pozitiv = a urcat în clasament
             const parts = [];
-            //if (ovrDelta !== 0) parts.push(`${ovrDelta>0?'+':''}${ovrDelta} OVR`);
+            if (ovrDelta !== 0) parts.push(`${ovrDelta>0?'+':''}${ovrDelta} OVR`);
             if (rankDelta !== 0) parts.push(`#${before.rank}→#${currentRank}`);
             if (parts.length) {
                 const up = ovrDelta > 0 || rankDelta > 0;
