@@ -891,7 +891,9 @@ function renderMatchesFeed(){
     feed.innerHTML = items.map(item => item.type==='session' ? renderSessionCard(item.rows) : renderSingleMatchCard(item.rows[0])).join('');
 }
 
-// ── 🏆 Premii / Titluri — clasament pe TOT istoricul (sezonul curent) ──
+// ── 🏆 Premii / Titluri — clasament pe TOT istoricul, din toate sezoanele
+// (spre deosebire de tab-urile Goluri/Asisturi/Victorii, NU respectă selectorul
+// de sezon — un jucător care a fost MVP într-un sezon arhivat tot apare aici) ──
 function renderAwardsLeaderboard(wrap){
     if (!wrap) return;
 
@@ -1555,7 +1557,8 @@ function renderLeaderboard(){
 
     // Premii — tab separat de restul (nu e un clasament de rating/goluri, e un
     // clasament de titluri), randat direct aici, fără logica de period/season
-    // de mai jos (Premiile sunt mereu scopate la sezonul curent).
+    // de mai jos. Intenționat: Premiile numără din TOATE sezoanele, nu doar cel
+    // selectat — vezi renderAwardsLeaderboard.
     if (currentLbTab === 'awards') {
         renderAwardsLeaderboard(content);
         return;
