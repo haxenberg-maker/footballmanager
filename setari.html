@@ -668,20 +668,31 @@ async function loadAll(){
     // History
     const{data:mh}=await sb.from('match_history').select('*').order('created_at',{ascending:false}).limit(200);
     // Goluri per meci per jucător — necesare pentru calculul "MVP din meciuri"
-    // (goluri + minute jucate), afișat/suprascris în panoul MVP de mai jos.
-    let goalsPerMatch={};
+    // (goluri + asisturi + minute jucate), afișat/suprascris în panoul MVP de mai jos.
+    // IMPORTANT: select('*') aici, NU o listă explicită de coloane — o listă
+    // explicită (ex. 'match_id,player_name,goals,is_penalty') cădea cu eroare 400
+    // (cache de schemă PostgREST neactualizat pentru coloanele nou adăugate), ceea
+    // ce lăsa goalsPerMatch complet gol → toți jucătorii apăreau cu 0 goluri în MVP,
+    // deși golurile erau salvate corect în DB. select('*') e sigur indiferent ce
+    // coloane există (la fel ca în app.js/clasament.html, unde era deja reparat).
+    let goalsPerMatch={}, assistsPerMatch={};
     try{
-        const{data:goalsRaw}=await sb.from('match_goals').select('match_id,player_name,goals,is_penalty');
+        const{data:goalsRaw,error}=await sb.from('match_goals').select('*');
+        if(error) throw error;
         (goalsRaw||[]).forEach(g=>{
             if(g.is_penalty) return;
             if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]={};
             goalsPerMatch[g.match_id][g.player_name]=(goalsPerMatch[g.match_id][g.player_name]||0)+(g.goals||1);
+            if(g.assist_name){
+                if(!assistsPerMatch[g.match_id]) assistsPerMatch[g.match_id]={};
+                assistsPerMatch[g.match_id][g.assist_name]=(assistsPerMatch[g.match_id][g.assist_name]||0)+1;
+            }
         });
     }catch(e){ console.warn('match_goals load (mvp panel):',e.message); }
     db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
         orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
-        playerGoals:goalsPerMatch[h.id]||{},
+        playerGoals:goalsPerMatch[h.id]||{},playerAssists:assistsPerMatch[h.id]||{},
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
         manualMvpId:h.manual_mvp_player_id!=null?h.manual_mvp_player_id:null,
         potmVoteDeadline:h.potm_vote_deadline||null}));
@@ -1188,17 +1199,24 @@ function computeSessionMvpWinner(rows){
     const manualId = rows.find(h=>h.manualMvpId!=null)?.manualMvpId ?? null;
     const totalGoals = {};
     rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const totalAssists = {};
+    rows.forEach(h => { Object.entries(h.playerAssists||{}).forEach(([n,a]) => { totalAssists[n]=(totalAssists[n]||0)+a; }); });
     const totalSeconds = {};
     rows.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
         const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
-    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalAssists), ...Object.keys(totalSeconds)]);
+    // MVP = goluri + asisturi + minute jucate (în acea sesiune/meci). Minutele
+    // contează scalat la /90 (ca o fracție de meci întreg), ca să nu domine
+    // brut goluri/asisturi — un jucător cu 3 goluri și 40 min tot bate pe unul
+    // cu 0 goluri și 90 min, dar la goluri/asisturi egale, mai multe minute decid.
     const candidates = [...allNames].map(name => {
         const goals = totalGoals[name] || 0;
+        const assists = totalAssists[name] || 0;
         const minutes = Math.round((totalSeconds[name]||0) / 60);
-        return { name, goals, minutes, score: goals + minutes/90 };
+        return { name, goals, assists, minutes, score: goals + assists + minutes/90 };
     }).sort((a,b) => b.score - a.score);
     // -1 e o santinelă specială: "NICIUN MVP la acest meci", diferit de null
     // ("fără suprascriere, folosește calculul"). Fără asta, singurul mod de a
@@ -1209,7 +1227,7 @@ function computeSessionMvpWinner(rows){
     let source = winner ? 'computed' : null;
     if (manualId != null) {
         const p = db.players.find(x=>x.id===manualId);
-        if (p) { winner = candidates.find(c=>c.name===p.name) || { name:p.name, goals:0, minutes:0, score:0 }; source = 'manual'; }
+        if (p) { winner = candidates.find(c=>c.name===p.name) || { name:p.name, goals:0, assists:0, minutes:0, score:0 }; source = 'manual'; }
     }
     return { winner, source, candidates };
 }
@@ -1356,7 +1374,7 @@ function buildPotmMvpHistoryList(){
             ? `⭐ <b style="color:#eab308;">${potmWinner.name}</b> ${potmSource==='voted' ? `<span style="color:#888;">(${potmVoteCount} vot${potmVoteCount!==1?'uri':''})</span>` : '<span style="color:#888;">(manual)</span>'}`
             : '<span style="color:#555;">⭐ — niciun POTM —</span>';
         const mvpLine = mvpWinner
-            ? `👑 <b style="color:var(--star);">${mvpWinner.name}</b> <span style="color:#888;">(${mvpWinner.goals} goluri · ${mvpWinner.minutes} min${mvpSource==='manual'?' · manual':''})</span>`
+            ? `👑 <b style="color:var(--star);">${mvpWinner.name}</b> <span style="color:#888;">(${mvpWinner.goals} goluri · ${mvpWinner.assists} assist · ${mvpWinner.minutes} min${mvpSource==='manual'?' · manual':''})</span>`
             : (mvpSource==='manual-none' ? '<span style="color:#555;">👑 🚫 niciun MVP (setat manual)</span>' : '<span style="color:#555;">👑 — fără candidați —</span>');
 
         return `<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
@@ -1475,7 +1493,7 @@ function refreshMvpBreakdown(){
         const isWinner = winner && c.name===winner.name;
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
             <span style="font-weight:700;color:${isWinner?'var(--star)':'#e0e0e0'};">${isWinner?'⭐ ':''}${c.name}</span>
-            <span style="color:#888;font-size:.72rem;">${c.goals} goluri · ${c.minutes} min · scor ${c.score.toFixed(2)}</span>
+            <span style="color:#888;font-size:.72rem;">${c.goals} goluri · ${c.assists} assist · ${c.minutes} min · scor ${c.score.toFixed(2)}</span>
         </div>`;
     }).join('') + (source==='manual' ? `<div style="margin-top:6px;font-size:.68rem;color:#ffcc00;">🔒 Suprascris manual — câștigătorul calculat era altcineva mai sus.</div>` : '');
 }

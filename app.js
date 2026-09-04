@@ -400,11 +400,15 @@ async function loadAll() {
             const playerGoals = {};
             const playerPenaltyGoals = {};
             const playerConceded = {}; // { playerName: goluri primite (manual, per jucător — de obicei portar) }
+            const playerAssists = {}; // pentru MVP (goluri + asisturi + minute)
             goals.forEach(g => {
                 if (g.is_penalty) {
                     playerPenaltyGoals[g.player_name] = (playerPenaltyGoals[g.player_name]||0) + (g.goals||1);
                 } else {
                     playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1);
+                }
+                if (g.assist_name && !g.is_penalty) {
+                    playerAssists[g.assist_name] = (playerAssists[g.assist_name]||0) + 1;
                 }
                 if ((g.goals_conceded||0) > 0) {
                     playerConceded[g.player_name] = (playerConceded[g.player_name]||0) + g.goals_conceded;
@@ -427,6 +431,7 @@ async function loadAll() {
                 blackPlayers:  h.black_players  || [],
                 roundsDetail:  h.rounds_detail  || null, // istoric ture (doar meciuri mod 3 echipe)
                 playerGoals,   // { playerName: goalsScored } — folosit la editarea meciului
+                playerAssists, // { playerName: assists } — pentru MVP (goluri + asisturi + minute)
                 playerPenaltyGoals, // { playerName: goluriPenalty } — SEPARAT de playerGoals
                 playerConceded, // { playerName: goluriPrimite } — manual, per jucător (de obicei portar)
                 topScorer,   // { name, goals } or null
@@ -1638,24 +1643,27 @@ function computeSessionMvpWinner(rows){
 
     const totalGoals = {};
     rows.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
+    const totalAssists = {};
+    rows.forEach(h => { Object.entries(h.playerAssists||{}).forEach(([n,a]) => { totalAssists[n]=(totalAssists[n]||0)+a; }); });
     const totalSeconds = {};
     rows.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
         const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
-    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalAssists), ...Object.keys(totalSeconds)]);
     const candidates = [...allNames].map(name => {
         const goals = totalGoals[name] || 0;
+        const assists = totalAssists[name] || 0;
         const minutes = Math.round((totalSeconds[name]||0) / 60);
-        return { name, goals, minutes, score: goals + minutes/90 };
+        return { name, goals, assists, minutes, score: goals + assists + minutes/90 };
     }).sort((a,b) => b.score - a.score);
 
     if (manualId != null) {
         const p = db.players.find(x=>x.id===manualId);
         if (p) {
             const existing = candidates.find(c=>c.name===p.name);
-            return existing || { name: p.name, goals: 0, minutes: 0, score: 0 };
+            return existing || { name: p.name, goals: 0, assists: 0, minutes: 0, score: 0 };
         }
     }
     return candidates[0] || null;

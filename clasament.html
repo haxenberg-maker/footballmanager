@@ -402,8 +402,8 @@ function computePotmWinnerForRows(rows){
 }
 
 // "MVP din meciuri" — NU voturile colegilor (mvp_votes), ci golgheterul cu
-// cele mai multe minute jucate: goluri + minute/90, calculat pe o sesiune
-// întreagă (chrono = rows în ordine cronologică) sau pe un meci simplu.
+// cele mai multe minute jucate: goluri + asisturi + minute/90, calculat pe o
+// sesiune întreagă (chrono = rows în ordine cronologică) sau pe un meci simplu.
 // Reutilizat de renderSessionCard (badge-ul ⭐ MVP) și de clasamentul de
 // Premii (numărătoarea totală).
 function computeSessionMvpWinner(chrono){
@@ -417,6 +417,9 @@ function computeSessionMvpWinner(chrono){
     const totalGoals = {};
     chrono.forEach(h => { Object.entries(h.playerGoals||{}).forEach(([n,g]) => { totalGoals[n]=(totalGoals[n]||0)+g; }); });
 
+    const totalAssists = {};
+    chrono.forEach(h => { Object.entries(h.playerAssists||{}).forEach(([n,a]) => { totalAssists[n]=(totalAssists[n]||0)+a; }); });
+
     const totalSeconds = {};
     chrono.forEach(h => {
         const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
@@ -424,11 +427,12 @@ function computeSessionMvpWinner(chrono){
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
 
-    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalSeconds)]);
+    const allNames = new Set([...Object.keys(totalGoals), ...Object.keys(totalAssists), ...Object.keys(totalSeconds)]);
     const candidates = [...allNames].map(name => {
         const goals = totalGoals[name] || 0;
+        const assists = totalAssists[name] || 0;
         const minutes = Math.round((totalSeconds[name]||0) / 60);
-        return { name, goals, minutes, score: goals + minutes/90 };
+        return { name, goals, assists, minutes, score: goals + assists + minutes/90 };
     }).sort((a,b) => b.score - a.score);
 
     // Suprascrierea manuală (setată din setari.html) are prioritate — dacă
@@ -437,7 +441,7 @@ function computeSessionMvpWinner(chrono){
         const p = db.players.find(x=>x.id===manualId);
         if (p) {
             const existing = candidates.find(c=>c.name===p.name);
-            return existing || { name: p.name, goals: 0, minutes: 0, score: 0 };
+            return existing || { name: p.name, goals: 0, assists: 0, minutes: 0, score: 0 };
         }
     }
     return candidates[0] || null;
@@ -637,7 +641,7 @@ function renderSessionCard(rows){
         <div class="match-card-body">
             <div class="mc-standing">${standingHTML}</div>
             <div class="mc-badges">
-                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.minutes} min)</div>` : ''}
+                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.assists||0} assist · ${sessionTop.minutes} min)</div>` : ''}
                 ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
                 ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
             </div>
@@ -1840,11 +1844,15 @@ async function loadAll(){
             // la golurile normale — nici în playerGoals, nici în teamGoals.
             const playerGoals = {};
             const playerPenaltyGoals = {};
+            const playerAssists = {}; // pentru MVP (goluri + asisturi + minute)
             goals.forEach(g=>{
                 if (g.is_penalty) {
                     playerPenaltyGoals[g.player_name] = (playerPenaltyGoals[g.player_name]||0) + (g.goals||1);
                 } else {
                     playerGoals[g.player_name] = (playerGoals[g.player_name]||0) + (g.goals||1);
+                }
+                if (g.assist_name && !g.is_penalty) {
+                    playerAssists[g.assist_name] = (playerAssists[g.assist_name]||0) + 1;
                 }
             });
             const topEntries = Object.entries(playerGoals).sort((a,b)=>b[1]-a[1]);
@@ -1866,7 +1874,7 @@ async function loadAll(){
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
-                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerPenaltyGoals, topScorer, teamGoals,
+                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerAssists, playerPenaltyGoals, topScorer, teamGoals,
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
