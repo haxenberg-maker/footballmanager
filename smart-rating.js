@@ -350,21 +350,57 @@ function eaComputeTagImpact(p, tagId){
 
 // ── FORM RATING — modificator ± peste Base OVR ──────────────────────
 // Win Rate recent, Chimia cu coechipierii, POTM, MVP, Activitatea
-// recentă (absențe) și penalizarea de Dezechilibru — semnale DE
-// MOMENT, nu skill intrinsec (ăla e Base OVR, de mai sus). Constantele
-// de mai jos nu mai sunt expuse în panoul de admin — se reglează
-// direct în cod dacă e nevoie.
-const EA_FORM_WINRATE_SCALE  = 14;
-const EA_FORM_WINRATE_CAP    = 6;
-const EA_FORM_CHEM_SCALE     = 8;
-const EA_FORM_CHEM_CAP       = 4;
-const EA_FORM_POTM_SCALE     = 20;
-const EA_FORM_POTM_CAP       = 3;
-const EA_FORM_MVP_SCALE      = 16;
-const EA_FORM_MVP_CAP        = 2;
-const EA_FORM_ACTIVITY_SCALE = 20;
-const EA_FORM_IMBALANCE_PER  = 1.5;
-const EA_FORM_TOTAL_CAP      = 12;
+// recentă (absențe), penalizarea de Dezechilibru și Performanța la
+// Goluri (relativ la grupul de meciuri jucate) — semnale DE MOMENT,
+// nu skill intrinsec (ăla e Base OVR, de mai sus). Toate constantele
+// de mai jos sunt VARIABILE (let), reglabile din panoul de admin —
+// vezi ALGO_FIELDS mai jos, care le expune UI-ului din Setări.
+const DEFAULT_EA_FORM_WINRATE_SCALE  = 14;
+const DEFAULT_EA_FORM_WINRATE_CAP    = 6;
+const DEFAULT_EA_FORM_CHEM_SCALE     = 8;
+const DEFAULT_EA_FORM_CHEM_CAP       = 4;
+const DEFAULT_EA_FORM_POTM_SCALE     = 20;
+const DEFAULT_EA_FORM_POTM_CAP       = 3;
+const DEFAULT_EA_FORM_MVP_SCALE      = 16;
+const DEFAULT_EA_FORM_MVP_CAP        = 2;
+const DEFAULT_EA_FORM_ACTIVITY_SCALE = 20;
+const DEFAULT_EA_FORM_IMBALANCE_PER  = 1.5;
+const DEFAULT_EA_FORM_TOTAL_CAP      = 12;
+const DEFAULT_EA_FORM_GOALS_CAP      = 4; // plafon puncte OVR din bonusul de goluri
+
+let EA_FORM_WINRATE_SCALE  = DEFAULT_EA_FORM_WINRATE_SCALE;
+let EA_FORM_WINRATE_CAP    = DEFAULT_EA_FORM_WINRATE_CAP;
+let EA_FORM_CHEM_SCALE     = DEFAULT_EA_FORM_CHEM_SCALE;
+let EA_FORM_CHEM_CAP       = DEFAULT_EA_FORM_CHEM_CAP;
+let EA_FORM_POTM_SCALE     = DEFAULT_EA_FORM_POTM_SCALE;
+let EA_FORM_POTM_CAP       = DEFAULT_EA_FORM_POTM_CAP;
+let EA_FORM_MVP_SCALE      = DEFAULT_EA_FORM_MVP_SCALE;
+let EA_FORM_MVP_CAP        = DEFAULT_EA_FORM_MVP_CAP;
+let EA_FORM_ACTIVITY_SCALE = DEFAULT_EA_FORM_ACTIVITY_SCALE;
+let EA_FORM_IMBALANCE_PER  = DEFAULT_EA_FORM_IMBALANCE_PER;
+let EA_FORM_TOTAL_CAP      = DEFAULT_EA_FORM_TOTAL_CAP;
+let EA_FORM_GOALS_CAP      = DEFAULT_EA_FORM_GOALS_CAP;
+
+/**
+ * eaComputeGoalBonusDelta — Punctaj_Goluri (deltaGoals * goalBonusWeight)
+ * pentru UN jucător, calculat față de grupul TUTUROR jucătorilor cu
+ * activitate (games>0) și ACELAȘI număr de meciuri jucate — nu doar
+ * fereastra săptămânii (aia rămâne separat, pentru cardul "Echipa
+ * Săptămânii"). Plafonat la ±EA_FORM_GOALS_CAP, ca oricare alt semnal
+ * de Form Rating.
+ */
+function eaComputeGoalBonusDelta(p){
+    if(!p.games) return { delta:0, note:null };
+    const roster = db.players
+        .filter(pl=>pl.games>0)
+        .map(pl=>({ name: pl.name, goals: pl.totalGoals||0, matchesPlayed: pl.games }));
+    const scored = computeGoalDeltaScores(roster, GOAL_BONUS_WEIGHT);
+    const mine = scored.find(s=>s.name===p.name);
+    if(!mine) return { delta:0, note:null };
+    const delta = Math.round(Math.max(-EA_FORM_GOALS_CAP, Math.min(EA_FORM_GOALS_CAP, mine.goalScore)));
+    const note = `${mine.goals} goluri din ${p.games} meciuri vs media grupului (${mine.groupAvgGoals.toFixed(1)})`;
+    return { delta, note };
+}
 
 function eaComputeFormDelta(p, context = {}){
     if (!p.games || p.games < 3) return { delta:0, signals:[] };
@@ -402,6 +438,9 @@ function eaComputeFormDelta(p, context = {}){
     const imbalLoss = Math.min(p.lastImbalanceLoss||0, 3);
     const dImbal = imbalLoss>0 ? -Math.round(imbalLoss * EA_FORM_IMBALANCE_PER) : 0;
     if (dImbal){ total+=dImbal; signals.push({icon:'⚠️', label:'Dezechilibru', note:`${imbalLoss} meci(uri) pierdut(e) cu 3+ goluri`, delta:dImbal}); }
+
+    const goalBonus = eaComputeGoalBonusDelta(p);
+    if (goalBonus.delta){ total+=goalBonus.delta; signals.push({icon:'⚽', label:'Performanță goluri', note:goalBonus.note, delta:goalBonus.delta}); }
 
     const clamped = Math.max(-EA_FORM_TOTAL_CAP, Math.min(EA_FORM_TOTAL_CAP, total));
     return { delta: clamped, signals };
@@ -455,4 +494,120 @@ function eaComputeTeamLineOVR(teamPlayers){
 function getSmartRating(p, context = {}){
     if (p.adminRating != null) return Math.max(1, Math.min(99, Math.round(p.adminRating)));
     return eaGetPlayerCard(p, context).currentOVR;
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * ALGO_FIELDS — REGISTRU CENTRAL al tuturor "cadranelor" reglabile ale
+ * formulei OVR. SINGURUL loc unde se declară un factor nou — panoul de
+ * Algoritm din Setări (buildAlgorithmPanel, în app.js/setari.html)
+ * generează UI-ul AUTOMAT din acest array, grupat pe `group`, și
+ * salvează/încarcă fiecare `key` din/în tabelul Supabase `algo_settings`.
+ * Așa rămân sincronizate garantat: OVR-ul calculat, ce vede admin-ul în
+ * panou, și ce se salvează în DB — nu mai există liste separate.
+ * ═══════════════════════════════════════════════════════════════════
+ */
+const ALGO_FIELDS = [
+    // ── Base OVR — Bonus din Tag-uri ──
+    { key:'ea_tag_bonus_cap', group:'🏷️ Bonus Tag-uri (Base OVR)',
+      label:'Cât poate un tag să tragă un atribut', unit:'OVR',
+      min:0, max:20, step:1, default:DEFAULT_EA_TAG_BONUS_CAP,
+      get:()=>EA_TAG_BONUS_CAP, set:v=>{EA_TAG_BONUS_CAP=v;} },
+    { key:'ea_tag_bonus_scale', group:'🏷️ Bonus Tag-uri (Base OVR)',
+      label:'Intensitatea bonusului de tag-uri', unit:'×',
+      min:0, max:3, step:0.1, default:DEFAULT_EA_TAG_BONUS_SCALE,
+      get:()=>EA_TAG_BONUS_SCALE, set:v=>{EA_TAG_BONUS_SCALE=v;} },
+
+    // ── Form Rating — Win Rate recent ──
+    { key:'ea_form_winrate_scale', group:'📈 Win Rate recent (Form)',
+      label:'Cât de mult contează diferența față de media generală', unit:'×',
+      min:0, max:30, step:1, default:DEFAULT_EA_FORM_WINRATE_SCALE,
+      get:()=>EA_FORM_WINRATE_SCALE, set:v=>{EA_FORM_WINRATE_SCALE=v;} },
+    { key:'ea_form_winrate_cap', group:'📈 Win Rate recent (Form)',
+      label:'Plafon (±) puncte OVR', unit:'OVR',
+      min:0, max:15, step:1, default:DEFAULT_EA_FORM_WINRATE_CAP,
+      get:()=>EA_FORM_WINRATE_CAP, set:v=>{EA_FORM_WINRATE_CAP=v;} },
+
+    // ── Form Rating — Chimie ──
+    { key:'ea_form_chem_scale', group:'🧪 Chimie cu coechipierii (Form)',
+      label:'Intensitatea bonusului de chimie', unit:'×',
+      min:0, max:20, step:1, default:DEFAULT_EA_FORM_CHEM_SCALE,
+      get:()=>EA_FORM_CHEM_SCALE, set:v=>{EA_FORM_CHEM_SCALE=v;} },
+    { key:'ea_form_chem_cap', group:'🧪 Chimie cu coechipierii (Form)',
+      label:'Plafon (±) puncte OVR', unit:'OVR',
+      min:0, max:10, step:1, default:DEFAULT_EA_FORM_CHEM_CAP,
+      get:()=>EA_FORM_CHEM_CAP, set:v=>{EA_FORM_CHEM_CAP=v;} },
+
+    // ── Form Rating — POTM ──
+    { key:'ea_form_potm_scale', group:'⭐ POTM (Form)',
+      label:'Intensitatea bonusului de POTM', unit:'×',
+      min:0, max:40, step:1, default:DEFAULT_EA_FORM_POTM_SCALE,
+      get:()=>EA_FORM_POTM_SCALE, set:v=>{EA_FORM_POTM_SCALE=v;} },
+    { key:'ea_form_potm_cap', group:'⭐ POTM (Form)',
+      label:'Plafon (+) puncte OVR', unit:'OVR',
+      min:0, max:10, step:1, default:DEFAULT_EA_FORM_POTM_CAP,
+      get:()=>EA_FORM_POTM_CAP, set:v=>{EA_FORM_POTM_CAP=v;} },
+
+    // ── Form Rating — MVP ──
+    { key:'ea_form_mvp_scale', group:'👑 MVP (Form)',
+      label:'Intensitatea bonusului de MVP', unit:'×',
+      min:0, max:40, step:1, default:DEFAULT_EA_FORM_MVP_SCALE,
+      get:()=>EA_FORM_MVP_SCALE, set:v=>{EA_FORM_MVP_SCALE=v;} },
+    { key:'ea_form_mvp_cap', group:'👑 MVP (Form)',
+      label:'Plafon (+) puncte OVR', unit:'OVR',
+      min:0, max:10, step:1, default:DEFAULT_EA_FORM_MVP_CAP,
+      get:()=>EA_FORM_MVP_CAP, set:v=>{EA_FORM_MVP_CAP=v;} },
+
+    // ── Form Rating — Activitate recentă ──
+    { key:'ea_form_activity_scale', group:'📅 Activitate recentă (Form)',
+      label:'Cât penalizează absențele recente', unit:'×',
+      min:0, max:40, step:1, default:DEFAULT_EA_FORM_ACTIVITY_SCALE,
+      get:()=>EA_FORM_ACTIVITY_SCALE, set:v=>{EA_FORM_ACTIVITY_SCALE=v;} },
+
+    // ── Form Rating — Dezechilibru ──
+    { key:'ea_form_imbalance_per', group:'⚠️ Dezechilibru (Form)',
+      label:'Penalizare per meci pierdut cu 3+ goluri', unit:'OVR/meci',
+      min:0, max:5, step:0.1, default:DEFAULT_EA_FORM_IMBALANCE_PER,
+      get:()=>EA_FORM_IMBALANCE_PER, set:v=>{EA_FORM_IMBALANCE_PER=v;} },
+
+    // ── Form Rating — Performanță Goluri (NOU) ──
+    { key:'goal_bonus_weight', group:'⚽ Performanță Goluri (Form)',
+      label:'Pondere per gol peste/sub media grupului (matchesPlayed)', unit:'×',
+      min:0, max:3, step:0.1, default:DEFAULT_GOAL_BONUS_WEIGHT,
+      get:()=>GOAL_BONUS_WEIGHT, set:v=>{GOAL_BONUS_WEIGHT=v;} },
+    { key:'ea_form_goals_cap', group:'⚽ Performanță Goluri (Form)',
+      label:'Plafon (±) puncte OVR', unit:'OVR',
+      min:0, max:15, step:1, default:DEFAULT_EA_FORM_GOALS_CAP,
+      get:()=>EA_FORM_GOALS_CAP, set:v=>{EA_FORM_GOALS_CAP=v;} },
+
+    // ── Form Rating — Plafon total ──
+    { key:'ea_form_total_cap', group:'🧮 Plafon Total Form Rating',
+      label:'Suma tuturor semnalelor de mai sus e limitată la (±)', unit:'OVR',
+      min:0, max:30, step:1, default:DEFAULT_EA_FORM_TOTAL_CAP,
+      get:()=>EA_FORM_TOTAL_CAP, set:v=>{EA_FORM_TOTAL_CAP=v;} },
+];
+
+/** Payload gata de trimis la `sb.from('algo_settings').upsert(...)`. */
+function algoFieldsPayloadForSave(){
+    return ALGO_FIELDS.map(f=>({ key:f.key, value:f.get() }));
+}
+/** Aplică rândurile citite din `algo_settings` (key,value) peste ALGO_FIELDS. */
+function applyAlgoSettingsRows(rows){
+    (rows||[]).forEach(row=>{
+        const f = ALGO_FIELDS.find(x=>x.key===row.key);
+        if(!f) return;
+        const v = parseFloat(row.value);
+        if(!isNaN(v)) f.set(v);
+    });
+    ALGO_FIELDS.forEach(f=>{ if(isNaN(f.get())) f.set(f.default); });
+}
+/** Resetează toate cadranele la valorile implicite. */
+function resetAlgoFieldsToDefaults(){ ALGO_FIELDS.forEach(f=>f.set(f.default)); }
+/** Snapshot curent (pt. preview înainte/după și "anulează"). */
+function snapshotAlgoFields(){
+    const s={}; ALGO_FIELDS.forEach(f=>{ s[f.key]=f.get(); }); return s;
+}
+function restoreAlgoFieldsSnapshot(snap){
+    if(!snap) return;
+    ALGO_FIELDS.forEach(f=>{ if(snap[f.key]!=null) f.set(snap[f.key]); });
 }
