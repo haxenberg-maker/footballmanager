@@ -1184,10 +1184,20 @@ function renderOvrLeaderboard(wrap){
             if (ovrDelta !== 0) parts.push(`${ovrDelta>0?'+':''}${ovrDelta} OVR`);
             if (rankDelta !== 0) parts.push(`#${before.rank}→#${currentRank}`);
             if (parts.length) {
-                const up = ovrDelta > 0 || rankDelta > 0;
-                const color = up ? '#34d399' : '#ef4444';
-                trend = `<span style="color:${color};font-weight:700;">${up?'▲':'▼'} ${parts.join(' · ')}</span>`;
-            }
+          // Culoarea este dictată în primul rând de poziția în clasament.
+          // #9 → #10 = ROȘU
+          // #10 → #9 = VERDE
+          // Dacă poziția nu s-a schimbat, folosim evoluția OVR.
+          let up;
+      
+          if (rankDelta !== 0) {
+              up = rankDelta > 0;
+          } else {
+              up = ovrDelta > 0;
+          }
+    const color = up ? '#34d399' : '#ef4444';
+    trend = `<span style="color:${color};font-weight:700;">${up?'▲':'▼'} ${parts.join(' · ')}</span>`;
+}
         }
         return `<div class="match-card" style="padding:12px 16px;">
             <div style="display:flex;align-items:center;gap:10px;">
