@@ -642,15 +642,10 @@ async function loadAll(){
             milestoneConfig=mc;
         }
     }catch(e){ console.warn('milestone_config load failed (ai rulat migrarea SQL?):',e.message); }
-    // Algo settings — doar cele 2 constante EA (restul formulei e fix)
+    // Algo settings — toate "cadranele" formulei OVR, din registrul ALGO_FIELDS (smart-rating.js)
     const{data:as}=await sb.from('algo_settings').select('key,value');
-    (as||[]).forEach(r=>{
-        if(r.key==='ea_tag_bonus_cap')EA_TAG_BONUS_CAP=parseFloat(r.value);
-        if(r.key==='ea_tag_bonus_scale')EA_TAG_BONUS_SCALE=parseFloat(r.value);
-    });
-    if(isNaN(EA_TAG_BONUS_CAP))EA_TAG_BONUS_CAP=DEFAULT_EA_TAG_BONUS_CAP;
-    if(isNaN(EA_TAG_BONUS_SCALE))EA_TAG_BONUS_SCALE=DEFAULT_EA_TAG_BONUS_SCALE;
-    _algoSnapshot = { cap:EA_TAG_BONUS_CAP, scale:EA_TAG_BONUS_SCALE }; // baseline pt preview "înainte/după"
+    applyAlgoSettingsRows(as);
+    _algoSnapshot = snapshotAlgoFields(); // baseline pt preview "înainte/după"
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -849,50 +844,51 @@ function addNewPlayerFromSettings(){
     }).catch(e=>showToast('⚠️ '+e.message));
 }
 
-// ── ALGORITHM SECTION ─────────────────────────────────────────────
+// ── ALGORITHM SECTION (generat automat din ALGO_FIELDS — smart-rating.js) ──
 function buildAlgorithmPanel(){
-    const html = `
-        <div class="w-cell">
-            <span class="w-lbl">🏷️ Cât poate un tag să tragă un atribut <span style="font-size:.62em;color:#666;">(implicit ±${DEFAULT_EA_TAG_BONUS_CAP})</span></span>
+    const groups = [];
+    ALGO_FIELDS.forEach(f=>{
+        let g = groups.find(x=>x.name===f.group);
+        if(!g){ g={name:f.group, fields:[]}; groups.push(g); }
+        g.fields.push(f);
+    });
+
+    const cellHtml = f => {
+        const val = f.get();
+        const displayVal = Number.isInteger(f.step) ? Math.round(val) : val.toFixed(1);
+        return `<div class="w-cell">
+            <span class="w-lbl">${f.label} <span style="font-size:.62em;color:#666;">(implicit ${f.default})</span></span>
             <div class="w-ctrl">
-                <button class="w-btn" onclick="stepEaBase(-1)">−</button>
-                <input class="w-num" type="number" id="eaBaseNum" value="${Math.round(EA_TAG_BONUS_CAP)}" min="0" max="20" step="1" oninput="syncEaBase()">
-                <button class="w-btn" onclick="stepEaBase(1)">+</button>
-                <span class="w-pct">OVR</span>
+                <button class="w-btn" onclick="stepAlgoField('${f.key}',${-f.step})">−</button>
+                <input class="w-num" type="number" id="algoNum-${f.key}" value="${displayVal}" min="${f.min}" max="${f.max}" step="${f.step}" oninput="syncAlgoField('${f.key}')">
+                <button class="w-btn" onclick="stepAlgoField('${f.key}',${f.step})">+</button>
+                <span class="w-pct">${f.unit}</span>
             </div>
-        </div>
-        <div class="w-cell">
-            <span class="w-lbl">📏 Intensitatea bonusului de tag-uri <span style="font-size:.62em;color:#666;">(implicit ${DEFAULT_EA_TAG_BONUS_SCALE}) — mai mare = tag-urile contează mai mult</span></span>
-            <div class="w-ctrl">
-                <button class="w-btn" onclick="stepEaScale(-0.5)">−</button>
-                <input class="w-num" type="number" id="eaScaleNum" value="${EA_TAG_BONUS_SCALE.toFixed(1)}" min="0" max="3" step="0.1" oninput="syncEaScale()">
-                <button class="w-btn" onclick="stepEaScale(0.5)">+</button>
-                <span class="w-pct">×</span>
-            </div>
-        </div>
-        <div style="font-size:.65rem;color:#555;margin-top:10px;line-height:1.5;padding-top:10px;border-top:1px dashed #2a2d3a;">
+        </div>`;
+    };
+
+    const html = groups.map(g=>`
+        <div style="grid-column:1/-1;font-size:.66rem;color:#666;text-transform:uppercase;letter-spacing:1px;margin:10px 0 2px;padding-top:8px;border-top:1px dashed #2a2d3a;">${g.name}</div>
+        ${g.fields.map(cellHtml).join('')}
+    `).join('') + `
+        <div style="grid-column:1/-1;font-size:.65rem;color:#555;margin-top:10px;line-height:1.5;padding-top:10px;border-top:1px dashed #2a2d3a;">
             Atributele de bază (PAC/SHO/PAS/DRI/DEF/PHY) se setează manual per jucător, cu +/− direct din
-            modalul lui (în app). Restul (ponderi per poziție ATT/MID/DEF, Form Rating din Win Rate/Chimie/
-            POTM/MVP/Activitate/Dezechilibru) e fix — vezi comentariile din <code>smart-rating.js</code>
-            dacă vrei să reglezi ceva mai fin, direct în cod.
+            modalul lui (în app). Tot ce vezi mai sus e Form Rating + bonus de Tag-uri — modificatorul de
+            moment peste valoarea de bază.
         </div>`;
     document.getElementById('weightsList').innerHTML=html;
 }
-function stepEaBase(delta){
-    EA_TAG_BONUS_CAP=Math.max(0,Math.min(20,Math.round(EA_TAG_BONUS_CAP+delta)));
-    const el=document.getElementById('eaBaseNum');if(el)el.value=EA_TAG_BONUS_CAP;
+function stepAlgoField(key, delta){
+    const f=ALGO_FIELDS.find(x=>x.key===key); if(!f) return;
+    const next=Math.max(f.min, Math.min(f.max, parseFloat((f.get()+delta).toFixed(3))));
+    f.set(next);
+    const el=document.getElementById('algoNum-'+key);
+    if(el) el.value = Number.isInteger(f.step) ? Math.round(next) : next.toFixed(1);
 }
-function syncEaBase(){
-    let v=parseFloat(document.getElementById('eaBaseNum').value);if(isNaN(v))v=DEFAULT_EA_TAG_BONUS_CAP;
-    EA_TAG_BONUS_CAP=Math.max(0,Math.min(20,Math.round(v)));
-}
-function stepEaScale(delta){
-    EA_TAG_BONUS_SCALE=Math.max(0,Math.min(3,parseFloat((EA_TAG_BONUS_SCALE+delta).toFixed(1))));
-    const el=document.getElementById('eaScaleNum');if(el)el.value=EA_TAG_BONUS_SCALE.toFixed(1);
-}
-function syncEaScale(){
-    let v=parseFloat(document.getElementById('eaScaleNum').value);if(isNaN(v))v=DEFAULT_EA_TAG_BONUS_SCALE;
-    EA_TAG_BONUS_SCALE=Math.max(0,Math.min(3,v));
+function syncAlgoField(key){
+    const f=ALGO_FIELDS.find(x=>x.key===key); if(!f) return;
+    let v=parseFloat(document.getElementById('algoNum-'+key).value); if(isNaN(v)) v=f.default;
+    f.set(Math.max(f.min, Math.min(f.max, v)));
 }
 
 /**
@@ -901,13 +897,13 @@ function syncEaScale(){
  * vadă impactul înainte să apese "confirmă", nu după.
  */
 function computeAlgoPreviewDeltas(){
-    const before=_algoSnapshot||{cap:DEFAULT_EA_TAG_BONUS_CAP,scale:DEFAULT_EA_TAG_BONUS_SCALE};
+    const before=_algoSnapshot || (()=>{ const s={}; ALGO_FIELDS.forEach(f=>{s[f.key]=f.default;}); return s; })();
     const players=db.players.filter(p=>p.games>0&&p.adminRating==null);
     const results=players.map(p=>({p,after:getSmartRating(p)}));
-    const liveCap=EA_TAG_BONUS_CAP,liveScale=EA_TAG_BONUS_SCALE;
-    EA_TAG_BONUS_CAP=before.cap;EA_TAG_BONUS_SCALE=before.scale;
+    const live=snapshotAlgoFields();
+    restoreAlgoFieldsSnapshot(before);
     results.forEach(r=>{r.before=getSmartRating(r.p);});
-    EA_TAG_BONUS_CAP=liveCap;EA_TAG_BONUS_SCALE=liveScale;
+    restoreAlgoFieldsSnapshot(live);
     results.forEach(r=>{r.delta=r.after-r.before;});
     results.sort((a,b)=>b.delta-a.delta);
     return results;
@@ -964,8 +960,7 @@ function closeAlgoPreview(revert){
     const overlay=document.getElementById('algoPreviewOverlay');
     if(overlay) overlay.style.display='none';
     if(revert&&_algoSnapshot){
-        EA_TAG_BONUS_CAP=_algoSnapshot.cap;
-        EA_TAG_BONUS_SCALE=_algoSnapshot.scale;
+        restoreAlgoFieldsSnapshot(_algoSnapshot);
         buildAlgorithmPanel();
         showToast('↺ Modificări anulate — a rămas ce era salvat.');
     }
@@ -973,24 +968,17 @@ function closeAlgoPreview(revert){
 
 async function commitAlgorithmSave(){
     try{
-        await sb.from('algo_settings').upsert([
-            {key:'ea_tag_bonus_cap',value:EA_TAG_BONUS_CAP},
-            {key:'ea_tag_bonus_scale',value:EA_TAG_BONUS_SCALE}
-        ],{onConflict:'key'});
-        _algoSnapshot={cap:EA_TAG_BONUS_CAP,scale:EA_TAG_BONUS_SCALE};
+        await sb.from('algo_settings').upsert(algoFieldsPayloadForSave(),{onConflict:'key'});
+        _algoSnapshot=snapshotAlgoFields();
         closeAlgoPreview(false);
         showToast('✅ Algoritm salvat în baza de date!');
     }catch(e){showToast('⚠️ '+e.message);}
 }
 async function resetAlgorithm(){
-    EA_TAG_BONUS_CAP=DEFAULT_EA_TAG_BONUS_CAP;
-    EA_TAG_BONUS_SCALE=DEFAULT_EA_TAG_BONUS_SCALE;
+    resetAlgoFieldsToDefaults();
     try{
-        await sb.from('algo_settings').upsert([
-            {key:'ea_tag_bonus_cap',value:DEFAULT_EA_TAG_BONUS_CAP},
-            {key:'ea_tag_bonus_scale',value:DEFAULT_EA_TAG_BONUS_SCALE}
-        ],{onConflict:'key'});
-        _algoSnapshot={cap:DEFAULT_EA_TAG_BONUS_CAP,scale:DEFAULT_EA_TAG_BONUS_SCALE};
+        await sb.from('algo_settings').upsert(algoFieldsPayloadForSave(),{onConflict:'key'});
+        _algoSnapshot=snapshotAlgoFields();
     }catch(e){console.warn(e);}
     buildAlgorithmPanel();showToast('↺ Algoritm resetat!');
 }
