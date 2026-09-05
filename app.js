@@ -172,20 +172,17 @@ function getPlayerArchetype(p){
         adminSet: false
     };
 }
-// EA_TAG_BONUS_CAP, EA_TAG_BONUS_SCALE — definite (mutabile) în
-// smart-rating.js. Singurele 2 "cadrane" ale formulei care mai sunt
-// reglabile din admin — atributele de bază (PAC/SHO/PAS/DRI/DEF/PHY)
-// se setează acum MANUAL, per jucător, din modalul lui.
+// EA_TAG_BONUS_CAP, EA_TAG_BONUS_SCALE, GOAL_BONUS_WEIGHT, EA_FORM_* —
+// toate definite (mutabile) în smart-rating.js, în registrul ALGO_FIELDS.
+// Panoul din Setări generează UI-ul automat din acel registru, ca toate
+// "cadranele" formulei OVR (Tag-uri, Win Rate, Chimie, POTM, MVP,
+// Activitate, Dezechilibru, Goluri) să fie vizibile și reglabile
+// dintr-un singur loc — atributele de bază (PAC/SHO/PAS/DRI/DEF/PHY)
+// rămân manuale, per jucător, din modalul lui.
 async function loadAlgoSettings(){
     try{
         const {data} = await sb.from('algo_settings').select('key,value');
-        if(!data?.length) return;
-        data.forEach(row=>{
-            if(row.key==='ea_tag_bonus_cap')   EA_TAG_BONUS_CAP   = parseFloat(row.value);
-            if(row.key==='ea_tag_bonus_scale') EA_TAG_BONUS_SCALE = parseFloat(row.value);
-        });
-        if(isNaN(EA_TAG_BONUS_CAP))   EA_TAG_BONUS_CAP   = DEFAULT_EA_TAG_BONUS_CAP;
-        if(isNaN(EA_TAG_BONUS_SCALE)) EA_TAG_BONUS_SCALE = DEFAULT_EA_TAG_BONUS_SCALE;
+        applyAlgoSettingsRows(data);
     }catch(e){ console.warn('loadAlgoSettings:', e.message); }
 }
 // buildTWFromConfig/saveTagWeights au fost eliminate — tw_weight
