@@ -16,6 +16,13 @@
  *   - Tag-urile rămân — dar acum sunt un BONUS mic peste valoarea
  *     manuală (±EA_TAG_BONUS_CAP puncte per atribut), nu mai sunt
  *     motorul principal. Vezi eaComputeTagBonus.
+ *   - REFACTOR (v4 — effects in-line, fără profil extern): tag-ul NU
+ *     mai are un "Profil atribute" (impact_profile pe 9 chei abstracte
+ *     viteza/tehnica/.../pozitionare) mapat indirect spre PAC/SHO/PAS/
+ *     DRI/DEF/PHY. În loc, tag-ul are un obiect `effects` in-line, cu
+ *     EXACT cele 6 chei EA (pac/sho/pas/dri/def/phy), aplicate direct,
+ *     1-la-1, ca bonus pe atributul cu același nume. Vezi EFFECT_KEYS
+ *     și eaComputeTagBonus.
  *   - Base OVR = combinație ponderată (per poziție) din atributele
  *     finale (manual + bonus tag-uri) — neschimbat conceptual.
  *   - Form Rating (Win Rate recent, Chimie, POTM, MVP, Activitate,
@@ -36,7 +43,9 @@
  *                   potmCount, mvpCount, ...}
  *   - db.history  → array de meciuri {orangePlayers, greenPlayers,
  *                   blackPlayers, winner, ...}
- *   - tagsConfig  → array de tag-uri configurate {id, type, impact_profile, ...}
+ *   - tagsConfig  → array de tag-uri configurate {id, type, effects, ...}
+ *                   unde effects = {pac,sho,pas,dri,def,phy} (in-line,
+ *                   fără profil extern — vezi REFACTOR v4 mai sus)
  *   - POSITIONS   → obiect {COD: {group:'GK'|'DEF'|'MID'|'FWD', ...}}
  *
  * Acest fișier NU face nimic legat de UI (fără HTML, fără DOM) — doar
@@ -48,9 +57,9 @@
 // cu 20 din 25.
 const WINRATE_PRIOR_GAMES = 8;
 
-// Atribute de bază (din impact_profile al tag-urilor) — alimentează
-// bonusul de tag-uri peste atributele EA (vezi eaComputeTagBonus).
-const PROFILE_ATTRS = ['viteza','tehnica','strategie','aparare','efort','mentalitate','fizic','executie','pozitionare'];
+// Cele 6 chei EA pe care le poate seta direct un tag, in-line, în
+// `tag.effects` — nu mai există un profil intermediar/extern.
+const EFFECT_KEYS = ['pac','sho','pas','dri','def','phy'];
 
 // ── Poziție → grup (GK/DEF/MID/FWD) ─────────────────────────────────
 const LEGACY_ROLE_MAP = { portar:'GK', fundas:'CB', mijlocas:'CM', atacant:'ST' };
@@ -124,6 +133,47 @@ function getCurrentTeammates(p){
     return db.players.filter(pl => pl.status===p.status && pl.name!==p.name);
 }
 
+// ── Performanță Goluri (relativ la grupul de meciuri jucate) ────────
+// Înlocuiește vechiul calcul "goluri brute * pondere" dintr-un scor de
+// performanță: un jucător cu 5 goluri din 3 meciuri nu e comparabil
+// direct cu unul cu 5 goluri din 15 meciuri, deci comparăm fiecare
+// jucător cu MEDIA grupului lui de jucători cu ACELAȘI matchesPlayed.
+const DEFAULT_GOAL_BONUS_WEIGHT = 0.6; // ia locul fostului `s.goals*0.6`
+let GOAL_BONUS_WEIGHT = DEFAULT_GOAL_BONUS_WEIGHT;
+
+/**
+ * computeGoalDeltaScores — primește un array de statistici de jucători
+ * `{ name, goals, matchesPlayed, ... }` (de regulă o fereastră de timp:
+ * săptămâna curentă, sezonul curent etc.) și întoarce ACELAȘI array,
+ * augmentat cu:
+ *   - groupAvgGoals: media golurilor jucătorilor cu același matchesPlayed
+ *   - deltaGoals:    goluri proprii − groupAvgGoals
+ *   - goalScore:     deltaGoals * goalBonusWeight (component în scorul final)
+ * Jucătorii cu matchesPlayed=0 nu au grup relevant → deltaGoals=0.
+ */
+function computeGoalDeltaScores(playersStats, goalBonusWeight = GOAL_BONUS_WEIGHT){
+    // 1) Grupare după numărul exact de meciuri jucate.
+    const groups = {}; // matchesPlayed -> { totalGoals, count }
+    playersStats.forEach(s=>{
+        const mp = s.matchesPlayed;
+        if(!mp) return;
+        if(!groups[mp]) groups[mp] = { totalGoals:0, count:0 };
+        groups[mp].totalGoals += (s.goals||0);
+        groups[mp].count += 1;
+    });
+    // 2) Medie pe grup: Medie_Goluri_Grup = Total_Goluri_Grup / Numar_Jucatori_Grup
+    const avgByGroup = {};
+    Object.keys(groups).forEach(mp=>{
+        avgByGroup[mp] = groups[mp].count ? groups[mp].totalGoals / groups[mp].count : 0;
+    });
+    // 3) Delta + 4) Punctaj_Goluri = deltaGoals * goalBonusWeight
+    return playersStats.map(s=>{
+        const groupAvg = s.matchesPlayed ? (avgByGroup[s.matchesPlayed] || 0) : 0;
+        const deltaGoals = (s.goals||0) - groupAvg;
+        return { ...s, groupAvgGoals: groupAvg, deltaGoals, goalScore: deltaGoals * goalBonusWeight };
+    });
+}
+
 // ── Activitate recentă (absențe) — folosit de Form Rating ────────────
 function getActivityMultiplier(p){
     const recentMatches = db.history.slice(0, 8);
@@ -162,10 +212,6 @@ const DEFAULT_EA_TAG_BONUS_SCALE = 1.0; // multiplicator de intensitate
 let EA_TAG_BONUS_CAP = DEFAULT_EA_TAG_BONUS_CAP;
 let EA_TAG_BONUS_SCALE = DEFAULT_EA_TAG_BONUS_SCALE;
 
-// Clamp pe suma impact_profile a unui jucător per atribut de bază, ca
-// 4-5 tag-uri suprapuse să nu explodeze bonusul la extreme.
-const EA_PROFILE_CLAMP = 6;
-
 /**
  * eaGetManualAttrs — valorile SETATE DE ADMIN pentru un jucător (1-99,
  * întregi). Dacă nu s-a setat nimic încă, toate pornesc de la
@@ -184,91 +230,44 @@ function eaGetManualAttrs(p, isGk){
 }
 
 /**
- * getPlayerImpactProfile — suma impact_profile (cele 9 atribute de
- * bază din tags_config) pentru tag-urile ACTIVE ale UNUI SINGUR
- * jucător, NECLAMPUITĂ. Refolosită și de computeTeamAttrProfile din
- * app.js (însumează peste toată echipa, pt echilibrare pe posturi).
+ * getPlayerDirectEaProfile — suma `tag.effects` (cele 6 chei EA
+ * in-line: pac/sho/pas/dri/def/phy) peste tag-urile ACTIVE ale UNUI
+ * SINGUR jucător, NECLAMPUITĂ, cu chei rezultat în format EA
+ * (PAC/SHO/PAS/DRI/DEF/PHY) — gata de folosit peste EA_ATTR_KEYS.
+ * Fără GK: schema `effects` acoperă doar cele 6 atribute de câmp;
+ * portarii nu primesc bonus din tag-uri (ca înainte de refactor,
+ * pentru chei GK nu exista mapare directă oricum).
  */
-function getPlayerImpactProfile(p){
-    const profile = {};
-    PROFILE_ATTRS.forEach(a=>{ profile[a]=0; });
-    getPlayerActiveTagObjects(p).forEach(obj=>{
-        const ip = obj.tag?.impact_profile || {};
-        PROFILE_ATTRS.forEach(a=>{
-            const v = parseFloat(ip[a]);
-            if(!isNaN(v)) profile[a]+=v;
-        });
-    });
-    return profile;
-}
-/** La fel ca getPlayerImpactProfile, dar pentru tag-uri scrise direct
- * cu chei EA (PAC/SHO/PAS/DRI/DEF/PHY) — ex: Power Shot, Tiki-Taka. */
 function getPlayerDirectEaProfile(p){
     const profile = {};
-    EA_DIRECT_KEYS.forEach(a=>{ profile[a]=0; });
+    EA_DIRECT_KEYS.forEach(k=>{ profile[k]=0; });
     getPlayerActiveTagObjects(p).forEach(obj=>{
-        const ip = obj.tag?.impact_profile || {};
-        EA_DIRECT_KEYS.forEach(a=>{
-            const v = parseFloat(ip[a]);
-            if(!isNaN(v)) profile[a]+=v;
+        const fx = obj.tag?.effects || {};
+        EFFECT_KEYS.forEach(k=>{
+            const v = parseFloat(fx[k]);
+            if(!isNaN(v)) profile[k.toUpperCase()] += v;
         });
     });
     return profile;
 }
-
-// Cum se distribuie fiecare din cele 9 atribute de bază (din tag-uri)
-// peste atributele EA finale — DOAR pentru calculul bonusului, nu mai
-// pentru baza atributului (aia e manuală acum).
-const EA_BASE_TO_OUTFIELD_MAP = {
-    viteza:      { PAC:.6, DRI:.2, PHY:.2 },
-    tehnica:     { DRI:.4, PAS:.3, SHO:.2 },
-    strategie:   { PAS:.4, SHO:.2 },
-    aparare:     { DEF:.7 },
-    efort:       { PHY:.4, PAC:.2 },
-    mentalitate: { PAS:.3 },
-    fizic:       { PHY:.6 },
-    executie:    { SHO:.5, DRI:.2 },
-    pozitionare: { DEF:.3, PAS:.2 },
-};
-const EA_BASE_TO_GK_MAP = {
-    aparare:     { DIV:.5, REF:.4, HAN:.3 },
-    tehnica:     { HAN:.3, KIC:.4 },
-    strategie:   { POS:.5, KIC:.3 },
-    pozitionare: { POS:.4, DIV:.2 },
-    mentalitate: { DIV:.2, REF:.2 },
-    viteza:      { SPD:.6 },
-    efort:       { SPD:.2 },
-    fizic:       { SPD:.2 },
-};
 
 /**
  * eaComputeTagBonus — bonus/penalizare per atribut EA, DOAR din
  * tag-urile active — plafonat la ±EA_TAG_BONUS_CAP puncte. Se adună
  * peste valoarea manuală (eaGetManualAttrs), nu o înlocuiește.
+ * Portarii (isGk) nu au bonus din tag-uri: `effects` e definit doar
+ * pentru atributele de câmp (PAC/SHO/PAS/DRI/DEF/PHY).
  */
 function eaComputeTagBonus(p, isGk){
     const keys = isGk ? GK_ATTR_KEYS : EA_ATTR_KEYS;
-    const map = isGk ? EA_BASE_TO_GK_MAP : EA_BASE_TO_OUTFIELD_MAP;
     const bonus = {}; keys.forEach(k=>{ bonus[k]=0; });
+    if(isGk) return bonus;
 
-    const profile = getPlayerImpactProfile(p);
-    PROFILE_ATTRS.forEach(base=>{
-        const raw = Math.max(-EA_PROFILE_CLAMP, Math.min(EA_PROFILE_CLAMP, profile[base]||0));
-        const targets = map[base];
-        if(!targets) return;
-        Object.entries(targets).forEach(([eaKey,w])=>{
-            if(bonus[eaKey]==null) return;
-            bonus[eaKey] += raw * w * EA_TAG_BONUS_SCALE;
-        });
+    const direct = getPlayerDirectEaProfile(p);
+    EA_DIRECT_KEYS.forEach(k=>{
+        const raw = Math.max(-EA_TAG_BONUS_CAP, Math.min(EA_TAG_BONUS_CAP, direct[k]||0));
+        bonus[k] += raw * EA_TAG_BONUS_SCALE;
     });
-
-    if(!isGk){
-        const direct = getPlayerDirectEaProfile(p);
-        EA_DIRECT_KEYS.forEach(k=>{
-            const raw = Math.max(-EA_PROFILE_CLAMP, Math.min(EA_PROFILE_CLAMP, direct[k]||0));
-            bonus[k] += raw * EA_TAG_BONUS_SCALE;
-        });
-    }
 
     keys.forEach(k=>{ bonus[k] = Math.max(-EA_TAG_BONUS_CAP, Math.min(EA_TAG_BONUS_CAP, Math.round(bonus[k]))); });
     return bonus;

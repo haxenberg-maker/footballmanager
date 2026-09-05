@@ -269,7 +269,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             <div class="card-title">⚙️ Setări</div>
             <div class="algo-panel-grid weights-grid" id="weightsList"></div>
         </div>
-        <div style="font-size:.62rem;color:#555;text-align:center;padding:4px 0 8px;">🏷️ Profilul de atribute per tag (ce alimentează PAC/SHO/PAS/DRI/DEF/PHY) se editează în secțiunea <strong>Tag-uri</strong>.</div>
+        <div style="font-size:.62rem;color:#555;text-align:center;padding:4px 0 8px;">🏷️ Efectele in-line ale fiecărui tag (ce alimentează direct PAC/SHO/PAS/DRI/DEF/PHY) se editează în secțiunea <strong>Tag-uri</strong>.</div>
         <div class="save-bar show" id="algoSaveBar">
             <button class="reset-btn-sm" onclick="resetAlgorithm()">↺ Reset</button>
             <button class="save-btn" onclick="saveAlgorithm()">💾 Salvează Algoritmul</button>
@@ -319,8 +319,8 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
                 </div>
             </div>
             <div style="background:#080a12;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid var(--border);">
-                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Profil Impact (−3 → +3)</div>
-                <div id="ntProfileSliders"></div>
+                <div style="font-size:.6rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Efecte pe atribute (−3 → +3), in-line — fără profil extern</div>
+                <div id="ntEffectSteppers" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
             </div>
             <div style="display:flex;gap:8px;">
                 <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#fff;padding:9px;border-radius:8px;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
@@ -555,7 +555,7 @@ const today=new Date().toLocaleDateString('ro-RO',{day:'2-digit',month:'2-digit'
 let db={players:[],history:[],playerAwards:[]};
 let tagsConfig=[];
 let _algoSnapshot=null; // {base, scale} — ce e SALVAT în DB, folosit ca bază pt preview
-// EA_TAG_BONUS_CAP, EA_TAG_BONUS_SCALE, PROFILE_ATTRS, getSmartRating,
+// EA_TAG_BONUS_CAP, EA_TAG_BONUS_SCALE, EFFECT_KEYS, getSmartRating,
 // eaGetPlayerCard și toate funcțiile de calcul → definite acum în
 // smart-rating.js (încărcat înaintea acestui script). Atributele de bază
 // (PAC/SHO/PAS/DRI/DEF/PHY) se setează manual per jucător, din app.js.
@@ -563,17 +563,16 @@ let csvParsed=null;
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
 // ── Constants (specifice UI-ului acestei pagini) ────────────────────
-const PROFILE_ATTR_META={
-    viteza:{label:'⚡ Viteză',color:'#ff8c00'},
-    tehnica:{label:'🎯 Tehnică',color:'#82b1ff'},
-    strategie:{label:'🧠 Strategie',color:'#00bcd4'},
-    aparare:{label:'🛡️ Apărare',color:'#4caf50'},
-    efort:{label:'🏃 Efort',color:'#ffcc00'},
-    mentalitate:{label:'💡 Mentalitate',color:'#ce93d8'},
-    fizic:{label:'💪 Fizic',color:'#ef9a9a'},
-    executie:{label:'🎯 Execuție',color:'#a5d6a7'},
-    pozitionare:{label:'📍 Poziționare',color:'#80deea'},
+// Efecte in-line pe tag (fără profil extern) — 1-la-1 pe cele 6 chei EA.
+const EFFECT_META={
+    pac:{label:'PAC',color:'#ff8c00'},
+    sho:{label:'SHO',color:'#ef9a9a'},
+    pas:{label:'PAS',color:'#82b1ff'},
+    dri:{label:'DRI',color:'#ce93d8'},
+    def:{label:'DEF',color:'#4caf50'},
+    phy:{label:'PHY',color:'#ffcc00'},
 };
+const EFFECT_MIN=-3, EFFECT_MAX=3;
 const CAT_LABELS_CONFIG={atac:'⚽ Atac',aparare:'🛡️ Apărare',efort:'🏃 Efort',portar:'🧤 Portar',mentalitate:'💡 Mentalitate / IQ',fizic:'💪 Profil Fizic',executie:'🎯 Execuție',pozitionare:'📍 Poziționare',negativ:'❌ Negative'};
 
 // ── Utilities ─────────────────────────────────────────────────────
@@ -1007,9 +1006,8 @@ function buildTagsPanel(){
             <div style="font-size:.65rem;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--border);">${catLabel}</div>
             ${tags.map(t=>{
                 const typeColor=t.type==='pos'?'#69f0ae':t.type==='neg'?'#ef9a9a':'#82b1ff';
-                const ip=t.impact_profile||{};
-                const profileStr=PROFILE_ATTRS.map(a=>{const v=parseFloat(ip[a])||0;return v!==0?(PROFILE_ATTR_META[a]?.label.split(' ')[0]||a)+(v>0?'+'+v:v):null;}).filter(Boolean).join(', ')||'—';
-                const expandId='tag-profile-'+t.id;
+                const fx=t.effects||{};
+                const effectsStr=EFFECT_KEYS.map(k=>{const v=parseFloat(fx[k])||0;return v!==0?(EFFECT_META[k]?.label||k)+(v>0?'+'+v:v):null;}).filter(Boolean).join(', ')||'—';
                 return `<div class="tag-row">
                     <div class="tag-row-main">
                         <input type="text" value="${t.emoji}" maxlength="4" class="tag-input-sm" style="width:34px;text-align:center;" onchange="updateTagField(${t.id},'emoji',this.value)">
@@ -1022,78 +1020,76 @@ function buildTagsPanel(){
                         <select class="tag-select-sm" onchange="updateTagField(${t.id},'category',this.value)">
                             ${Object.entries(CAT_LABELS_CONFIG).map(([v,l])=>`<option value="${v}" ${t.category===v?'selected':''}>${l.split(' ')[0]}</option>`).join('')}
                         </select>
-                        <button class="tag-profile-btn" onclick="toggleTagProfile('${expandId}')" title="Profil (impact_profile): ${profileStr} — bonus mic peste atributele EA setate manual">📊 Profil atribute</button>
                         <button onclick="deleteTag(${t.id})" style="background:none;border:1px solid #c62828;color:#c62828;padding:2px 6px;border-radius:6px;font-size:.72rem;cursor:pointer;">🗑️</button>
                     </div>
-                    <div class="tag-profile-panel" id="${expandId}">
-                        <div style="font-size:.6rem;color:#555;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">📊 Profil (−3 → +3)</div>
-                        <div style="font-size:.58rem;color:#666;margin-bottom:6px;">Alimentează un BONUS mic (±${EA_TAG_BONUS_CAP} puncte max, per atribut) peste valorile setate manual — nu mai e motorul principal al OVR-ului.</div>
-                        <div id="ipSliders-${t.id}"></div>
+                    <div class="tag-profile-panel open">
+                        <div style="font-size:.6rem;color:#555;margin-bottom:2px;text-transform:uppercase;letter-spacing:1px;">Efecte pe atribute (−3 → +3): ${effectsStr}</div>
+                        <div style="font-size:.58rem;color:#666;margin-bottom:6px;">Bonus DIRECT (±${EA_TAG_BONUS_CAP} puncte max, per atribut) peste valorile setate manual — fără profil extern, aplicat 1-la-1 pe PAC/SHO/PAS/DRI/DEF/PHY.</div>
+                        <div id="fxSteppers-${t.id}" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
                     </div>
                 </div>`;
             }).join('')}
         </div>`;
     }).join('');
+    // Randăm steppers-ele DUPĂ ce HTML-ul e în DOM.
+    tagsConfig.forEach(t=>renderEffectSteppers('fxSteppers-'+t.id, t.effects||{}, t.id));
 }
 
-function toggleTagProfile(id){
-    const el=document.getElementById(id);if(!el)return;
-    const tagId=id.replace('tag-profile-','');
-    const t=tagsConfig.find(x=>String(x.id)===tagId);
-    const isOpen=el.classList.toggle('open');
-    if(isOpen) renderProfileSliders('ipSliders-'+tagId,t?.impact_profile||{},tagId);
-}
-
-function renderProfileSliders(containerId,profile={},tagId=null){
+// Render effect steppers (+/-) in-line într-un container.
+function renderEffectSteppers(containerId, effects={}, tagId=null){
     const el=document.getElementById(containerId);if(!el)return;
-    el.innerHTML=PROFILE_ATTRS.map(a=>{
-        const meta=PROFILE_ATTR_META[a];
-        const val=parseFloat(profile[a])||0;
-        const pct=((val+3)/6)*100;
+    el.innerHTML=EFFECT_KEYS.map(k=>{
+        const meta=EFFECT_META[k];
+        const val=parseInt(effects[k])||0;
         const col=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';
-        const sliderId=tagId?`ip-${tagId}-${a}`:a;
-        const onin=tagId?`onProfileSlider(this,'${a}','${tagId}')`:`onProfileSlider(this,'${a}',null)`;
-        return `<div class="ip-row">
-            <span class="ip-lbl" style="color:${meta.color};">${meta.label}</span>
-            <input class="ip-slider" type="range" min="-3" max="3" step="1" value="${val}" id="${sliderId}"
-                style="background:linear-gradient(to right,${meta.color} ${pct}%,#1e2130 ${pct}%);"
-                oninput="${onin}">
-            <span class="ip-val" id="${sliderId}-v" style="color:${col};">${val>0?'+':''}${val}</span>
+        const inputId=tagId?`fx-${tagId}-${k}`:`fx-new-${k}`;
+        const onchg=tagId?`onEffectStep('${k}','${tagId}',this.value)`:`onEffectStep('${k}',null,this.value)`;
+        return `<div class="fx-row" style="display:flex;align-items:center;gap:6px;">
+            <span class="fx-lbl" style="color:${meta.color};min-width:34px;font-weight:700;">${meta.label}</span>
+            <button type="button" onclick="stepEffectInput('${inputId}',-1,'${k}','${tagId||''}')" style="width:24px;height:24px;border-radius:6px;border:1px solid #2a2d40;background:#0a0c14;color:#ccc;cursor:pointer;">−</button>
+            <input class="fx-val-input" type="number" min="${EFFECT_MIN}" max="${EFFECT_MAX}" step="1" value="${val}" id="${inputId}"
+                style="width:42px;text-align:center;color:${col};border:1px solid #2a2d40;border-radius:6px;background:#0a0c14;"
+                onchange="${onchg}">
+            <button type="button" onclick="stepEffectInput('${inputId}',1,'${k}','${tagId||''}')" style="width:24px;height:24px;border-radius:6px;border:1px solid #2a2d40;background:#0a0c14;color:#ccc;cursor:pointer;">+</button>
         </div>`;
     }).join('');
 }
 
-function onProfileSlider(input,attr,tagId){
-    const val=parseInt(input.value);
-    const col=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';
-    const vEl=document.getElementById(input.id+'-v');
-    if(vEl){vEl.textContent=(val>0?'+':'')+val;vEl.style.color=col;}
-    const meta=PROFILE_ATTR_META[attr];
-    const pct=((val+3)/6)*100;
-    input.style.background='linear-gradient(to right,'+meta.color+' '+pct+'%,#1e2130 '+pct+'%)';
+function stepEffectInput(inputId,dir,attr,tagId){
+    const input=document.getElementById(inputId);if(!input)return;
+    const next=Math.max(EFFECT_MIN,Math.min(EFFECT_MAX,(parseInt(input.value)||0)+dir));
+    input.value=next;
+    onEffectStep(attr,tagId||null,next);
+}
+
+function onEffectStep(attr,tagId,rawValue){
+    const val=Math.max(EFFECT_MIN,Math.min(EFFECT_MAX,parseInt(rawValue)||0));
+    const inputId=tagId?`fx-${tagId}-${attr}`:`fx-new-${attr}`;
+    const input=document.getElementById(inputId);
+    if(input){input.value=val;input.style.color=val>0?'#69f0ae':val<0?'#ef9a9a':'#555';}
     if(tagId){
         const t=tagsConfig.find(x=>String(x.id)===String(tagId));
-        if(t){if(!t.impact_profile)t.impact_profile={};t.impact_profile[attr]=val;
-            clearTimeout(window._ipSaveTimer);window._ipSaveTimer=setTimeout(()=>saveTagProfile(tagId),600);}
+        if(t){if(!t.effects)t.effects={};t.effects[attr]=val;
+            clearTimeout(window._fxSaveTimer);window._fxSaveTimer=setTimeout(()=>saveTagEffects(tagId),600);}
     }
 }
 
-async function saveTagProfile(tagId){
+async function saveTagEffects(tagId){
     const t=tagsConfig.find(x=>String(x.id)===String(tagId));if(!t)return;
-    try{await sb.from('tags_config').update({impact_profile:t.impact_profile}).eq('id',tagId);invalidateTagsCache();}
-    catch(e){console.warn('saveTagProfile:',e.message);}
+    try{await sb.from('tags_config').update({effects:t.effects}).eq('id',tagId);invalidateTagsCache();}
+    catch(e){console.warn('saveTagEffects:',e.message);}
 }
 
-function getNewTagProfile(){
-    const p={};
-    PROFILE_ATTRS.forEach(a=>{const el=document.getElementById(a);p[a]=el?parseInt(el.value):0;});
-    return p;
+function getNewTagEffects(){
+    const fx={};
+    EFFECT_KEYS.forEach(k=>{const el=document.getElementById('fx-new-'+k);fx[k]=el?parseInt(el.value)||0:0;});
+    return fx;
 }
 
 function openAddTag(){
     const form=document.getElementById('addTagForm');
     form.classList.add('open');
-    renderProfileSliders('ntProfileSliders',{});
+    renderEffectSteppers('ntEffectSteppers',{});
     form.scrollIntoView({behavior:'smooth'});
 }
 
@@ -1102,12 +1098,12 @@ async function saveNewTag(){
     const label=document.getElementById('ntLabel').value.trim();
     const type=document.getElementById('ntType').value;
     const category=document.getElementById('ntCat').value;
-    const impact_profile=getNewTagProfile();
+    const effects=getNewTagEffects();
     // tw_weight nu mai e citit de formulă — îl lăsăm pe 0, coloana rămâne
     // doar pt. compatibilitate cu schema existentă.
     if(!label){showToast('⚠️ Introdu un label!');return;}
     try{
-        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,impact_profile,tw_weight:0,sort_order:tagsConfig.length+1}).select().single();
+        const{data,error}=await sb.from('tags_config').insert({emoji,label,type,category,effects,tw_weight:0,sort_order:tagsConfig.length+1}).select().single();
         if(error)throw error;
         tagsConfig.push(data);invalidateTagsCache();
         document.getElementById('addTagForm').classList.remove('open');
