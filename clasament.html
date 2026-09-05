@@ -481,7 +481,8 @@ function computeSessionMvpWinner(chrono){
 }
 
 // Markup comun (scoruri per echipă + golgheter) pentru o pereche
-function renderPairBodyPublic(h){
+function renderPairBodyPublic(h, opts){
+    const showHattrick = opts?.showHattrick !== false; // implicit true — vezi apelul din openMatchDetail (sesiune 3 echipe)
     const hasBlack = (h.blackPlayers||[]).length > 0;
     const tg = h.teamGoals || { orange:0, green:0, black:0 };
     const penG = { orange:0, green:0, black:0 };
@@ -512,7 +513,9 @@ function renderPairBodyPublic(h){
         hasBlack ? makeTeamScore(h.blackPlayers, 'black', teamColorsPublic.black, 'Negru') : '',
     ].filter(Boolean).join('<div style="height:1px;background:#262f3f;margin:1px 0;"></div>');
     const mvpWinner = computeSessionMvpWinner([h]); // override-aware — la 2 echipe, goluri+minute e echivalent cu goluri (minute egale), dar respectă suprascrierea manuală
-    const hattrick = mvpWinner && mvpWinner.goals >= 3;
+    const hattrick = showHattrick && mvpWinner && mvpWinner.goals >= 3;
+    // Mod 2 echipe (showHattrick=false): fără mențiunea/logica de hat-trick —
+    // doar un ⭐ MVP simplu, goluri afișate simplu (⚽/⚽×N) oriunde altundeva.
     const topScorerHTML = mvpWinner
         ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b>${mvpWinner.name}</b> ${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
         : '';
@@ -522,6 +525,82 @@ function renderPairBodyPublic(h){
     return { teamsHTML, topScorerHTML, potmHTML, hattrick };
 }
 
+// Extras din openMatchDetail ca să poată fi reutilizat și de cardul inline
+// (renderSingleMatchCard) — tabelă în oglindă + listă cronologică de goluri +
+// timp jucat, pentru un meci simplu (2 echipe, fără ture/rounds_detail).
+function buildTwoTeamMatchDetails(h){
+    const teamHex = (col) => col==='orange'?teamColorsPublic.orange:col==='green'?teamColorsPublic.green:teamColorsPublic.black;
+
+    let timeHtml = '';
+    const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
+    if (totalSec != null) {
+        const mm = Math.floor(totalSec/60), ss = totalSec%60;
+        timeHtml = `⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)`;
+    }
+
+    // ── Tabelă în oglindă: echipa A aliniată dreapta / echipa B stânga,
+    // convergând spre centru. Rating = OVR curent (smart-rating.js). Fără
+    // hattrick — goluri afișate simplu (⚽/⚽×N). MVP 🏆/POTM ⭐ inline,
+    // lângă jucătorul care le-a primit la ACEST meci specific.
+    const mirrorGoalsByPlayer = {};
+    const ensureMP = n => mirrorGoalsByPlayer[n] || (mirrorGoalsByPlayer[n] = {goals:0, assists:0});
+    (h.goalsList||[]).forEach(g=>{
+        if (g.is_penalty) return;
+        ensureMP(g.player_name).goals++;
+        if (g.assist_name) ensureMP(g.assist_name).assists++;
+    });
+    const mvpWinnerMirror = computeSessionMvpWinner([h]);
+    const mvpNameMirror = mvpWinnerMirror ? mvpWinnerMirror.name : null;
+    const potmNameMirror = h.potmWinnerName || null;
+    const sidesMirror = [];
+    if (h.orangePlayers?.length) sidesMirror.push({label:'Portocaliu', color:teamColorsPublic.orange, players:h.orangePlayers, goals:(h.teamGoals&&h.teamGoals.orange)||0});
+    if (h.greenPlayers?.length)  sidesMirror.push({label:'Verde',      color:teamColorsPublic.green,  players:h.greenPlayers,  goals:(h.teamGoals&&h.teamGoals.green)||0});
+    if (h.blackPlayers?.length)  sidesMirror.push({label:'Negru',      color:teamColorsPublic.black,  players:h.blackPlayers,  goals:(h.teamGoals&&h.teamGoals.black)||0});
+    const [sideAMirror, sideBMirror] = sidesMirror;
+    const renderMirrorSide = (side, align) => {
+        if (!side || !side.players?.length) return '<div style="font-size:.72rem;color:#5b6577;">—</div>';
+        return side.players.map(n=>{
+            const gd = mirrorGoalsByPlayer[n];
+            const pl = db.players.find(x=>x.name===n);
+            const ratingHtml = pl ? `<span style="font-family:'Bebas Neue',sans-serif;font-size:.7rem;color:#a78bfa;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);border-radius:5px;padding:0 4px;">${getSmartRating(pl)}</span>` : '';
+            const statsParts = [];
+            if (gd?.goals > 0) statsParts.push(`⚽${gd.goals>1?'×'+gd.goals:''}`);
+            if (gd?.assists > 0) statsParts.push(`🅰️${gd.assists>1?'×'+gd.assists:''}`);
+            const statsHtml = statsParts.length ? `<span style="font-size:.68rem;color:#8b96a8;">${statsParts.join(' ')}</span>` : '';
+            const mvpBadge = n === mvpNameMirror ? '<span title="MVP">🏆</span>' : '';
+            const potmBadge = n === potmNameMirror ? '<span title="POTM">⭐</span>' : '';
+            const nameHtml = `<span style="font-weight:700;color:#f3f6fa;">${n}</span>`;
+            const badges = mvpBadge + potmBadge;
+            const rowStyle = 'display:flex;align-items:center;gap:5px;padding:3px 0;'
+                + (align==='right' ? 'justify-content:flex-end;' : 'justify-content:flex-start;');
+            return align==='right'
+                ? `<div style="${rowStyle}">${badges}${statsHtml}${ratingHtml}${nameHtml}</div>`
+                : `<div style="${rowStyle}">${nameHtml}${ratingHtml}${statsHtml}${badges}</div>`;
+        }).join('');
+    };
+    const mirrorHtml = `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;">
+        <div style="flex:1;text-align:right;font-weight:700;font-size:.82rem;color:${sideAMirror?.color||'#f3f6fa'};">${sideAMirror?.label||''}</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#f3f6fa;white-space:nowrap;">${sideAMirror?.goals??0} - ${sideBMirror?.goals??0}</div>
+        <div style="flex:1;text-align:left;font-weight:700;font-size:.82rem;color:${sideBMirror?.color||'#f3f6fa'};">${sideBMirror?.label||''}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;">
+        <div style="background:#141a24;border-radius:8px;padding:6px 10px;">${renderMirrorSide(sideAMirror,'right')}</div>
+        <div style="width:1px;background:#262f3f;"></div>
+        <div style="background:#141a24;border-radius:8px;padding:6px 10px;">${renderMirrorSide(sideBMirror,'left')}</div>
+    </div>`;
+
+    const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
+    const goalsHtml = normalGoals.length
+        ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
+            <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}</span>
+            <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
+        </div>`).join('')
+        : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
+    const listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}`;
+
+    return { mirrorHtml, listHtml, timeHtml };
+}
+
 // Card pentru un meci simplu (2 echipe)
 function renderSingleMatchCard(h){
     const _ws = getWinnerSideFromScore(h);
@@ -529,16 +608,25 @@ function renderSingleMatchCard(h){
                    : _ws === 'green'  ? teamColorsPublic.green
                    : _ws === 'black'  ? teamColorsPublic.black
                    : '#8b96a8';
-    const { teamsHTML, topScorerHTML, potmHTML } = renderPairBodyPublic(h);
+    const { topScorerHTML, potmHTML } = renderPairBodyPublic(h, { showHattrick: false });
     const badgesHTML = (topScorerHTML || potmHTML) ? `<div class="mc-badges" style="margin-top:8px;">${topScorerHTML}${potmHTML}</div>` : '';
-    return `<div class="match-card" onclick="openMatchDetail('${h._dbId}')" style="cursor:pointer;">
+    const { mirrorHtml, listHtml, timeHtml } = buildTwoTeamMatchDetails(h);
+    const detailsDomId = 'matchDetails_' + String(h._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
+    const timeDomId = 'matchTime_' + String(h._dbId||Math.random()).replace(/[^a-zA-Z0-9]/g,'');
+    return `<div class="match-card">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
             <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
         </div>
         <div class="match-card-body">
-            <div style="background:#1b2330;border-radius:8px;padding:6px 10px;border:1px solid #262f3f;">${teamsHTML}</div>
             ${badgesHTML}
+            <button class="mc-details-toggle" onclick="toggleSessionDetails('${detailsDomId}', this)">▼ Afișează detalii</button>
+            <div id="${detailsDomId}" style="display:none;margin-top:10px;">
+                <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${mirrorHtml}</div>
+                <div>${listHtml}</div>
+                ${timeHtml ? `<button onclick="event.stopPropagation();toggleSessionDetails('${timeDomId}', this, '▼ Timp pe teren','▲ Ascunde timp pe teren')" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:#1b2330;border:1px dashed #262f3f;color:#8b96a8;font-size:.7rem;font-weight:700;cursor:pointer;">▼ Timp pe teren</button>
+                <div id="${timeDomId}" style="display:none;margin-top:8px;background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;">${timeHtml}</div>` : ''}
+            </div>
         </div>
     </div>`;
 }
@@ -793,14 +881,17 @@ function openMatchDetail(dbId){
     // MVP/POTM per-pereche se ascund în modul sesiune (ambele sunt deja arătate
     // corect la nivel de sesiune, calculate pe toate perechile — un "MVP" sau
     // "POTM" per pereche ar fi altă persoană decât cea corectă, de sesiune).
-    const topScorerForModal = hasRounds ? '' : topScorerHTML;
-    const potmForModal = hasRounds ? '' : potmHTML;
+    // La 2 echipe (!hasRounds), MVP/POTM apar acum INLINE, lângă jucător, în
+    // tabela în oglindă de mai jos — nu ca badge-uri separate deasupra.
+    const topScorerForModal = '';
+    const potmForModal = '';
     const badgesHTML = (topScorerForModal || potmForModal) ? `<div class="mc-badges" style="margin:8px 0;">${topScorerForModal}${potmForModal}</div>` : '';
     const teamHex = (col) => col==='orange'?teamColorsPublic.orange:col==='green'?teamColorsPublic.green:teamColorsPublic.black;
     const modalId = 'md_' + String(dbId).replace(/[^a-zA-Z0-9]/g,'');
 
     let timeHtml = '';
     let listHtml = '';
+    let mirrorHtml = ''; // tabelă în oglindă — construită doar la 2 echipe (!hasRounds), vezi mai jos
     if (hasRounds) {
         // ── Meci 3 echipe: o "tură" = un rând din rounds_detail. Ambele echipe
         // ale acestei perechi au jucat exact aceleași ture, deci timpul e comun.
@@ -851,20 +942,10 @@ function openMatchDetail(dbId){
         }).join('');
         listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">📊 Istoric Ture</div>${turHtml}${anyReconstructed?'<div style="font-size:.6rem;color:#5b6577;margin-top:5px;">~ minut dedus automat (meci salvat înainte de update)</div>':''}`;
     } else {
-        // ── Meci simplu (2 echipe): durata = ended_at - started_at, comună ambelor echipe
-        const totalSec = (h.startedAt && h.endedAt) ? Math.max(0, Math.round((new Date(h.endedAt)-new Date(h.startedAt))/1000)) : null;
-        if (totalSec != null) {
-            const mm = Math.floor(totalSec/60), ss = totalSec%60;
-            timeHtml = `⏱ Timp jucat: <b style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</b> (ambele echipe)`;
-        }
-        const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
-        const goalsHtml = normalGoals.length
-            ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
-                <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}</span>
-                <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
-            </div>`).join('')
-            : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
-        listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}`;
+        const built = buildTwoTeamMatchDetails(h);
+        mirrorHtml = built.mirrorHtml;
+        listHtml = built.listHtml;
+        timeHtml = built.timeHtml;
     }
 
     const timeId = modalId + '_time';
@@ -878,7 +959,7 @@ function openMatchDetail(dbId){
     overlay.onclick = (e)=>{ if(e.target===overlay) overlay.remove(); };
     overlay.innerHTML = `<div style="background:#141a24;border:1px solid #262f3f;box-shadow:0 20px 60px -12px rgba(0,0,0,.7);border-radius:16px;padding:18px;max-width:380px;width:100%;max-height:82vh;overflow:auto;">
         <div style="font-size:.68rem;color:#8b96a8;margin-bottom:4px;">${h.date||'—'} · ${hasRounds?'ture ':''}${h.score||'—'}</div>
-        <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${teamsHTML}</div>
+        <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${mirrorHtml || teamsHTML}</div>
         ${badgesHTML}
         <div style="margin-top:6px;">${listHtml}</div>
         ${timeToggleHtml}
