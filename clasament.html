@@ -623,9 +623,11 @@ function renderSingleMatchCard(h){
             <button class="mc-details-toggle" onclick="toggleSessionDetails('${detailsDomId}', this)">▼ Afișează detalii</button>
             <div id="${detailsDomId}" style="display:none;margin-top:10px;">
                 <div style="background:#1b2330;border-radius:9px;padding:9px 11px;border:1px solid #262f3f;margin-bottom:8px;">${mirrorHtml}</div>
-                <div>${listHtml}</div>
-                ${timeHtml ? `<button onclick="event.stopPropagation();toggleSessionDetails('${timeDomId}', this, '▼ Timp pe teren','▲ Ascunde timp pe teren')" style="width:100%;margin-top:10px;padding:8px;border-radius:8px;background:#1b2330;border:1px dashed #262f3f;color:#8b96a8;font-size:.7rem;font-weight:700;cursor:pointer;">▼ Timp pe teren</button>
-                <div id="${timeDomId}" style="display:none;margin-top:8px;background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;">${timeHtml}</div>` : ''}
+                <button onclick="event.stopPropagation();toggleSessionDetails('${timeDomId}', this, '▼ Afișează timpii','▲ Ascunde timpii')" style="width:100%;margin-top:4px;padding:8px;border-radius:8px;background:#1b2330;border:1px dashed #262f3f;color:#8b96a8;font-size:.7rem;font-weight:700;cursor:pointer;">▼ Afișează timpii</button>
+                <div id="${timeDomId}" style="display:none;margin-top:8px;">
+                    <div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;">${listHtml}</div>
+                    ${timeHtml ? `<div style="background:#1b2330;border-radius:8px;padding:8px 10px;border:1px solid #262f3f;margin-top:8px;">${timeHtml}</div>` : ''}
+                </div>
             </div>
         </div>
     </div>`;
