@@ -655,6 +655,7 @@ async function loadAll(){
         matchHistory:p.match_history||[],
         adminRating:p.admin_rating!=null?parseFloat(p.admin_rating):null,
         adminTags:p.admin_tags?p.admin_tags.split(',').filter(Boolean):[],
+        manualAttrs:p.manual_attrs||null, // PAC/SHO/PAS/DRI/DEF/PHY setate manual — fără asta, eaGetManualAttrs cade pe EA_MANUAL_DEFAULT (40) și preview-ul de algoritm arată OVR-uri greșite
         totalGoals:p.total_goals||0,totalGoalsConceded:p.total_goals_conceded||0,
         lastImbalanceLoss:p.last_imbalance_loss||0,speedStatus:p.speed_status||null,
         ratings:(p.ratings||[]).map(r=>({general:r.general||5,viteza:r.viteza||5,tehnica:r.tehnica||5,strategie:r.strategie||5,aparare:r.aparare||5}))
