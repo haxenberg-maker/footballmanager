@@ -2118,6 +2118,26 @@ async function loadAll(){
             if (mvpWinner) { const pl = db.players.find(x=>x.name===mvpWinner.name); if (pl) pl.mvpCount++; }
         });
 
+        // p.careerPotmCount / careerMvpCount / careerAwardsCount — pentru
+        // bonusul separat "🏆 Realizări istorice" din Form Rating
+        // (eaComputeCareerAchievementsDelta, smart-rating.js). Spre deosebire
+        // de potmCount/mvpCount de mai sus (strict sezonul curent), aici e
+        // EXACT aceeași logică folosită deja de renderAwardsLeaderboard —
+        // toate sezoanele, fără filtrare — doar salvată pe jucător, nu doar
+        // afișată în tab-ul Premii.
+        db.players.forEach(p=>{ p.careerPotmCount=0; p.careerMvpCount=0; p.careerAwardsCount=0; });
+        groupHistoryForDisplay(db.history).forEach(item => {
+            const { winnerId } = computePotmWinnerForRows(item.rows);
+            if (winnerId != null) { const pl = db.players.find(x=>x.id===winnerId); if (pl) pl.careerPotmCount++; }
+            const chrono = [...item.rows].reverse();
+            const winner = computeSessionMvpWinner(chrono);
+            if (winner) { const pl = db.players.find(x=>x.name===winner.name); if (pl) pl.careerMvpCount++; }
+        });
+        (db.playerAwards||[]).forEach(a=>{
+            const pl = db.players.find(x=>x.id===a.player_id);
+            if (pl) pl.careerAwardsCount = (pl.careerAwardsCount||0) + 1;
+        });
+
         renderMeCard();
         renderStreakBanner();
         renderWeeklyCards();

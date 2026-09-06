@@ -367,6 +367,8 @@ const DEFAULT_EA_FORM_ACTIVITY_SCALE = 20;
 const DEFAULT_EA_FORM_IMBALANCE_PER  = 1.5;
 const DEFAULT_EA_FORM_TOTAL_CAP      = 12;
 const DEFAULT_EA_FORM_GOALS_CAP      = 4; // plafon puncte OVR din bonusul de goluri
+const DEFAULT_CAREER_ACHV_SCALE      = 1;   // puncte OVR per realizare istorică (MVP+POTM+premiu custom)
+const DEFAULT_CAREER_ACHV_CAP        = 6;   // plafon puncte OVR din realizări istorice
 
 let EA_FORM_WINRATE_SCALE  = DEFAULT_EA_FORM_WINRATE_SCALE;
 let EA_FORM_WINRATE_CAP    = DEFAULT_EA_FORM_WINRATE_CAP;
@@ -380,6 +382,27 @@ let EA_FORM_ACTIVITY_SCALE = DEFAULT_EA_FORM_ACTIVITY_SCALE;
 let EA_FORM_IMBALANCE_PER  = DEFAULT_EA_FORM_IMBALANCE_PER;
 let EA_FORM_TOTAL_CAP      = DEFAULT_EA_FORM_TOTAL_CAP;
 let EA_FORM_GOALS_CAP      = DEFAULT_EA_FORM_GOALS_CAP;
+let CAREER_ACHV_SCALE      = DEFAULT_CAREER_ACHV_SCALE;
+let CAREER_ACHV_CAP        = DEFAULT_CAREER_ACHV_CAP;
+
+/**
+ * eaComputeCareerAchievementsDelta — bonus DIN AFARA sezonului curent:
+ * suma MVP + POTM + premii custom, CUMULATE din TOATE sezoanele
+ * (p.careerMvpCount / careerPotmCount / careerAwardsCount, populate la
+ * loadAll() din toată istoria + tabelul player_awards). Există EXACT ca
+ * să nu se piardă un jucător cu palmares solid, dar cu puține meciuri
+ * ÎN SEZONUL CURENT — semnalele POTM/MVP de mai jos sunt rate (premii/
+ * meciuri ÎN SEZONUL CURENT) și se pot dilua la 0 dacă a jucat multe
+ * meciuri cu un singur premiu; ăsta e complementar, nu diluat de nimic.
+ */
+function eaComputeCareerAchievementsDelta(p){
+    const mvp = p.careerMvpCount||0, potm = p.careerPotmCount||0, awards = p.careerAwardsCount||0;
+    const totalCount = mvp + potm + awards;
+    if (!totalCount) return { delta:0, note:null };
+    const delta = Math.round(Math.min(totalCount * CAREER_ACHV_SCALE, CAREER_ACHV_CAP));
+    const note = `${mvp} MVP + ${potm} POTM + ${awards} premii custom — cumulate din TOATE sezoanele`;
+    return { delta, note };
+}
 
 /**
  * eaComputeGoalBonusDelta — Punctaj_Goluri (deltaGoals * goalBonusWeight)
@@ -413,7 +436,7 @@ function eaComputeFormDelta(p, context = {}){
     if (played >= 3){
         const recentWr = wins/played, baseWr = getWinrateShrunk(p);
         const d = Math.round(Math.max(-EA_FORM_WINRATE_CAP, Math.min(EA_FORM_WINRATE_CAP, (recentWr-baseWr) * EA_FORM_WINRATE_SCALE)));
-        if (d){ total+=d; signals.push({icon:'📈', label:'Win Rate recent', note:`${Math.round(recentWr*100)}% (ultimele ${played}) vs ${Math.round(baseWr*100)}% general`, delta:d}); }
+        if (d){ total+=d; signals.push({icon:'📈', label:'Win Rate (ultimele 8 meciuri)', note:`${Math.round(recentWr*100)}% (${played} meciuri jucate din ultimele 8 ale grupului) vs ${Math.round(baseWr*100)}% general`, delta:d}); }
     }
 
     const teammates = (context.teammates && context.teammates.length) ? context.teammates : getCurrentTeammates(p);
@@ -425,11 +448,11 @@ function eaComputeFormDelta(p, context = {}){
 
     const potmRate = (p.potmCount||0)/p.games;
     const dPotm = Math.round(Math.min(potmRate*EA_FORM_POTM_SCALE, EA_FORM_POTM_CAP));
-    if (dPotm){ total+=dPotm; signals.push({icon:'⭐', label:'POTM', note:`${p.potmCount||0} din ${p.games} meciuri`, delta:dPotm}); }
+    if (dPotm){ total+=dPotm; signals.push({icon:'⭐', label:'POTM (sezon curent)', note:`${p.potmCount||0} din ${p.games} meciuri jucate în sezonul curent`, delta:dPotm}); }
 
     const mvpRate = (p.mvpCount||0)/p.games;
     const dMvp = Math.round(Math.min(mvpRate*EA_FORM_MVP_SCALE, EA_FORM_MVP_CAP));
-    if (dMvp){ total+=dMvp; signals.push({icon:'👑', label:'MVP', note:`${p.mvpCount||0} din ${p.games} meciuri`, delta:dMvp}); }
+    if (dMvp){ total+=dMvp; signals.push({icon:'👑', label:'MVP (sezon curent)', note:`${p.mvpCount||0} din ${p.games} meciuri jucate în sezonul curent`, delta:dMvp}); }
 
     const actMult = getActivityMultiplier(p);
     const dAct = Math.round((actMult-1) * EA_FORM_ACTIVITY_SCALE);
@@ -440,7 +463,10 @@ function eaComputeFormDelta(p, context = {}){
     if (dImbal){ total+=dImbal; signals.push({icon:'⚠️', label:'Dezechilibru', note:`${imbalLoss} meci(uri) pierdut(e) cu 3+ goluri`, delta:dImbal}); }
 
     const goalBonus = eaComputeGoalBonusDelta(p);
-    if (goalBonus.delta){ total+=goalBonus.delta; signals.push({icon:'⚽', label:'Performanță goluri', note:goalBonus.note, delta:goalBonus.delta}); }
+    if (goalBonus.delta){ total+=goalBonus.delta; signals.push({icon:'⚽', label:'Performanță goluri (sezon curent)', note:goalBonus.note, delta:goalBonus.delta}); }
+
+    const career = eaComputeCareerAchievementsDelta(p);
+    if (career.delta){ total+=career.delta; signals.push({icon:'🏆', label:'Realizări istorice (toate sezoanele)', note:career.note, delta:career.delta}); }
 
     const clamped = Math.max(-EA_FORM_TOTAL_CAP, Math.min(EA_FORM_TOTAL_CAP, total));
     return { delta: clamped, signals };
@@ -579,6 +605,16 @@ const ALGO_FIELDS = [
       label:'Plafon (±) puncte OVR', unit:'OVR',
       min:0, max:15, step:1, default:DEFAULT_EA_FORM_GOALS_CAP,
       get:()=>EA_FORM_GOALS_CAP, set:v=>{EA_FORM_GOALS_CAP=v;} },
+
+    // ── Form Rating — Realizări Istorice (NOU — toate sezoanele) ──
+    { key:'career_achv_scale', group:'🏆 Realizări Istorice (Form, toate sezoanele)',
+      label:'Puncte per realizare (MVP + POTM + premiu custom, cumulate)', unit:'OVR/premiu',
+      min:0, max:5, step:0.5, default:DEFAULT_CAREER_ACHV_SCALE,
+      get:()=>CAREER_ACHV_SCALE, set:v=>{CAREER_ACHV_SCALE=v;} },
+    { key:'career_achv_cap', group:'🏆 Realizări Istorice (Form, toate sezoanele)',
+      label:'Plafon (+) puncte OVR', unit:'OVR',
+      min:0, max:20, step:1, default:DEFAULT_CAREER_ACHV_CAP,
+      get:()=>CAREER_ACHV_CAP, set:v=>{CAREER_ACHV_CAP=v;} },
 
     // ── Form Rating — Plafon total ──
     { key:'ea_form_total_cap', group:'🧮 Plafon Total Form Rating',

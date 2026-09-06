@@ -390,8 +390,12 @@ async function loadAll() {
             });
         } catch(e) { console.warn('match_goals load:', e.message); }
 
-        db.history = (histRaw || []).map(h => {
-            const goals = goalsPerMatch[h.id] || [];
+        // Funcție reutilizabilă — mapează un rând brut din match_history (+ golurile
+        // lui din match_goals) în forma internă folosită de db.history. Extrasă aici
+        // ca să nu se DUPLICE mai jos, la calculul realizărilor istorice (care rulează
+        // pe TOATĂ istoria, nu doar sezonul curent — vezi blocul "Realizări istorice").
+        function mapMatchHistoryRow(h, goalsPerMatchLocal){
+            const goals = goalsPerMatchLocal[h.id] || [];
             // Aggregate goals per player for top scorer — golurile de penalty (is_penalty:true)
             // se țin STRICT separat, nu se adună la golurile normale.
             const playerGoals = {};
@@ -436,7 +440,10 @@ async function loadAll() {
                 topScorer,   // { name, goals } or null
                 teamGoals,   // { orange, green, black }
             };
-        }).sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+        }
+
+        db.history = (histRaw || []).map(h => mapMatchHistoryRow(h, goalsPerMatch))
+            .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 
         // ── POTM & MVP per jucător — pentru componentele noi din Smart Rating.
         // Scopate automat la sezonul curent, pentru că se calculează din histRaw
@@ -491,6 +498,59 @@ async function loadAll() {
             });
             db.players.forEach(p=>{ p.mvpCount = mvpCountByName[p.name] || 0; });
         } catch(e){ console.warn('mvp count load:', e.message); db.players.forEach(p=>{ p.mvpCount = p.mvpCount||0; }); }
+
+        // ── Realizări istorice (TOATE sezoanele) — pentru bonusul separat
+        // "🏆 Realizări istorice" din Form Rating (eaComputeCareerAchievementsDelta,
+        // smart-rating.js). Spre deosebire de p.potmCount/p.mvpCount de mai sus
+        // (strict sezonul curent), aici recalculăm POTM/MVP pe ÎNTREAGA istorie
+        // (fără filtrul .is('season', null)) + numărăm premiile custom din
+        // player_awards (tabel neseasonat — deja acoperă toate sezoanele).
+        try {
+            const { data: allHistRaw } = await sb.from('match_history').select('*').order('created_at', { ascending: false });
+            const careerHistory = (allHistRaw || []).map(h => mapMatchHistoryRow(h, goalsPerMatch))
+                .sort((a, b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+
+            const { data: allPotmRaw } = await sb.from('potm_votes').select('match_id,voted_player_id');
+            const potmVotesByMatchAll = {};
+            (allPotmRaw||[]).forEach(v=>{
+                if(!potmVotesByMatchAll[v.match_id]) potmVotesByMatchAll[v.match_id] = {};
+                potmVotesByMatchAll[v.match_id][v.voted_player_id] = (potmVotesByMatchAll[v.match_id][v.voted_player_id]||0)+1;
+            });
+            const careerPotmById = {};
+            groupHistoryForDisplay(careerHistory).forEach(item => {
+                const votes = {}; let manualId = null;
+                item.rows.forEach(h => {
+                    if (manualId == null && h.manualPotmId != null) manualId = h.manualPotmId;
+                    const c = potmVotesByMatchAll[h._dbId] || {};
+                    Object.entries(c).forEach(([pid,n]) => { votes[pid] = (votes[pid]||0) + n; });
+                });
+                let winnerId = manualId;
+                if (winnerId == null) {
+                    const sorted = Object.entries(votes).sort((a,b)=>b[1]-a[1]);
+                    if (sorted.length) winnerId = parseInt(sorted[0][0]);
+                }
+                if (winnerId != null) careerPotmById[winnerId] = (careerPotmById[winnerId]||0)+1;
+            });
+
+            const careerMvpByName = {};
+            groupHistoryForDisplay(careerHistory).forEach(item => {
+                const winner = computeSessionMvpWinner(item.rows);
+                if (winner) careerMvpByName[winner.name] = (careerMvpByName[winner.name]||0) + 1;
+            });
+
+            const { data: awardsRaw } = await sb.from('player_awards').select('player_id');
+            const careerAwardsById = {};
+            (awardsRaw||[]).forEach(a => { careerAwardsById[a.player_id] = (careerAwardsById[a.player_id]||0) + 1; });
+
+            db.players.forEach(p => {
+                p.careerPotmCount = careerPotmById[p.id] || 0;
+                p.careerMvpCount = careerMvpByName[p.name] || 0;
+                p.careerAwardsCount = careerAwardsById[p.id] || 0;
+            });
+        } catch(e){
+            console.warn('career achievements load:', e.message);
+            db.players.forEach(p=>{ p.careerPotmCount=p.careerPotmCount||0; p.careerMvpCount=p.careerMvpCount||0; p.careerAwardsCount=p.careerAwardsCount||0; });
+        }
 
         // Next match
         const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
@@ -3668,7 +3728,7 @@ function buildModalStats(p){
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:32px;text-align:right;color:${col(s.delta)};">${fmt(s.delta)}</span>
             </div>
            </div>`).join('')
-        : `<div style="font-size:.72rem;color:#7d6849;padding:4px 0;">Fără semnale de formă (prea puține meciuri recente).</div>`;
+        : `<div style="font-size:.72rem;color:#7d6849;padding:4px 0;">Fără semnale de formă active momentan (fie prea puține meciuri recente, fie contribuțiile individuale sunt prea mici ca să treacă de plafoanele setate în Algoritm).</div>`;
 
     // Weak attr warning (rating comunitar vechi, dacă mai există voturi istorice)
     const n=p.ratings.length||1;
