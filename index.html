@@ -106,8 +106,12 @@
         .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
         .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 1fr 1fr;gap:14px;align-items:start;}
+        .dashboard.tf-2{grid-template-columns:1fr 40px 1fr 1fr;}
+        .dashboard.tf-3{grid-template-columns:1fr 40px 1fr 1fr 1fr;}
+        .dashboard.tf-4{grid-template-columns:1fr 40px 1fr 1fr 1fr 1fr;}
         .column{background:#f1e4c8;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
+        .column-white{border-style:dashed;border-color:#9a8663;}
         .column-active{border-style:dashed;border-color:#7d6849;}
         .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:4px;}
         .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
@@ -116,12 +120,61 @@
         .header-bench .col-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);}
         .header-bench.team3-active .col-header{background:var(--bench-col, #4a0080);}
         .team3-active .col-header-title{color:var(--bench-text, #ce93d8)!important;}
+        .header-white .col-header{background:linear-gradient(135deg,#f5f5f5,#e0e0e0);}
+        .header-white.team4-active .col-header{background:var(--white-col, #f5f5f5);border-bottom:3px solid #bbb;}
+        .team4-active .col-header-title{color:var(--white-text, #3a2f1f)!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
         .btn-3team:hover{background:rgba(124,77,255,.4);}
         .btn-3team.active{background:rgba(124,77,255,.5);color:#3a2f1f;box-shadow:0 0 12px rgba(124,77,255,.5);}
         .header-bench .col-header-title{color:var(--bench-text, #82b1ff);}
+        .header-white .col-header-title{color:#5a4a30;}
         .header-active .col-header{background:#fdf3df;}
         .header-active .col-header-title{color:#7d6849;}
+
+        /* ── Selector Format Echipe (2/3/4) — sus, pe pagina principală ── */
+        .team-format-selector{display:flex;align-items:center;gap:8px;justify-content:center;margin:0 0 14px;flex-wrap:wrap;}
+        .tf-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
+        .tf-btn-group{display:flex;background:#f1e4c8;border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
+        .tf-btn{border:none;background:transparent;color:#7d6849;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .2s;}
+        .tf-btn:hover{background:rgba(124,77,255,.12);}
+        .tf-btn.active{background:linear-gradient(135deg,#7c4dff,#5c2ecf);color:#fff;box-shadow:0 2px 10px rgba(124,77,255,.4);}
+
+        /* ── Modal Șansă de Câștig (dinamic 2/3/4 echipe) ── */
+        .win-modal-overlay{position:fixed;inset:0;background:rgba(20,14,5,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
+        .win-modal{background:#fdf6e6;border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+        .win-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#3a2f1f;margin:0 0 4px;text-align:center;}
+        .win-modal-sub{font-size:.72rem;color:#9c7a4a;text-align:center;margin-bottom:16px;}
+        .win-modal-close{position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;color:#7d6849;cursor:pointer;}
+        /* Versus (2 echipe) */
+        .wm-versus{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+        .wm-versus-side{flex:1;text-align:center;}
+        .wm-versus-pct{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;}
+        .wm-versus-name{font-weight:700;font-size:.85rem;margin-top:2px;}
+        .wm-versus-vs{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#9c7a4a;padding:0 4px;}
+        .wm-dual-bar{height:14px;border-radius:7px;background:#e9dcbb;overflow:hidden;display:flex;margin-bottom:18px;}
+        .wm-dual-fill{height:100%;transition:width .6s ease;}
+        /* Grid (3/4 echipe) */
+        .wm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+        .wm-grid.wm-grid-3{grid-template-columns:repeat(3,1fr);}
+        @media(max-width:560px){.wm-grid,.wm-grid.wm-grid-3{grid-template-columns:1fr 1fr;}}
+        .wm-team-card{border-radius:12px;padding:12px 10px;text-align:center;color:#fff;position:relative;overflow:hidden;}
+        .wm-team-name{font-weight:700;font-size:.78rem;margin-bottom:4px;text-shadow:0 1px 2px rgba(0,0,0,.3);}
+        .wm-team-pct{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.3);}
+        .wm-team-bar-wrap{height:6px;border-radius:3px;background:rgba(255,255,255,.35);margin-top:6px;overflow:hidden;}
+        .wm-team-bar-fill{height:100%;background:#fff;transition:width .6s ease;}
+        .wm-team-avg{font-size:.62rem;margin-top:4px;opacity:.9;}
+        /* Balance badge */
+        .wm-balance-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;padding:9px;border-radius:10px;background:#f3e6cf;border:1px solid #e3d3ac;}
+        .wm-balance-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
+        .wm-balance-badge{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;padding:3px 12px;border-radius:20px;color:#fff;}
+        /* Attribute comparison */
+        .wm-attr-title{font-size:.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin:4px 0 8px;text-align:center;}
+        .wm-attr-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+        .wm-attr-label{width:74px;flex-shrink:0;font-size:.68rem;color:#7d6849;font-weight:700;}
+        .wm-attr-bars{flex:1;display:flex;gap:3px;height:16px;border-radius:4px;overflow:hidden;background:#e9dcbb;}
+        .wm-attr-seg{height:100%;transition:width .5s ease;}
+        .btn-winchance{background:linear-gradient(135deg,#ffe082,#ffb300);border:1px solid #ff8f00;color:#7d4f00;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+        .btn-winchance:hover{transform:scale(1.1);}
         .team-rating-info{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:700;flex-wrap:wrap;}
         .team-avg-badge{background:rgba(0,0,0,0.35);border-radius:20px;padding:2px 10px;color:var(--star);font-size:0.9rem;}
         .team-count-badge{background:rgba(0,0,0,0.25);border-radius:20px;padding:2px 8px;color:rgba(255,255,255,0.7);font-size:0.8rem;}
@@ -173,6 +226,8 @@
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
         .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
         .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
+        .player-card.team-white{border-color:rgba(120,120,120,.3);background:linear-gradient(145deg,#f7f7f7,#e3e3e3);}
+        .player-card.team-white::before{background:linear-gradient(135deg,rgba(120,120,120,.08) 0%,transparent 60%);}
         /* Tier-uri de card stil EA FC, în funcție de OVR — independent de
            culoarea de echipă (background) de mai sus; adaugă un inel/glow
            pe margine + accent pe coloana de rating. */
@@ -823,9 +878,9 @@
         .history-desktop-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;}
 
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1e4c8}::-webkit-scrollbar-thumb{background:#d3bd8c;border-radius:3px}
-        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
-        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
-        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-active{grid-column:span 1}}
+        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
+        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
+        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-white,.column-active{grid-column:span 1}}
         @media(max-width:640px){
             .page{padding:0;}
             .controls{padding:8px 10px;gap:4px;}
@@ -996,6 +1051,16 @@
 <!-- DASHBOARD -->
 <div class="page" id="mainPage">
 
+<!-- Selector Format Echipe (2/3/4) -->
+<div class="team-format-selector admin-only">
+    <span class="tf-label">Format:</span>
+    <div class="tf-btn-group">
+        <button class="tf-btn" id="tfBtn2" onclick="setTeamFormat(2)">2 Echipe</button>
+        <button class="tf-btn" id="tfBtn3" onclick="setTeamFormat(3)">3 Echipe</button>
+        <button class="tf-btn" id="tfBtn4" onclick="setTeamFormat(4)">4 Echipe</button>
+    </div>
+</div>
+
 <!-- Match banner — date + win probability above both teams -->
 
 <!-- MATCH STATS BANNER — above both teams -->
@@ -1035,7 +1100,7 @@
     </div>
     <div class="balance-col admin-only" style="position:relative;">
         <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Echipe: balans & instrumente">⚖️</button>
-        <button class="btn-3team" id="btn3team" onclick="toggleThreeTeamIndex()" title="Mod 3 Echipe (bancă = Echipa 3)">3️⃣</button>
+        <button class="btn-winchance" id="btnWinChance" onclick="openWinChanceModal()" title="Șansă de Câștig">🎲</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#1b7a43;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">⚖️ Echipe: Balans &amp; Instrumente</div>
@@ -1121,6 +1186,15 @@
             <div class="rating-bar-wrap" id="bar-bench-wrap" style="display:none;"><div class="rating-bar-fill" id="bar-bench" style="width:0%;background:rgba(206,147,216,0.6);"></div></div>
         </div>
         <div class="col-body" id="list-bench"></div>
+    </div>
+    <div class="column column-white header-white" id="col-white" style="display:none;" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
+        <div class="col-header">
+            <div class="col-header-title" id="titleWhite">Alb</div>
+            <div class="team-balance-indicator" id="balance-white"></div>
+            <div class="team-rating-info"><span class="team-avg-badge" id="avg-white">★ —</span><span class="team-count-badge" id="count-white">0 jucători</span></div>
+            <div class="rating-bar-wrap" id="bar-white-wrap"><div class="rating-bar-fill" id="bar-white" style="width:0%;background:rgba(220,220,220,0.9);"></div></div>
+        </div>
+        <div class="col-body" id="list-white"></div>
     </div>
     <div class="column column-active header-active" id="col-active" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">

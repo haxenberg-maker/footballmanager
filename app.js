@@ -1299,19 +1299,19 @@ function showConfirm(icon,title,msg,yesLabel,yesBg,cb){
 function closeConfirm(){document.getElementById('confirmOverlay').style.display='none';}
 
 function render(){
-    ['orange','green','bench','active'].forEach(t=>{
+    ['orange','green','bench','white','active'].forEach(t=>{
         const el = document.getElementById(`list-${t}`);
         if(el) el.innerHTML='';
     });
     const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-    const byTeam={orange:[],green:[],bench:[],active:[]};
+    const byTeam={orange:[],green:[],bench:[],white:[],active:[]};
     sorted.forEach(p=>{
         const s = p.status;
         if(byTeam[s]) byTeam[s].push(p);
         else byTeam.active.push(p); // fallback — status necunoscut → Jucători Activi
     });
     const admin = isAdmin();
-    ['orange','green','bench','active'].forEach(team=>{
+    ['orange','green','bench','white','active'].forEach(team=>{
         byTeam[team].forEach((p,idx)=>{
             const smart=getSmartRating(p),general=getGeneralAvg(p).toFixed(1);
             const rankClass=idx===0?'rank-1':idx===1?'rank-2':idx===2?'rank-3':'rank-other';
@@ -1341,7 +1341,7 @@ function render(){
             // OVR color based on value (1-99)
             const smartNum = smart;
             const smartColor = p.adminRating!=null?'var(--orange)':smartNum>=80?'#1b7a43':smartNum>=65?'#8a6800':smartNum>=50?'#9c4f00':'#e57373';
-            const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':p.status==='bench'?'team-bench':'';
+            const teamCls = p.status==='orange'?'team-orange':p.status==='green'?'team-green':p.status==='bench'?'team-bench':p.status==='white'?'team-white':'';
             // Tier de card stil EA FC, în funcție de OVR — bronze/silver/gold/special.
             const tierCls = smartNum>=85?'tier-special':smartNum>=75?'tier-gold':smartNum>=65?'tier-silver':'tier-bronze';
             card.className=`player-card ${teamCls} ${tierCls}`;
@@ -1463,6 +1463,25 @@ function updateTeamStats(){
     const bPlayers = db.players.filter(p=>p.status==='bench');
     document.getElementById('count-bench').textContent=`${bPlayers.length} jucători`;
     document.getElementById('count-active').textContent=`${db.players.filter(p=>p.status==='active').length} jucători`;
+    // Echipa 4 (Alb) — vizibilă doar la teamFormat===4, urmează exact pattern-ul de la bench (echipa 3)
+    const wPlayers = db.players.filter(p=>p.status==='white');
+    const countWhiteEl = document.getElementById('count-white');
+    if(countWhiteEl) countWhiteEl.textContent = `${wPlayers.length} jucători`;
+    if(teamFormat===4 && wPlayers.length > 0){
+        const wTot = wPlayers.reduce((s,p)=>s+getSmartRating(p),0);
+        const wAvg = (wTot/wPlayers.length).toFixed(1);
+        const avgElW = document.getElementById('avg-white');
+        const barElW = document.getElementById('bar-white');
+        const balElW = document.getElementById('balance-white');
+        if(avgElW) avgElW.textContent = `★ ${wAvg}`;
+        if(barElW) barElW.style.width = Math.min((wTot/wPlayers.length)/10*100,100)+'%';
+        if(balElW){ const w=analyzeTeamBalance(wPlayers); balElW.className='team-balance-indicator'; balElW.innerHTML=w.map(x=>`<div class="${x.cls}" style="margin-bottom:1px;">${x.msg}</div>`).join(''); }
+    } else {
+        const avgElW = document.getElementById('avg-white');
+        const balElW = document.getElementById('balance-white');
+        if(avgElW) avgElW.textContent = '★ —';
+        if(balElW){ balElW.className='team-balance-indicator'; balElW.innerHTML=''; }
+    }
     // Show bench rating when 3-team mode
     if(threeTeamMode && bPlayers.length > 0){
         const bTot = bPlayers.reduce((s,p)=>s+getSmartRating(p),0);
@@ -2406,7 +2425,7 @@ async function adminDrop(e){
     while(target && !target.id.startsWith('col-')) target=target.parentElement;
     if(target){
         const tId=target.id.replace('col-','');
-        if(['orange','green','bench','active'].includes(tId)){
+        if(['orange','green','bench','white','active'].includes(tId)){
             const p=db.players.find(x=>x.id==id);
             p.status=tId;
             render();
@@ -2505,6 +2524,7 @@ function exportTeamsText(){
         .join('\n');
 
     const bench3 = threeTeamMode ? db.players.filter(p=>p.status==='bench') : [];
+    const team4  = teamFormat===4 ? db.players.filter(p=>p.status==='white') : [];
 
     const textEmoji =
         '🟠 '+teamNames.orange+' ('+orange.length+')'+'\n'+
@@ -2512,7 +2532,8 @@ function exportTeamsText(){
         '\n\nvs\n\n'+
         '🟢 '+teamNames.green+' ('+green.length+')'+'\n'+
         fmtEmoji(green)+
-        (bench3.length ? '\n\n⏳ '+(teamNames.bench||'Echipa 3')+' ('+bench3.length+')\n'+fmtEmoji(bench3) : '');
+        (bench3.length ? '\n\n⏳ '+(teamNames.bench||'Echipa 3')+' ('+bench3.length+')\n'+fmtEmoji(bench3) : '')+
+        (team4.length ? '\n\n⚪ '+(teamNames.white||'Echipa 4')+' ('+team4.length+')\n'+fmtEmoji(team4) : '');
 
     const textRaw =
         teamNames.orange.toUpperCase()+' ('+orange.length+')'+'\n'+
@@ -2520,7 +2541,8 @@ function exportTeamsText(){
         '\n\nvs\n\n'+
         teamNames.green.toUpperCase()+' ('+green.length+')'+'\n'+
         fmtRaw(green)+
-        (bench3.length ? '\n\nvs\n\n'+(teamNames.bench||'ECHIPA 3').toUpperCase()+' ('+bench3.length+')\n'+fmtRaw(bench3) : '');
+        (bench3.length ? '\n\nvs\n\n'+(teamNames.bench||'ECHIPA 3').toUpperCase()+' ('+bench3.length+')\n'+fmtRaw(bench3) : '')+
+        (team4.length ? '\n\nvs\n\n'+(teamNames.white||'ECHIPA 4').toUpperCase()+' ('+team4.length+')\n'+fmtRaw(team4) : '');
 
     window._exportRaw = textRaw;
     const overlay=document.createElement('div');
@@ -2606,6 +2628,142 @@ function exportTeamsTable() {
         </div>`;
     document.body.appendChild(overlay);
     overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODAL "ȘANSĂ DE CÂȘTIG" — dinamic, suportă 2, 3 sau 4 echipe.
+// Sursa echipelor: orange/green mereu; bench (redenumit Negru) dacă
+// threeTeamMode; white (Alb) dacă teamFormat===4. O echipă e inclusă
+// DOAR dacă are cel puțin 1 jucător.
+// ══════════════════════════════════════════════════════════════════
+function computeWinChanceData(){
+    const slots = [
+        { key:'orange', name: teamNames.orange, color: teamColors.orange },
+        { key:'green',  name: teamNames.green,  color: teamColors.green  },
+    ];
+    if (threeTeamMode) slots.push({ key:'bench', name: teamNames.bench || 'Negru', color: teamColors.bench || '#111111' });
+    if (teamFormat===4) slots.push({ key:'white', name: teamNames.white || 'Alb',  color: teamColors.white || '#e0e0e0' });
+
+    const teams = slots.map(slot => {
+        const players = db.players.filter(p => p.status === slot.key);
+        const n = players.length;
+        const ovrAvg = n ? players.reduce((s,p)=>s+getSmartRating(p),0)/n : 0;
+        // Medie atribute EA (PAC/SHO/PAS/DRI/DEF/PHY) → 4 categorii cerute:
+        // Atac=(PAC+SHO)/2, Mijloc/Pasă=(PAS+DRI)/2, Apărare=DEF, Fizic=PHY.
+        const attrSums = { PAC:0, SHO:0, PAS:0, DRI:0, DEF:0, PHY:0 };
+        players.forEach(p=>{
+            const a = eaGetPlayerCard(p).attrs;
+            ['PAC','SHO','PAS','DRI','DEF','PHY'].forEach(k=>{ attrSums[k] += (a[k]||0); });
+        });
+        const attrAvg = k => n ? attrSums[k]/n : 0;
+        const attrs = {
+            Atac:    n ? (attrAvg('PAC')+attrAvg('SHO'))/2 : 0,
+            Mijloc:  n ? (attrAvg('PAS')+attrAvg('DRI'))/2 : 0,
+            Apărare: n ? attrAvg('DEF') : 0,
+            Fizic:   n ? attrAvg('PHY') : 0,
+        };
+        return { ...slot, players, n, ovrAvg, attrs };
+    }).filter(t => t.n > 0);
+
+    if (teams.length < 2) return null;
+
+    // Șanse de câștig — proporțional cu media OVR a echipei (ca la banner-ul vechi).
+    const totalOvr = teams.reduce((s,t)=>s+t.ovrAvg,0) || 1;
+    let running = 0;
+    teams.forEach((t,i)=>{
+        if (i < teams.length-1){ t.pct = Math.round((t.ovrAvg/totalOvr)*100); running += t.pct; }
+        else { t.pct = 100 - running; } // ultima echipă ia restul, ca suma să fie exact 100
+    });
+
+    // Match Balance Score — deviația standard a procentelor față de idealul 100/N.
+    // Cu cât e mai aproape de 0, cu atât meciul e mai echilibrat.
+    const idealPct = 100/teams.length;
+    const variance = teams.reduce((s,t)=>s+Math.pow(t.pct-idealPct,2),0)/teams.length;
+    const stdDev = Math.sqrt(variance);
+    let balanceLabel, balanceColor;
+    if (stdDev < 3)       { balanceLabel='🟢 Foarte echilibrat'; balanceColor='#2e7d32'; }
+    else if (stdDev < 7)  { balanceLabel='🟡 Echilibrat';        balanceColor='#8a6800'; }
+    else if (stdDev < 13) { balanceLabel='🟠 Moderat';           balanceColor='#c76a00'; }
+    else                  { balanceLabel='🔴 Dezechilibrat';     balanceColor='#c62828'; }
+
+    return { teams, stdDev, balanceLabel, balanceColor };
+}
+
+function openWinChanceModal(){
+    const data = computeWinChanceData();
+    if (!data){ showToast('⚠️ Ai nevoie de minim 2 echipe cu jucători!'); return; }
+    const { teams, stdDev, balanceLabel, balanceColor } = data;
+
+    const attrKeys = ['Atac','Mijloc','Apărare','Fizic'];
+    const maxAttr = 99;
+
+    const attrsHtml = `
+        <div class="wm-attr-title">📊 Comparație Atribute Medii</div>
+        ${attrKeys.map(key=>`
+            <div class="wm-attr-row">
+                <span class="wm-attr-label">${key}</span>
+                <div class="wm-attr-bars">
+                    ${teams.map(t=>`<div class="wm-attr-seg" style="width:${Math.max(4,(t.attrs[key]/maxAttr)*100/teams.length)}%;background:${t.color};" title="${t.name}: ${t.attrs[key].toFixed(0)}"></div>`).join('')}
+                </div>
+            </div>
+            <div style="display:flex;gap:6px;margin:-3px 0 6px 82px;flex-wrap:wrap;">
+                ${teams.map(t=>`<span style="font-size:.6rem;color:${t.color};font-weight:700;">${t.name}: ${t.attrs[key].toFixed(0)}</span>`).join('')}
+            </div>
+        `).join('')}
+    `;
+
+    let bodyHtml;
+    if (teams.length === 2){
+        const [a,b] = teams;
+        bodyHtml = `
+            <div class="wm-versus">
+                <div class="wm-versus-side">
+                    <div class="wm-versus-pct" style="color:${a.color};">${a.pct}%</div>
+                    <div class="wm-versus-name" style="color:${a.color};">${a.name}</div>
+                    <div style="font-size:.62rem;color:#9c7a4a;">★ ${a.ovrAvg.toFixed(1)} · ${a.n} juc.</div>
+                </div>
+                <div class="wm-versus-vs">VS</div>
+                <div class="wm-versus-side">
+                    <div class="wm-versus-pct" style="color:${b.color};">${b.pct}%</div>
+                    <div class="wm-versus-name" style="color:${b.color};">${b.name}</div>
+                    <div style="font-size:.62rem;color:#9c7a4a;">★ ${b.ovrAvg.toFixed(1)} · ${b.n} juc.</div>
+                </div>
+            </div>
+            <div class="wm-dual-bar">
+                <div class="wm-dual-fill" style="width:${a.pct}%;background:${a.color};"></div>
+                <div class="wm-dual-fill" style="width:${b.pct}%;background:${b.color};"></div>
+            </div>`;
+    } else {
+        bodyHtml = `
+            <div class="wm-grid ${teams.length===3?'wm-grid-3':''}">
+                ${teams.map(t=>`
+                    <div class="wm-team-card" style="background:${t.color};">
+                        <div class="wm-team-name">${t.name}</div>
+                        <div class="wm-team-pct">${t.pct}%</div>
+                        <div class="wm-team-bar-wrap"><div class="wm-team-bar-fill" style="width:${t.pct}%;"></div></div>
+                        <div class="wm-team-avg">★ ${t.ovrAvg.toFixed(1)} · ${t.n} juc.</div>
+                    </div>
+                `).join('')}
+            </div>`;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'win-modal-overlay';
+    overlay.innerHTML = `
+        <div class="win-modal" style="position:relative;">
+            <button class="win-modal-close" onclick="this.closest('.win-modal-overlay').remove()">✕</button>
+            <div class="win-modal-title">🎲 Șansă de Câștig</div>
+            <div class="win-modal-sub">${teams.length} echipe · calculat din OVR mediu (Smart Rating)</div>
+            ${bodyHtml}
+            <div class="wm-balance-row">
+                <span class="wm-balance-label">Echilibru Meci</span>
+                <span class="wm-balance-badge" style="background:${balanceColor};">${balanceLabel}</span>
+                <span style="font-size:.6rem;color:#9c7a4a;">(σ ${stdDev.toFixed(1)}%)</span>
+            </div>
+            ${attrsHtml}
+        </div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
 }
 function openSettings(){
     buildPlayerEditList();
@@ -5160,13 +5318,17 @@ function moveTeamsToBench() {
 
 // ── Scenario (Draft) System ──────────────────────────────────────
 let currentScenario = 1;
-let threeTeamMode = localStorage.getItem('idx_3team')==='1';
-let teamNames = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru' };
+// teamFormat = 2 | 3 | 4 — sursa de adevăr pentru numărul de echipe active.
+// threeTeamMode rămâne (derivat automat, = teamFormat>=3) pentru compatibilitate
+// cu zecile de verificări existente în cod care testau boolean-ul vechi.
+let teamFormat = parseInt(localStorage.getItem('idx_teamformat')) || (localStorage.getItem('idx_3team')==='1' ? 3 : 2);
+let threeTeamMode = teamFormat >= 3;
+let teamNames = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru', white: 'Alb' };
 // Curăță orice resturi vechi din localStorage care ar putea cauza inconsecvențe de culoare
-['team_name_orange','team_name_green','team_name_bench','team_color_orange','team_color_green','team_color_bench'].forEach(k => localStorage.removeItem(k));
-let teamColors = { orange: '#9c4f00', green: '#1b7a35', bench: '#111111' };
+['team_name_orange','team_name_green','team_name_bench','team_name_white','team_color_orange','team_color_green','team_color_bench','team_color_white'].forEach(k => localStorage.removeItem(k));
+let teamColors = { orange: '#9c4f00', green: '#1b7a35', bench: '#111111', white: '#e0e0e0' };
 
-const TEAM_COLOR_PALETTE = ['#9c4f00', '#1b7a35', '#111111'];
+const TEAM_COLOR_PALETTE = ['#9c4f00', '#1b7a35', '#111111', '#e0e0e0'];
 const COLOR_NAMES_IDX = {
     '#9c4f00': 'PORTOCALIU',
     '#1b7a35': 'VERDE',
@@ -5215,28 +5377,35 @@ function applyTeamColors() {
     document.documentElement.style.setProperty('--orange', teamColors.orange);
     document.documentElement.style.setProperty('--green',  teamColors.green);
     const bHex = teamColors.bench || '#111111';
+    const wHex = teamColors.white || '#e0e0e0';
     document.documentElement.style.setProperty('--bench-col', bHex);
     document.documentElement.style.setProperty('--bench-text', getContrastColorIdx(bHex));
+    document.documentElement.style.setProperty('--white-col', wHex);
+    document.documentElement.style.setProperty('--white-text', getContrastColorIdx(wHex));
     // Column headers — override hardcoded gradient with team color + contrast text
     const oHd = document.querySelector('#col-orange .col-header');
     const gHd = document.querySelector('#col-green  .col-header');
     const bHd = document.querySelector('#col-bench  .col-header');
+    const wHd = document.querySelector('#col-white  .col-header');
     if (oHd) { oHd.style.background = teamColors.orange; oHd.style.color = getContrastColorIdx(teamColors.orange); }
     if (gHd) { gHd.style.background = teamColors.green;  gHd.style.color = getContrastColorIdx(teamColors.green); }
     if (bHd && threeTeamMode) { bHd.style.background = bHex; bHd.style.color = getContrastColorIdx(bHex); }
+    if (wHd && teamFormat===4) { wHd.style.background = wHex; wHd.style.color = getContrastColorIdx(wHex); }
     // Title contrast
     const tO = document.getElementById('titleOrange');
     const tG = document.getElementById('titleGreen');
     const tB = document.getElementById('titleBench');
+    const tW = document.getElementById('titleWhite');
     if (tO) tO.style.color = getContrastColorIdx(teamColors.orange);
     if (tG) tG.style.color = getContrastColorIdx(teamColors.green);
     if (tB && threeTeamMode) tB.style.color = getContrastColorIdx(bHex);
+    if (tW && teamFormat===4) tW.style.color = getContrastColorIdx(wHex);
 }
 
 async function loadTeamConfigs() {
-    // Numele/culorile sunt FIXE — PORTOCALIU/VERDE/NEGRU. Nu se mai citesc din DB.
-    teamColors = { orange: '#9c4f00', green: '#1b7a35', bench: '#111111' };
-    teamNames  = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru' };
+    // Numele/culorile sunt FIXE — PORTOCALIU/VERDE/NEGRU/ALB. Nu se mai citesc din DB.
+    teamColors = { orange: '#9c4f00', green: '#1b7a35', bench: '#111111', white: '#e0e0e0' };
+    teamNames  = { orange: 'Portocaliu', green: 'Verde', bench: 'Negru', white: 'Alb' };
     applyTeamColors();
     renderTeamTitles();
 }
@@ -5812,24 +5981,35 @@ async function checkLiveStatus(){
     }catch(e){}
 }
 
-// ── 3-team toggle (index) ─────────────────────────────────────────
-function toggleThreeTeamIndex(){
-    threeTeamMode = !threeTeamMode;
-    localStorage.setItem('idx_3team', threeTeamMode?'1':'0');
-    applyThreeTeamUI();
+// ── Selector Format Echipe (index) — 2 / 3 / 4 ──────────────────────
+function setTeamFormat(n){
+    if(![2,3,4].includes(n)) return;
+    teamFormat = n;
+    threeTeamMode = teamFormat >= 3; // compat cu verificările vechi din tot codul
+    localStorage.setItem('idx_teamformat', teamFormat);
+    localStorage.setItem('idx_3team', threeTeamMode ? '1':'0'); // compat cu versiuni vechi de cache
+    // Dacă dezactivăm echipa 4, jucătorii de acolo se mută pe bancă (nu se pierd)
+    if(teamFormat < 4){
+        db.players.forEach(p=>{ if(p.status==='white') p.status='bench'; });
+    }
+    applyTeamFormatUI();
     render();
+    Promise.all(db.players.filter(p=>p.status==='bench'&&teamFormat<4).map(p=>dbUpdatePlayer(p))).catch(()=>{});
 }
+// Compat: cod vechi/butoane care mai apelează toggle-ul boolean
+function toggleThreeTeamIndex(){ setTeamFormat(threeTeamMode ? 2 : 3); }
 
-function applyThreeTeamUI(){
-    const btn = document.getElementById('btn3team');
+function applyTeamFormatUI(){
+    // Butoane selector sus
+    document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+    const activeBtn = document.getElementById('tfBtn'+teamFormat);
+    if(activeBtn) activeBtn.classList.add('active');
+
+    // Coloană Bancă → devine "Echipa 3" (Negru) când teamFormat>=3
     const colBench = document.getElementById('col-bench');
     const titleBench = document.getElementById('titleBench');
     const avgBench = document.getElementById('avg-bench');
-    const barWrap = document.getElementById('bar-bench-wrap');
-    if(btn){
-        btn.classList.toggle('active', threeTeamMode);
-        btn.title = threeTeamMode ? '3 Echipe ACTIV — click pentru dezactivare' : 'Activează Mod 3 Echipe';
-    }
+    const barWrapBench = document.getElementById('bar-bench-wrap');
     if(colBench) colBench.classList.toggle('team3-active', threeTeamMode);
     if(titleBench){
         titleBench.textContent = threeTeamMode ? teamNames.bench : 'Pe Bancă';
@@ -5843,14 +6023,40 @@ function applyThreeTeamUI(){
         }
     }
     if(avgBench) avgBench.style.display = threeTeamMode ? '' : 'none';
-    if(barWrap) barWrap.style.display = threeTeamMode ? '' : 'none';
-    // Apply bench column header color in 3-team mode
+    if(barWrapBench) barWrapBench.style.display = threeTeamMode ? '' : 'none';
     const benchHd = document.querySelector('#col-bench .col-header');
     if(benchHd && threeTeamMode){
         benchHd.style.background = teamColors.bench || '#111111';
         benchHd.style.color = getContrastColorIdx(teamColors.bench || '#111111');
     }
+
+    // Coloană Alb (echipa 4) — vizibilă DOAR la teamFormat===4
+    const colWhite = document.getElementById('col-white');
+    const titleWhite = document.getElementById('titleWhite');
+    if(colWhite){
+        colWhite.style.display = teamFormat===4 ? '' : 'none';
+        colWhite.classList.toggle('team4-active', teamFormat===4);
+    }
+    if(titleWhite){
+        titleWhite.textContent = teamNames.white;
+        if(teamFormat===4){
+            titleWhite.style.cursor = 'pointer';
+            titleWhite.title = 'Click pentru editare';
+            titleWhite.onclick = () => startEditTeamName('white');
+        }
+    }
+    const whiteHd = document.querySelector('#col-white .col-header');
+    if(whiteHd && teamFormat===4){
+        whiteHd.style.background = teamColors.white || '#e0e0e0';
+        whiteHd.style.color = getContrastColorIdx(teamColors.white || '#e0e0e0');
+    }
+
+    // Grid-ul principal — clasa tf-2/tf-3/tf-4 controlează câte coloane sunt vizibile
+    const dash = document.getElementById('dashGrid');
+    if(dash){ dash.classList.remove('tf-2','tf-3','tf-4'); dash.classList.add('tf-'+teamFormat); }
 }
+// Alias — cod vechi care mai apelează numele anterior al funcției
+function applyThreeTeamUI(){ applyTeamFormatUI(); }
 
 
 // ── Start Match Modal ─────────────────────────────────────────────
