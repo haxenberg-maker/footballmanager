@@ -407,7 +407,7 @@ main, body{padding-bottom:80px;}
   <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
-  <button id="statsBtn" onclick="openLiveStats()" style="margin-left:auto;padding:5px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(21,84,179,.12);border:1px solid #1554b3;color:#1554b3;touch-action:manipulation;white-space:nowrap;min-height:34px;flex-shrink:0;">📊 Stats</button>
+  <button id="statsBtn" class="guest-ok" onclick="openLiveStats()" style="margin-left:auto;padding:5px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(21,84,179,.12);border:1px solid #1554b3;color:#1554b3;touch-action:manipulation;white-space:nowrap;min-height:34px;flex-shrink:0;">📊 Stats</button>
   <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;">
     <div style="width:1px;height:18px;background:#e3d3ac;margin:0 2px;"></div>
     <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#b71c1c;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
@@ -2078,7 +2078,7 @@ function openLiveStats(){
         + '<div class="dialog-section">🅰️ Assisturi</div>'
         + '<div>' + assistersHtml + '</div>'
         + '<div class="dialog-actions">'
-        + '<button class="dia-cancel" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
+        + '<button class="dia-cancel guest-ok" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
         + '</div>';
     document.getElementById('dialogOverlay').classList.add('show');
 }
@@ -3256,8 +3256,8 @@ init();
       onkeydown="if(event.key==='Enter')submitCode()">
     <div id="codeAuthErr" style="font-size:.68rem;color:#b71c1c;min-height:16px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;">
-      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
-      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
+      <button class="guest-ok" onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
+      <button class="guest-ok" onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
     </div>
   </div>
 </div>
