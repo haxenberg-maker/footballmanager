@@ -2648,20 +2648,29 @@ function computeWinChanceData(){
         const players = db.players.filter(p => p.status === slot.key);
         const n = players.length;
         const ovrAvg = n ? players.reduce((s,p)=>s+getSmartRating(p),0)/n : 0;
-        // Medie atribute EA (PAC/SHO/PAS/DRI/DEF/PHY) → 4 categorii cerute:
-        // Atac=(PAC+SHO)/2, Mijloc/Pasă=(PAS+DRI)/2, Apărare=DEF, Fizic=PHY.
-        const attrSums = { PAC:0, SHO:0, PAS:0, DRI:0, DEF:0, PHY:0 };
+        // Medie atribute pe echipă, cu portarii MAPAȚI corect (nu ignorați):
+        // outfield → Atac=(PAC+SHO)/2, Mijloc/Pasă=(PAS+DRI)/2, Apărare=DEF, Fizic=PHY.
+        // portar    → Atac=0 (nu marchează goluri), Mijloc/Pasă=KIC (degajări/distribuție),
+        //             Apărare=(DIV+HAN+REF+POS)/4 (blocaje+poziționare), Fizic=SPD.
+        const sums = { Atac:0, Mijloc:0, Apărare:0, Fizic:0 };
         players.forEach(p=>{
-            const a = eaGetPlayerCard(p).attrs;
-            ['PAC','SHO','PAS','DRI','DEF','PHY'].forEach(k=>{ attrSums[k] += (a[k]||0); });
+            const card = eaGetPlayerCard(p);
+            const a = card.attrs;
+            if (card.isGk){
+                sums.Atac    += 0;
+                sums.Mijloc  += (a.KIC||0);
+                sums.Apărare += ((a.DIV||0)+(a.HAN||0)+(a.REF||0)+(a.POS||0))/4;
+                sums.Fizic   += (a.SPD||0);
+            } else {
+                sums.Atac    += ((a.PAC||0)+(a.SHO||0))/2;
+                sums.Mijloc  += ((a.PAS||0)+(a.DRI||0))/2;
+                sums.Apărare += (a.DEF||0);
+                sums.Fizic   += (a.PHY||0);
+            }
         });
-        const attrAvg = k => n ? attrSums[k]/n : 0;
-        const attrs = {
-            Atac:    n ? (attrAvg('PAC')+attrAvg('SHO'))/2 : 0,
-            Mijloc:  n ? (attrAvg('PAS')+attrAvg('DRI'))/2 : 0,
-            Apărare: n ? attrAvg('DEF') : 0,
-            Fizic:   n ? attrAvg('PHY') : 0,
-        };
+        const attrs = n
+            ? { Atac:sums.Atac/n, Mijloc:sums.Mijloc/n, Apărare:sums.Apărare/n, Fizic:sums.Fizic/n }
+            : { Atac:0, Mijloc:0, Apărare:0, Fizic:0 };
         return { ...slot, players, n, ovrAvg, attrs };
     }).filter(t => t.n > 0);
 
@@ -2699,6 +2708,7 @@ function openWinChanceModal(){
 
     const attrsHtml = `
         <div class="wm-attr-title">📊 Comparație Atribute Medii</div>
+        <div style="font-size:.6rem;color:#9c7a4a;text-align:center;margin:-4px 0 8px;">Portarii (GK) sunt incluși: Apărare = DIV+HAN+REF+POS, Mijloc = KIC, Fizic = SPD</div>
         ${attrKeys.map(key=>`
             <div class="wm-attr-row">
                 <span class="wm-attr-label">${key}</span>
