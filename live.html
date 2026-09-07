@@ -369,8 +369,8 @@ main, body{padding-bottom:80px;}
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
     <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
-    <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
-    <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
+    <span class="admin-badge" id="adminBadge" onclick="isLiveAdmin ? logoutAdmin() : openCodeAuth()" style="display:none;">Admin</span>
+    <button class="hd-key-btn" id="loginKeyBtn" onclick="openCodeAuth()" title="Login admin">🔑</button>
     <button class="hd-key-btn" id="swapTeamsBtn" onclick="openTeamSwapMenu()" title="Schimbă identitatea echipelor" style="display:none;">⇄</button>
     <button class="icon-btn" id="threeBtn" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;cursor:default;" title="Modul (2/3 echipe) se setează din pagina principală, la Start Meci — nu se poate schimba din Live.">3️⃣</button>
     <button class="icon-btn danger" onclick="confirmReset()">↺</button>
@@ -478,24 +478,13 @@ const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-// ── Admin auth via secret code ────────────────────────────────────
-let isLiveAdmin = false; // true = authenticated player (has secret code)
-let _allPlayerCodes = []; // loaded on init: [{name, secret_code, role}]
-
-async function loadPlayerCodes() {
-    const { data } = await sb.from('players').select('id,name,secret_code,role').order('name');
-    _allPlayerCodes = data || [];
-}
-
-function verifyAdminCode(code) {
-    if (!code) return null;
-    const c = code.trim().toUpperCase();
-    return _allPlayerCodes.find(p => p.secret_code && p.secret_code.toUpperCase() === c) || null;
-}
+// ── Admin auth via Supabase Auth (real login, matches index.html/app.js) ──
+const ADMIN_EMAIL = 'evoluttionofall@gmail.com';
+let isLiveAdmin = false; // true = logged-in admin session (auth.jwt() matches ADMIN_EMAIL server-side too)
 
 function openCodeAuth() {
     document.getElementById('codeAuthOverlay').classList.add('show');
-    setTimeout(() => document.getElementById('codeAuthInput').focus(), 100);
+    setTimeout(() => document.getElementById('codeAuthEmail').focus(), 100);
 }
 
 function closeCodeAuth() {
@@ -503,30 +492,46 @@ function closeCodeAuth() {
 }
 
 async function submitCode() {
-    const code = document.getElementById('codeAuthInput').value.trim();
-    const player = verifyAdminCode(code);
-    if (!player) {
-        document.getElementById('codeAuthErr').textContent = 'Cod incorect';
+    const email = document.getElementById('codeAuthEmail').value.trim();
+    const password = document.getElementById('codeAuthInput').value;
+    if (!email || !password) {
+        document.getElementById('codeAuthErr').textContent = 'Completează email și parolă';
         return;
     }
-    isLiveAdmin = true; // orice player autentificat cu cod propriu
-    localStorage.setItem('liveAuthCode', code);
-    localStorage.setItem('liveAuthName', player.name);
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error || !data?.user || data.user.email !== ADMIN_EMAIL) {
+        if (data?.user && data.user.email !== ADMIN_EMAIL) await sb.auth.signOut();
+        document.getElementById('codeAuthErr').textContent = 'Autentificare eșuată';
+        return;
+    }
+    isLiveAdmin = true;
     closeCodeAuth();
-    document.getElementById('adminBadge').textContent = player.name;
+    document.getElementById('adminBadge').textContent = 'Admin';
     document.getElementById('adminBadge').style.display = 'inline-block';
-    showToast(`👋 ${player.name} autentificat!`);
+    document.getElementById('loginKeyBtn').style.display = 'none';
+    showToast(`👋 Admin autentificat!`);
     render();
 }
 
-function tryAutoAuth() {
-    const saved = localStorage.getItem('liveAuthCode');
-    if (!saved) return;
-    const player = verifyAdminCode(saved);
-    if (player) {
+async function logoutAdmin() {
+    await sb.auth.signOut();
+    isLiveAdmin = false;
+    document.getElementById('adminBadge').style.display = 'none';
+    document.getElementById('loginKeyBtn').style.display = '';
+    render();
+}
+
+// Sesiunea Supabase e persistată automat (localStorage, per proiect) — dacă adminul
+// s-a logat deja pe index.html/app.js în același browser, sesiunea e reutilizată aici
+// fără să mai ceară login din nou.
+async function tryAutoAuth() {
+    const { data } = await sb.auth.getSession();
+    const user = data?.session?.user;
+    if (user && user.email === ADMIN_EMAIL) {
         isLiveAdmin = true;
-        document.getElementById('adminBadge').textContent = player.name;
+        document.getElementById('adminBadge').textContent = 'Admin';
         document.getElementById('adminBadge').style.display = 'inline-block';
+        document.getElementById('loginKeyBtn').style.display = 'none';
         render();
     }
 }
@@ -3052,8 +3057,7 @@ async function init() {
     const urlParams = new URLSearchParams(window.location.search);
     const matchParam = urlParams.get('match') || urlParams.get('id');
 
-    await loadPlayerCodes();
-    tryAutoAuth();
+    await tryAutoAuth();
     await loadAll();
 
     // If live_state has three_team_mode active (set from index Start Meci), apply 3-team UI
@@ -3211,14 +3215,17 @@ init();
 </div>
 
 <div class="rotation-toast" id="rotationToast"></div>
-<!-- Code Auth Modal -->
+<!-- Admin Login Modal (Supabase Auth) -->
 <div class="code-auth-overlay" id="codeAuthOverlay" onclick="if(event.target===this)closeCodeAuth()">
   <div class="code-auth-box">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">🔑 Cod Jucător</div>
-    <div style="font-size:.65rem;color:#6b5840;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
-    <input id="codeAuthInput" type="text" maxlength="10" placeholder="Cod secret..."
-      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
-      oninput="this.value=this.value.toUpperCase();document.getElementById('codeAuthErr').textContent=''"
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">🔑 Login Admin</div>
+    <div style="font-size:.65rem;color:#6b5840;margin-bottom:14px;">Doar pentru administrator — vizitatorii nu au nevoie de login</div>
+    <input id="codeAuthEmail" type="email" placeholder="Email..." autocomplete="username"
+      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:.95rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;margin-bottom:8px;"
+      onkeydown="if(event.key==='Enter')document.getElementById('codeAuthInput').focus()">
+    <input id="codeAuthInput" type="password" placeholder="Parolă..." autocomplete="current-password"
+      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1.1rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;margin-bottom:6px;"
+      oninput="document.getElementById('codeAuthErr').textContent=''"
       onkeydown="if(event.key==='Enter')submitCode()">
     <div id="codeAuthErr" style="font-size:.68rem;color:#b71c1c;min-height:16px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;">
