@@ -229,6 +229,13 @@ main, body{padding-bottom:80px;}
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;margin-left:4px;}
 .rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
+
+.goal-banner{display:none;margin:0 12px;padding:12px 14px;border-radius:12px;text-align:center;font-family:'Bebas Neue',sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);}
+.goal-banner.show{display:block;animation:goalPop .45s cubic-bezier(.34,1.56,.64,1);}
+.goal-banner-title{font-size:2rem;letter-spacing:4px;line-height:1;}
+.goal-banner-name{font-size:1.15rem;letter-spacing:1px;margin-top:2px;font-family:'Rajdhani',sans-serif;font-weight:800;}
+.goal-banner-assist{font-size:.8rem;letter-spacing:.5px;margin-top:2px;font-family:'Rajdhani',sans-serif;font-weight:600;opacity:.9;}
+@keyframes goalPop{0%{transform:scale(.6);opacity:0;}55%{transform:scale(1.06);opacity:1;}100%{transform:scale(1);opacity:1;}}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 #roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #e3d3ac;margin-top:4px;}
 
@@ -413,6 +420,8 @@ main, body{padding-bottom:80px;}
     <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#b71c1c;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
 </div>
+
+<div class="goal-banner" id="goalBanner"></div>
 
 <div id="pauseBanner" style="display:none;">⏸ MECI ÎN PAUZĂ</div>
 
@@ -698,6 +707,26 @@ function showRotationToast(msg, durationMs = 3000) {
 function bump(team) {
     const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
     el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
+}
+
+let _goalBannerTO = null;
+function showGoalBanner(name, team, assistName) {
+    const el = document.getElementById('goalBanner');
+    if (!el) return;
+    const hex = getTeamHex(team);
+    const tName = getTeamName(team);
+    el.style.background = `linear-gradient(135deg, ${hex}22, ${hex}55)`;
+    el.style.border = `1px solid ${hex}`;
+    el.style.color = '#1a1208';
+    el.innerHTML =
+        '<div class="goal-banner-title" style="color:' + hex + ';">⚽ GOOOL!</div>'
+        + '<div class="goal-banner-name">' + name + ' <span style="opacity:.7;font-weight:600;">(' + tName + ')</span></div>'
+        + (assistName ? '<div class="goal-banner-assist">🅰️ assist: ' + assistName + '</div>' : '');
+    el.classList.remove('show');
+    void el.offsetWidth; // restart animația dacă vine un gol nou peste altul încă vizibil
+    el.classList.add('show');
+    if (_goalBannerTO) clearTimeout(_goalBannerTO);
+    _goalBannerTO = setTimeout(() => el.classList.remove('show'), 4000);
 }
 function goalsMap() {
     // In 3-team mode: count goals across ALL rounds + current round
@@ -1803,7 +1832,7 @@ async function addGoal(name, team, assistName) {
         ? Math.floor(calcElapsedSec(liveState) / 60) : null;
     const tmpId  = 'tmp_' + Date.now();
     goals.push({ id: tmpId, player_name: name, team, minute, assist_name: assistName || null, created_at: new Date().toISOString() });
-    render(); bump(team);
+    render(); bump(team); showGoalBanner(name, team, assistName);
 
     try {
         let insertPayload = { player_name: name, team, minute, assist_name: assistName || null };
@@ -2849,7 +2878,12 @@ function subscribe() {
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'}, p => {
             if (!goals.some(g => g.id === p.new.id)) {
                 const ti = goals.findIndex(g => String(g.id).startsWith('tmp_') && g.player_name===p.new.player_name);
-                if (ti !== -1) goals[ti] = p.new; else goals.push(p.new);
+                if (ti !== -1) {
+                    goals[ti] = p.new; // era optimistic pe device-ul care a marcat — banner deja arătat local
+                } else {
+                    goals.push(p.new);
+                    showGoalBanner(p.new.player_name, p.new.team, p.new.assist_name); // alt device / guest — prima oară că vede golul
+                }
                 render(); bump(p.new.team);
             }
         })
