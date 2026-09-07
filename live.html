@@ -131,6 +131,32 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #d3bd8c;color:#1554b3;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .log-panel{display:none;background:#f3e6cf;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
 .log-panel.open{display:block;}
+
+/* ── GUEST MODE (teletext) ──────────────────────────────────────────
+   Regulă generală: în guest-mode ascundem TOATE <button>-urile (adică
+   tot ce poate scrie ceva în DB), cu excepția unei liste albe explicite.
+   E intenționat "hide all, allow few" în loc de "hide the dangerous
+   ones" — mult mai greu de uitat un buton nou adăugat mai târziu.
+   Securitatea reală tot vine din RLS pe server; asta e doar UX. */
+body.guest-mode button:not(#loginKeyBtn):not(.guest-ok){
+    display:none !important;
+}
+body.guest-mode .pr-plus,
+body.guest-mode .pr-cnt{ display:none !important; }
+body.guest-mode .pr{ grid-template-columns:1fr auto; }
+
+/* Scor mare, tip tabelă de teletext */
+body.guest-mode .sc-n{ font-size:3.2rem; }
+body.guest-mode .sc-lbl{ font-size:1.05rem; }
+
+/* Istoricul de goluri și de ture se deschide automat, mai mare */
+body.guest-mode .log-panel{ display:block !important; max-height:none; }
+body.guest-mode .log-entry{ font-size:.95rem; padding:10px 14px; }
+body.guest-mode .log-toggle{ pointer-events:none; }
+body.guest-mode .log-toggle::after{ content:''; }
+body.guest-mode #tureBody{ display:block !important; max-height:none; }
+body.guest-mode .tur-row{ font-size:.85rem; padding:10px 4px; }
+body.guest-mode .ture-toggle{ pointer-events:none; }
 .log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #f5e9d4;font-size:.78rem;}
 .log-entry:last-child{border-bottom:none;}
 .log-min{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#7d6849;min-width:28px;}
@@ -362,7 +388,7 @@ main, body{padding-bottom:80px;}
 }
 </style>
 </head>
-<body>
+<body class="guest-mode">
 
 <div class="hd">
   <div class="hd-logo">⚽ Arena FC</div>
@@ -1269,6 +1295,7 @@ async function loadAll() {
 // ── Render ────────────────────────────────────────────────────────
 function render() {
     if (!liveState) return;
+    document.body.classList.toggle('guest-mode', !isLiveAdmin);
     applyTeamColors(); // set --o, --g CSS vars from team configs
     const st   = liveState;
     const mode = st.three_team_mode;
@@ -3131,7 +3158,7 @@ init();
         <div class="rd-title" id="rdTitle">Tur 1</div>
         <div class="rd-sub" id="rdSub"></div>
       </div>
-      <button class="rd-close" onclick="closeRoundDetail()">✕</button>
+      <button class="rd-close guest-ok" onclick="closeRoundDetail()">✕</button>
     </div>
     <div class="rd-score-row">
       <div class="rd-team">
