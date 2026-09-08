@@ -127,6 +127,8 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .g-col .pr-plus:active{background:rgba(40,167,69,.22);}
 
 .log-toggle{background:#f7ecd9;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+body:not(.guest-mode) .log-toggle,
+body:not(.guest-mode) .ture-toggle{display:none;}
 .log-toggle-lbl{font-size:.72rem;color:#7d6849;display:flex;align-items:center;gap:6px;}
 .log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #d3bd8c;color:#1554b3;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .log-panel{display:none;background:#f3e6cf;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
@@ -165,11 +167,13 @@ body.guest-mode .ture-toggle{ pointer-events:none; }
 .log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#1b7a43;}
 .log-empty{padding:16px 14px;color:#7d6849;font-size:.78rem;text-align:center;}
 
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:none;gap:7px;z-index:30;}
+.bottom-bar.show{display:flex;}
 .btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
 .btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
 /* Extra padding so last player row is never hidden by bottom-bar */
-main, body{padding-bottom:80px;}
+main, body{padding-bottom:0;}
+body.has-bottom-bar{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog-overlay.show{display:flex;}
@@ -582,12 +586,11 @@ main, body{padding-bottom:80px;}
   <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
 </div>
 
-<div class="bottom-bar">
+<div class="bottom-bar" id="bottomBar">
   <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
     <span class="uu-main">↩ Anulează</span>
     <span class="uu-sub" id="universalUndoSub"></span>
   </button>
-  <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
 </div>
 
 <div class="dialog-overlay" id="dialogOverlay">
@@ -806,6 +809,7 @@ function bump(team) {
 
 let _goalBannerTO = null;
 function showGoalBanner(name, team, assistName) {
+    if (isLiveAdmin) return; // adminul vede deja golul pe ecran în timp real, nu are nevoie de popup mare
     const el = document.getElementById('goalBanner');
     if (!el) return;
     const hex = getTeamHex(team);
@@ -1476,7 +1480,7 @@ function render() {
     // (bara veche de undo a fost înlocuită de butonul universal fix, vezi updateUniversalUndoBtn())
 
     // Finalize button
-    document.getElementById('btnFinalize').disabled = realGoals.length === 0 && rounds.length === 0;
+    _canFinalize = realGoals.length > 0 || rounds.length > 0;
 
     // 3-team mode indicator (acum în meniul de setări)
     const amThreeVal = document.getElementById('amThreeVal');
@@ -1965,13 +1969,18 @@ async function removeGoal(name, team) {
 function updateUniversalUndoBtn(){
     const btn = document.getElementById('universalUndoBtn');
     const sub = document.getElementById('universalUndoSub');
+    const bar = document.getElementById('bottomBar');
     if (!btn) return;
     if (lastAction) {
         btn.classList.add('show');
         if (sub) sub.textContent = lastAction.label || '';
+        if (bar) bar.classList.add('show');
+        document.body.classList.add('has-bottom-bar');
     } else {
         btn.classList.remove('show');
         if (sub) sub.textContent = '';
+        if (bar) bar.classList.remove('show');
+        document.body.classList.remove('has-bottom-bar');
     }
 }
 async function universalUndo(){
@@ -2204,7 +2213,9 @@ function openLiveStats(){
     document.getElementById('dialogOverlay').classList.add('show');
 }
 
+let _canFinalize = false;
 function openFinalize() {
+    if (!_canFinalize) { showToast('Nu sunt goluri sau ture înregistrate încă'); return; }
     const mode = getThreeTeamMode();
     const allRounds = rounds.map(r => ({...r}));
     const roundG = mode ? getRoundGoals() : [];
