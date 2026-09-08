@@ -162,6 +162,50 @@ body{font-family:var(--font-body);background:
 .mc-timeline-score{font-size:.7rem;color:var(--ink-dim);font-family:var(--font-mono);}
 .mc-timeline-scorer{font-size:.7rem;color:#c4b5fd;margin-top:2px;}
 .match-empty{text-align:center;padding:34px 10px;color:var(--ink-dim);font-size:.82rem;}
+
+/* ── Player Profile ── */
+.pp-back{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;margin-bottom:12px;transition:all .15s;}
+.pp-back:hover{color:var(--ink);border-color:#334155;}
+.pp-header{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.35);box-shadow:0 0 0 1px rgba(91,127,255,.08),0 8px 24px -8px rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+.pp-num{font-family:var(--font-display);font-size:1.1rem;color:var(--ink-faint);letter-spacing:1px;}
+.pp-name{font-family:var(--font-display);font-size:1.9rem;letter-spacing:2px;color:var(--ink);line-height:1;margin:2px 0 4px;}
+.pp-pos{display:inline-block;font-size:.66rem;font-weight:800;letter-spacing:1px;padding:2px 9px;border-radius:6px;background:rgba(91,127,255,.14);color:#b3c2ff;border:1px solid rgba(91,127,255,.3);}
+.pp-rating-block{text-align:right;}
+.pp-rating-val{font-family:var(--font-display);font-size:2.4rem;line-height:1;color:var(--accent);}
+.pp-rating-lbl{font-size:.62rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-faint);}
+.pp-trend{font-family:var(--font-mono);font-size:.78rem;font-weight:700;margin-top:2px;}
+.pp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+@media(max-width:560px){.pp-grid{grid-template-columns:repeat(2,1fr);}}
+.pp-stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);padding:11px 10px;text-align:center;}
+.pp-stat-val{font-family:var(--font-mono);font-weight:700;font-size:1.05rem;color:var(--ink);}
+.pp-stat-lbl{font-size:.6rem;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-faint);margin-top:2px;}
+.pp-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+@media(max-width:560px){.pp-row2{grid-template-columns:1fr;}}
+.pp-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 16px;}
+.pp-card-lbl{font-size:.64rem;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-faint);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.pp-card-name{font-weight:800;font-size:.98rem;color:var(--ink);margin-bottom:2px;}
+.pp-card-sub{font-size:.72rem;color:var(--ink-dim);font-family:var(--font-mono);}
+.pp-empty{color:var(--ink-faint);font-size:.76rem;text-align:center;padding:10px 0;}
+.pp-section-title{font-family:var(--font-display);font-size:1.1rem;letter-spacing:2px;color:var(--ink);margin:0 0 10px;}
+.pp-chip-row{display:flex;flex-wrap:wrap;gap:7px;}
+.pp-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;text-align:center;min-width:84px;}
+.pp-chip-emoji{font-size:1.05rem;}
+.pp-chip-lbl{font-size:.6rem;font-weight:700;color:var(--ink-soft);margin-top:2px;}
+.pp-chip.locked{opacity:.32;}
+.pp-record{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-md);padding:10px 12px;text-align:center;}
+.pp-record-val{font-family:var(--font-display);font-size:1.5rem;color:var(--accent);line-height:1;}
+.pp-record-lbl{font-size:.6rem;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);margin-top:3px;}
+.pp-record-meta{font-size:.6rem;color:var(--ink-faint);margin-top:2px;}
+.pp-form-dots{display:flex;gap:5px;}
+.pp-form-dot{width:11px;height:11px;border-radius:50%;}
+.pp-match-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line-soft);font-size:.76rem;}
+.pp-match-row:last-child{border-bottom:none;}
+.pp-match-date{font-family:var(--font-mono);color:var(--ink-faint);font-size:.66rem;min-width:44px;}
+.pp-match-result{font-weight:800;font-size:.62rem;letter-spacing:.5px;padding:2px 7px;border-radius:6px;}
+.pp-match-score{flex:1;color:var(--ink-soft);font-family:var(--font-mono);font-size:.72rem;}
+.pp-match-contrib{color:var(--ink-dim);font-size:.7rem;white-space:nowrap;}
+.pp-name-link{cursor:pointer;}
+.pp-name-link:hover{text-decoration:underline;text-decoration-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -176,6 +220,8 @@ body{font-family:var(--font-body);background:
         </div>
         <div class="live-pill"><div class="live-dot"></div><div class="live-lbl">Live</div></div>
     </div>
+
+    <div id="playerProfileWrap" style="display:none;"></div>
 
     <div id="meCardWrap"></div>
 
