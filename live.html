@@ -426,7 +426,6 @@ body.has-bottom-bar{padding-bottom:80px;}
         flex-direction:column;
         border-right:1px solid var(--b);
     }
-    #belowTeamsBar, #threeBar{ grid-area:control; }
     #landscapeRight{
         grid-area:players;
         overflow-y:auto;
@@ -551,6 +550,7 @@ body.has-bottom-bar{padding-bottom:80px;}
 <div id="landscapeRight">
 <div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
 </div><!-- /landscapeRight -->
+<div id="portraitAnchor"></div>
 
 <!-- Settings: doar în 3-team mode — pe portrait apar SUB tabela de jucători;
      pe landscape sunt "readuse" vizual în coloana stângă prin grid-area:control -->
@@ -810,6 +810,26 @@ function showRotationToast(msg, durationMs = 3000) {
     el.textContent = msg; el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), durationMs);
 }
+// Mută fizic echipa-de-bancă + pragurile în coloana stângă (landscape) sau
+// sub tabela de jucători (portrait) — evită suprapunerea de grid-area.
+function applyResponsiveLayout() {
+    const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+    const left = document.getElementById('landscapeLeft');
+    const anchor = document.getElementById('portraitAnchor');
+    const threeBarEl = document.getElementById('threeBar');
+    const belowBarEl = document.getElementById('belowTeamsBar');
+    if (!left || !anchor || !threeBarEl || !belowBarEl) return;
+    if (isLandscape) {
+        left.appendChild(belowBarEl);
+        left.appendChild(threeBarEl);
+    } else {
+        anchor.after(belowBarEl);
+        belowBarEl.after(threeBarEl);
+    }
+}
+window.addEventListener('resize', applyResponsiveLayout);
+window.addEventListener('orientationchange', applyResponsiveLayout);
+
 function bump(team) {
     const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
     el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
@@ -3227,6 +3247,7 @@ async function init() {
     const matchParam = urlParams.get('match') || urlParams.get('id');
 
     await tryAutoAuth();
+    applyResponsiveLayout();
     await loadAll();
 
     // If live_state has three_team_mode active (set from index Start Meci), apply 3-team UI
