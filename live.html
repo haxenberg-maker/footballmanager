@@ -87,7 +87,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#3a2f1f;}
 
-.universal-undo-btn{display:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;flex:0 0 auto;max-width:44%;overflow:hidden;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:6px 12px;border-radius:9px;box-shadow:0 2px 6px rgba(0,0,0,.12);cursor:pointer;touch-action:manipulation;min-height:44px;}
+.universal-undo-btn{display:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;flex:0 0 auto;max-width:60vw;overflow:hidden;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:6px 12px;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation;min-height:44px;position:fixed;left:50%;bottom:0;transform:translateX(-50%);margin-bottom:max(10px,env(safe-area-inset-bottom));z-index:30;}
 .universal-undo-btn.show{display:flex;}
 .universal-undo-btn .uu-main{font-size:.72rem;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .universal-undo-btn .uu-sub{font-size:.6rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
@@ -167,11 +167,7 @@ body.guest-mode .ture-toggle{ pointer-events:none; }
 .log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#1b7a43;}
 .log-empty{padding:16px 14px;color:#7d6849;font-size:.78rem;text-align:center;}
 
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:none;gap:7px;z-index:30;}
-.bottom-bar.show{display:flex;}
-.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
-.btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
-/* Extra padding so last player row is never hidden by bottom-bar */
+/* Extra padding so last player row is never hidden by the floating undo pill */
 main, body{padding-bottom:0;}
 body.has-bottom-bar{padding-bottom:80px;}
 
@@ -299,6 +295,13 @@ body.has-bottom-bar{padding-bottom:80px;}
 .add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
 .add-temp-hd{padding:12px 16px;border-bottom:1px solid #e3d3ac;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .add-temp-body{overflow-y:auto;padding:10px 12px;}
+
+/* Assist picker — centrat pe ecran (nu bottom-sheet), pe 2 coloane ca să încapă fără derulare */
+#assistPickerOverlay{align-items:center;padding:16px;}
+#assistPickerOverlay .add-temp-box{border-radius:16px;max-height:min(80vh,80dvh);border-bottom:1px solid #d3bd8c;}
+#assistList{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;}
+#assistList > div{margin-bottom:0 !important;}
+@media(max-width:360px){ #assistList{grid-template-columns:1fr;} }
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
 .round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;}
@@ -399,6 +402,7 @@ body.has-bottom-bar{padding-bottom:80px;}
    listă jucători cu butoane mari de gol. Fără elemente fixed care
    blochează scroll-ul vertical al paginii. */
 @media(orientation:landscape){
+    body.has-bottom-bar{padding-bottom:0;}
     body{
         display:grid;
         grid-template-columns:minmax(220px,34%) 1fr;
@@ -422,6 +426,7 @@ body.has-bottom-bar{padding-bottom:80px;}
         flex-direction:column;
         border-right:1px solid var(--b);
     }
+    #belowTeamsBar, #threeBar{ grid-area:control; }
     #landscapeRight{
         grid-area:players;
         overflow-y:auto;
@@ -446,14 +451,19 @@ body.has-bottom-bar{padding-bottom:80px;}
     .log-panel{max-height:140px;}
     #tureBody{max-height:140px;}
 
-    /* Bottom-bar nu mai e fixed — stă sub coloane, nu blochează nimic */
-    .bottom-bar{
+    /* Undo-ul e acum un copil real al .hd-right — în portrait plutește fix jos (vezi CSS de bază),
+       aici anulăm doar poziționarea fixed ca să stea normal, în linie cu Live/Conexiune/Admin/Setări */
+    .universal-undo-btn{
         position:static;
-        grid-area:history;
-        order:99;
+        transform:none;
+        margin-bottom:0;
+        max-width:150px;
+        padding:5px 10px;
+        min-height:34px;
+        box-shadow:none;
     }
-    main, body{padding-bottom:0;}
-    .btn-finalize{padding:9px;min-height:38px;}
+    .universal-undo-btn .uu-main{font-size:.62rem;}
+    .universal-undo-btn .uu-sub{font-size:.52rem;}
 }
 @media(orientation:landscape) and (max-height:420px){
     .sc-n{font-size:1.9rem;}
@@ -471,6 +481,10 @@ body.has-bottom-bar{padding-bottom:80px;}
     <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
     <span class="admin-badge" id="adminBadge" onclick="isLiveAdmin ? logoutAdmin() : openCodeAuth()" style="display:none;">Admin</span>
     <button class="hd-key-btn" id="loginKeyBtn" onclick="openCodeAuth()" title="Login admin">🔑</button>
+    <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
+      <span class="uu-main">↩ Anulează</span>
+      <span class="uu-sub" id="universalUndoSub"></span>
+    </button>
     <button class="hd-key-btn" id="adminMenuBtn" onclick="openAdminMenu()" title="Setări admin" style="font-size:.9rem;">⚙️</button>
   </div>
 </div>
@@ -532,7 +546,14 @@ body.has-bottom-bar{padding-bottom:80px;}
   </button>
 </div>
 
-<!-- Settings: doar în 3-team mode, sub butonul de transfer -->
+</div><!-- /landscapeLeft -->
+
+<div id="landscapeRight">
+<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
+</div><!-- /landscapeRight -->
+
+<!-- Settings: doar în 3-team mode — pe portrait apar SUB tabela de jucători;
+     pe landscape sunt "readuse" vizual în coloana stângă prin grid-area:control -->
 <div id="belowTeamsBar" style="display:none;border-top:1px solid var(--b);">
   <div style="display:flex;align-items:center;gap:0;background:#f7ecd9;">
     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-right:1px solid var(--b);">
@@ -550,8 +571,7 @@ body.has-bottom-bar{padding-bottom:80px;}
   </div>
 </div>
 
-<!-- Echipa de pe bancă — mutată sub setările Schimb/Max min, ca cele 2 echipe active
-     + cronometrul să rămână mereu vizibile pe ecran fără scroll -->
+<!-- Echipa de pe bancă — pe portrait sub tabela de jucători -->
 <div class="three-mode-bar" id="threeBar">
   <div class="waiting-team">
     <div class="waiting-hd">
@@ -564,11 +584,6 @@ body.has-bottom-bar{padding-bottom:80px;}
     <div id="waitingPlayers" style="display:flex;flex-wrap:wrap;gap:4px;font-size:.75rem;align-items:center;padding-top:4px;"></div>
   </div>
 </div>
-</div><!-- /landscapeLeft -->
-
-<div id="landscapeRight">
-<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
-</div><!-- /landscapeRight -->
 
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
@@ -584,13 +599,6 @@ body.has-bottom-bar{padding-bottom:80px;}
 </div>
 <div class="log-panel" id="logPanel">
   <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
-</div>
-
-<div class="bottom-bar" id="bottomBar">
-  <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
-    <span class="uu-main">↩ Anulează</span>
-    <span class="uu-sub" id="universalUndoSub"></span>
-  </button>
 </div>
 
 <div class="dialog-overlay" id="dialogOverlay">
@@ -1969,17 +1977,14 @@ async function removeGoal(name, team) {
 function updateUniversalUndoBtn(){
     const btn = document.getElementById('universalUndoBtn');
     const sub = document.getElementById('universalUndoSub');
-    const bar = document.getElementById('bottomBar');
     if (!btn) return;
     if (lastAction) {
         btn.classList.add('show');
         if (sub) sub.textContent = lastAction.label || '';
-        if (bar) bar.classList.add('show');
         document.body.classList.add('has-bottom-bar');
     } else {
         btn.classList.remove('show');
         if (sub) sub.textContent = '';
-        if (bar) bar.classList.remove('show');
         document.body.classList.remove('has-bottom-bar');
     }
 }
