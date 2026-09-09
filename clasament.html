@@ -1772,6 +1772,7 @@ const PP_MIN_TEAMMATE_GAMES = 2;  // prag minim meciuri împreună pt. "cel mai 
 let ppMatchesExpanded = false;    // "ULTIMELE MECIURI" — colapsat implicit, se resetează per jucător
 let ppActiveTab = 'overview';     // 'overview' | 'chemistry' — se resetează per jucător
 let ppLastProfileName = null;
+let ppCurrentAchievements = [];   // achievement-urile profilului afișat curent, pentru showAchievementInfo(i)
 
 function ppMatchesFor(name){
     return db.history.filter(h =>
@@ -1946,6 +1947,7 @@ function renderPlayerProfile(name){
     const achievements = computeAchievements(p, {
         wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value
     });
+    ppCurrentAchievements = achievements; // pentru showAchievementInfo(i)
     const form = getFormIndex(p);
     const myAwards = (db.playerAwards||[]).filter(a=>a.player_id===p.id);
     // Tot sezonul curent selectat (currentSeason — același selector ca restul
@@ -2134,6 +2136,30 @@ function setPpTab(tab){
 function goCompare(nameA, nameB){
     if (!nameA || !nameB || nameA===nameB) return;
     location.href = 'clasament.html?p1='+encodeURIComponent(nameA)+'&p2='+encodeURIComponent(nameB);
+}
+
+// Popup "cum se obține" la click pe un achievement — folosește datele deja
+// calculate în computeAchievements() (how/current/target/unit), nu o sursă nouă.
+function showAchievementInfo(i){
+    const a = ppCurrentAchievements[i];
+    if (!a) return;
+    const pct = a.target ? Math.min(100, Math.round((a.current/a.target)*100)) : (a.unlocked?100:0);
+    document.getElementById('achModalWrap').innerHTML = `
+        <div class="pp-ach-backdrop" onclick="if(event.target===this) closeAchievementInfo()">
+            <div class="pp-ach-card">
+                <div class="pp-ach-emoji">${a.emoji}</div>
+                <div class="pp-ach-title">${a.label}</div>
+                <div class="pp-ach-status ${a.unlocked?'unlocked':'locked'}">${a.unlocked?'✅ Obținut':'🔒 Neobținut încă'}</div>
+                <div class="pp-ach-how">${a.how||a.desc||''}</div>
+                <div class="pp-ach-progress-track"><div class="pp-ach-progress-fill${a.unlocked?' unlocked':''}" style="width:${pct}%;"></div></div>
+                <div class="pp-ach-progress-lbl">${a.current}/${a.target} ${a.unit||''}</div>
+                <button class="pp-ach-close" onclick="closeAchievementInfo()">Închide</button>
+            </div>
+        </div>`;
+}
+
+function closeAchievementInfo(){
+    document.getElementById('achModalWrap').innerHTML = '';
 }
 
 // Meciuri directe (echipe diferite, în același meci) între doi jucători —
