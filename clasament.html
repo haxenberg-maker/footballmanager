@@ -1825,6 +1825,31 @@ function ppFormatDate(d){
     try{ const dt=parseDateToObj(d); return dt.toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}).toUpperCase(); }catch(e){ return d; }
 }
 
+// ⭐ POTM / 👑 MVP per meci — calculate la nivel de SESIUNE (groupHistoryForDisplay),
+// exact ca restul aplicației (renderSessionCard/renderAwardsLeaderboard), nu o a
+// treia logică separată. Într-o sesiune 3 echipe, premiul e per sesiune întreagă,
+// nu per rundă — de-aia marcăm toate rândurile (_dbId) din grupul câștigător.
+function getPlayerMatchAwards(name){
+    const potmIds = new Set(), mvpIds = new Set();
+    groupHistoryForDisplay(db.history).forEach(item=>{
+        const participates = item.rows.some(h =>
+            (h.orangePlayers||[]).includes(name) ||
+            (h.greenPlayers ||[]).includes(name) ||
+            (h.blackPlayers ||[]).includes(name)
+        );
+        if (!participates) return;
+        const rowIds = item.rows.map(r=>r._dbId);
+        const { winnerId: potmWinnerId } = computePotmWinnerForRows(item.rows);
+        if (potmWinnerId != null) {
+            const pl = db.players.find(x=>x.id===potmWinnerId);
+            if (pl && pl.name===name) rowIds.forEach(id=>potmIds.add(id));
+        }
+        const mvpWinner = computeSessionMvpWinner([...item.rows].reverse());
+        if (mvpWinner && mvpWinner.name===name) rowIds.forEach(id=>mvpIds.add(id));
+    });
+    return { potmIds, mvpIds };
+}
+
 function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
     const p = db.players.find(x=>x.name===name);
@@ -1863,6 +1888,7 @@ function renderPlayerProfile(name){
     const form = getFormIndex(p);
     const myAwards = (db.playerAwards||[]).filter(a=>a.player_id===p.id);
     const recentMatches = ppMatchesFor(p.name).slice(0,8);
+    const { potmIds, mvpIds } = getPlayerMatchAwards(p.name);
 
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
@@ -1978,10 +2004,12 @@ function renderPlayerProfile(name){
                 const resColor = won===true?'#22c55e':won===false?'#ef4444':'#64748b';
                 const goals = (h.goalsList||[]).filter(g=>!g.is_penalty && g.player_name===p.name).reduce((s,g)=>s+(g.goals||1),0);
                 const ast = (h.goalsList||[]).filter(g=>!g.is_penalty && g.assist_name===p.name).length;
+                const isPotm = potmIds.has(h._dbId);
+                const isMvp = mvpIds.has(h._dbId);
                 return `<div class="pp-match-row">
                     <div class="pp-match-date">${ppFormatDate(h.date)}</div>
                     <div class="pp-match-result" style="background:${resColor}22;color:${resColor};">${resLabel}</div>
-                    <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+h.score:''}</div>
+                    <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+h.score:''}${isPotm?' <span title="POTM">⭐</span>':''}${isMvp?' <span title="MVP">👑</span>':''}</div>
                     <div class="pp-match-contrib">${goals?'⚽'+goals+' ':''}${ast?'🅰️'+ast:''}</div>
                 </div>`;
             }).join('') : `<div class="pp-empty">Fără meciuri înregistrate.</div>`}
