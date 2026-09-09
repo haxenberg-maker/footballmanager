@@ -188,7 +188,9 @@ body{font-family:var(--font-body);background:
 .pp-empty{color:var(--ink-faint);font-size:.76rem;text-align:center;padding:10px 0;}
 .pp-section-title{font-family:var(--font-display);font-size:1.1rem;letter-spacing:2px;color:var(--ink);margin:0 0 10px;}
 .pp-chip-row{display:flex;flex-wrap:wrap;gap:7px;}
-.pp-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;text-align:center;min-width:84px;}
+.pp-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:8px 12px;text-align:center;min-width:84px;cursor:pointer;transition:border-color .15s,transform .1s;}
+.pp-chip:hover{border-color:var(--accent);}
+.pp-chip:active{transform:scale(.96);}
 .pp-chip-emoji{font-size:1.05rem;}
 .pp-chip-lbl{font-size:.6rem;font-weight:700;color:var(--ink-soft);margin-top:2px;}
 .pp-chip.locked{opacity:.32;}
@@ -234,6 +236,21 @@ body{font-family:var(--font-body);background:
 .h2h-stat-val{text-align:center;}
 .h2h-stat-val.better{color:#34d399;font-weight:700;}
 .h2h-stat-lbl{text-align:center;font-size:.62rem;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--font-body);}
+/* ── Achievement info popup ── */
+.pp-ach-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.pp-ach-card{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:22px;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);}
+.pp-ach-emoji{font-size:2.4rem;margin-bottom:6px;}
+.pp-ach-title{font-family:var(--font-display);font-size:1.2rem;letter-spacing:1px;color:var(--ink);margin-bottom:2px;}
+.pp-ach-status{font-size:.66rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;}
+.pp-ach-status.unlocked{color:#34d399;}
+.pp-ach-status.locked{color:var(--ink-faint);}
+.pp-ach-how{font-size:.8rem;color:var(--ink-soft);line-height:1.4;margin-bottom:14px;}
+.pp-ach-progress-track{height:7px;background:#262f3f;border-radius:4px;overflow:hidden;margin-bottom:6px;}
+.pp-ach-progress-fill{height:100%;border-radius:4px;background:var(--accent);}
+.pp-ach-progress-fill.unlocked{background:#34d399;}
+.pp-ach-progress-lbl{font-family:var(--font-mono);font-size:.74rem;color:var(--ink-dim);margin-bottom:14px;}
+.pp-ach-close{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 18px;font-size:.76rem;font-weight:700;cursor:pointer;}
+.pp-ach-close:hover{border-color:var(--accent);}
 </style>
 </head>
 <body>
@@ -251,6 +268,7 @@ body{font-family:var(--font-body);background:
 
     <div id="playerProfileWrap" style="display:none;"></div>
     <div id="comparePageWrap" style="display:none;"></div>
+    <div id="ppAchModalWrap"></div>
 
     <div id="meCardWrap"></div>
 
@@ -1849,13 +1867,14 @@ function getBestSingleMatchGoalsWithMatch(name){
 // mai bune performanțe), conform structurii cerute.
 function computeAchievements(p, stats){
     const wr = stats.games>0 ? stats.wins/stats.games : 0;
+    const wrPct = Math.round(wr*100);
     return [
-        { emoji:'⚽', label:'Cel mai bun meci', desc:'7 goluri într-un meci', unlocked: stats.bestMatchGoals>=7 },
-        { emoji:'🔥', label:'Goal Machine', desc:'Min. 5 goluri într-un meci', unlocked: stats.bestMatchGoals>=5 },
-        { emoji:'🏆', label:'Winner', desc:'Min. 20 victorii', unlocked: stats.wins>=20 },
-        { emoji:'🅰️', label:'Playmaker', desc:'Min. 20 assisturi', unlocked: stats.assists>=20 },
-        { emoji:'👑', label:'MVP', desc:'5 MVP-uri', unlocked: (p.careerMvpCount||0)>=5 },
-        { emoji:'💯', label:'Consistent', desc:'Winrate peste 70%', unlocked: stats.games>=PP_MIN_WR_GAMES && wr>0.7 },
+        { emoji:'⚽', label:'Cel mai bun meci', desc:'7 goluri într-un meci', how:'Marchează 7 goluri într-un singur meci.', unlocked: stats.bestMatchGoals>=7, current: stats.bestMatchGoals, target: 7, unit:'goluri (record personal)' },
+        { emoji:'🔥', label:'Goal Machine', desc:'Min. 5 goluri într-un meci', how:'Marchează cel puțin 5 goluri într-un singur meci.', unlocked: stats.bestMatchGoals>=5, current: stats.bestMatchGoals, target: 5, unit:'goluri (record personal)' },
+        { emoji:'🏆', label:'Winner', desc:'Min. 20 victorii', how:'Adună cel puțin 20 de victorii, în total, în cariera ta.', unlocked: stats.wins>=20, current: stats.wins, target: 20, unit:'victorii' },
+        { emoji:'🅰️', label:'Playmaker', desc:'Min. 20 assisturi', how:'Adună cel puțin 20 de assisturi, în total, în cariera ta.', unlocked: stats.assists>=20, current: stats.assists, target: 20, unit:'assisturi' },
+        { emoji:'👑', label:'MVP', desc:'5 MVP-uri', how:'Fii declarat MVP-ul meciului de 5 ori (calculat automat din goluri+assisturi+minute, sau setat manual de admin).', unlocked: (p.careerMvpCount||0)>=5, current: p.careerMvpCount||0, target: 5, unit:'MVP-uri' },
+        { emoji:'💯', label:'Consistent', desc:'Winrate peste 70%', how:`Ai nevoie de minim ${PP_MIN_WR_GAMES} meciuri jucate și un winrate peste 70%.`, unlocked: stats.games>=PP_MIN_WR_GAMES && wr>0.7, current: stats.games>=PP_MIN_WR_GAMES ? wrPct : stats.games, target: stats.games>=PP_MIN_WR_GAMES ? 70 : PP_MIN_WR_GAMES, unit: stats.games>=PP_MIN_WR_GAMES ? '% winrate' : `meciuri jucate (minim ca să conteze winrate-ul)` },
     ];
 }
 
@@ -1967,8 +1986,8 @@ function renderPlayerProfile(name){
         <div class="stats-section" style="margin-bottom:14px;">
             <div class="pp-section-title">ACHIEVEMENTS</div>
             <div class="pp-chip-row">
-                ${achievements.map(a=>`
-                    <div class="pp-chip${a.unlocked?'':' locked'}" title="${a.desc}">
+                ${achievements.map((a,i)=>`
+                    <div class="pp-chip${a.unlocked?'':' locked'}" onclick="showAchievementInfo(${i})">
                         <div class="pp-chip-emoji">${a.emoji}</div>
                         <div class="pp-chip-lbl">${a.label}</div>
                     </div>`).join('')}
@@ -2462,16 +2481,35 @@ function rowToPlayer(p) {
 
 async function loadAll(){
     try{
-        // tags_config
-        const { data: tagsData } = await sb.from('tags_config').select('*').order('sort_order');
-        tagsConfig = tagsData || [];
-        buildPTById(); buildTWFromConfig();
+        // Interogările independente pornesc TOATE deodată (Promise.allSettled,
+        // nu secvențial) — niciuna nu are nevoie de rezultatul alteia ca să
+        // PORNEASCĂ, se combină abia după. allSettled (nu all) ca o eroare de
+        // rețea pe UNA din ele să nu blocheze restul paginii.
+        // NOTĂ: interogările către borda_votes și mvp_votes au fost scoase —
+        // sistemul de voturi comunitare a fost eliminat, iar bordaScore/
+        // bordaVotes/mvpWinCount/mvpLossCount nu mai erau folosite nicăieri în
+        // pagină (cod mort, doar tăiau timp din load).
+        const [
+            tagsRes, algoRes, playersRes, histRes, goalsRes, potmRes, awardsRes
+        ] = await Promise.allSettled([
+            sb.from('tags_config').select('*').order('sort_order'),
+            sb.from('algo_settings').select('key,value'),
+            sb.from('players').select('*, ratings(*)').order('id'),
+            sb.from('match_history').select('*').order('created_at', { ascending:false }),
+            sb.from('match_goals').select('*'),
+            sb.from('potm_votes').select('match_id,voted_player_id'),
+            sb.from('player_awards').select('*').order('created_at',{ascending:false}),
+            loadMilestoneConfig(), // mutează direct milestoneConfig — nu ne interesează rezultatul aici
+        ]);
+        const dataOf = r => r.status==='fulfilled' ? (r.value?.data ?? null) : null;
 
-        await loadMilestoneConfig();
+        // tags_config
+        tagsConfig = dataOf(tagsRes) || [];
+        buildPTById(); buildTWFromConfig();
 
         // algo_settings — toate "cadranele" formulei OVR (registrul ALGO_FIELDS, smart-rating.js),
         // ca OVR-ul afișat public să fie IDENTIC cu ce a configurat admin-ul în Setări.
-        const { data: algoData } = await sb.from('algo_settings').select('key,value');
+        const algoData = dataOf(algoRes);
         applyAlgoSettingsRows(algoData);
         (algoData||[]).forEach(row=>{
             if(row.key==='weights') Object.assign(W, row.value);
@@ -2479,37 +2517,19 @@ async function loadAll(){
         });
 
         // players + ratings
-        const { data: playersRaw } = await sb.from('players').select('*, ratings(*)').order('id');
+        const playersRaw = dataOf(playersRes);
         db.players = (playersRaw || []).map(rowToPlayer);
 
-        // borda
-        try{
-            const {data:bordaData} = await sb.from('borda_votes').select('player_name, borda_pts');
-            if(bordaData?.length){
-                const bordaTotals={}, bordaCounts={};
-                bordaData.forEach(row=>{
-                    bordaTotals[row.player_name]=(bordaTotals[row.player_name]||0)+row.borda_pts;
-                    bordaCounts[row.player_name]=(bordaCounts[row.player_name]||0)+1;
-                });
-                const maxPts=Math.max(...Object.values(bordaTotals),1);
-                db.players.forEach(p=>{
-                    if(bordaTotals[p.name]){
-                        p.bordaScore = 1+(bordaTotals[p.name]/maxPts)*9;
-                        p.bordaVotes = bordaCounts[p.name]||0;
-                    } else { p.bordaScore=0; p.bordaVotes=0; }
-                });
-            }
-        }catch(e){}
-
         // match history + goals
-        const { data: histRaw } = await sb.from('match_history').select('*').order('created_at', { ascending:false });
+        const histRaw = dataOf(histRes);
         // IMPORTANT: select('*') aici, NU o listă explicită de coloane — o listă
         // explicită cu 'minute' cădea cu eroare 400 (posibil cache de schemă
         // PostgREST neactualizat pentru coloana nou-adăugată). select('*') e
         // exact ce funcționează deja garantat (e folosit și în index.html).
         let goalsPerMatch = {};
         try{
-            const { data: allGoals, error } = await sb.from('match_goals').select('*');
+            if (goalsRes.status!=='fulfilled') throw (goalsRes.reason||new Error('fetch failed'));
+            const { data: allGoals, error } = goalsRes.value;
             if (error) throw error;
             (allGoals||[]).forEach(g=>{
                 if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]=[];
@@ -2520,7 +2540,7 @@ async function loadAll(){
         // insigna ⭐ POTM de pe fiecare card/detaliu de meci.
         let potmVotesByMatch = {};
         try{
-            const { data: potmRaw } = await sb.from('potm_votes').select('match_id,voted_player_id');
+            const potmRaw = dataOf(potmRes);
             (potmRaw||[]).forEach(v=>{
                 if(!potmVotesByMatch[v.match_id]) potmVotesByMatch[v.match_id]={};
                 const pid = String(v.voted_player_id);
@@ -2622,33 +2642,13 @@ async function loadAll(){
         if(currentSeason && !seasonsList.includes(currentSeason)) currentSeason = null; // sezon dispărut/redenumit
         renderSeasonTabs();
 
-        // mvp votes
-        db.players.forEach(p=>{ p.mvpWinCount=0; p.mvpLossCount=0; });
-        try{
-            const { data: mvpVotes } = await sb.from('mvp_votes').select('mvp_player_name, mvp_type, match_id');
-            if(mvpVotes?.length){
-                const matchWinners={};
-                db.history.forEach(h=>{ if(h._dbId) matchWinners[h._dbId]=h.winner; });
-                mvpVotes.forEach(v=>{
-                    const player = db.players.find(p=>p.name===v.mvp_player_name);
-                    if(!player) return;
-                    const matchH = db.history.find(h=>h._dbId===v.match_id);
-                    const matchWinner = matchWinners[v.match_id];
-                    if(matchH && matchWinner){
-                        const inOrange = matchH.orangePlayers.includes(v.mvp_player_name);
-                        const playerWon = (inOrange && matchWinner==='Portocaliu') || (!inOrange && matchWinner==='Verde');
-                        if(playerWon) player.mvpWinCount++; else player.mvpLossCount++;
-                    }
-                });
-            }
-        }catch(e){}
-
         // Premii personalizate (Gheata de Aur etc.) — POTM/MVP se calculează
         // automat mai jos/în renderAwardsLeaderboard, astea sunt titluri
         // acordate manual din setari.html.
         try{
-            const { data: awardsRaw, error } = await sb.from('player_awards').select('*').order('created_at',{ascending:false});
-            if (error) throw error;
+            const awardsRaw = dataOf(awardsRes);
+            if (awardsRes.status!=='fulfilled') throw (awardsRes.reason||new Error('fetch failed'));
+            if (awardsRes.value.error) throw awardsRes.value.error;
             db.playerAwards = awardsRaw || [];
         }catch(e){ console.warn('player_awards load:', e.message); db.playerAwards = []; }
 
