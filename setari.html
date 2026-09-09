@@ -1174,6 +1174,17 @@ const DEFAULT_MILESTONE_CONFIG=[
     {category:'streak', threshold:10,  emoji:'🚀',   label:'10 Victorii la rând',    sort_order:2},
     {category:'best_match_goals', threshold:3, emoji:'🎩',  label:'Hat-trick',       sort_order:1},
     {category:'best_match_goals', threshold:4, emoji:'🎩🎩', label:'Poker de goluri', sort_order:2},
+    // ── Achievement-uri de profil (clasament.html?player=...) — vezi
+    // ACHIEVEMENT_STAT_GETTERS din clasament.html pentru lista de categorii
+    // suportate. Praguri de pornire, editabile mai jos ca orice insignă.
+    {category:'best_match_assists', threshold:3,  emoji:'🎁',  label:'Triplă Assistență',  sort_order:1},
+    {category:'assists',           threshold:10,  emoji:'🅰️', label:'10 Assisturi',        sort_order:1},
+    {category:'assists',           threshold:20,  emoji:'🎨',  label:'Playmaker',           sort_order:2},
+    {category:'mvp_count',         threshold:5,   emoji:'👑',  label:'MVP x5',              sort_order:1},
+    {category:'mvp_count',         threshold:10,  emoji:'🌟',  label:'MVP x10',             sort_order:2},
+    {category:'winrate',           threshold:70,  emoji:'💯',  label:'Consistent',          sort_order:1},
+    {category:'rating',            threshold:80,  emoji:'🏔️', label:'Elite',               sort_order:1},
+    {category:'teammate_wins',     threshold:15,  emoji:'🤝',  label:'Bromance',            sort_order:1},
 ];
 const MILESTONE_CAT_LABELS={
     goals:'⚽ Goluri Totale',
@@ -1181,8 +1192,14 @@ const MILESTONE_CAT_LABELS={
     games:'📅 Meciuri Jucate',
     streak:'🔥 Victorii Consecutive',
     best_match_goals:'🎩 Goluri Într-un Singur Meci',
+    best_match_assists:'🎁 Assisturi Într-un Singur Meci — Achievement profil',
+    assists:'🅰️ Assisturi Totale — Achievement profil',
+    mvp_count:'👑 Total MVP — Achievement profil',
+    winrate:`💯 Winrate % (min. 5 meciuri) — Achievement profil`,
+    rating:'🏔️ Rating Curent — Achievement profil',
+    teammate_wins:'🤝 Victorii cu Același Coechipier — Achievement profil',
 };
-const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals'];
+const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals','best_match_assists','assists','mvp_count','winrate','rating','teammate_wins'];
 
 // ═══════════════════════════════════════════════════════════════════
 // ── PLAYER OF THE MATCH — panou administrare ─────────────────────────
