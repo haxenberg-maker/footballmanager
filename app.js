@@ -196,6 +196,10 @@ const today = new Date().toLocaleDateString('ro-RO');
 
 // ── App State ──
 let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[],absentIds:[]} };
+// ⭐ Rating trend (clasament.html → profil jucător) — ultimul rating salvat per
+// jucător, ca să nu inserăm un rând nou în player_rating_history dacă nu s-a
+// schimbat nimic (evită umplerea tabelului la fiecare recalculare/load).
+let lastRatingSnapshot = {};
 let lobbySearchQuery = ''; // filtrul de căutare din secțiunea de prezență
 let currentPlayerId = null;
 let selectedCats = {general:null,viteza:null,tehnica:null,strategie:null,aparare:null};
@@ -344,6 +348,23 @@ async function loadAll() {
         _algoSnapshot = snapshotAlgoFields(); // baseline pt preview "înainte/după"
         await loadScenarios();
         await loadTeamConfigs(); // ← load team names + colors from Supabase
+
+        // Ultimul rating salvat per jucător (player_rating_history) — folosit de
+        // snapshotPlayerRatings() ca să insereze un rând nou DOAR dacă ratingul
+        // s-a schimbat efectiv față de ultima recalculare. Best-effort: dacă
+        // tabelul nu există încă, doar dezactivăm snapshot-ul, nu blocăm loadAll.
+        try {
+            const { data: ratingHistRows, error: rhErr } = await sb
+                .from('player_rating_history')
+                .select('player_id,rating,created_at')
+                .order('created_at', { ascending:false });
+            if (rhErr) throw rhErr;
+            lastRatingSnapshot = {};
+            (ratingHistRows||[]).forEach(r => {
+                if (!(r.player_id in lastRatingSnapshot)) lastRatingSnapshot[r.player_id] = r.rating;
+            });
+        } catch(e){ console.warn('player_rating_history load:', e.message); }
+
         // Players + Ratings (joined)
         const { data: playersRaw, error: pe } = await sb
             .from('players')
@@ -6532,6 +6553,29 @@ function recalculateAllPlayerStats() {
 
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
+    snapshotPlayerRatings();
+}
+
+// ⭐ Salvează în player_rating_history ratingul curent al fiecărui jucător —
+// DOAR pentru cei la care s-a schimbat față de ultimul snapshot cunoscut
+// (lastRatingSnapshot, încărcat în loadAll()). Apelat din
+// recalculateAllPlayerStats(), singurul loc care rulează după orice
+// editare/ștergere de meci sau recalculare manuală — deci prinde exact
+// momentele în care ratingul se poate schimba, fără să scrie la fiecare
+// simplu reload de pagină.
+async function snapshotPlayerRatings(){
+    try {
+        const rows = [];
+        db.players.forEach(p => {
+            if (!p.games) return; // fără meciuri jucate — rating de bază, nimic de urmărit încă
+            const rating = getSmartRating(p);
+            if (lastRatingSnapshot[p.id] !== rating) rows.push({ player_id:p.id, rating, season:null });
+        });
+        if (!rows.length) return;
+        const { data, error } = await sb.from('player_rating_history').insert(rows).select('player_id,rating');
+        if (error) { console.warn('rating snapshot save:', error.message); return; }
+        (data||rows).forEach(r => { lastRatingSnapshot[r.player_id] = r.rating; });
+    } catch(e) { console.warn('rating snapshot:', e.message); }
 }
 
 // Recalculează STRICT golurile primite (nu atinge victorii/meciuri/goluri
