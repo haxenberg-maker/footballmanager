@@ -1863,21 +1863,45 @@ function getBestSingleMatchGoalsWithMatch(name){
     return { value:max, match:bestMatch };
 }
 
-// Achievement-uri automate — reutilizează statisticile deja calculate în
-// player_awards / carieră, nu introduce un al doilea sistem de calcul.
-// Distincte de PREMII (player_awards, acordate manual) și de RECORDURI (cele
-// mai bune performanțe), conform structurii cerute.
+// Achievement-uri automate — CONFIGURABILE din Setări → Milestone-uri, exact
+// ca insignele vechi (goals/wins/games/streak/best_match_goals). Orice categorie
+// nouă din milestone_config care are un getter mai jos apare automat aici, cu
+// pragurile/emoji/label-urile puse de admin — nu mai e nimic hardcodat de tip
+// "7 goluri" în cod; ca să schimbi pragul, editezi rândul din Setări.
+// Categoriile 'goals'/'games'/'streak' rămân doar insigne (nu achievement-uri
+// de profil), ca să nu dubleze secțiunea RECORDURI.
+const ACHIEVEMENT_STAT_GETTERS = {
+    best_match_goals:   (p, s) => s.bestMatchGoals,
+    best_match_assists: (p, s) => s.bestMatchAssists,
+    wins:                (p, s) => s.wins,
+    assists:             (p, s) => s.assists,
+    mvp_count:           (p, s) => p.careerMvpCount||0,
+    winrate:             (p, s) => s.games>=PP_MIN_WR_GAMES ? Math.round((s.wins/s.games)*100) : -1,
+    rating:              (p, s) => s.rating,
+    teammate_wins:       (p, s) => s.teammateWins||0,
+};
+const ACHIEVEMENT_UNIT_LABELS = {
+    best_match_goals:'goluri într-un meci', best_match_assists:'assisturi într-un meci',
+    wins:'victorii', assists:'assisturi', mvp_count:'MVP-uri',
+    winrate:`% winrate (min. ${PP_MIN_WR_GAMES} meciuri)`, rating:'rating',
+    teammate_wins:'victorii cu același coechipier',
+};
 function computeAchievements(p, stats){
-    const wr = stats.games>0 ? stats.wins/stats.games : 0;
-    const wrPct = Math.round(wr*100);
-    return [
-        { emoji:'⚽', label:'Cel mai bun meci', desc:'7 goluri într-un meci', how:'Marchează 7 goluri într-un singur meci.', unlocked: stats.bestMatchGoals>=7, current: stats.bestMatchGoals, target: 7, unit:'goluri (record personal)' },
-        { emoji:'🔥', label:'Goal Machine', desc:'Min. 5 goluri într-un meci', how:'Marchează cel puțin 5 goluri într-un singur meci.', unlocked: stats.bestMatchGoals>=5, current: stats.bestMatchGoals, target: 5, unit:'goluri (record personal)' },
-        { emoji:'🏆', label:'Winner', desc:'Min. 20 victorii', how:'Adună cel puțin 20 de victorii, în total, în cariera ta.', unlocked: stats.wins>=20, current: stats.wins, target: 20, unit:'victorii' },
-        { emoji:'🅰️', label:'Playmaker', desc:'Min. 20 assisturi', how:'Adună cel puțin 20 de assisturi, în total, în cariera ta.', unlocked: stats.assists>=20, current: stats.assists, target: 20, unit:'assisturi' },
-        { emoji:'👑', label:'MVP', desc:'5 MVP-uri', how:'Fii declarat MVP-ul meciului de 5 ori (calculat automat din goluri+assisturi+minute, sau setat manual de admin).', unlocked: (p.careerMvpCount||0)>=5, current: p.careerMvpCount||0, target: 5, unit:'MVP-uri' },
-        { emoji:'💯', label:'Consistent', desc:'Winrate peste 70%', how:`Ai nevoie de minim ${PP_MIN_WR_GAMES} meciuri jucate și un winrate peste 70%.`, unlocked: stats.games>=PP_MIN_WR_GAMES && wr>0.7, current: stats.games>=PP_MIN_WR_GAMES ? wrPct : stats.games, target: stats.games>=PP_MIN_WR_GAMES ? 70 : PP_MIN_WR_GAMES, unit: stats.games>=PP_MIN_WR_GAMES ? '% winrate' : `meciuri jucate (minim ca să conteze winrate-ul)` },
-    ];
+    const chips = [];
+    Object.keys(ACHIEVEMENT_STAT_GETTERS).forEach(cat=>{
+        const tiers = _milestoneTiersFor(cat);
+        if (!tiers.length) return;
+        const val = ACHIEVEMENT_STAT_GETTERS[cat](p, stats);
+        const unit = ACHIEVEMENT_UNIT_LABELS[cat]||cat;
+        tiers.forEach(t=>{
+            chips.push({
+                emoji: t.emoji, label: t.label, desc: `${t.threshold} ${unit}`,
+                how: `Ajunge la ${t.threshold} ${unit}.`,
+                unlocked: val>=t.threshold, current: Math.max(val,0), target: t.threshold, unit,
+            });
+        });
+    });
+    return chips;
 }
 
 function ppFormatDate(d){
@@ -1945,7 +1969,8 @@ function renderPlayerProfile(name){
     const teammate = computeBestTeammate(p.name);
     const nemesis = computeNemesis(p.name);
     const achievements = computeAchievements(p, {
-        wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value
+        wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value,
+        bestMatchAssists: bestAssistsMatch.value, rating, teammateWins: teammate ? teammate.wins : 0
     });
     ppCurrentAchievements = achievements; // pentru showAchievementInfo(i)
     const form = getFormIndex(p);
