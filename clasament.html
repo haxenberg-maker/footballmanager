@@ -1719,6 +1719,8 @@ function getCurrentAssists(playerName) {
 
 const PP_MIN_WR_GAMES = 5;        // prag minim meciuri pt. "cel mai bun winrate"
 const PP_MIN_TEAMMATE_GAMES = 2;  // prag minim meciuri împreună pt. "cel mai bun coechipier"
+let ppMatchesExpanded = false;    // "ULTIMELE MECIURI" — colapsat implicit, se resetează per jucător
+let ppLastProfileName = null;
 
 function ppMatchesFor(name){
     return db.history.filter(h =>
@@ -1854,6 +1856,8 @@ function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
     const p = db.players.find(x=>x.name===name);
 
+    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppLastProfileName = name; }
+
     if (!p) {
         wrap.innerHTML = `
             <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
@@ -1887,7 +1891,11 @@ function renderPlayerProfile(name){
     });
     const form = getFormIndex(p);
     const myAwards = (db.playerAwards||[]).filter(a=>a.player_id===p.id);
-    const recentMatches = ppMatchesFor(p.name).slice(0,8);
+    // Tot sezonul curent selectat (currentSeason — același selector ca restul
+    // clasamentului; null = sezonul live), nu doar ultimele N per total istoric.
+    const seasonMatches = ppMatchesFor(p.name).filter(h => h.season === currentSeason);
+    const ppShowAll = ppMatchesExpanded;
+    const recentMatches = ppShowAll ? seasonMatches : seasonMatches.slice(0,8);
     const { potmIds, mvpIds } = getPlayerMatchAwards(p.name);
 
     wrap.innerHTML = `
@@ -1997,7 +2005,7 @@ function renderPlayerProfile(name){
         </div>
 
         <div class="stats-section">
-            <div class="pp-section-title">ULTIMELE MECIURI</div>
+            <div class="pp-section-title">ULTIMELE MECIURI${currentSeason?' · '+currentSeason:''}</div>
             ${recentMatches.length ? recentMatches.map(h=>{
                 const won = playerWonMatch(h, p.name);
                 const resLabel = won===true?'WIN':won===false?'LOSS':'—';
@@ -2012,13 +2020,19 @@ function renderPlayerProfile(name){
                     <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+h.score:''}${isPotm?' <span title="POTM">⭐</span>':''}${isMvp?' <span title="MVP">👑</span>':''}</div>
                     <div class="pp-match-contrib">${goals?'⚽'+goals+' ':''}${ast?'🅰️'+ast:''}</div>
                 </div>`;
-            }).join('') : `<div class="pp-empty">Fără meciuri înregistrate.</div>`}
+            }).join('') : `<div class="pp-empty">Fără meciuri ${currentSeason?'în acest sezon':'înregistrate'}.</div>`}
+            ${seasonMatches.length>8 ? `<button class="lb-more-btn" onclick="togglePpMatches()">${ppShowAll?'▲ Arată doar ultimele 8':'▼ Vezi tot sezonul ('+seasonMatches.length+')'}</button>` : ''}
         </div>
     `;
 }
 
 // Comută vizibilitatea între clasamentul normal și pagina de profil, în
 // funcție de ?player=Nume (highlightPlayer).
+function togglePpMatches(){
+    ppMatchesExpanded = !ppMatchesExpanded;
+    renderPlayerProfile(highlightPlayer);
+}
+
 function applyPageMode(){
     const isProfile = !!highlightPlayer;
     document.getElementById('playerProfileWrap').style.display = isProfile ? 'block' : 'none';
