@@ -1690,24 +1690,11 @@ function renderContribSubTabs(){
 function toggleLbExpand(){ lbExpanded=!lbExpanded; renderLeaderboard(); }
 
 function renderMeCard(){
+    // ?player=Nume declanșează acum pagina de profil completă (vezi
+    // renderPlayerProfile/applyPageMode), nu mai afișează me-card-ul de aici —
+    // profilul preia complet acest rol.
     const wrap = document.getElementById('meCardWrap');
-    if(!highlightPlayer){ wrap.innerHTML=''; return; }
-    const p = db.players.find(x=>x.name===highlightPlayer);
-    if(!p){ wrap.innerHTML=''; return; }
-    // Scopat la sezonul curent — vezi withCurrentSeasonHistory — ca OVR-ul de
-    // aici să fie identic cu cel din app.js pentru același jucător.
-    const { rank, smart } = withCurrentSeasonHistory(() => {
-        const sorted=[...db.players].sort((a,b)=>getSmartRating(b)-getSmartRating(a));
-        return { rank: sorted.findIndex(x=>x.name===highlightPlayer)+1, smart: getSmartRating(p) };
-    });
-    const wr = p.games>0 ? ((p.wins/p.games)*100).toFixed(0)+'%' : '—';
-    wrap.innerHTML = `<div class="me-card">
-        <div class="me-card-rank">#${rank||'—'}</div>
-        <div>
-            <div class="me-card-name">${p.name}</div>
-            <div class="me-card-sub">★ Smart ${smart} · ${wr} winrate · ${p.games||0} meciuri · ⚽ ${p.totalGoals||0}</div>
-        </div>
-    </div>`;
+    if (wrap) wrap.innerHTML = '';
 }
 function getCurrentAssists(playerName) {
     let count = 0;
@@ -1722,6 +1709,302 @@ function getCurrentAssists(playerName) {
 
     return count;
 }
+// ══════════════════════════════════════════════════════════════════════
+// PLAYER PROFILE — declanșat de ?player=Nume (vezi highlightPlayer, sus).
+// Reutilizează cât mai mult din helper-ele deja existente (getSmartRating,
+// getFormIndex, getLongestWinStreak, getBestSingleMatchGoals,
+// computeOvrDeltaSinceLastMatch, playerWonMatch, computeSeasonStats,
+// getSeasonMatches) — nicio logică de calcul nu e duplicată inutil.
+// ══════════════════════════════════════════════════════════════════════
+
+const PP_MIN_WR_GAMES = 5;        // prag minim meciuri pt. "cel mai bun winrate"
+const PP_MIN_TEAMMATE_GAMES = 2;  // prag minim meciuri împreună pt. "cel mai bun coechipier"
+
+function ppMatchesFor(name){
+    return db.history.filter(h =>
+        (h.orangePlayers||[]).includes(name) ||
+        (h.greenPlayers ||[]).includes(name) ||
+        (h.blackPlayers ||[]).includes(name)
+    ).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
+}
+
+// "Cel mai bun coechipier" = cele mai multe VICTORII împreună (nu doar
+// apariții în aceeași echipă) — vezi playerWonMatch pentru rezultatul real.
+function computeBestTeammate(name){
+    const chemMap = {};
+    ppMatchesFor(name).forEach(h=>{
+        const inOrange = (h.orangePlayers||[]).includes(name);
+        const inGreen  = (h.greenPlayers ||[]).includes(name);
+        const myTeam = inOrange ? h.orangePlayers : inGreen ? h.greenPlayers : h.blackPlayers;
+        const won = playerWonMatch(h, name) === true;
+        (myTeam||[]).forEach(n=>{
+            if (n===name) return;
+            if (!chemMap[n]) chemMap[n]={together:0,wins:0};
+            chemMap[n].together++;
+            if (won) chemMap[n].wins++;
+        });
+    });
+    const results = Object.entries(chemMap)
+        .filter(([,d])=>d.together>=PP_MIN_TEAMMATE_GAMES)
+        .map(([n,d])=>({name:n, together:d.together, wins:d.wins, wr: d.together>0?d.wins/d.together:0}))
+        .sort((a,b)=> b.wins-a.wins || b.wr-a.wr || b.together-a.together);
+    return results[0] || null;
+}
+
+// Nemesis — port EXACT al logicii din app.js (min 3 meciuri directe, rată
+// de înfrângere >50%), la cererea utilizatorului, ca să rămână coerent cu
+// panoul de admin.
+function computeNemesis(name){
+    const opponents = {};
+    db.history.forEach(h=>{
+        const inOrange = (h.orangePlayers||[]).includes(name);
+        const inGreen  = (h.greenPlayers ||[]).includes(name);
+        const inBlack  = (h.blackPlayers ||[]).includes(name);
+        if (!inOrange && !inGreen && !inBlack) return;
+        const won = playerWonMatch(h, name);
+        if (won===null) return;
+        let oppList = [];
+        if (inOrange) oppList = [...(h.greenPlayers||[]), ...(h.blackPlayers||[])];
+        else if (inGreen) oppList = [...(h.orangePlayers||[]), ...(h.blackPlayers||[])];
+        else oppList = [...(h.orangePlayers||[]), ...(h.greenPlayers||[])];
+        oppList.forEach(n=>{
+            if (n===name) return;
+            if (!opponents[n]) opponents[n]={games:0,losses:0};
+            opponents[n].games++;
+            if (won===false) opponents[n].losses++;
+        });
+    });
+    let nemesis=null;
+    Object.entries(opponents).forEach(([n,st])=>{
+        if (st.games<3) return;
+        const lossRate = st.losses/st.games;
+        if (lossRate<=0.5) return;
+        if (!nemesis || lossRate>nemesis.lossRate || (lossRate===nemesis.lossRate && st.games>nemesis.games)) {
+            nemesis = {name:n, games:st.games, losses:st.losses, wins:st.games-st.losses, lossRate};
+        }
+    });
+    return nemesis;
+}
+
+function getBestSingleMatchAssists(name){
+    let max=0, bestMatch=null;
+    db.history.forEach(h=>{
+        const a = (h.goalsList||[]).filter(g=>!g.is_penalty && g.assist_name===name).length;
+        if (a>max){ max=a; bestMatch=h; }
+    });
+    return { value:max, match:bestMatch };
+}
+
+function getBestSingleMatchGoalsWithMatch(name){
+    let max=0, bestMatch=null;
+    db.history.forEach(h=>{
+        const g = (h.goalsList||[]).filter(gg=>!gg.is_penalty && gg.player_name===name).reduce((s,gg)=>s+(gg.goals||1),0);
+        if (g>max){ max=g; bestMatch=h; }
+    });
+    return { value:max, match:bestMatch };
+}
+
+// Achievement-uri automate — reutilizează statisticile deja calculate în
+// player_awards / carieră, nu introduce un al doilea sistem de calcul.
+// Distincte de PREMII (player_awards, acordate manual) și de RECORDURI (cele
+// mai bune performanțe), conform structurii cerute.
+function computeAchievements(p, stats){
+    const wr = stats.games>0 ? stats.wins/stats.games : 0;
+    return [
+        { emoji:'⚽', label:'Cel mai bun meci', desc:'7 goluri într-un meci', unlocked: stats.bestMatchGoals>=7 },
+        { emoji:'🔥', label:'Goal Machine', desc:'Min. 5 goluri într-un meci', unlocked: stats.bestMatchGoals>=5 },
+        { emoji:'🏆', label:'Winner', desc:'Min. 20 victorii', unlocked: stats.wins>=20 },
+        { emoji:'🅰️', label:'Playmaker', desc:'Min. 20 assisturi', unlocked: stats.assists>=20 },
+        { emoji:'👑', label:'MVP', desc:'5 MVP-uri', unlocked: (p.careerMvpCount||0)>=5 },
+        { emoji:'💯', label:'Consistent', desc:'Winrate peste 70%', unlocked: stats.games>=PP_MIN_WR_GAMES && wr>0.7 },
+    ];
+}
+
+function ppFormatDate(d){
+    if (!d) return '—';
+    try{ const dt=parseDateToObj(d); return dt.toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}).toUpperCase(); }catch(e){ return d; }
+}
+
+function renderPlayerProfile(name){
+    const wrap = document.getElementById('playerProfileWrap');
+    const p = db.players.find(x=>x.name===name);
+
+    if (!p) {
+        wrap.innerHTML = `
+            <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
+            <div class="stats-section" style="text-align:center;padding:36px 16px;">
+                <div style="font-size:2rem;margin-bottom:8px;">🔍</div>
+                <div style="font-weight:700;color:var(--ink);">Jucătorul nu a fost găsit.</div>
+            </div>`;
+        return;
+    }
+
+    const group = getPlayerPrimaryGroup(p) || 'MID';
+    const rating = withCurrentSeasonHistory(()=>getSmartRating(p));
+    const before = computeOvrDeltaSinceLastMatch()[p.name];
+    let trendHtml = '';
+    if (before) {
+        const delta = rating - before.ovr;
+        const color = delta>0 ? '#34d399' : delta<0 ? '#ef4444' : 'var(--ink-faint)';
+        const arrow = delta>0 ? '↑' : delta<0 ? '↓' : '—';
+        trendHtml = `<div class="pp-trend" style="color:${color};">${arrow} ${delta>0?'+':''}${delta} față de meciul anterior</div>`;
+    }
+
+    const wr = p.games>0 ? Math.round((p.wins/p.games)*100) : 0;
+    const assists = getCurrentAssists(p.name);
+    const bestGoalsMatch = getBestSingleMatchGoalsWithMatch(p.name);
+    const bestAssistsMatch = getBestSingleMatchAssists(p.name);
+    const streak = getLongestWinStreak(p);
+    const teammate = computeBestTeammate(p.name);
+    const nemesis = computeNemesis(p.name);
+    const achievements = computeAchievements(p, {
+        wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value
+    });
+    const form = getFormIndex(p);
+    const myAwards = (db.playerAwards||[]).filter(a=>a.player_id===p.id);
+    const recentMatches = ppMatchesFor(p.name).slice(0,8);
+
+    wrap.innerHTML = `
+        <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
+
+        <div class="pp-header">
+            <div>
+                <div class="pp-num">#${p.id}</div>
+                <div class="pp-name">${p.name.toUpperCase()}</div>
+                <span class="pp-pos">${group}</span>
+            </div>
+            <div class="pp-rating-block">
+                <div class="pp-rating-lbl">Rating</div>
+                <div class="pp-rating-val">${rating}</div>
+                ${trendHtml}
+            </div>
+        </div>
+
+        <div class="pp-grid">
+            <div class="pp-stat"><div class="pp-stat-val">${p.games||0}</div><div class="pp-stat-lbl">Meciuri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${p.wins||0}</div><div class="pp-stat-lbl">Victorii</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${wr}%</div><div class="pp-stat-lbl">Winrate</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${p.totalGoals||0}</div><div class="pp-stat-lbl">Goluri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${assists}</div><div class="pp-stat-lbl">Assisturi</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">MVP-uri</div></div>
+        </div>
+
+        <div class="pp-row2">
+            <div class="pp-card">
+                <div class="pp-card-lbl">🤝 Cel mai bun coechipier</div>
+                ${teammate ? `
+                    <div class="pp-card-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${teammate.name.replace(/'/g,"\\'")}')">${teammate.name}</div>
+                    <div class="pp-card-sub">${teammate.wins} victorii · ${teammate.together} meciuri · ${Math.round(teammate.wr*100)}% winrate</div>
+                ` : `<div class="pp-empty">Insuficiente meciuri comune (min. ${PP_MIN_TEAMMATE_GAMES}).</div>`}
+            </div>
+            <div class="pp-card">
+                <div class="pp-card-lbl">⚔️ Nemesis</div>
+                ${nemesis ? `
+                    <div class="pp-card-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${nemesis.name.replace(/'/g,"\\'")}')">${nemesis.name}</div>
+                    <div class="pp-card-sub">${nemesis.losses} înfrângeri · ${nemesis.games} meciuri · ${nemesis.wins}V</div>
+                ` : `<div class="pp-empty">Fără nemesis clar (min. 3 meciuri directe, &gt;50% înfrângeri).</div>`}
+            </div>
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">ACHIEVEMENTS</div>
+            <div class="pp-chip-row">
+                ${achievements.map(a=>`
+                    <div class="pp-chip${a.unlocked?'':' locked'}" title="${a.desc}">
+                        <div class="pp-chip-emoji">${a.emoji}</div>
+                        <div class="pp-chip-lbl">${a.label}</div>
+                    </div>`).join('')}
+            </div>
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">RECORDURI</div>
+            <div class="pp-grid" style="grid-template-columns:repeat(3,1fr);">
+                <div class="pp-record">
+                    <div class="pp-record-val">${bestGoalsMatch.value}</div>
+                    <div class="pp-record-lbl">Goluri într-un meci</div>
+                    ${bestGoalsMatch.match ? `<div class="pp-record-meta">${ppFormatDate(bestGoalsMatch.match.date)}</div>` : ''}
+                </div>
+                <div class="pp-record">
+                    <div class="pp-record-val">${bestAssistsMatch.value}</div>
+                    <div class="pp-record-lbl">Assisturi într-un meci</div>
+                    ${bestAssistsMatch.match ? `<div class="pp-record-meta">${ppFormatDate(bestAssistsMatch.match.date)}</div>` : ''}
+                </div>
+                <div class="pp-record">
+                    <div class="pp-record-val">${streak}</div>
+                    <div class="pp-record-lbl">Cea mai lungă serie de victorii</div>
+                </div>
+                <div class="pp-record">
+                    <div class="pp-record-val">${p.games>=PP_MIN_WR_GAMES ? wr+'%' : '—'}</div>
+                    <div class="pp-record-lbl">Cel mai bun winrate</div>
+                    <div class="pp-record-meta">minimum ${PP_MIN_WR_GAMES} meciuri</div>
+                </div>
+                <div class="pp-record">
+                    <div class="pp-record-val">${rating}</div>
+                    <div class="pp-record-lbl">Rating curent</div>
+                    <div class="pp-record-meta">istoric complet — vezi notă</div>
+                </div>
+                <div class="pp-record">
+                    <div class="pp-record-val">${teammate ? teammate.wins : '—'}</div>
+                    <div class="pp-record-lbl">Victorii cu același coechipier</div>
+                    ${teammate ? `<div class="pp-record-meta">${teammate.name}</div>` : ''}
+                </div>
+            </div>
+        </div>
+
+        ${myAwards.length ? `
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">PREMII</div>
+            <div class="pp-chip-row">
+                ${myAwards.map(a=>`
+                    <div class="pp-chip">
+                        <div class="pp-chip-emoji">${a.icon||'🏆'}</div>
+                        <div class="pp-chip-lbl">${a.title}</div>
+                        <div class="pp-card-sub" style="margin-top:2px;">${a.season||''}${a.note?' · '+a.note:''}</div>
+                    </div>`).join('')}
+            </div>
+        </div>` : ''}
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">FORMĂ RECENTĂ</div>
+            ${form.total ? `<div class="pp-form-dots">${form.last5.map(r=>`<span class="pp-form-dot" style="background:${r==='W'?'#22c55e':'#ef4444'};" title="${r==='W'?'Victorie':'Înfrângere'}"></span>`).join('')}</div>` : `<div class="pp-empty">Fără meciuri recente.</div>`}
+        </div>
+
+        <div class="stats-section">
+            <div class="pp-section-title">ULTIMELE MECIURI</div>
+            ${recentMatches.length ? recentMatches.map(h=>{
+                const won = playerWonMatch(h, p.name);
+                const resLabel = won===true?'WIN':won===false?'LOSS':'—';
+                const resColor = won===true?'#22c55e':won===false?'#ef4444':'#64748b';
+                const goals = (h.goalsList||[]).filter(g=>!g.is_penalty && g.player_name===p.name).reduce((s,g)=>s+(g.goals||1),0);
+                const ast = (h.goalsList||[]).filter(g=>!g.is_penalty && g.assist_name===p.name).length;
+                return `<div class="pp-match-row">
+                    <div class="pp-match-date">${ppFormatDate(h.date)}</div>
+                    <div class="pp-match-result" style="background:${resColor}22;color:${resColor};">${resLabel}</div>
+                    <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+h.score:''}</div>
+                    <div class="pp-match-contrib">${goals?'⚽'+goals+' ':''}${ast?'🅰️'+ast:''}</div>
+                </div>`;
+            }).join('') : `<div class="pp-empty">Fără meciuri înregistrate.</div>`}
+        </div>
+    `;
+}
+
+// Comută vizibilitatea între clasamentul normal și pagina de profil, în
+// funcție de ?player=Nume (highlightPlayer).
+function applyPageMode(){
+    const isProfile = !!highlightPlayer;
+    document.getElementById('playerProfileWrap').style.display = isProfile ? 'block' : 'none';
+    ['meCardWrap','weeklyCards','lbSeasonRow','lbSeasonBanner','leaderboardSection'].forEach(id=>{
+        const el = document.getElementById(id);
+        if (el) el.style.display = isProfile ? 'none' : '';
+    });
+    const pageTabs = document.querySelector('.page-tabs');
+    if (pageTabs) pageTabs.style.display = isProfile ? 'none' : '';
+    const matchesSection = document.getElementById('matchesSection');
+    if (matchesSection && isProfile) matchesSection.style.display = 'none';
+    if (isProfile) renderPlayerProfile(highlightPlayer);
+}
+
 function renderLeaderboard(){
     const medals=['🥇','🥈','🥉'];
     const content=document.getElementById('lbContent');
@@ -1920,7 +2203,7 @@ function renderLeaderboard(){
             return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #262f3f;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#8b96a8'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
-                    <div style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}${isMe?' 📍':''}</div>
+                    <div class="pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${p.name.replace(/'/g,"\\'")}')" style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}${isMe?' 📍':''}</div>
                     ${viewingPastSeason ? '' : renderMilestoneBadges(p)}
                     <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
                         <div style="flex:1;height:${i===0?'3px':'2px'};background:#262f3f;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#2c384c'};border-radius:1px;"></div></div>
@@ -2192,6 +2475,7 @@ async function loadAll(){
         renderLeaderboard();
         renderSeasonMatchesList();
         if (pageTab === 'matches') renderMatchesFeed();
+        applyPageMode();
     }catch(err){
         document.getElementById('lbContent').innerHTML = `<p style="color:#ef4444;font-size:.85rem;text-align:center;padding:14px;">❌ Eroare la încărcarea clasamentului.</p>`;
     }finally{
