@@ -206,6 +206,34 @@ body{font-family:var(--font-body);background:
 .pp-match-contrib{color:var(--ink-dim);font-size:.7rem;white-space:nowrap;}
 .pp-name-link{cursor:pointer;}
 .pp-name-link:hover{text-decoration:underline;text-decoration-color:var(--accent);}
+.pp-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.pp-tab{padding:6px 14px;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
+.pp-tab:hover{color:var(--ink);border-color:#334155;}
+.pp-tab.active{background:rgba(91,127,255,.16);border-color:var(--accent);color:#b3c2ff;}
+.pp-chem-row{display:flex;align-items:center;gap:9px;padding:8px 6px;border-bottom:1px solid var(--line-soft);}
+.pp-chem-row:last-child{border-bottom:none;}
+.pp-chem-rank{font-family:var(--font-display);font-size:.85rem;color:var(--ink-faint);min-width:20px;text-align:center;}
+.pp-chem-name{flex:1;min-width:0;font-weight:700;font-size:.82rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pp-chem-sub{font-size:.66rem;color:var(--ink-dim);font-family:var(--font-mono);}
+.pp-chem-bar{flex:1;height:4px;background:#262f3f;border-radius:2px;overflow:hidden;max-width:90px;margin-top:3px;}
+.pp-chem-bar-fill{height:100%;background:var(--accent);border-radius:2px;}
+.pp-chem-vs{font-size:.9rem;cursor:pointer;padding:4px 7px;border-radius:7px;background:var(--surface-3);border:1px solid var(--line);flex-shrink:0;}
+.pp-chem-vs:hover{border-color:var(--accent);}
+.pp-vs-select{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:6px 9px;font-size:.72rem;font-family:var(--font-body);}
+/* ── Head-to-head ── */
+.h2h-header{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.h2h-side{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.3);border-radius:var(--radius-lg);padding:16px 20px;text-align:center;flex:1;min-width:150px;max-width:230px;}
+.h2h-side-name{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);cursor:pointer;}
+.h2h-side-name:hover{color:var(--accent);}
+.h2h-side-rating{font-family:var(--font-display);font-size:2.1rem;color:var(--accent);line-height:1;margin-top:4px;}
+.h2h-vs{font-family:var(--font-display);font-size:1.4rem;color:var(--ink-faint);letter-spacing:1px;}
+.h2h-record{text-align:center;font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.h2h-record-lbl{text-align:center;font-size:.62rem;letter-spacing:1px;text-transform:uppercase;color:var(--ink-faint);margin-bottom:16px;}
+.h2h-stat-row{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line-soft);font-family:var(--font-mono);font-size:.82rem;}
+.h2h-stat-row:last-child{border-bottom:none;}
+.h2h-stat-val{text-align:center;}
+.h2h-stat-val.better{color:#34d399;font-weight:700;}
+.h2h-stat-lbl{text-align:center;font-size:.62rem;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--font-body);}
 </style>
 </head>
 <body>
@@ -222,6 +250,7 @@ body{font-family:var(--font-body);background:
     </div>
 
     <div id="playerProfileWrap" style="display:none;"></div>
+    <div id="comparePageWrap" style="display:none;"></div>
 
     <div id="meCardWrap"></div>
 
@@ -278,6 +307,8 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── Highlighted player (from ?player=Name in URL) ──
 const urlParams = new URLSearchParams(window.location.search);
 const highlightPlayer = urlParams.get('player') || urlParams.get('p');
+const compareP1 = urlParams.get('p1');
+const compareP2 = urlParams.get('p2');
 
 // ── State ──
 let db = { players: [], history: [], playerAwards: [] };
@@ -1720,6 +1751,7 @@ function getCurrentAssists(playerName) {
 const PP_MIN_WR_GAMES = 5;        // prag minim meciuri pt. "cel mai bun winrate"
 const PP_MIN_TEAMMATE_GAMES = 2;  // prag minim meciuri împreună pt. "cel mai bun coechipier"
 let ppMatchesExpanded = false;    // "ULTIMELE MECIURI" — colapsat implicit, se resetează per jucător
+let ppActiveTab = 'overview';     // 'overview' | 'chemistry' — se resetează per jucător
 let ppLastProfileName = null;
 
 function ppMatchesFor(name){
@@ -1732,7 +1764,9 @@ function ppMatchesFor(name){
 
 // "Cel mai bun coechipier" = cele mai multe VICTORII împreună (nu doar
 // apariții în aceeași echipă) — vezi playerWonMatch pentru rezultatul real.
-function computeBestTeammate(name){
+// Listă completă de coechipieri, sortată după victorii împreună (tab Chimie
+// + cardul "Cel mai bun coechipier" din overview folosesc aceeași sursă).
+function computeTeammateChemistry(name){
     const chemMap = {};
     ppMatchesFor(name).forEach(h=>{
         const inOrange = (h.orangePlayers||[]).includes(name);
@@ -1746,10 +1780,13 @@ function computeBestTeammate(name){
             if (won) chemMap[n].wins++;
         });
     });
-    const results = Object.entries(chemMap)
-        .filter(([,d])=>d.together>=PP_MIN_TEAMMATE_GAMES)
+    return Object.entries(chemMap)
         .map(([n,d])=>({name:n, together:d.together, wins:d.wins, wr: d.together>0?d.wins/d.together:0}))
         .sort((a,b)=> b.wins-a.wins || b.wr-a.wr || b.together-a.together);
+}
+
+function computeBestTeammate(name){
+    const results = computeTeammateChemistry(name).filter(r=>r.together>=PP_MIN_TEAMMATE_GAMES);
     return results[0] || null;
 }
 
@@ -1856,7 +1893,7 @@ function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
     const p = db.players.find(x=>x.name===name);
 
-    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppLastProfileName = name; }
+    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; }
 
     if (!p) {
         wrap.innerHTML = `
@@ -1897,23 +1934,10 @@ function renderPlayerProfile(name){
     const ppShowAll = ppMatchesExpanded;
     const recentMatches = ppShowAll ? seasonMatches : seasonMatches.slice(0,8);
     const { potmIds, mvpIds } = getPlayerMatchAwards(p.name);
+    const otherPlayers = db.players.filter(x=>x.name!==p.name).map(x=>x.name).sort((a,b)=>a.localeCompare(b,'ro'));
+    const chemistry = computeTeammateChemistry(p.name);
 
-    wrap.innerHTML = `
-        <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
-
-        <div class="pp-header">
-            <div>
-                <div class="pp-num">#${p.id}</div>
-                <div class="pp-name">${p.name.toUpperCase()}</div>
-                <span class="pp-pos">${group}</span>
-            </div>
-            <div class="pp-rating-block">
-                <div class="pp-rating-lbl">Rating</div>
-                <div class="pp-rating-val">${rating}</div>
-                ${trendHtml}
-            </div>
-        </div>
-
+    const overviewHtml = `
         <div class="pp-grid">
             <div class="pp-stat"><div class="pp-stat-val">${p.games||0}</div><div class="pp-stat-lbl">Meciuri</div></div>
             <div class="pp-stat"><div class="pp-stat-val">${p.wins||0}</div><div class="pp-stat-lbl">Victorii</div></div>
@@ -2024,6 +2048,55 @@ function renderPlayerProfile(name){
             ${seasonMatches.length>8 ? `<button class="lb-more-btn" onclick="togglePpMatches()">${ppShowAll?'▲ Arată doar ultimele 8':'▼ Vezi tot sezonul ('+seasonMatches.length+')'}</button>` : ''}
         </div>
     `;
+
+    const chemistryHtml = `
+        <div class="stats-section">
+            <div class="pp-section-title">🤝 CHIMIE — toți coechipierii</div>
+            <div style="font-size:.72rem;color:var(--ink-dim);margin-bottom:10px;">Sortat după victorii jucate împreună. Minim ${PP_MIN_TEAMMATE_GAMES} meciuri comune ca să apară.</div>
+            ${chemistry.length ? chemistry.map((c,i)=>{
+                const pct = chemistry[0].wins>0 ? Math.round((c.wins/chemistry[0].wins)*100) : 0;
+                return `<div class="pp-chem-row">
+                    <div class="pp-chem-rank">${i+1}</div>
+                    <div style="flex:1;min-width:0;">
+                        <div class="pp-chem-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${c.name.replace(/'/g,"\\'")}')">${c.name}</div>
+                        <div class="pp-chem-sub">${c.wins}V · ${c.together} meciuri · ${Math.round(c.wr*100)}% winrate</div>
+                        <div class="pp-chem-bar"><div class="pp-chem-bar-fill" style="width:${pct}%;"></div></div>
+                    </div>
+                    <div class="pp-chem-vs" title="Compară" onclick="goCompare('${p.name.replace(/'/g,"\\'")}','${c.name.replace(/'/g,"\\'")}')">⚔️</div>
+                </div>`;
+            }).join('') : `<div class="pp-empty">Fără coechipieri cu suficiente meciuri comune încă.</div>`}
+        </div>
+    `;
+
+    wrap.innerHTML = `
+        <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
+
+        <div class="pp-header">
+            <div>
+                <div class="pp-num">#${p.id}</div>
+                <div class="pp-name">${p.name.toUpperCase()}</div>
+                <span class="pp-pos">${group}</span>
+            </div>
+            <div class="pp-rating-block">
+                <div class="pp-rating-lbl">Rating</div>
+                <div class="pp-rating-val">${rating}</div>
+                ${trendHtml}
+            </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+            <div class="pp-tabs">
+                <button class="pp-tab${ppActiveTab==='overview'?' active':''}" onclick="setPpTab('overview')">📊 Prezentare generală</button>
+                <button class="pp-tab${ppActiveTab==='chemistry'?' active':''}" onclick="setPpTab('chemistry')">🤝 Chimie</button>
+            </div>
+            <select class="pp-vs-select" onchange="if(this.value) goCompare('${p.name.replace(/'/g,"\\'")}', this.value)">
+                <option value="">⚔️ Compară cu…</option>
+                ${otherPlayers.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
+            </select>
+        </div>
+
+        ${ppActiveTab==='overview' ? overviewHtml : chemistryHtml}
+    `;
 }
 
 // Comută vizibilitatea între clasamentul normal și pagina de profil, în
@@ -2033,18 +2106,125 @@ function togglePpMatches(){
     renderPlayerProfile(highlightPlayer);
 }
 
+function setPpTab(tab){
+    ppActiveTab = tab;
+    renderPlayerProfile(highlightPlayer);
+}
+
+function goCompare(nameA, nameB){
+    if (!nameA || !nameB || nameA===nameB) return;
+    location.href = 'clasament.html?p1='+encodeURIComponent(nameA)+'&p2='+encodeURIComponent(nameB);
+}
+
+// Meciuri directe (echipe diferite, în același meci) între doi jucători —
+// folosește playerWonMatch/getRowTeamNames deja existente, nu o a doua sursă.
+function computeHeadToHead(nameA, nameB){
+    const teamOf = (h,name) =>
+        (h.orangePlayers||[]).includes(name) ? 'orange' :
+        (h.greenPlayers ||[]).includes(name) ? 'green'  :
+        (h.blackPlayers ||[]).includes(name) ? 'black'  : null;
+    const matches = db.history.map(h=>{
+        const tA = teamOf(h,nameA), tB = teamOf(h,nameB);
+        if (!tA || !tB || tA===tB) return null;
+        return { h, wonA: playerWonMatch(h,nameA), wonB: playerWonMatch(h,nameB) };
+    }).filter(Boolean).sort((a,b)=>parseDateToObj(b.h.date)-parseDateToObj(a.h.date));
+    const winsA = matches.filter(m=>m.wonA===true).length;
+    const winsB = matches.filter(m=>m.wonB===true).length;
+    const draws = matches.length - winsA - winsB;
+    return { matches, winsA, winsB, draws, total: matches.length };
+}
+
+function renderComparePage(nameA, nameB){
+    const wrap = document.getElementById('comparePageWrap');
+    const a = db.players.find(x=>x.name===nameA);
+    const b = db.players.find(x=>x.name===nameB);
+
+    if (!a || !b) {
+        wrap.innerHTML = `
+            <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
+            <div class="stats-section" style="text-align:center;padding:36px 16px;">
+                <div style="font-size:2rem;margin-bottom:8px;">🔍</div>
+                <div style="font-weight:700;color:var(--ink);">Unul dintre jucători nu a fost găsit.</div>
+            </div>`;
+        return;
+    }
+
+    const ratingA = withCurrentSeasonHistory(()=>getSmartRating(a));
+    const ratingB = withCurrentSeasonHistory(()=>getSmartRating(b));
+    const wrA = a.games>0 ? Math.round((a.wins/a.games)*100) : 0;
+    const wrB = b.games>0 ? Math.round((b.wins/b.games)*100) : 0;
+    const assistsA = getCurrentAssists(a.name), assistsB = getCurrentAssists(b.name);
+    const h2h = computeHeadToHead(a.name, b.name);
+
+    const statRow = (label, valA, valB, higherIsBetter=true) => {
+        const na = parseFloat(valA), nb = parseFloat(valB);
+        const aBetter = higherIsBetter ? na>nb : na<nb;
+        const bBetter = higherIsBetter ? nb>na : nb<na;
+        return `<div class="h2h-stat-row">
+            <div class="h2h-stat-val${aBetter?' better':''}">${valA}</div>
+            <div class="h2h-stat-lbl">${label}</div>
+            <div class="h2h-stat-val${bBetter?' better':''}">${valB}</div>
+        </div>`;
+    };
+
+    wrap.innerHTML = `
+        <div class="pp-back" onclick="location.href='clasament.html?player='+encodeURIComponent('${a.name.replace(/'/g,"\\'")}')">← Înapoi la profilul lui ${a.name}</div>
+
+        <div class="h2h-header">
+            <div class="h2h-side">
+                <div class="h2h-side-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${a.name.replace(/'/g,"\\'")}')">${a.name}</div>
+                <div class="h2h-side-rating">${ratingA}</div>
+            </div>
+            <div class="h2h-vs">VS</div>
+            <div class="h2h-side">
+                <div class="h2h-side-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${b.name.replace(/'/g,"\\'")}')">${b.name}</div>
+                <div class="h2h-side-rating">${ratingB}</div>
+            </div>
+        </div>
+
+        <div class="h2h-record">${h2h.winsA} - ${h2h.draws} - ${h2h.winsB}</div>
+        <div class="h2h-record-lbl">Meciuri directe (V ${a.name} — Egal — V ${b.name}) · ${h2h.total} meciuri</div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">STATISTICI</div>
+            ${statRow('Meciuri', a.games||0, b.games||0)}
+            ${statRow('Victorii', a.wins||0, b.wins||0)}
+            ${statRow('Winrate', wrA+'%', wrB+'%')}
+            ${statRow('Goluri', a.totalGoals||0, b.totalGoals||0)}
+            ${statRow('Assisturi', assistsA, assistsB)}
+            ${statRow('MVP-uri', a.careerMvpCount||0, b.careerMvpCount||0)}
+        </div>
+
+        <div class="stats-section">
+            <div class="pp-section-title">ULTIMELE MECIURI DIRECTE</div>
+            ${h2h.matches.length ? h2h.matches.slice(0,10).map(m=>{
+                const resLabel = m.wonA===true?a.name+' a câștigat':m.wonB===true?b.name+' a câștigat':'Egal / fără câștigător clar';
+                const resColor = m.wonA===true?'#22c55e':m.wonB===true?'#ef4444':'#64748b';
+                return `<div class="pp-match-row">
+                    <div class="pp-match-date">${ppFormatDate(m.h.date)}</div>
+                    <div class="pp-match-score" style="flex:1;">${getRowTeamNames(m.h).join(' vs ')}${m.h.score?' · '+m.h.score:''}</div>
+                    <div class="pp-match-contrib" style="color:${resColor};font-weight:700;">${resLabel}</div>
+                </div>`;
+            }).join('') : `<div class="pp-empty">Fără meciuri directe încă (nu au fost niciodată în echipe diferite).</div>`}
+        </div>
+    `;
+}
+
 function applyPageMode(){
-    const isProfile = !!highlightPlayer;
+    const isCompare = !!(compareP1 && compareP2);
+    const isProfile = !isCompare && !!highlightPlayer;
     document.getElementById('playerProfileWrap').style.display = isProfile ? 'block' : 'none';
+    document.getElementById('comparePageWrap').style.display = isCompare ? 'block' : 'none';
     ['meCardWrap','weeklyCards','lbSeasonRow','lbSeasonBanner','leaderboardSection'].forEach(id=>{
         const el = document.getElementById(id);
-        if (el) el.style.display = isProfile ? 'none' : '';
+        if (el) el.style.display = (isProfile||isCompare) ? 'none' : '';
     });
     const pageTabs = document.querySelector('.page-tabs');
-    if (pageTabs) pageTabs.style.display = isProfile ? 'none' : '';
+    if (pageTabs) pageTabs.style.display = (isProfile||isCompare) ? 'none' : '';
     const matchesSection = document.getElementById('matchesSection');
-    if (matchesSection && isProfile) matchesSection.style.display = 'none';
-    if (isProfile) renderPlayerProfile(highlightPlayer);
+    if (matchesSection && (isProfile||isCompare)) matchesSection.style.display = 'none';
+    if (isCompare) renderComparePage(compareP1, compareP2);
+    else if (isProfile) renderPlayerProfile(highlightPlayer);
 }
 
 function renderLeaderboard(){
