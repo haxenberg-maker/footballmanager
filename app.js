@@ -5933,6 +5933,10 @@ function doBalance(mode, format) {
     // ȘI nu cresc numărul de perechi cu anti-sinergie din aceeași echipă.
     refineTeamSplit(oArr, gArr, getRating);
     if (usePositionBalance) refinePositionBalance(oArr, gArr, getRating);
+    // Al treilea pas — DOAR la Smart Balans: nu lăsăm toți pasatorii/atacanții
+    // de elită concentrați într-o singură echipă, chiar dacă suma de rating
+    // și pozițiile sunt deja echilibrate. Vezi refineAttributeBalance().
+    if (mode === 'smart') refineAttributeBalance(oArr, gArr, getRating);
 
     render();
     Promise.all(active.map(p => dbUpdatePlayer(p))).catch(e => showToast('⚠️ '+e.message));
@@ -5950,6 +5954,74 @@ function doBalance(mode, format) {
 // prin schimbarea unor perechi de jucători (unul din fiecare echipă), atâta timp
 // cât schimbarea nu crește numărul de perechi cu "anti-sinergie" din aceeași echipă.
 // Mutează direct p.status pe obiectele din oArr/gArr (aceleași referințe ca în `active`).
+// ── Al treilea pas de rafinare, DOAR la Smart Balans: reduce diferența dintre
+// mediile de atribute EA (PAC/SHO/PAS/DRI/DEF/PHY) ale celor două echipe —
+// ca să nu ajungă, de ex., toți pasatorii de elită într-o singură echipă
+// chiar dacă suma totală de rating e deja egală. Portarii sunt excluși din
+// calcul (atribute complet diferite: DIV/HAN/KIC/REF/POS/SPD).
+// Acceptă un swap DOAR dacă nu strică diferența de rating mai mult decât o
+// marjă mică (RATING_TOLERANCE) și nu crește numărul de perechi problematice
+// (anti-sinergie + nemesis) — rating-ul și chimia rămân prioritare.
+function getOutfieldAttrs(p){
+    const r = eaComputeBaseOVR(p);
+    return r.isGk ? null : r.attrs;
+}
+function teamAttrAvgs(team){
+    const outfield = team.map(getOutfieldAttrs).filter(Boolean);
+    const avgs = {};
+    EA_ATTR_KEYS.forEach(k => { avgs[k] = outfield.length ? outfield.reduce((s,a)=>s+a[k],0)/outfield.length : 0; });
+    return avgs;
+}
+function attrImbalanceScore(oArr, gArr){
+    const oA = teamAttrAvgs(oArr), gA = teamAttrAvgs(gArr);
+    return EA_ATTR_KEYS.reduce((s,k) => s + Math.abs(oA[k]-gA[k]), 0);
+}
+function refineAttributeBalance(oArr, gArr, getRating) {
+    const RATING_TOLERANCE = 0.5;
+    let oSum = oArr.reduce((s,p)=>s+getRating(p),0);
+    let gSum = gArr.reduce((s,p)=>s+getRating(p),0);
+    const ratingGapBaseline = Math.abs(oSum - gSum);
+    const badBaseline = () => countBadPairsInTeam(oArr) + countBadPairsInTeam(gArr);
+
+    let bestImb = attrImbalanceScore(oArr, gArr);
+    let iterations = 0, improved = true;
+    while (improved && iterations < 40) {
+        improved = false; iterations++;
+        let bestGain = 1; // prag minim de câștig (sumă diferențe atribute, scală 1-99)
+        let bestI = -1, bestJ = -1;
+        const badBefore = badBaseline();
+
+        for (let i = 0; i < oArr.length; i++) {
+            for (let j = 0; j < gArr.length; j++) {
+                const swappedO = oArr.slice(); swappedO[i] = gArr[j];
+                const swappedG = gArr.slice(); swappedG[j] = oArr[i];
+                const newImb = attrImbalanceScore(swappedO, swappedG);
+                const gain = bestImb - newImb;
+                if (gain <= bestGain) continue;
+
+                const rO = getRating(oArr[i]), rG = getRating(gArr[j]);
+                const newGap = Math.abs((oSum - rO + rG) - (gSum - rG + rO));
+                if (newGap > ratingGapBaseline + RATING_TOLERANCE) continue;
+
+                const badAfter = countBadPairsInTeam(swappedO) + countBadPairsInTeam(swappedG);
+                if (badAfter > badBefore) continue;
+
+                bestGain = gain; bestI = i; bestJ = j;
+            }
+        }
+
+        if (bestI >= 0) {
+            const pO = oArr[bestI], pG = gArr[bestJ];
+            oArr[bestI] = pG; pG.status = 'orange';
+            gArr[bestJ] = pO; pO.status = 'green';
+            oSum = oSum - getRating(pO) + getRating(pG);
+            gSum = gSum - getRating(pG) + getRating(pO);
+            bestImb = attrImbalanceScore(oArr, gArr);
+            improved = true;
+        }
+    }
+}
+
 function refineTeamSplit(oArr, gArr, getRating) {
     let oSum = oArr.reduce((s,p) => s + getRating(p), 0);
     let gSum = gArr.reduce((s,p) => s + getRating(p), 0);
