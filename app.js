@@ -6173,6 +6173,15 @@ function buildBalanceReport(oArr, gArr, mode, bArr) {
     if (_nemesisPairs.length && q.nemTeammateCount>0) {
         html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">⚔️ Nemesis ca și coechipieri: ${q.nemTeammateCount} pereche(i)</div>`;
     }
+    if (mode === 'smart' && !bArr?.length) {
+        const oA = teamAttrAvgs(oArr), gA = teamAttrAvgs(gArr);
+        let worstKey = null, worstGap = 0;
+        EA_ATTR_KEYS.forEach(k => { const gap = Math.abs(oA[k]-gA[k]); if (gap>worstGap) { worstGap=gap; worstKey=k; } });
+        if (worstKey) {
+            const okColor = worstGap<8 ? '#1b7a43' : worstGap<15 ? '#c9920a' : '#b71c1c';
+            html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🎯 Cel mai mare decalaj de atribute: <b style="color:${okColor};">${worstKey}</b> (${teamNames.orange} ${Math.round(oA[worstKey])} vs ${teamNames.green} ${Math.round(gA[worstKey])})</div>`;
+        }
+    }
     return html;
 }
 // ── Compute consecutive wins for a team from history ─────────────
