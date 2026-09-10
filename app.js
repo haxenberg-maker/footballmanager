@@ -799,6 +799,71 @@ function countAntiSynergyInTeam(team) {
     return count;
 }
 
+// ── Nemesis (rivalitate reală, ca adversari) — folosit de echilibrarea
+// echipelor ca să-i țină pe rivali DESPĂRȚIȚI ca și coechipieri (implicit,
+// bonus discret mereu activ), sau, dacă e activat "⚔️ Mod Rivalitate" din
+// popup-ul de echilibrare, cu o penalizare mult mai puternică pentru
+// coechipieri + un mic bonus de "spectacol" când ajung adversari.
+// Definiție identică cu computeNemesis() din clasament.html: min. 3 meciuri
+// unul-împotriva-celuilalt, rată de înfrângere >50%.
+function getNemesisPairs() {
+    const pairs = [];
+    const players = db.players.filter(p => p.games > 0);
+    const teamOf = (h, name) =>
+        (h.orangePlayers||[]).includes(name) ? 'orange' :
+        (h.greenPlayers ||[]).includes(name) ? 'green'  :
+        (h.blackPlayers ||[]).includes(name) ? 'black'  : null;
+    for (let i = 0; i < players.length; i++) {
+        for (let j = i + 1; j < players.length; j++) {
+            const a = players[i].name, b = players[j].name;
+            let games = 0, aLosses = 0, bLosses = 0;
+            db.history.forEach(h => {
+                const ta = teamOf(h, a), tb = teamOf(h, b);
+                if (!ta || !tb || ta === tb) return; // trebuie să fie adversari, nu coechipieri
+                games++;
+                const wonA = playerWonMatch(h, a);
+                if (wonA === false) aLosses++;
+                if (wonA === true) bLosses++;
+            });
+            if (games < 3) continue;
+            if (aLosses/games > 0.5) pairs.push({ loser:a, winner:b, games, lossRate:aLosses/games });
+            else if (bLosses/games > 0.5) pairs.push({ loser:b, winner:a, games, lossRate:bLosses/games });
+        }
+    }
+    return pairs;
+}
+let _nemesisPairs = [];
+let rivalryMode = false; // "⚔️ Mod Rivalitate" — bifă din popup-ul de echilibrare
+function isNemesisPair(nameA, nameB){
+    return _nemesisPairs.some(p => (p.loser===nameA && p.winner===nameB) || (p.loser===nameB && p.winner===nameA));
+}
+function countNemesisAsTeammates(team){
+    let count = 0;
+    for (let i = 0; i < team.length; i++)
+        for (let j = i + 1; j < team.length; j++)
+            if (isNemesisPair(team[i].name, team[j].name)) count++;
+    return count;
+}
+function countNemesisAsOpponents(teamA, teamB){
+    let count = 0;
+    teamA.forEach(pa => teamB.forEach(pb => { if (isNemesisPair(pa.name, pb.name)) count++; }));
+    return count;
+}
+// Combină anti-sinergie + nemesis-ca-și-coechipieri într-un singur cost de
+// "perechi proaste" — folosit atât la plasare cât și la rafinarea 2-opt, ca
+// să nu existe două căi de calcul separate care se pot dezacorda.
+function countBadPairsInTeam(team){
+    const nemWeight = rivalryMode ? 0.6 : 0.15;
+    return countAntiSynergyInTeam(team) + countNemesisAsTeammates(team) * nemWeight;
+}
+// Bonus mic pt. plasarea care pune nemesis-ii adversari (doar "Mod Rivalitate").
+function nemesisSpectacleBonus(candidateTeam, otherTeams){
+    if (!rivalryMode) return 0;
+    let count = 0;
+    otherTeams.forEach(t => count += countNemesisAsOpponents(candidateTeam, t));
+    return -count * 0.4; // scădem costul (favorizăm) plasarea care creează rivalitate
+}
+
 /**
  * #5 DETECȚIE DEZECHILIBRU
  * Jucători cu streak de W >= 3. Returnează lista cu numele și streak-ul.
@@ -5683,8 +5748,11 @@ function doBalance(mode, format) {
     // la 6 la 6 / 7 la 7, per cererea ta, nu mai e nevoie.
     const usePositionBalance = format === '10';
 
-    // Pre-compute anti-synergy pairs once per balance call
+    // Pre-compute anti-synergy + nemesis pairs once per balance call
     _antiSynergyPairs = getAntiSynergyPairs();
+    _nemesisPairs = getNemesisPairs();
+    const rivalryToggle = document.getElementById('rivalryModeToggle');
+    rivalryMode = !!(rivalryToggle && rivalryToggle.checked);
 
     // Boost de Win Rate folosit STRICT la decizia de plasare (nu la ce se
     // AFIȘEAZĂ — vezi explicația mai jos, la ramura SMART/GENERAL). Pe scala
@@ -5711,12 +5779,20 @@ function doBalance(mode, format) {
         const maxS3  = Math.ceil(active.length/3);
         sorted3.forEach(p => {
             const r = getRatingT(p);
+            const plainRating = getSmartRating(p);
             let best = -1, bestScore = Infinity;
             for (let i = 0; i < 3; i++) {
                 if (sizes3[i] >= maxS3) continue;
-                // Anti-synergy penalty: prefer placing p away from bad pairs
+                // Rating cu context de sinergie (doar 'smart') — înainte lipsea la 3
+                // echipe, deci coechipierii cu chimie bună nu erau deloc favorizați.
+                // synergyDelta > 0 înseamnă chimie bună cu echipa asta -> scade costul.
+                const synergyDelta = (mode==='smart') ? (getSmartRating(p, {teammates: arrs3[i]}) - plainRating) : 0;
                 const antiPen = countAntiSynergyInTeam([...arrs3[i], p]) * 0.3;
-                const score = sums3[i] + antiPen;
+                const nemWeight = rivalryMode ? 0.6 : 0.15;
+                const nemPen = countNemesisAsTeammates([...arrs3[i], p]) * nemWeight;
+                const otherArrs = [0,1,2].filter(x => x!==i).map(x => arrs3[x]);
+                const spectacle = nemesisSpectacleBonus([...arrs3[i], p], otherArrs);
+                const score = sums3[i] + antiPen + nemPen + spectacle - synergyDelta*0.4;
                 if (score < bestScore) { bestScore = score; best = i; }
             }
             if (best === -1) best = sizes3.indexOf(Math.min(...sizes3));
@@ -5771,8 +5847,9 @@ function doBalance(mode, format) {
         const assignR = (p) => {
             const r = getSmartRating(p);
             const oFull = oArr.length >= maxSize, gFull = gArr.length >= maxSize;
-            const oAnti = !oFull ? countAntiSynergyInTeam([...oArr, p]) : 999;
-            const gAnti = !gFull ? countAntiSynergyInTeam([...gArr, p]) : 999;
+            const nemWeight = rivalryMode ? 2 : 1; // la roluri comparăm perechi întregi (fără *0.3), doar scalăm nemesis mai tare în Mod Rivalitate
+            const oAnti = !oFull ? countAntiSynergyInTeam([...oArr, p]) + countNemesisAsTeammates([...oArr, p])*nemWeight : 999;
+            const gAnti = !gFull ? countAntiSynergyInTeam([...gArr, p]) + countNemesisAsTeammates([...gArr, p])*nemWeight : 999;
             if (!oFull && (gFull || oAnti < gAnti || (oAnti === gAnti && oSum <= gSum))) {
                 p.status = 'orange'; oArr.push(p); oSum += r;
             } else {
@@ -5831,11 +5908,16 @@ function doBalance(mode, format) {
         // Rating de sinergie (ține cont de coechipierii deja aleși, doar la 'smart')
         const rO = !oFull ? getRating(p, mode==='smart'?{teammates:oArr}:{}) : Infinity;
         const rG = !gFull ? getRating(p, mode==='smart'?{teammates:gArr}:{}) : Infinity;
+        // Nemesis: penalizare ca și coechipieri (mereu, mai puternică în Mod Rivalitate)
+        // + mic bonus de spectacol dacă plasarea îi face adversari cu un rival cunoscut.
+        const nemWeight = rivalryMode ? 0.6 : 0.15;
+        const oNem = !oFull ? countNemesisAsTeammates([...oArr, p]) * nemWeight + nemesisSpectacleBonus([...oArr,p], [gArr]) : 0;
+        const gNem = !gFull ? countNemesisAsTeammates([...gArr, p]) * nemWeight + nemesisSpectacleBonus([...gArr,p], [oArr]) : 0;
 
         // Scor = ce s-ar întâmpla cu suma echipei dacă p intră acolo + penalizare anti-sinergie.
         // (Înainte rO/rG erau calculate dar anulate cu "* 0" — bug, sinergia nu conta deloc.)
-        const scoreO = oFull ? Infinity : (oSum + rO + oAnti);
-        const scoreG = gFull ? Infinity : (gSum + rG + gAnti);
+        const scoreO = oFull ? Infinity : (oSum + rO + oAnti + oNem);
+        const scoreG = gFull ? Infinity : (gSum + rG + gAnti + gNem);
 
         if (!oFull && (gFull || scoreO <= scoreG)) {
             p.status = 'orange'; oArr.push(p); oSum += getRating(p);
@@ -5871,7 +5953,7 @@ function doBalance(mode, format) {
 function refineTeamSplit(oArr, gArr, getRating) {
     let oSum = oArr.reduce((s,p) => s + getRating(p), 0);
     let gSum = gArr.reduce((s,p) => s + getRating(p), 0);
-    const antiBaseline = () => countAntiSynergyInTeam(oArr) + countAntiSynergyInTeam(gArr);
+    const antiBaseline = () => countBadPairsInTeam(oArr) + countBadPairsInTeam(gArr);
 
     let iterations = 0;
     let improved = true;
@@ -5892,7 +5974,7 @@ function refineTeamSplit(oArr, gArr, getRating) {
 
                 const swappedO = oArr.slice(); swappedO[i] = gArr[j];
                 const swappedG = gArr.slice(); swappedG[j] = oArr[i];
-                const antiAfter = countAntiSynergyInTeam(swappedO) + countAntiSynergyInTeam(swappedG);
+                const antiAfter = countBadPairsInTeam(swappedO) + countBadPairsInTeam(swappedG);
                 if (antiAfter > antiBefore) continue; // nu acceptăm swap-uri care strică sinergia
 
                 bestGain = gainGap; bestI = i; bestJ = j;
@@ -5936,6 +6018,37 @@ function _showImbalanceAlert(report) {
     }
 }
 
+// Scor unificat 0-100 de calitate a echilibrării, afișat ÎNAINTE ca admin-ul
+// să blocheze echipele — combină diferența de rating, perechile problematice
+// (anti-sinergie + nemesis ca și coechipieri) și bonusurile (sinergie bună
+// păstrată împreună, nemesis ajunse adversare — doar în Mod Rivalitate).
+function computeBalanceQualityScore(oArr, gArr, bArr){
+    const teams = (bArr && bArr.length) ? [oArr, gArr, bArr] : [oArr, gArr];
+    const nonEmpty = teams.filter(t => t.length);
+    const avgs = nonEmpty.map(t => t.reduce((s,p)=>s+getSmartRating(p),0)/t.length);
+    const maxDiff = avgs.length>1 ? Math.max(...avgs)-Math.min(...avgs) : 0;
+    const diffScore = Math.max(0, 100 - maxDiff*10);
+
+    let antiCount = 0, nemTeammateCount = 0, goodSynCount = 0;
+    teams.forEach(t=>{
+        antiCount += countAntiSynergyInTeam(t);
+        nemTeammateCount += countNemesisAsTeammates(t);
+        for (let i=0;i<t.length;i++) for (let j=i+1;j<t.length;j++)
+            if (getSynergyScore(t[i].name, t[j].name) > 0.65) goodSynCount++;
+    });
+    let nemOpponentCount = 0;
+    for (let i=0;i<teams.length;i++) for (let j=i+1;j<teams.length;j++)
+        nemOpponentCount += countNemesisAsOpponents(teams[i], teams[j]);
+
+    const antiPenalty = antiCount * 8;
+    const nemPenalty = nemTeammateCount * (rivalryMode ? 12 : 6);
+    const goodBonus = Math.min(10, goodSynCount*3);
+    const spectacleBonus = rivalryMode ? Math.min(8, nemOpponentCount*3) : 0;
+
+    const score = Math.max(0, Math.min(100, Math.round(diffScore - antiPenalty - nemPenalty + goodBonus + spectacleBonus)));
+    return { score, maxDiff, antiCount, nemTeammateCount, goodSynCount, nemOpponentCount };
+}
+
 function buildBalanceReport(oArr, gArr, mode, bArr) {
     const fmtTeam = (arr, name, hex) => {
         if (!arr.length) return '';
@@ -5970,13 +6083,23 @@ function buildBalanceReport(oArr, gArr, mode, bArr) {
     const diff = Math.abs(oAvg - gAvg);
     const modeLabels = {smart:'★ Smart Balans', general:'⭐ Rating General', roles:'🎭 Pozitii', surprise:'🎰 Aleatoriu'};
 
-    let html = `<div style="color:#7d6849;margin-bottom:5px;">Mod: <b style="color:#5c4a32;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#1b7a43':diff<0.7?'#c9920a':'#b71c1c'};">${diff.toFixed(2)}★</b></div>`;
+    const q = computeBalanceQualityScore(oArr, gArr, bArr);
+    const qColor = q.score>=80 ? '#1b7a43' : q.score>=60 ? '#c9920a' : '#b71c1c';
+    const qEmoji = q.score>=80 ? '🟢' : q.score>=60 ? '🟡' : '🔴';
+    let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:7px 10px;background:#fff;border-radius:8px;border:1.5px solid ${qColor};">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${qColor};">${qEmoji} ${q.score}/100</div>
+        <div style="font-size:.62rem;color:#7d6849;line-height:1.3;">Scor calitate echilibrare${rivalryMode?' · ⚔️ Mod Rivalitate activ':''}${q.nemOpponentCount>0?` · ${q.nemOpponentCount} rivalitate(ăți) ca adversari`:''}</div>
+    </div>`;
+    html += `<div style="color:#7d6849;margin-bottom:5px;">Mod: <b style="color:#5c4a32;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#1b7a43':diff<0.7?'#c9920a':'#b71c1c'};">${diff.toFixed(2)}★</b></div>`;
     html += fmtTeam(oArr, teamNames.orange, teamColors.orange);
     html += fmtTeam(gArr, teamNames.green,  teamColors.green);
     if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Negru', teamColors.bench||'#111111');
 
     if (_antiSynergyPairs.length) {
         html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🔴 Anti-sinergie globală: ${_antiSynergyPairs.map(p=>`${p.a}+${p.b} (${(p.wr*100).toFixed(0)}%WR)`).join(', ')}</div>`;
+    }
+    if (_nemesisPairs.length && q.nemTeammateCount>0) {
+        html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">⚔️ Nemesis ca și coechipieri: ${q.nemTeammateCount} pereche(i)</div>`;
     }
     return html;
 }
