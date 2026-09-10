@@ -208,6 +208,8 @@ body{font-family:var(--font-body);background:
 .pp-match-contrib{color:var(--ink-dim);font-size:.7rem;white-space:nowrap;}
 .pp-name-link{cursor:pointer;}
 .pp-name-link:hover{text-decoration:underline;text-decoration-color:var(--accent);}
+.lb-ach-badge{display:inline-block;font-size:.6rem;font-weight:700;color:#ffd23f;background:rgba(255,210,63,.1);border:1px solid rgba(255,210,63,.28);border-radius:6px;padding:1px 6px;margin-top:2px;cursor:pointer;}
+.lb-ach-badge:hover{background:rgba(255,210,63,.18);}
 .pp-tabs{display:flex;gap:4px;margin-bottom:12px;}
 .pp-tab{padding:6px 14px;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
 .pp-tab:hover{color:var(--ink);border-color:#334155;}
@@ -236,6 +238,9 @@ body{font-family:var(--font-body);background:
 .h2h-stat-val{text-align:center;}
 .h2h-stat-val.better{color:#34d399;font-weight:700;}
 .h2h-stat-lbl{text-align:center;font-size:.62rem;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-faint);font-family:var(--font-body);}
+.h2h-ach-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:560px){.h2h-ach-cols{grid-template-columns:1fr;}}
+.h2h-exclusive{border-color:#ffd23f;box-shadow:0 0 0 1px rgba(255,210,63,.25);}
 /* ── Achievement info popup ── */
 .pp-ach-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
 .pp-ach-card{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:22px;max-width:320px;width:100%;text-align:center;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);}
@@ -1871,16 +1876,20 @@ function getBestSingleMatchGoalsWithMatch(name){
 // Categoriile 'goals'/'games'/'streak' rămân doar insigne (nu achievement-uri
 // de profil), ca să nu dubleze secțiunea RECORDURI.
 const ACHIEVEMENT_STAT_GETTERS = {
-    best_match_goals:   (p, s) => s.bestMatchGoals,
-    best_match_assists: (p, s) => s.bestMatchAssists,
-    wins:                (p, s) => s.wins,
-    assists:             (p, s) => s.assists,
-    mvp_count:           (p, s) => p.careerMvpCount||0,
-    winrate:             (p, s) => s.games>=PP_MIN_WR_GAMES ? Math.round((s.wins/s.games)*100) : -1,
-    rating:              (p, s) => s.rating,
-    teammate_wins:       (p, s) => s.teammateWins||0,
+    goals:                (p, s) => p.totalGoals||0,
+    games:                (p, s) => p.games||0,
+    streak:               (p, s) => s.streak||0,
+    best_match_goals:     (p, s) => s.bestMatchGoals,
+    best_match_assists:   (p, s) => s.bestMatchAssists,
+    wins:                 (p, s) => s.wins,
+    assists:              (p, s) => s.assists,
+    mvp_count:            (p, s) => p.careerMvpCount||0,
+    winrate:              (p, s) => s.games>=PP_MIN_WR_GAMES ? Math.round((s.wins/s.games)*100) : -1,
+    rating:                (p, s) => s.rating,
+    teammate_wins:        (p, s) => s.teammateWins||0,
 };
 const ACHIEVEMENT_UNIT_LABELS = {
+    goals:'goluri (total carieră)', games:'meciuri jucate', streak:'victorii la rând (cea mai lungă serie)',
     best_match_goals:'goluri într-un meci', best_match_assists:'assisturi într-un meci',
     wins:'victorii', assists:'assisturi', mvp_count:'MVP-uri',
     winrate:`% winrate (min. ${PP_MIN_WR_GAMES} meciuri)`, rating:'rating',
@@ -1902,6 +1911,37 @@ function computeAchievements(p, stats){
         });
     });
     return chips;
+}
+
+// Construiește stats-ul necesar pt. computeAchievements() pornind DOAR de la
+// numele jucătorului — folosit de clasament (badge-ul 🏅) și de head-to-head,
+// unde nu avem deja variabilele astea calculate local (spre deosebire de
+// renderPlayerProfile, care le are pe toate și le pasează direct).
+function buildAchievementStats(p){
+    const assists = getCurrentAssists(p.name);
+    const bestGoalsMatch = getBestSingleMatchGoalsWithMatch(p.name);
+    const bestAssistsMatch = getBestSingleMatchAssists(p.name);
+    const teammate = computeBestTeammate(p.name);
+    return {
+        wins: p.wins||0, games: p.games||0, assists,
+        bestMatchGoals: bestGoalsMatch.value, bestMatchAssists: bestAssistsMatch.value,
+        streak: getLongestWinStreak(p),
+        rating: withCurrentSeasonHistory(()=>getSmartRating(p)),
+        teammateWins: teammate ? teammate.wins : 0,
+    };
+}
+function getPlayerAchievements(p){
+    return computeAchievements(p, buildAchievementStats(p));
+}
+
+// Badge compact "🏅 N" pentru rândul din clasament (înlocuiește insignele
+// desfășurate inline, care aglomerau fiecare rând pe toate tab-urile).
+// Click → duce direct la profilul jucătorului, unde se văd toate realizările.
+function renderAchBadgeCount(p){
+    const list = getPlayerAchievements(p);
+    const unlocked = list.filter(a=>a.unlocked).length;
+    if (!unlocked) return '';
+    return `<span class="lb-ach-badge" title="${unlocked} realizări deblocate — vezi profilul" onclick="event.stopPropagation();location.href='clasament.html?player='+encodeURIComponent('${p.name.replace(/'/g,"\\'")}')">🏅 ${unlocked}</span>`;
 }
 
 function ppFormatDate(d){
@@ -1970,7 +2010,7 @@ function renderPlayerProfile(name){
     const nemesis = computeNemesis(p.name);
     const achievements = computeAchievements(p, {
         wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value,
-        bestMatchAssists: bestAssistsMatch.value, rating, teammateWins: teammate ? teammate.wins : 0
+        bestMatchAssists: bestAssistsMatch.value, rating, teammateWins: teammate ? teammate.wins : 0, streak
     });
     ppCurrentAchievements = achievements; // pentru showAchievementInfo(i)
     const form = getFormIndex(p);
@@ -2226,6 +2266,10 @@ function renderComparePage(nameA, nameB){
     const wrB = b.games>0 ? Math.round((b.wins/b.games)*100) : 0;
     const assistsA = getCurrentAssists(a.name), assistsB = getCurrentAssists(b.name);
     const h2h = computeHeadToHead(a.name, b.name);
+    const achA = getPlayerAchievements(a).filter(x=>x.unlocked);
+    const achB = getPlayerAchievements(b).filter(x=>x.unlocked);
+    const achNamesA = new Set(achA.map(x=>x.label));
+    const achNamesB = new Set(achB.map(x=>x.label));
 
     const statRow = (label, valA, valB, higherIsBetter=true) => {
         const na = parseFloat(valA), nb = parseFloat(valB);
@@ -2264,6 +2308,26 @@ function renderComparePage(nameA, nameB){
             ${statRow('Goluri', a.totalGoals||0, b.totalGoals||0)}
             ${statRow('Assisturi', assistsA, assistsB)}
             ${statRow('MVP-uri', a.careerMvpCount||0, b.careerMvpCount||0)}
+            ${statRow('Realizări deblocate', achA.length, achB.length)}
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">🏅 REALIZĂRI</div>
+            <div class="h2h-ach-cols">
+                <div>
+                    <div class="pp-card-name" style="text-align:center;margin-bottom:8px;">${a.name}</div>
+                    <div class="pp-chip-row" style="justify-content:center;">
+                        ${achA.length ? achA.map(x=>`<div class="pp-chip${achNamesB.has(x.label)?'':' h2h-exclusive'}" title="${x.desc}"><div class="pp-chip-emoji">${x.emoji}</div><div class="pp-chip-lbl">${x.label}</div></div>`).join('') : `<div class="pp-empty">Nicio realizare încă.</div>`}
+                    </div>
+                </div>
+                <div>
+                    <div class="pp-card-name" style="text-align:center;margin-bottom:8px;">${b.name}</div>
+                    <div class="pp-chip-row" style="justify-content:center;">
+                        ${achB.length ? achB.map(x=>`<div class="pp-chip${achNamesA.has(x.label)?'':' h2h-exclusive'}" title="${x.desc}"><div class="pp-chip-emoji">${x.emoji}</div><div class="pp-chip-lbl">${x.label}</div></div>`).join('') : `<div class="pp-empty">Nicio realizare încă.</div>`}
+                    </div>
+                </div>
+            </div>
+            <div style="font-size:.62rem;color:var(--ink-faint);text-align:center;margin-top:10px;">✨ contur auriu = realizare pe care doar el o are</div>
         </div>
 
         <div class="stats-section">
@@ -2497,7 +2561,7 @@ function renderLeaderboard(){
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#8b96a8'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
                     <div class="pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${p.name.replace(/'/g,"\\'")}')" style="font-weight:700;font-size:${i===0?'.9rem':'.82rem'};color:${nameColor};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name}${isMe?' 📍':''}</div>
-                    ${viewingPastSeason ? '' : renderMilestoneBadges(p)}
+                    ${viewingPastSeason ? '' : renderAchBadgeCount(p)}
                     <div style="display:flex;align-items:center;gap:5px;margin-top:2px;">
                         <div style="flex:1;height:${i===0?'3px':'2px'};background:#262f3f;border-radius:1px;overflow:hidden;max-width:80px;"><div style="width:${pct}%;height:100%;background:${i===0?bigColor:'#2c384c'};border-radius:1px;"></div></div>
                         <span style="font-size:.58rem;color:#8b96a8;">${subLabel(p)}</span>
