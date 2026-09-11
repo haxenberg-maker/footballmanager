@@ -580,6 +580,8 @@ async function loadAll() {
             : { date:null, time:null, location:null, confirmedIds:[], absentIds:[] };
 
         setConnected(true);
+        _antiSynergyPairs = getAntiSynergyPairs();
+        _nemesisPairs = getNemesisPairs();
         render();
     } catch (err) {
         setConnected(false);
@@ -1491,6 +1493,7 @@ function render(){
     applyDashMilestonesVisibility();
     applyDashSpeedVisibility();
     applyDashAttrsVisibility();
+    renderLiveBalanceQuality();
 }
 
 function analyzeTeamBalance(teamPlayers){
@@ -6094,6 +6097,41 @@ function _showImbalanceAlert(report) {
 // să blocheze echipele — combină diferența de rating, perechile problematice
 // (anti-sinergie + nemesis ca și coechipieri) și bonusurile (sinergie bună
 // păstrată împreună, nemesis ajunse adversare — doar în Mod Rivalitate).
+// Badge PERMANENT vizibil (nu doar după ce apeși un mod de echilibrare) —
+// recalculează scorul de calitate din echipele ACTUALE de pe ecran, oricând
+// se schimbă ceva (drag&drop manual, editare status, sau după rulare de
+// algoritm). Apelat din render() — deci "live" înseamnă literal la fiecare
+// re-desenare a dashboard-ului. Nu recalculează _antiSynergyPairs/_nemesisPairs
+// (scumpe, O(jucători²×istoric)) — alea se refac doar la load și după
+// recalculateAllPlayerStats(), pentru că nu se schimbă la o simplă mutare
+// de jucător dintr-o echipă în alta.
+function renderLiveBalanceQuality(){
+    const el = document.getElementById('liveBalanceQuality');
+    if (!el) return;
+    const oArr = db.players.filter(p => p.status === 'orange');
+    const gArr = db.players.filter(p => p.status === 'green');
+    const bArr = threeTeamMode ? db.players.filter(p => p.status === 'bench') : [];
+    if (oArr.length < 2 || gArr.length < 2) { el.style.display = 'none'; return; }
+
+    const toggle = document.getElementById('rivalryModeToggle');
+    rivalryMode = !!(toggle && toggle.checked);
+
+    const q = computeBalanceQualityScore(oArr, gArr, bArr);
+    const qColor = q.score>=80 ? '#1b7a43' : q.score>=60 ? '#c9920a' : '#b71c1c';
+    const qEmoji = q.score>=80 ? '🟢' : q.score>=60 ? '🟡' : '🔴';
+    const bits = [];
+    if (q.antiCount) bits.push(`${q.antiCount} anti-sinergie`);
+    if (q.nemTeammateCount) bits.push(`${q.nemTeammateCount} nemesis coechipieri`);
+    if (rivalryMode && q.nemOpponentCount) bits.push(`${q.nemOpponentCount} rivalitate ca adversari`);
+
+    el.style.display = 'flex';
+    el.style.borderColor = qColor;
+    el.innerHTML = `
+        <div class="tbp-live-score" style="color:${qColor};">${qEmoji} ${q.score}/100</div>
+        <div class="tbp-live-label">Calitate echipe ACTUALE (live)${bits.length ? ' · '+bits.join(' · ') : ''}</div>
+    `;
+}
+
 function computeBalanceQualityScore(oArr, gArr, bArr){
     const teams = (bArr && bArr.length) ? [oArr, gArr, bArr] : [oArr, gArr];
     const nonEmpty = teams.filter(t => t.length);
@@ -6764,6 +6802,9 @@ function recalculateAllPlayerStats() {
     // Salvează wins, games și match_history în DB pentru toți jucătorii afectați
     db.players.forEach(p => dbUpdatePlayer(p).catch(e => console.warn('recalc save:', e.message)));
     snapshotPlayerRatings();
+    _antiSynergyPairs = getAntiSynergyPairs();
+    _nemesisPairs = getNemesisPairs();
+    renderLiveBalanceQuality();
 }
 
 // ⭐ Salvează în player_rating_history ratingul curent al fiecărui jucător —
