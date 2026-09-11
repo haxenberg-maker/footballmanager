@@ -113,16 +113,23 @@ body{font-family:var(--font-body);background:
 .derby-teams{display:flex;justify-content:space-between;font-size:.7rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
 .derby-summary{font-size:.76rem;color:var(--ink-soft);margin-top:6px;text-align:center;line-height:1.5;}
 .derby-date{text-align:center;font-size:.62rem;color:var(--ink-faint);margin-top:2px;font-family:var(--font-mono);}
-.rules-content{font-size:.85rem;line-height:1.65;color:var(--ink);}
-.rules-content p{margin:0 0 10px;}
-.rules-content p:last-child{margin-bottom:0;}
-.rules-content h4.rules-h1{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);margin:14px 0 8px;}
-.rules-content h4.rules-h1:first-child{margin-top:0;}
-.rules-content h5.rules-h2{font-family:var(--font-display);font-size:.9rem;letter-spacing:1px;color:var(--ink-dim);margin:12px 0 6px;}
-.rules-content ol,.rules-content ul{margin:0 0 10px;padding-left:22px;}
-.rules-content li{margin-bottom:5px;}
-.rules-content strong{color:var(--ink);}
 .rules-empty{font-size:.8rem;color:var(--ink-faint);font-style:italic;}
+.rule-item{border-bottom:1px solid var(--line-soft);}
+.rule-item:last-child{border-bottom:none;}
+.rule-item-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;cursor:pointer;user-select:none;}
+.rule-item-head:hover .rule-item-title{color:var(--ink);}
+.rule-item-title-wrap{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0;}
+.rule-item-num{font-family:var(--font-mono);font-size:.7rem;color:var(--ink-faint);flex-shrink:0;}
+.rule-item-title{font-weight:600;font-size:.85rem;color:var(--ink-soft);flex:1;min-width:0;word-break:break-word;transition:color .15s;}
+.rule-item-chevron{font-size:.65rem;color:var(--ink-faint);transition:transform .2s;flex-shrink:0;}
+.rule-item.open .rule-item-chevron{transform:rotate(180deg);}
+.rule-item.open .rule-item-title{color:var(--ink);}
+.rule-item-body{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+.rule-item.open .rule-item-body{max-height:600px;}
+.rule-item-desc{font-size:.8rem;line-height:1.6;color:var(--ink-dim);padding:0 2px 10px;white-space:normal;}
+.rule-item-meta{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 13px;}
+.rule-item-loc{font-size:.66rem;font-family:var(--font-mono);color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;}
+.rule-item-sanction{font-size:.66rem;font-family:var(--font-mono);color:#ff9b9b;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;}
 
 /* ── 🏅 Cel mai bun jucător — bandă compactă (games+winrate+goluri+titluri) ── */
 .best-player-strip{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(255,210,63,.09),rgba(167,139,250,.06));border:1px solid rgba(255,210,63,.28);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:16px;}
@@ -290,7 +297,7 @@ body{font-family:var(--font-body);background:
 
     <div id="rulesWrap" class="stats-section" style="margin-bottom:14px;display:none;">
         <h3>📜 Reguli</h3>
-        <div id="rulesContent" class="rules-content"></div>
+        <div id="rulesContent"></div>
     </div>
 
     <div class="page-tabs">
@@ -353,7 +360,7 @@ let tagsConfig = [];
 let PT_BY_ID = {};
 let TW = {};
 let TAG_BONUS_CAP = 10.0;
-let rulesText = ''; // 📜 Reguli — încărcat din algo_settings (key: 'rules_text'), setat din setari.html
+let rulesList = []; // 📜 Reguli — array [{id,title,description,location,sanction}], din algo_settings (key: 'rules_list'), setat din setari.html
 // EFFECT_KEYS/ALGO_FIELDS vin din smart-rating.js (fără profil extern —
 // tag.effects e in-line, aplicat direct pe PAC/SHO/PAS/DRI/DEF/PHY via
 // eaComputeTagBonus). Toate constantele Form Rating (Win Rate, Chimie,
@@ -1507,53 +1514,47 @@ function computeDerbyOfWeek(){
     });
     return best;
 }
-// ── 📜 Reguli — text configurabil din setari.html (tabela generică
-// key/value `algo_settings`, cheia 'rules_text'), fără date hardcodate aici.
-// Markdown simplu (fără librării): linie goală = paragraf nou; "# "/"## " =
-// titluri; "- "/"* " sau "1. " = liste; **bold**/*italic* = accent inline.
+// ── 📜 Reguli — listă structurată (titlu, descriere, unde se aplică,
+// sancțiune), configurabilă din setari.html, salvată în algo_settings
+// (key: 'rules_list', tabelă generică key/value, deja folosită și pentru
+// algoritmul de OVR). Public se vede DOAR titlul; click → se extinde
+// descrierea + unde se aplică + sancțiunea. Fără date hardcodate aici.
 function escapeHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function formatRulesText(raw){
-    const text = (raw||'').trim();
-    if(!text) return '';
-    const inline = s => escapeHtml(s)
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
-    let html = '', listBuf = [], listType = null, paraBuf = [];
-    const flushList = () => {
-        if(listBuf.length){
-            html += `<${listType}>${listBuf.map(li=>`<li>${inline(li)}</li>`).join('')}</${listType}>`;
-            listBuf = []; listType = null;
-        }
-    };
-    const flushPara = () => {
-        if(paraBuf.length){ html += `<p>${paraBuf.map(inline).join('<br>')}</p>`; paraBuf = []; }
-    };
-    text.split('\n').forEach(line=>{
-        const l = line.trim();
-        if(!l){ flushList(); flushPara(); return; }
-        const h1 = l.match(/^#\s+(.*)/);
-        const h2 = l.match(/^##\s+(.*)/);
-        const ol = l.match(/^(\d+)[.)]\s+(.*)/);
-        const ul = l.match(/^[-*]\s+(.*)/);
-        if(h2){ flushList(); flushPara(); html += `<h5 class="rules-h2">${inline(h2[1])}</h5>`; return; }
-        if(h1){ flushList(); flushPara(); html += `<h4 class="rules-h1">${inline(h1[1])}</h4>`; return; }
-        if(ol){ flushPara(); if(listType!=='ol'){ flushList(); listType='ol'; } listBuf.push(ol[2]); return; }
-        if(ul){ flushPara(); if(listType!=='ul'){ flushList(); listType='ul'; } listBuf.push(ul[1]); return; }
-        flushList();
-        paraBuf.push(l);
-    });
-    flushList(); flushPara();
-    return html;
 }
 function renderRulesCard(){
     const wrap = document.getElementById('rulesWrap');
     const content = document.getElementById('rulesContent');
     if(!wrap || !content) return;
     wrap.style.display = 'block';
-    const html = formatRulesText(rulesText);
-    content.innerHTML = html || `<div class="rules-empty">Regulile nu au fost configurate încă.</div>`;
+    if(!rulesList.length){
+        content.innerHTML = `<div class="rules-empty">Regulile nu au fost configurate încă.</div>`;
+        return;
+    }
+    content.innerHTML = rulesList.map((r,i)=>{
+        const loc = r.location || '';
+        const locIcon = loc==='Peste tot' ? '🌍' : (loc ? '📍' : '');
+        return `<div class="rule-item" id="ruleItem-${i}">
+            <div class="rule-item-head" onclick="toggleRuleItem(${i})">
+                <div class="rule-item-title-wrap">
+                    <span class="rule-item-num">${i+1}.</span>
+                    <span class="rule-item-title">${escapeHtml(r.title||'(fără titlu)')}</span>
+                </div>
+                <span class="rule-item-chevron">▾</span>
+            </div>
+            <div class="rule-item-body" id="ruleBody-${i}">
+                ${r.description ? `<div class="rule-item-desc">${escapeHtml(r.description).replace(/\n/g,'<br>')}</div>` : ''}
+                <div class="rule-item-meta">
+                    ${loc ? `<span class="rule-item-loc">${locIcon} ${escapeHtml(loc)}</span>` : ''}
+                    ${r.sanction ? `<span class="rule-item-sanction">⚠️ ${escapeHtml(r.sanction)}</span>` : ''}
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+function toggleRuleItem(i){
+    const item = document.getElementById('ruleItem-'+i);
+    if(item) item.classList.toggle('open');
 }
 
 function getFormIndex(p){
@@ -2582,7 +2583,7 @@ async function loadAll(){
         (algoData||[]).forEach(row=>{
             if(row.key==='weights') Object.assign(W, row.value);
             if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||10.0;
-            if(row.key==='rules_text') rulesText = typeof row.value==='string' ? row.value : '';
+            if(row.key==='rules_list') rulesList = Array.isArray(row.value) ? row.value : [];
         });
 
         // players + ratings
