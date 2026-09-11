@@ -138,6 +138,20 @@
         .tf-btn{border:none;background:transparent;color:#7d6849;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .2s;}
         .tf-btn:hover{background:rgba(124,77,255,.12);}
         .tf-btn.active{background:linear-gradient(135deg,#7c4dff,#5c2ecf);color:#fff;box-shadow:0 2px 10px rgba(124,77,255,.4);}
+        /* ── Panou de echilibrare, mutat lângă selectorul de Format ── */
+        .team-balance-panel{background:#fdf3df;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 0 14px;}
+        .tbp-header{font-size:.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;margin-bottom:10px;text-align:center;}
+        .tbp-rivalry{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:0 0 10px;background:#fff3d6;border-radius:9px;border:1px solid #e8d19a;cursor:pointer;font-size:.72rem;color:#5c4a32;}
+        .tbp-rivalry input{width:16px;height:16px;flex-shrink:0;}
+        .tbp-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+        @media(max-width:820px){.tbp-modes{grid-template-columns:repeat(2,1fr);}}
+        .tbp-mode-card{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 11px;cursor:pointer;transition:all .15s;text-align:left;}
+        .tbp-mode-card:hover{border-color:#7c4dff;box-shadow:0 3px 10px rgba(124,77,255,.18);transform:translateY(-1px);}
+        .tbp-mode-icon{font-size:1.15rem;margin-bottom:3px;}
+        .tbp-mode-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.8px;color:#3a2f1f;}
+        .tbp-mode-desc{font-size:.62rem;color:#7d6849;line-height:1.35;margin-top:2px;}
+        .tbp-report-wrap{display:none;padding:8px 10px;background:#f3e6cf;border-radius:9px;margin-top:10px;border:1px solid #e3d3ac;}
+        .tbp-report-label{color:#7d6849;font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
 
         /* ── Modal Șansă de Câștig (dinamic 2/3/4 echipe) ── */
         .win-modal-overlay{position:fixed;inset:0;background:rgba(20,14,5,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -1061,6 +1075,45 @@
     </div>
 </div>
 
+<!-- Panou de echilibrare — mutat aici, lângă Format, ca să fie evident ce
+     face fiecare mod ÎNAINTE să apeși, nu ascuns într-un popup mic. -->
+<div class="team-balance-panel admin-only">
+    <div class="tbp-header">⚖️ Cum echilibrăm echipele</div>
+
+    <label class="tbp-rivalry">
+        <input type="checkbox" id="rivalryModeToggle">
+        <span>⚔️ <b>Mod Rivalitate</b> — încearcă să pună nemesis-ii unul împotriva celuilalt, pentru spectacol (altfel, doar un bonus mic e mereu activ ca să nu ajungă coechipieri)</span>
+    </label>
+
+    <div class="tbp-modes">
+        <div class="tbp-mode-card" onclick="askFormatThenBalance('smart')">
+            <div class="tbp-mode-icon">★</div>
+            <div class="tbp-mode-title">Smart Balans</div>
+            <div class="tbp-mode-desc">Rating + sinergie coechipieri + nemesis + atribute (PAC/SHO/PAS/DRI/DEF/PHY, ca să nu fie toți pasatorii buni într-o singură echipă) · nr. egal garantat</div>
+        </div>
+        <div class="tbp-mode-card" onclick="doBalance('roles')">
+            <div class="tbp-mode-icon">🎭</div>
+            <div class="tbp-mode-title">Balans Poziții</div>
+            <div class="tbp-mode-desc">Portar · fundaș · mijlocaș · atacant echilibrat pe fiecare echipă</div>
+        </div>
+        <div class="tbp-mode-card" onclick="askFormatThenBalance('general')">
+            <div class="tbp-mode-icon">⭐</div>
+            <div class="tbp-mode-title">Rating General</div>
+            <div class="tbp-mode-desc">Doar medie simplă de rating, fără sinergie/atribute · nr. egal garantat</div>
+        </div>
+        <div class="tbp-mode-card" onclick="doBalance('surprise')">
+            <div class="tbp-mode-icon">🎰</div>
+            <div class="tbp-mode-title">Aleatoriu</div>
+            <div class="tbp-mode-desc">Random, dar tot evită perechile cu chimie proastă</div>
+        </div>
+    </div>
+
+    <div id="balanceReportWrap" class="tbp-report-wrap">
+        <div class="tbp-report-label">📋 Raport ultimul echilibru</div>
+        <div id="balanceReport" style="font-size:.7rem;"></div>
+    </div>
+</div>
+
 <!-- Match banner — date + win probability above both teams -->
 
 <!-- MATCH STATS BANNER — above both teams -->
@@ -1099,50 +1152,12 @@
         <div class="col-body" id="list-orange"></div>
     </div>
     <div class="balance-col admin-only" style="position:relative;">
-        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Echipe: balans & instrumente">⚖️</button>
+        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Alte instrumente pentru echipe">🔧</button>
         <button class="btn-winchance" id="btnWinChance" onclick="openWinChanceModal()" title="Șansă de Câștig">🎲</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#1b7a43;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
-            <div class="balance-popup-title">⚖️ Echipe: Balans &amp; Instrumente</div>
+            <div class="balance-popup-title">🔧 Alte Instrumente Echipe</div>
 
-            <label style="display:flex;align-items:center;gap:7px;padding:6px 8px;margin:2px 6px 4px;background:#fff3d6;border-radius:7px;border:1px solid #e8d19a;cursor:pointer;font-size:.68rem;color:#5c4a32;">
-                <input type="checkbox" id="rivalryModeToggle" style="width:15px;height:15px;">
-                <span>⚔️ <b>Mod Rivalitate</b> — încearcă să pună nemesis-ii unul împotriva celuilalt, pentru spectacol (altfel, doar un bonus mic e mereu activ ca să nu ajungă coechipieri)</span>
-            </label>
-
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🧠 Algoritm de Echilibrare</div>
-            <div class="balance-opt" onclick="askFormatThenBalance('smart')">
-                <span class="balance-opt-icon">★</span>
-                <span>Smart Balans
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">rating + sinergie + anti-sinergie · nr. egal garantat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="doBalance('roles')">
-                <span class="balance-opt-icon">🎭</span>
-                <span>Balans Pozitii
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">portar · fundaș · mijlocaș · atacant echilibrat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="askFormatThenBalance('general')">
-                <span class="balance-opt-icon">⭐</span>
-                <span>Rating General
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">medie simplă · nr. egal garantat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#8a6800;">
-                <span class="balance-opt-icon">🎰</span>
-                <span>Aleatoriu
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">random · evită perechi cu chimie proastă</span>
-                </span>
-            </div>
-
-            <div id="balanceReportWrap" style="display:none;padding:6px 8px;background:#f3e6cf;border-radius:7px;margin:4px 6px;border:1px solid #e3d3ac;">
-                <div style="color:#7d6849;font-size:.55rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">📋 Raport ultimul echilibru</div>
-                <div id="balanceReport" style="font-size:.7rem;"></div>
-            </div>
-
-            <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🔧 Alte Instrumente</div>
             <div class="balance-opt" onclick="openDraftMode()" style="color:#8e3a9e;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
             <div class="balance-opt" onclick="doRotation()" style="color:#2e7d32;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#1554b3;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
