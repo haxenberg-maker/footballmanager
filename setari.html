@@ -45,6 +45,17 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 /* Cards */
 .card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#888;margin-bottom:10px;}
+.rules-content{font-size:.85rem;line-height:1.65;color:#e0e0e0;}
+.rules-content p{margin:0 0 10px;}
+.rules-content p:last-child{margin-bottom:0;}
+.rules-content h4.rules-h1{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px;color:#fff;margin:14px 0 8px;}
+.rules-content h4.rules-h1:first-child{margin-top:0;}
+.rules-content h5.rules-h2{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:#aaa;margin:12px 0 6px;}
+.rules-content ol,.rules-content ul{margin:0 0 10px;padding-left:22px;}
+.rules-content li{margin-bottom:5px;}
+.rules-content strong{color:#fff;}
+.rules-empty{font-size:.8rem;color:#555;font-style:italic;}
+#sec-rules code{background:#141720;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'Rajdhani',sans-serif;font-size:.9em;color:#9db4ff;}
 
 /* Player list */
 .player-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #0f1118;flex-wrap:wrap;}
@@ -215,6 +226,10 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="sb-item" onclick="switchSection('compare')" id="sb-compare">
             <span class="sb-icon">🆚</span><span class="sb-label">Compară</span>
         </div>
+        <div class="sb-divider"></div>
+        <div class="sb-item" onclick="switchSection('rules')" id="sb-rules">
+            <span class="sb-icon">📜</span><span class="sb-label">Reguli</span>
+        </div>
     </div>
 </div>
 
@@ -229,6 +244,7 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     <div class="mobile-tab" onclick="switchSection('data')">📦 Date</div>
     <div class="mobile-tab" onclick="switchSection('season')">🔄 Sezon</div>
     <div class="mobile-tab" onclick="switchSection('compare')">🆚 Compară</div>
+    <div class="mobile-tab" onclick="switchSection('rules')">📜 Reguli</div>
 </div>
 
 <!-- Main -->
@@ -443,6 +459,38 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
 </div>
 
+<!-- ── REGULI ──────────────────────────────────────────────────── -->
+<div class="section" id="sec-rules">
+    <div class="panel-header">
+        <div class="panel-title">📜 Reguli</div>
+        <div class="panel-sub">Textul afișat public în Clasament, secțiunea „📜 Reguli”</div>
+    </div>
+    <div class="panel-body">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:8px;">✏️ Editor</div>
+            <div style="font-size:.68rem;color:#555;margin-bottom:10px;line-height:1.6;">
+                Scrie regulile ca text simplu. Poți folosi format Markdown minimal, fără nicio bibliotecă —
+                se transformă automat în text formatat pe pagina publică:<br>
+                <code># Titlu</code> și <code>## Subtitlu</code> pentru titluri ·
+                linii care încep cu <code>1.</code> pentru listă numerotată ·
+                linii care încep cu <code>-</code> pentru listă cu buline ·
+                <code>**text**</code> pentru <strong>bold</strong>, <code>*text*</code> pentru <em>italic</em>.
+                O linie goală desparte paragrafele.
+            </div>
+            <textarea id="rulesTextarea" oninput="onRulesTextareaInput()" placeholder="REGULI MECIURI&#10;&#10;1. Meciurile se joacă 6v6.&#10;2. Se joacă cu 3 echipe și rotație.&#10;3. Echipa câștigătoare rămâne.&#10;4. Jucătorii trebuie să respecte ora stabilită." style="width:100%;min-height:280px;box-sizing:border-box;background:#0d0f18;border:1px solid var(--border);color:#fff;padding:12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.9rem;line-height:1.5;resize:vertical;outline:none;"></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <button onclick="saveRules()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">💾 Salvează Regulile</button>
+                <button onclick="resetRulesEditor()" style="padding:10px 16px;border-radius:9px;background:none;border:1px solid var(--border);color:#aaa;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;white-space:nowrap;">↺ Restabilește</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">👁️ Previzualizare (cum apare public)</div>
+            <div id="rulesPreview" class="rules-content"></div>
+        </div>
+    </div>
+</div>
+
 
 <!-- ── PREMII / TITLURI ──────────────────────────────────────── -->
 <div class="section" id="sec-awards">
@@ -560,6 +608,7 @@ let _algoSnapshot=null; // {base, scale} — ce e SALVAT în DB, folosit ca baz�
 // smart-rating.js (încărcat înaintea acestui script). Atributele de bază
 // (PAC/SHO/PAS/DRI/DEF/PHY) se setează manual per jucător, din app.js.
 let csvParsed=null;
+let rulesText=''; // 📜 Reguli — text brut, sincronizat cu ultima versiune salvată (folosit de "↺ Restabilește")
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
 // ── Constants (specifice UI-ului acestei pagini) ────────────────────
@@ -624,6 +673,75 @@ function switchSection(name){
     if(name==='potm') buildPotmPanel();
     if(name==='awards'){ buildAwardsPanel(); buildPotmMvpHistoryList(); }
     if(name==='compare') buildComparePanel();
+    if(name==='rules') buildRulesPanel();
+}
+
+// ── 📜 Reguli ─────────────────────────────────────────────────────
+// Markdown simplu, fără librării — IDENTIC cu formatRulesText() din
+// clasament.html, ca previzualizarea de aici să arate exact ce va vedea
+// jucătorul pe pagina publică. Linie goală = paragraf nou; "# "/"## " =
+// titluri; "- "/"* " sau "1. " = listă; **bold**/*italic* = accent inline.
+function escapeHtml(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function formatRulesText(raw){
+    const text = (raw||'').trim();
+    if(!text) return '';
+    const inline = s => escapeHtml(s)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+    let html = '', listBuf = [], listType = null, paraBuf = [];
+    const flushList = () => {
+        if(listBuf.length){
+            html += `<${listType}>${listBuf.map(li=>`<li>${inline(li)}</li>`).join('')}</${listType}>`;
+            listBuf = []; listType = null;
+        }
+    };
+    const flushPara = () => {
+        if(paraBuf.length){ html += `<p>${paraBuf.map(inline).join('<br>')}</p>`; paraBuf = []; }
+    };
+    text.split('\n').forEach(line=>{
+        const l = line.trim();
+        if(!l){ flushList(); flushPara(); return; }
+        const h1 = l.match(/^#\s+(.*)/);
+        const h2 = l.match(/^##\s+(.*)/);
+        const ol = l.match(/^(\d+)[.)]\s+(.*)/);
+        const ul = l.match(/^[-*]\s+(.*)/);
+        if(h2){ flushList(); flushPara(); html += `<h5 class="rules-h2">${inline(h2[1])}</h5>`; return; }
+        if(h1){ flushList(); flushPara(); html += `<h4 class="rules-h1">${inline(h1[1])}</h4>`; return; }
+        if(ol){ flushPara(); if(listType!=='ol'){ flushList(); listType='ol'; } listBuf.push(ol[2]); return; }
+        if(ul){ flushPara(); if(listType!=='ul'){ flushList(); listType='ul'; } listBuf.push(ul[1]); return; }
+        flushList();
+        paraBuf.push(l);
+    });
+    flushList(); flushPara();
+    return html;
+}
+function renderRulesPreview(){
+    const text = document.getElementById('rulesTextarea').value;
+    const html = formatRulesText(text);
+    document.getElementById('rulesPreview').innerHTML = html || `<div class="rules-empty">Regulile nu au fost configurate încă.</div>`;
+}
+function onRulesTextareaInput(){ renderRulesPreview(); }
+function buildRulesPanel(){
+    document.getElementById('rulesTextarea').value = rulesText;
+    renderRulesPreview();
+}
+function resetRulesEditor(){
+    document.getElementById('rulesTextarea').value = rulesText;
+    renderRulesPreview();
+}
+async function saveRules(){
+    const text = document.getElementById('rulesTextarea').value;
+    try{
+        const{error}=await sb.from('algo_settings').upsert({key:'rules_text', value:text}, {onConflict:'key'});
+        if(error) throw error;
+        rulesText = text;
+        showToast('✅ Regulile au fost salvate!');
+    }catch(e){
+        console.error('saveRules:', e.message);
+        showToast('❌ Eroare la salvare: '+e.message);
+    }
 }
 
 // ── Load ──────────────────────────────────────────────────────────
@@ -646,6 +764,11 @@ async function loadAll(){
     const{data:as}=await sb.from('algo_settings').select('key,value');
     applyAlgoSettingsRows(as);
     _algoSnapshot = snapshotAlgoFields(); // baseline pt preview "înainte/după"
+    // 📜 Reguli — cheie separată, 'rules_text', în aceeași tabelă generică
+    // key/value algo_settings (nu afectează applyAlgoSettingsRows, care ignoră
+    // cheile pe care nu le recunoaște).
+    const rulesRow = (as||[]).find(r=>r.key==='rules_text');
+    rulesText = rulesRow && typeof rulesRow.value==='string' ? rulesRow.value : '';
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
