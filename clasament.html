@@ -116,20 +116,22 @@ body{font-family:var(--font-body);background:
 .rules-empty{font-size:.8rem;color:var(--ink-faint);font-style:italic;}
 .rule-item{border-bottom:1px solid var(--line-soft);}
 .rule-item:last-child{border-bottom:none;}
-.rule-item-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 2px;cursor:pointer;user-select:none;}
+.rule-item-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 2px;cursor:pointer;user-select:none;}
 .rule-item-head:hover .rule-item-title{color:var(--ink);}
-.rule-item-title-wrap{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0;}
-.rule-item-num{font-family:var(--font-mono);font-size:.7rem;color:var(--ink-faint);flex-shrink:0;}
-.rule-item-title{font-weight:600;font-size:.85rem;color:var(--ink-soft);flex:1;min-width:0;word-break:break-word;transition:color .15s;}
-.rule-item-chevron{font-size:.65rem;color:var(--ink-faint);transition:transform .2s;flex-shrink:0;}
+.rule-item-title-wrap{display:flex;align-items:baseline;gap:6px;flex:1;min-width:0;}
+.rule-item-num{font-family:var(--font-mono);font-size:.66rem;color:var(--ink-faint);flex-shrink:0;}
+.rule-item-title{font-weight:600;font-size:.79rem;color:var(--ink-soft);flex:1;min-width:0;word-break:break-word;transition:color .15s;line-height:1.35;}
+.rule-item-chevron{font-size:.6rem;color:var(--ink-faint);transition:transform .2s;flex-shrink:0;}
 .rule-item.open .rule-item-chevron{transform:rotate(180deg);}
 .rule-item.open .rule-item-title{color:var(--ink);}
 .rule-item-body{max-height:0;overflow:hidden;transition:max-height .25s ease;}
 .rule-item.open .rule-item-body{max-height:600px;}
-.rule-item-desc{font-size:.8rem;line-height:1.6;color:var(--ink-dim);padding:0 2px 10px;white-space:normal;}
-.rule-item-meta{display:flex;gap:8px;flex-wrap:wrap;padding:0 2px 13px;}
-.rule-item-loc{font-size:.66rem;font-family:var(--font-mono);color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;}
-.rule-item-sanction{font-size:.66rem;font-family:var(--font-mono);color:#ff9b9b;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:3px 8px;}
+.rule-item-desc{font-size:.76rem;line-height:1.5;color:var(--ink-dim);padding:0 2px 8px;white-space:normal;}
+.rule-item-meta{display:flex;gap:6px;flex-wrap:wrap;padding:0 2px 9px;}
+.rule-item-loc{font-size:.62rem;font-family:var(--font-mono);color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;}
+.rule-item-sanction{font-size:.62rem;font-family:var(--font-mono);color:#ff9b9b;background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.25);border-radius:6px;padding:2px 7px;}
+.rules-toggle-all{display:block;width:100%;margin-top:8px;padding:7px;background:none;border:1px dashed var(--line);border-radius:8px;color:var(--ink-dim);font-size:.72rem;font-weight:700;cursor:pointer;font-family:var(--font-mono);letter-spacing:.5px;}
+.rules-toggle-all:hover{color:var(--ink);border-color:var(--ink-faint);}
 
 /* ── 🏅 Cel mai bun jucător — bandă compactă (games+winrate+goluri+titluri) ── */
 .best-player-strip{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,rgba(255,210,63,.09),rgba(167,139,250,.06));border:1px solid rgba(255,210,63,.28);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:16px;}
@@ -295,8 +297,8 @@ body{font-family:var(--font-body);background:
 
     <div id="meCardWrap"></div>
 
-    <div id="rulesWrap" class="stats-section" style="margin-bottom:14px;display:none;">
-        <h3>📜 Reguli</h3>
+    <div id="rulesWrap" class="stats-section" style="margin-bottom:14px;display:none;padding:13px 15px;">
+        <h3 style="font-size:1.05rem;letter-spacing:2px;margin-bottom:6px;">📜 Reguli</h3>
         <div id="rulesContent"></div>
     </div>
 
@@ -1519,8 +1521,30 @@ function computeDerbyOfWeek(){
 // (key: 'rules_list', tabelă generică key/value, deja folosită și pentru
 // algoritmul de OVR). Public se vede DOAR titlul; click → se extinde
 // descrierea + unde se aplică + sancțiunea. Fără date hardcodate aici.
+const RULES_COLLAPSED_LIMIT = 5;
+let rulesShowAll = false; // reset la fiecare încărcare — vezi loadAll()
 function escapeHtml(s){
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderRuleItemHtml(r, i){
+    const loc = r.location || '';
+    const locIcon = loc==='Peste tot' ? '🌍' : (loc ? '📍' : '');
+    return `<div class="rule-item" id="ruleItem-${i}">
+        <div class="rule-item-head" onclick="toggleRuleItem(${i})">
+            <div class="rule-item-title-wrap">
+                <span class="rule-item-num">${i+1}.</span>
+                <span class="rule-item-title">${escapeHtml(r.title||'(fără titlu)')}</span>
+            </div>
+            <span class="rule-item-chevron">▾</span>
+        </div>
+        <div class="rule-item-body" id="ruleBody-${i}">
+            ${r.description ? `<div class="rule-item-desc">${escapeHtml(r.description).replace(/\n/g,'<br>')}</div>` : ''}
+            <div class="rule-item-meta">
+                ${loc ? `<span class="rule-item-loc">${locIcon} ${escapeHtml(loc)}</span>` : ''}
+                ${r.sanction ? `<span class="rule-item-sanction">⚠️ ${escapeHtml(r.sanction)}</span>` : ''}
+            </div>
+        </div>
+    </div>`;
 }
 function renderRulesCard(){
     const wrap = document.getElementById('rulesWrap');
@@ -1531,26 +1555,17 @@ function renderRulesCard(){
         content.innerHTML = `<div class="rules-empty">Regulile nu au fost configurate încă.</div>`;
         return;
     }
-    content.innerHTML = rulesList.map((r,i)=>{
-        const loc = r.location || '';
-        const locIcon = loc==='Peste tot' ? '🌍' : (loc ? '📍' : '');
-        return `<div class="rule-item" id="ruleItem-${i}">
-            <div class="rule-item-head" onclick="toggleRuleItem(${i})">
-                <div class="rule-item-title-wrap">
-                    <span class="rule-item-num">${i+1}.</span>
-                    <span class="rule-item-title">${escapeHtml(r.title||'(fără titlu)')}</span>
-                </div>
-                <span class="rule-item-chevron">▾</span>
-            </div>
-            <div class="rule-item-body" id="ruleBody-${i}">
-                ${r.description ? `<div class="rule-item-desc">${escapeHtml(r.description).replace(/\n/g,'<br>')}</div>` : ''}
-                <div class="rule-item-meta">
-                    ${loc ? `<span class="rule-item-loc">${locIcon} ${escapeHtml(loc)}</span>` : ''}
-                    ${r.sanction ? `<span class="rule-item-sanction">⚠️ ${escapeHtml(r.sanction)}</span>` : ''}
-                </div>
-            </div>
-        </div>`;
-    }).join('');
+    const hasMore = rulesList.length > RULES_COLLAPSED_LIMIT;
+    const visible = (hasMore && !rulesShowAll) ? rulesList.slice(0, RULES_COLLAPSED_LIMIT) : rulesList;
+    let html = visible.map((r,i)=>renderRuleItemHtml(r,i)).join('');
+    if(hasMore){
+        html += `<button type="button" class="rules-toggle-all" onclick="toggleRulesShowAll()">${rulesShowAll ? '▲ Arată mai puțin' : `▾ Afișează tot (${rulesList.length})`}</button>`;
+    }
+    content.innerHTML = html;
+}
+function toggleRulesShowAll(){
+    rulesShowAll = !rulesShowAll;
+    renderRulesCard();
 }
 function toggleRuleItem(i){
     const item = document.getElementById('ruleItem-'+i);
