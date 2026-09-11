@@ -106,8 +106,12 @@
         .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
         .page{padding:16px 20px;max-width:1400px;margin:0 auto;}
         .dashboard{display:grid;grid-template-columns:1fr 40px 1fr 1fr 1fr;gap:14px;align-items:start;}
+        .dashboard.tf-2{grid-template-columns:1fr 40px 1fr 1fr;}
+        .dashboard.tf-3{grid-template-columns:1fr 40px 1fr 1fr 1fr;}
+        .dashboard.tf-4{grid-template-columns:1fr 40px 1fr 1fr 1fr 1fr;}
         .column{background:#f1e4c8;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
+        .column-white{border-style:dashed;border-color:#9a8663;}
         .column-active{border-style:dashed;border-color:#7d6849;}
         .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:4px;}
         .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
@@ -116,31 +120,99 @@
         .header-bench .col-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);}
         .header-bench.team3-active .col-header{background:var(--bench-col, #4a0080);}
         .team3-active .col-header-title{color:var(--bench-text, #ce93d8)!important;}
+        .header-white .col-header{background:linear-gradient(135deg,#f5f5f5,#e0e0e0);}
+        .header-white.team4-active .col-header{background:var(--white-col, #f5f5f5);border-bottom:3px solid #bbb;}
+        .team4-active .col-header-title{color:var(--white-text, #3a2f1f)!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
         .btn-3team:hover{background:rgba(124,77,255,.4);}
         .btn-3team.active{background:rgba(124,77,255,.5);color:#3a2f1f;box-shadow:0 0 12px rgba(124,77,255,.5);}
         .header-bench .col-header-title{color:var(--bench-text, #82b1ff);}
+        .header-white .col-header-title{color:#5a4a30;}
         .header-active .col-header{background:#fdf3df;}
         .header-active .col-header-title{color:#7d6849;}
+
+        /* ── Selector Format Echipe (2/3/4) — sus, pe pagina principală ── */
+        .team-format-selector{display:flex;align-items:center;gap:8px;justify-content:center;margin:0 0 14px;flex-wrap:wrap;}
+        .tf-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
+        .tf-btn-group{display:flex;background:#f1e4c8;border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
+        .tf-btn{border:none;background:transparent;color:#7d6849;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .2s;}
+        .tf-btn:hover{background:rgba(124,77,255,.12);}
+        .tf-btn.active{background:linear-gradient(135deg,#7c4dff,#5c2ecf);color:#fff;box-shadow:0 2px 10px rgba(124,77,255,.4);}
+        /* ── Panou de echilibrare, mutat lângă selectorul de Format ── */
+        .team-balance-panel{background:#fdf3df;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 0 14px;}
+        .tbp-header{font-size:.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;margin-bottom:10px;text-align:center;}
+        .tbp-rivalry{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:0 0 10px;background:#fff3d6;border-radius:9px;border:1px solid #e8d19a;cursor:pointer;font-size:.72rem;color:#5c4a32;}
+        .tbp-rivalry input{width:16px;height:16px;flex-shrink:0;}
+        .tbp-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+        @media(max-width:640px){.tbp-modes{grid-template-columns:1fr;}}
+        .tbp-mode-card{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 11px;cursor:pointer;transition:all .15s;text-align:left;}
+        .tbp-mode-card:hover{border-color:#7c4dff;box-shadow:0 3px 10px rgba(124,77,255,.18);transform:translateY(-1px);}
+        .tbp-mode-icon{font-size:1.15rem;margin-bottom:3px;}
+        .tbp-mode-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.8px;color:#3a2f1f;}
+        .tbp-mode-desc{font-size:.62rem;color:#7d6849;line-height:1.35;margin-top:2px;}
+        .tbp-report-wrap{display:none;padding:8px 10px;background:#f3e6cf;border-radius:9px;margin-top:10px;border:1px solid #e3d3ac;}
+        .tbp-report-label{color:#7d6849;font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+        .tbp-live-quality{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;background:#fff;border-radius:10px;border:1.5px solid #ddd;transition:border-color .2s;}
+        .tbp-live-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;}
+        .tbp-live-label{font-size:.64rem;color:#7d6849;line-height:1.35;}
+
+        /* ── Modal Șansă de Câștig (dinamic 2/3/4 echipe) ── */
+        .win-modal-overlay{position:fixed;inset:0;background:rgba(20,14,5,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
+        .win-modal{background:#fdf6e6;border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+        .win-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#3a2f1f;margin:0 0 4px;text-align:center;}
+        .win-modal-sub{font-size:.72rem;color:#9c7a4a;text-align:center;margin-bottom:16px;}
+        .win-modal-close{position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;color:#7d6849;cursor:pointer;}
+        /* Versus (2 echipe) */
+        .wm-versus{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+        .wm-versus-side{flex:1;text-align:center;}
+        .wm-versus-pct{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;}
+        .wm-versus-name{font-weight:700;font-size:.85rem;margin-top:2px;}
+        .wm-versus-vs{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#9c7a4a;padding:0 4px;}
+        .wm-dual-bar{height:14px;border-radius:7px;background:#e9dcbb;overflow:hidden;display:flex;margin-bottom:18px;}
+        .wm-dual-fill{height:100%;transition:width .6s ease;}
+        /* Grid (3/4 echipe) */
+        .wm-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+        .wm-grid.wm-grid-3{grid-template-columns:repeat(3,1fr);}
+        @media(max-width:560px){.wm-grid,.wm-grid.wm-grid-3{grid-template-columns:1fr 1fr;}}
+        .wm-team-card{border-radius:12px;padding:12px 10px;text-align:center;color:#fff;position:relative;overflow:hidden;}
+        .wm-team-name{font-weight:700;font-size:.78rem;margin-bottom:4px;text-shadow:0 1px 2px rgba(0,0,0,.3);}
+        .wm-team-pct{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.3);}
+        .wm-team-bar-wrap{height:6px;border-radius:3px;background:rgba(255,255,255,.35);margin-top:6px;overflow:hidden;}
+        .wm-team-bar-fill{height:100%;background:#fff;transition:width .6s ease;}
+        .wm-team-avg{font-size:.62rem;margin-top:4px;opacity:.9;}
+        /* Balance badge */
+        .wm-balance-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;padding:9px;border-radius:10px;background:#f3e6cf;border:1px solid #e3d3ac;}
+        .wm-balance-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
+        .wm-balance-badge{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;padding:3px 12px;border-radius:20px;color:#fff;}
+        /* Attribute comparison */
+        .wm-attr-title{font-size:.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin:4px 0 8px;text-align:center;}
+        .wm-attr-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+        .wm-attr-label{width:74px;flex-shrink:0;font-size:.68rem;color:#7d6849;font-weight:700;}
+        .wm-attr-bars{flex:1;display:flex;gap:3px;height:16px;border-radius:4px;overflow:hidden;background:#e9dcbb;}
+        .wm-attr-seg{height:100%;transition:width .5s ease;}
+        .btn-winchance{background:linear-gradient(135deg,#ffe082,#ffb300);border:1px solid #ff8f00;color:#7d4f00;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+        .btn-winchance:hover{transform:scale(1.1);}
         .team-rating-info{display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:700;flex-wrap:wrap;}
         .team-avg-badge{background:rgba(0,0,0,0.35);border-radius:20px;padding:2px 10px;color:var(--star);font-size:0.9rem;}
         .team-count-badge{background:rgba(0,0,0,0.25);border-radius:20px;padding:2px 8px;color:rgba(255,255,255,0.7);font-size:0.8rem;}
         .rating-bar-wrap{height:4px;background:rgba(0,0,0,0.3);border-radius:2px;overflow:hidden;margin-top:2px;}
         .rating-bar-fill{height:100%;border-radius:2px;background:rgba(255,255,255,0.5);transition:width 0.4s;}
         .col-body{padding:10px;flex:1;min-height:200px;overflow-y:auto;}
-        #list-active,#list-bench{max-height:520px;overflow-y:auto;}
+        #list-active{max-height:520px;overflow-y:auto;}
         #matchStatsBanner{grid-column:1/-1;}
         .dash-stats-hidden .rating-badge,
         .dash-stats-hidden .rating-badge-smart,
         .dash-stats-hidden .player-stats,
-        .dash-stats-hidden .fifa-rating-col,
-        .dash-stats-hidden .fifa-stats-row { display:none !important; }
+        .dash-stats-hidden .fifa-rating-col { display:none !important; }
         .dash-stats-hidden .team-avg-badge { display:none !important; }
         .dash-stats-hidden .probOrange, .dash-stats-hidden #probOrange,
         .dash-stats-hidden #probGreen { visibility:hidden; }
+        .dash-wrstats-hidden .fifa-stats-row { display:none !important; }
         .dash-tags-hidden .ptag-row { display:none !important; }
         .dash-roles-hidden .role-badge-inline { display:none !important; }
-        /* FIFA attr bars */
+        .dash-milestones-hidden .milestone-row { display:none !important; }
+        .dash-speed-hidden .speed-badge { display:none !important; }
+        .dash-attrs-hidden .fifa-attrs-row { display:none !important; }        /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
         .fifa-attr-lbl{font-size:.52rem;color:#6b5840;text-transform:uppercase;width:22px;flex-shrink:0;letter-spacing:.5px;}
@@ -169,6 +241,27 @@
         .player-card.team-orange::before{background:linear-gradient(135deg,rgba(255,140,0,.08) 0%,transparent 60%);}
         .player-card.team-green{border-color:rgba(40,167,69,.22);background:linear-gradient(145deg,#dff3df,#c5e8c0);}
         .player-card.team-green::before{background:linear-gradient(135deg,rgba(40,167,69,.07) 0%,transparent 60%);}
+        .player-card.team-bench{border-color:rgba(41,121,255,.25);background:linear-gradient(145deg,#dde9ff,#b8cdf0);}
+        .player-card.team-bench::before{background:linear-gradient(135deg,rgba(41,121,255,.08) 0%,transparent 60%);}
+        .player-card.team-white{border-color:rgba(120,120,120,.3);background:linear-gradient(145deg,#f7f7f7,#e3e3e3);}
+        .player-card.team-white::before{background:linear-gradient(135deg,rgba(120,120,120,.08) 0%,transparent 60%);}
+        /* Tier-uri de card stil EA FC, în funcție de OVR — independent de
+           culoarea de echipă (background) de mai sus; adaugă un inel/glow
+           pe margine + accent pe coloana de rating. */
+        .player-card.tier-bronze{box-shadow:0 0 0 1.5px rgba(160,106,60,.4) inset;}
+        .player-card.tier-bronze .fifa-rating-col{border-right-color:rgba(160,106,60,.5);}
+        .player-card.tier-silver{box-shadow:0 0 0 1.5px rgba(150,150,160,.55) inset,0 0 10px rgba(150,150,160,.25);}
+        .player-card.tier-silver .fifa-rating-col{border-right-color:rgba(150,150,160,.6);}
+        .player-card.tier-gold{box-shadow:0 0 0 1.5px rgba(212,175,55,.65) inset,0 0 14px rgba(212,175,55,.35);}
+        .player-card.tier-gold .fifa-rating-col{border-right-color:rgba(212,175,55,.7);}
+        .player-card.tier-gold .fifa-rating-num{text-shadow:0 0 8px rgba(212,175,55,.5);}
+        .player-card.tier-special{box-shadow:0 0 0 2px rgba(107,70,193,.65) inset,0 0 18px rgba(107,70,193,.4);}
+        .player-card.tier-special .fifa-rating-col{border-right-color:rgba(107,70,193,.7);}
+        .player-card.tier-special .fifa-rating-num{text-shadow:0 0 8px rgba(107,70,193,.55);}
+        .player-card.tier-special::after{
+            content:'✨';position:absolute;top:6px;left:10px;font-size:.8rem;
+            filter:drop-shadow(0 0 3px rgba(107,70,193,.6));pointer-events:none;
+        }
         /* FIFA card body layout */
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
@@ -345,6 +438,18 @@
         .lobby-players{display:flex;flex-wrap:wrap;gap:8px;}
         .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#faf0dc;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
         .lobby-player-chip:hover{border-color:#1554b3;background:#e8f0ff;}
+        /* Prezență — fundal colorat direct, proporțional cu cât de des a jucat în
+           ultimele meciuri (rate). Declarate ÎNAINTE de confirmed/absent, ca starea
+           meciului viitor (mai importantă/acțiune imediată) să câștige mereu în
+           cascadă dacă un chip e și "prezent recent" ȘI confirmat/absent. */
+        .lobby-player-chip.presence-elite{background:linear-gradient(135deg,#ff9800,#e65100);border-color:#bf360c;}
+        .lobby-player-chip.presence-elite .chip-name{color:#fff3e0;}
+        .lobby-player-chip.presence-high{background:linear-gradient(135deg,#ffd54f,#ffa726);border-color:#e65100;}
+        .lobby-player-chip.presence-high .chip-name{color:#5d3a00;}
+        .lobby-player-chip.presence-mid{background:linear-gradient(135deg,#fff3c4,#ffe082);border-color:#c9920a;}
+        .lobby-player-chip.presence-mid .chip-name{color:#6b5000;}
+        .lobby-player-chip.presence-low{background:linear-gradient(135deg,#fffbe8,#fff3c4);border-color:#e0c468;}
+        .lobby-player-chip.presence-low .chip-name{color:#7d6849;}
         .lobby-player-chip.confirmed{background:#dde9ff;border-color:#1554b3;}
         .lobby-player-chip.absent{background:#fce0e0;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#dcc89a;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
@@ -696,10 +801,29 @@
         .match-modal{background:#fff8ed;width:90%;max-width:480px;border-radius:16px;padding:24px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
         .match-modal-date{font-size:0.8rem;color:#7d6849;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
         .match-winner-banner{text-align:center;padding:10px 16px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;margin-bottom:16px;}
-        .match-teams{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-        .match-team-block{background:#f1e4c8;border-radius:10px;padding:12px 14px;border:1px solid #e3d3ac;}
-        .match-team-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #e3d3ac;}
-        .match-team-player{font-size:0.85rem;color:#5c4a32;padding:3px 0;}
+        .match-mirror{margin-top:4px;}
+        .match-mirror-score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:10px;}
+        .match-mirror-team-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
+        .match-mirror-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:#3a2f1f;white-space:nowrap;padding:0 6px;}
+        .match-mirror-body{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;}
+        .match-mirror-col{background:#f1e4c8;border-radius:10px;padding:10px 12px;border:1px solid #e3d3ac;min-height:100%;}
+        .match-mirror-col-left{text-align:right;}
+        .match-mirror-col-right{text-align:left;}
+        .match-mirror-col-center{width:1px;background:#e3d3ac;align-self:stretch;}
+        .match-mirror-player-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;color:#5c4a32;}
+        .match-mirror-col-left .match-mirror-player-row{justify-content:flex-end;}
+        .match-mirror-col-right .match-mirror-player-row{justify-content:flex-start;}
+        .match-mirror-player-name{font-weight:700;color:#3a2f1f;}
+        .match-mirror-player-stats{font-size:0.72rem;color:#7d6849;white-space:nowrap;}
+        .match-mirror-player-rating{font-family:'Bebas Neue',sans-serif;font-size:0.72rem;color:#8e3a9e;background:rgba(142,58,158,.1);border:1px solid rgba(142,58,158,.3);border-radius:5px;padding:0 4px;}
+        .match-mirror-badge-mvp{font-size:0.78rem;}
+        .match-mirror-badge-potm{font-size:0.78rem;}
+        @media (max-width:420px){
+            .match-mirror-score{font-size:1.25rem;}
+            .match-mirror-team-name{font-size:0.82rem;}
+            .match-mirror-col{padding:8px 8px;}
+            .match-mirror-player-row{font-size:0.76rem;flex-wrap:wrap;}
+        }
         .csv-modal{background:#fff8ed;width:90%;max-width:600px;border-radius:16px;padding:24px;border:1px solid #d3bd8c;max-height:85vh;overflow-y:auto;}
         .csv-result-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f1e4c8;border-radius:6px;margin-bottom:4px;font-size:0.82rem;}
         .csv-match{color:#2e7d32}.csv-no-match{color:#b33030}
@@ -771,9 +895,9 @@
         .history-desktop-header{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 12px;flex-wrap:wrap;gap:8px;}
 
         ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1e4c8}::-webkit-scrollbar-thumb{background:#d3bd8c;border-radius:3px}
-        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
-        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}}
-        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-active{grid-column:span 1}}
+        @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
+        @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
+        @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-white,.column-active{grid-column:span 1}}
         @media(max-width:640px){
             .page{padding:0;}
             .controls{padding:8px 10px;gap:4px;}
@@ -899,15 +1023,22 @@
     <div class="controls-separator admin-only"></div>
     <div class="controls-separator"></div>
     <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
+    <button id="btnToggleWrStats" onclick="toggleDashWrStats()" title="Ascunde/Arată WR/goluri">⚽ WR/Goluri</button>
     <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
     <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
+    <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
+    <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
+    <button id="btnToggleAttrs" onclick="toggleDashAttrs()" title="Ascunde/Arată atribute (PAC/SHO/...)">📊 Atribute</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
     <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
+    <button class="admin-only" onclick="recalculateConcededOnly()" title="Recalculează STRICT golurile primite — nu atinge victorii/meciuri/goluri date" style="background:rgba(198,40,40,.08);border:1px solid rgba(198,40,40,.35);color:#b71c1c;font-size:.78rem;">🥅 Recalculează doar golurile primite</button>
     <div class="controls-separator"></div>
     <button class="btn-nav-clasament" onclick="window.location.href='clasament.html'" title="Clasament">🏆 Clasament</button>
     <button class="btn-nav-cheltuieli" onclick="window.location.href='cheltuieli.html'" title="Cheltuieli">💰 Cheltuieli</button>
     <button class="btn-settings" onclick="window.location.href='setari.html'">⚙️ Setări</button>
+    <button id="customShortcutBtn" onclick="openCustomShortcut()" style="display:none;background:linear-gradient(135deg,#ede3fa,#c9a8f0);border:1px solid #9c27b0;color:#6a1b9a;"></button>
+    <button id="customShortcutEditBtn" class="admin-only" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat" style="background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.78rem;">➕ Shortcut</button>
 </div>
 
 <!-- QUICK NAV — sticky bottom bar, always reachable on mobile with one thumb -->
@@ -936,6 +1067,52 @@
 
 <!-- DASHBOARD -->
 <div class="page" id="mainPage">
+
+<!-- Selector Format Echipe (2/3/4) -->
+<div class="team-format-selector admin-only">
+    <span class="tf-label">Format:</span>
+    <div class="tf-btn-group">
+        <button class="tf-btn" id="tfBtn2" onclick="setTeamFormat(2)">2 Echipe</button>
+        <button class="tf-btn" id="tfBtn3" onclick="setTeamFormat(3)">3 Echipe</button>
+        <button class="tf-btn" id="tfBtn4" onclick="setTeamFormat(4)">4 Echipe</button>
+    </div>
+</div>
+
+<!-- Panou de echilibrare — mutat aici, lângă Format, ca să fie evident ce
+     face fiecare mod ÎNAINTE să apeși, nu ascuns într-un popup mic. -->
+<div class="team-balance-panel admin-only">
+    <div class="tbp-header">⚖️ Cum echilibrăm echipele</div>
+
+    <div id="liveBalanceQuality" class="tbp-live-quality" style="display:none;"></div>
+
+    <label class="tbp-rivalry">
+        <input type="checkbox" id="rivalryModeToggle" onchange="renderLiveBalanceQuality()">
+        <span>⚔️ <b>Mod Rivalitate</b> — pune nemesis-ii unul împotriva celuilalt, pentru spectacol</span>
+    </label>
+
+    <div class="tbp-modes">
+        <div class="tbp-mode-card" onclick="askFormatThenBalance('smart')">
+            <div class="tbp-mode-icon">★</div>
+            <div class="tbp-mode-title">Smart Balans</div>
+            <div class="tbp-mode-desc">Rating + chimie + rivalități + atribute</div>
+        </div>
+        <div class="tbp-mode-card" onclick="doBalance('roles')">
+            <div class="tbp-mode-icon">🎭</div>
+            <div class="tbp-mode-title">Balans Poziții</div>
+            <div class="tbp-mode-desc">Portar · fundaș · mijlocaș · atacant</div>
+        </div>
+        <div class="tbp-mode-card" onclick="doBalance('surprise')">
+            <div class="tbp-mode-icon">🎰</div>
+            <div class="tbp-mode-title">Aleatoriu</div>
+            <div class="tbp-mode-desc">Random, evită chimia proastă</div>
+        </div>
+    </div>
+
+    <div id="balanceReportWrap" class="tbp-report-wrap">
+        <div class="tbp-report-label">📋 Raport ultimul echilibru</div>
+        <div id="balanceReport" style="font-size:.7rem;"></div>
+    </div>
+</div>
 
 <!-- Match banner — date + win probability above both teams -->
 
@@ -975,45 +1152,12 @@
         <div class="col-body" id="list-orange"></div>
     </div>
     <div class="balance-col admin-only" style="position:relative;">
-        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Echipe: balans & instrumente">⚖️</button>
-        <button class="btn-3team" id="btn3team" onclick="toggleThreeTeamIndex()" title="Mod 3 Echipe (bancă = Echipa 3)">3️⃣</button>
+        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Alte instrumente pentru echipe">🔧</button>
+        <button class="btn-winchance" id="btnWinChance" onclick="openWinChanceModal()" title="Șansă de Câștig">🎲</button>
         <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#1b7a43;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
         <div class="balance-popup" id="balancePopup">
-            <div class="balance-popup-title">⚖️ Echipe: Balans &amp; Instrumente</div>
+            <div class="balance-popup-title">🔧 Alte Instrumente Echipe</div>
 
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🧠 Algoritm de Echilibrare</div>
-            <div class="balance-opt" onclick="askFormatThenBalance('smart')">
-                <span class="balance-opt-icon">★</span>
-                <span>Smart Balans
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">rating + sinergie + anti-sinergie · nr. egal garantat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="doBalance('roles')">
-                <span class="balance-opt-icon">🎭</span>
-                <span>Balans Pozitii
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">portar · fundaș · mijlocaș · atacant echilibrat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="askFormatThenBalance('general')">
-                <span class="balance-opt-icon">⭐</span>
-                <span>Rating General
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">medie simplă · nr. egal garantat</span>
-                </span>
-            </div>
-            <div class="balance-opt" onclick="doBalance('surprise')" style="color:#8a6800;">
-                <span class="balance-opt-icon">🎰</span>
-                <span>Aleatoriu
-                    <span style="display:block;font-size:.6rem;color:#7d6849;margin-top:1px;">random · evită perechi cu chimie proastă</span>
-                </span>
-            </div>
-
-            <div id="balanceReportWrap" style="display:none;padding:6px 8px;background:#f3e6cf;border-radius:7px;margin:4px 6px;border:1px solid #e3d3ac;">
-                <div style="color:#7d6849;font-size:.55rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px;">📋 Raport ultimul echilibru</div>
-                <div id="balanceReport" style="font-size:.7rem;"></div>
-            </div>
-
-            <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">🔧 Alte Instrumente</div>
             <div class="balance-opt" onclick="openDraftMode()" style="color:#8e3a9e;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
             <div class="balance-opt" onclick="doRotation()" style="color:#2e7d32;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
             <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#1554b3;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
@@ -1063,6 +1207,15 @@
         </div>
         <div class="col-body" id="list-bench"></div>
     </div>
+    <div class="column column-white header-white" id="col-white" style="display:none;" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
+        <div class="col-header">
+            <div class="col-header-title" id="titleWhite">Alb</div>
+            <div class="team-balance-indicator" id="balance-white"></div>
+            <div class="team-rating-info"><span class="team-avg-badge" id="avg-white">★ —</span><span class="team-count-badge" id="count-white">0 jucători</span></div>
+            <div class="rating-bar-wrap" id="bar-white-wrap"><div class="rating-bar-fill" id="bar-white" style="width:0%;background:rgba(220,220,220,0.9);"></div></div>
+        </div>
+        <div class="col-body" id="list-white"></div>
+    </div>
     <div class="column column-active header-active" id="col-active" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -1086,8 +1239,7 @@
         <div id="weeklyCards" style="display:none;margin-bottom:12px;"></div>
         <!-- Leaderboard tabs -->
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
-            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ Smart</button>
-            <button class="lb-tab"        id="lbt-general" onclick="setLbTab('general')">⭐ General</button>
+            <button class="lb-tab active" id="lbt-smart"   onclick="setLbTab('smart')"  >★ OVR</button>
             <button class="lb-tab"        id="lbt-goals"   onclick="setLbTab('goals')"  >⚽ Goluri</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-games"   onclick="setLbTab('games')"  >📅 Meciuri</button>
@@ -1178,14 +1330,13 @@
                 </div>
             </div>
             <div class="modal-nemesis" id="modalNemesis" style="width:100%;margin-top:4px;"></div>
+            <div id="modalEaCard" style="width:100%;"></div>
         </div>
     </div>
 
     <!-- FIFA Tabs -->
     <div class="modal-tabs" id="modalTabs">
         <button class="modal-tab active" onclick="switchModalTab('stats')">👑 Rating</button>
-        <button class="modal-tab" onclick="switchModalTab('evolution')">📈 Evoluție</button>
-        <button class="modal-tab" onclick="switchModalTab('radar')">🎯 Hex</button>
         <button class="modal-tab" onclick="switchModalTab('history')">📅 Meciuri</button>
         <button class="modal-tab" onclick="switchModalTab('chemistry')">🤝 Chimie</button>
     </div>
@@ -1195,33 +1346,10 @@
         <div id="modalQuickGlance" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
         <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
+        <div id="adminSpeedPanel" style="display:none;"></div>
         <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#7d6849;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div id="modalChemPreview" style="margin-top:10px;"></div>
-    </div>
-
-    <!-- Tab: Evoluție (grafic rating în timp) -->
-    <div class="modal-tab-panel" id="tabEvolution">
-        <div class="chart-section">
-            <div class="chart-toggle-label" id="chartLabel" style="padding:2px 0 8px;font-size:.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">📈 Evoluție Rating</div>
-            <div class="chart-body open" id="chartBody">
-                <div class="chart-body-inner">
-                    <div class="cat-tabs" id="catTabs"></div>
-                    <canvas id="ratingChart" height="90"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tab: Hex/Radar -->
-    <div class="modal-tab-panel" id="tabRadar">
-        <div class="hex-stats-wrap" id="hexStatsWrap">
-            <svg class="hex-svg" id="hexSvg" width="220" height="220" viewBox="0 0 220 220"></svg>
-            <div class="hex-labels" id="hexLabels"></div>
-        </div>
-        <!-- Legacy radar hidden but kept for chart.js compat -->
-        <canvas id="radarChart" width="1" height="1" style="display:none;"></canvas>
-        <div id="radarLegend" style="display:none;"></div>
     </div>
 
     <!-- Tab: Match History Timeline -->
@@ -1363,12 +1491,12 @@
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
         <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
-            <div style="text-align:center;">
+            <div style="text-align:center;" id="meScoreBlockO">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">Portocaliu</div>
                 <input type="number" min="0" max="99" id="meScoreO" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:var(--orange);padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
+            <div id="meScoreSepOG" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
             <div style="text-align:center;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--green);margin-bottom:4px;">Verde</div>
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
@@ -1502,53 +1630,9 @@
                 </div>
             </div>
 
-            <!-- Presets row -->
-            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚡ Presetări rapide</div>
-            <div class="algo-presets">
-                <button class="algo-preset-btn" onclick="applyPreset('balanced')">⚖️ Balanced</button>
-                <button class="algo-preset-btn" onclick="applyPreset('defensive')">🛡️ Defensive</button>
-                <button class="algo-preset-btn" onclick="applyPreset('performance')">🏆 Performance</button>
-            </div>
-
-            <!-- Power ring + weights grid side by side -->
-            <div style="display:flex;gap:12px;align-items:flex-start;">
-                <!-- Ring -->
-                <div class="algo-power-wrap" style="flex-shrink:0;">
-                    <div class="algo-power-ring">
-                        <svg width="80" height="80" viewBox="0 0 80 80">
-                            <circle class="algo-power-ring-bg" cx="40" cy="40" r="33"/>
-                            <circle class="algo-power-ring-fill" id="algoRingFill" cx="40" cy="40" r="33"
-                                stroke-dasharray="207.3" stroke-dashoffset="207.3" stroke="#3d5afe"/>
-                        </svg>
-                        <div class="algo-power-label">
-                            <span class="algo-power-pct" id="algoPowerPct" style="color:#3d5afe;">0%</span>
-                            <span class="algo-power-sub">/ 100%</span>
-                        </div>
-                    </div>
-                    <div style="font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;">Putere</div>
-                </div>
-                <!-- Weights grid -->
-                <div style="flex:1;">
-                    <div class="algo-panel-grid" id="weightsList"></div>
-                    <!-- Tag Net Cap -->
-                    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid #e3d3ac;margin-top:4px;">
-                        <span style="font-size:.7rem;color:#7d6849;flex:1;">🏷️ Net maxim tag-uri</span>
-                        <button onclick="stepTagCap(-0.5)" class="algo-btn">−</button>
-                        <span id="tagCapVal" style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#6b46c1;min-width:28px;text-align:center;">2.0</span>
-                        <button onclick="stepTagCap(+0.5)" class="algo-btn">+</button>
-                        <span style="font-size:.62rem;color:#6b5840;">pt</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tag weights section -->
-            <div style="margin-top:12px;padding-top:10px;border-top:1px solid #e3d3ac;">
-                <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">
-                    🏷️ Coeficienți Tag-uri
-                    <span style="font-weight:400;color:#7d6849;font-size:.58rem;"> — bonus/penalizare per tag activ (±2 max)</span>
-                </div>
-                <div id="tagWeightsList"></div>
-            </div>
+            <!-- EA FC OVR — panou simplificat radical: doar 2 constante -->
+            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚙️ Algoritm (OVR 1-99)</div>
+            <div class="algo-panel-grid" id="weightsList"></div>
 
             <div style="display:flex;gap:8px;margin-top:12px;">
                 <button onclick="saveAlgorithm()" id="btnSaveAlgo" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#3a2f1f;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
@@ -1580,8 +1664,8 @@
                 </div>
                 <!-- Impact Profile sliders -->
                 <div style="background:#f3e6cf;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #e3d3ac;">
-                    <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">📊 Profil Impact (−3 → +3 per atribut)</div>
-                    <div id="ntProfileSliders"></div>
+                    <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Efecte pe atribute (−3 → +3), in-line — fără profil extern</div>
+                    <div id="ntEffectSteppers" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
                 </div>
                 <div style="display:flex;gap:8px;">
                     <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#3a2f1f;padding:9px;border-radius:8px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
@@ -1625,19 +1709,17 @@
         <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⏱️ Timeline Goluri</div>
         <div id="matchTimelineBody"></div>
     </div>
-    <!-- Teams -->
-    <div class="match-teams">
-        <div class="match-team-block">
-            <div class="match-team-title" id="matchOrangeTitle2" style="color:#9c4f00">Portocaliu</div>
-            <div id="matchOrangePlayers"></div>
+    <!-- Teams — tabelă în oglindă (echipa A aliniată dreapta, echipa B aliniată stânga) -->
+    <div class="match-mirror">
+        <div class="match-mirror-score-row">
+            <div class="match-mirror-team-name" id="mirrorTeamALabel" style="text-align:right;"></div>
+            <div class="match-mirror-score" id="mirrorScore"></div>
+            <div class="match-mirror-team-name" id="mirrorTeamBLabel" style="text-align:left;"></div>
         </div>
-        <div class="match-team-block">
-            <div class="match-team-title" id="matchGreenTitle2" style="color:#1b7a35">Verde</div>
-            <div id="matchGreenPlayers"></div>
-        </div>
-        <div class="match-team-block" id="matchBlackBlock" style="display:none;">
-            <div class="match-team-title" style="color:#555">Negru</div>
-            <div id="matchBlackPlayers"></div>
+        <div class="match-mirror-body">
+            <div class="match-mirror-col match-mirror-col-left" id="mirrorTeamAPlayers"></div>
+            <div class="match-mirror-col-center" id="mirrorCenterStats"></div>
+            <div class="match-mirror-col match-mirror-col-right" id="mirrorTeamBPlayers"></div>
         </div>
     </div>
     <!-- Istoric ture (doar meciuri mod 3 echipe) -->
@@ -1686,7 +1768,8 @@
 </div>
 </div>
 
-<script src="app.js?v=20260801"></script>
+<script src="smart-rating.js?v=20260903c"></script>
+<script src="app.js?v=20260903c"></script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">

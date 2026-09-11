@@ -87,7 +87,7 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .undo-lbl{flex:1;font-size:.75rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .undo-lbl span{color:#3a2f1f;}
 
-.universal-undo-btn{display:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;flex:0 0 auto;max-width:44%;overflow:hidden;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:6px 12px;border-radius:9px;box-shadow:0 2px 6px rgba(0,0,0,.12);cursor:pointer;touch-action:manipulation;min-height:44px;}
+.universal-undo-btn{display:none;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;flex:0 0 auto;max-width:60vw;overflow:hidden;background:linear-gradient(135deg,#fdf3df,#f1e0bb);border:1px solid #b89860;color:#3a2f1f;padding:6px 12px;border-radius:9px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation;min-height:44px;position:fixed;left:50%;bottom:0;transform:translateX(-50%);margin-bottom:max(10px,env(safe-area-inset-bottom));z-index:30;}
 .universal-undo-btn.show{display:flex;}
 .universal-undo-btn .uu-main{font-size:.72rem;font-weight:700;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .universal-undo-btn .uu-sub{font-size:.6rem;color:#7d6849;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
@@ -127,10 +127,38 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .g-col .pr-plus:active{background:rgba(40,167,69,.22);}
 
 .log-toggle{background:#f7ecd9;border-top:1px solid var(--b);padding:7px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+body:not(.guest-mode) .log-toggle,
+body:not(.guest-mode) .ture-toggle{display:none;}
 .log-toggle-lbl{font-size:.72rem;color:#7d6849;display:flex;align-items:center;gap:6px;}
 .log-toggle-cnt{background:rgba(61,90,254,.15);border:1px solid #d3bd8c;color:#1554b3;font-size:.6rem;padding:1px 6px;border-radius:10px;}
 .log-panel{display:none;background:#f3e6cf;border-top:1px solid var(--b);max-height:220px;overflow-y:auto;padding-bottom:12px;}
 .log-panel.open{display:block;}
+
+/* ── GUEST MODE (teletext) ──────────────────────────────────────────
+   Regulă generală: în guest-mode ascundem TOATE <button>-urile (adică
+   tot ce poate scrie ceva în DB), cu excepția unei liste albe explicite.
+   E intenționat "hide all, allow few" în loc de "hide the dangerous
+   ones" — mult mai greu de uitat un buton nou adăugat mai târziu.
+   Securitatea reală tot vine din RLS pe server; asta e doar UX. */
+body.guest-mode button:not(#loginKeyBtn):not(.guest-ok){
+    display:none !important;
+}
+body.guest-mode .pr-plus,
+body.guest-mode .pr-cnt{ display:none !important; }
+body.guest-mode .pr{ grid-template-columns:1fr auto; }
+
+/* Scor mare, tip tabelă de teletext */
+body.guest-mode .sc-n{ font-size:3.2rem; }
+body.guest-mode .sc-lbl{ font-size:1.05rem; }
+
+/* Istoricul de goluri și de ture se deschide automat, mai mare */
+body.guest-mode .log-panel{ display:block !important; max-height:none; }
+body.guest-mode .log-entry{ font-size:.95rem; padding:10px 14px; }
+body.guest-mode .log-toggle{ pointer-events:none; }
+body.guest-mode .log-toggle::after{ content:''; }
+body.guest-mode #tureBody{ display:block !important; max-height:none; }
+body.guest-mode .tur-row{ font-size:.85rem; padding:10px 4px; }
+body.guest-mode .ture-toggle{ pointer-events:none; }
 .log-entry{display:flex;align-items:center;gap:8px;padding:7px 14px;border-bottom:1px solid #f5e9d4;font-size:.78rem;}
 .log-entry:last-child{border-bottom:none;}
 .log-min{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#7d6849;min-width:28px;}
@@ -139,11 +167,9 @@ html,body{background:#f7ecd9;color:#3a2f1f;font-family:'Rajdhani',sans-serif;min
 .log-badge{font-size:.6rem;padding:1px 5px;border-radius:4px;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.2);color:#1b7a43;}
 .log-empty{padding:16px 14px;color:#7d6849;font-size:.78rem;text-align:center;}
 
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#f3e6cf;border-top:1px solid var(--b);padding:8px 12px;padding-bottom:max(8px,env(safe-area-inset-bottom));display:flex;gap:7px;z-index:30;}
-.btn-finalize{flex:1;padding:13px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a3a2a,var(--g));border:1px solid var(--g);color:#fff;min-height:48px;touch-action:manipulation;}
-.btn-finalize:disabled{opacity:.35;cursor:not-allowed;}
-/* Extra padding so last player row is never hidden by bottom-bar */
-main, body{padding-bottom:80px;}
+/* Extra padding so last player row is never hidden by the floating undo pill */
+main, body{padding-bottom:0;}
+body.has-bottom-bar{padding-bottom:80px;}
 
 .dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 .dialog-overlay.show{display:flex;}
@@ -203,6 +229,13 @@ main, body{padding-bottom:80px;}
 .round-badge{font-size:.58rem;padding:1px 5px;border-radius:4px;background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;margin-left:4px;}
 .rotation-toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid #7c4dff;color:#3a2f1f;padding:14px 24px;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;z-index:500;display:none;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.8);}
 .rotation-toast.show{display:block;animation:rotPop .3s ease;}
+
+.goal-banner{display:none;margin:0 12px;padding:12px 14px;border-radius:12px;text-align:center;font-family:'Bebas Neue',sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.35);}
+.goal-banner.show{display:block;animation:goalPop .45s cubic-bezier(.34,1.56,.64,1);}
+.goal-banner-title{font-size:2rem;letter-spacing:4px;line-height:1;}
+.goal-banner-name{font-size:1.15rem;letter-spacing:1px;margin-top:2px;font-family:'Rajdhani',sans-serif;font-weight:800;}
+.goal-banner-assist{font-size:.8rem;letter-spacing:.5px;margin-top:2px;font-family:'Rajdhani',sans-serif;font-weight:600;opacity:.9;}
+@keyframes goalPop{0%{transform:scale(.6);opacity:0;}55%{transform:scale(1.06);opacity:1;}100%{transform:scale(1);opacity:1;}}
 @keyframes rotPop{from{transform:translateX(-50%) scale(.8);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 #roundTimeBar{display:none;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #e3d3ac;margin-top:4px;}
 
@@ -224,6 +257,18 @@ main, body{padding-bottom:80px;}
 .code-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:none;align-items:center;justify-content:center;padding:20px;}
 .code-auth-overlay.show{display:flex;}
 .code-auth-box{background:#fff8ed;width:100%;max-width:320px;border-radius:16px;border:1px solid #d3bd8c;padding:20px;}
+
+.admin-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:650;display:none;align-items:flex-start;justify-content:flex-end;padding:8px;}
+.admin-menu-overlay.show{display:flex;}
+.admin-menu-box{background:#fff8ed;width:100%;max-width:280px;border-radius:14px;border:1px solid #d3bd8c;padding:10px;max-height:85vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.am-hd{font-family:'Bebas Neue',sans-serif;font-size:1.05rem;letter-spacing:2px;color:#3a2f1f;padding:4px 8px 8px;border-bottom:1px solid #e3d3ac;margin-bottom:6px;}
+.am-group-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#a08658;padding:8px 8px 4px;}
+.am-item{display:block;width:100%;text-align:left;padding:11px 10px;border-radius:9px;background:none;border:none;color:#3a2f1f;font-size:.85rem;font-weight:700;font-family:'Rajdhani',sans-serif;cursor:pointer;touch-action:manipulation;min-height:42px;}
+.am-item:active{background:#f3e6cf;}
+.am-item.danger{color:#b71c1c;}
+.am-item.static{cursor:default;color:#7d6849;display:flex;justify-content:space-between;align-items:center;}
+.am-item.static:active{background:none;}
+.am-close{width:100%;margin-top:8px;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-weight:700;cursor:pointer;}
 .admin-badge{display:none;font-size:.58rem;background:rgba(61,90,254,.15);border:1px solid #3d5afe44;color:#1554b3;padding:3px 8px;border-radius:6px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .hd-key-btn{background:none;border:1px solid #dcc89a;color:#6b5840;padding:5px 9px;border-radius:7px;font-size:.7rem;cursor:pointer;touch-action:manipulation;}
 /* ── Add Temp Player Modal ──────────────────────────────── */
@@ -247,9 +292,16 @@ main, body{padding-bottom:80px;}
 .uf-btn-players{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;letter-spacing:.2px;opacity:.85;white-space:normal;line-height:1.35;text-align:center;}
 .add-temp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:550;display:none;align-items:flex-end;justify-content:center;}
 .add-temp-overlay.show{display:flex;}
-.add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;padding-bottom:max(8px,env(safe-area-inset-bottom));}
+.add-temp-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px 16px 0 0;border:1px solid #d3bd8c;border-bottom:none;max-height:72vh;max-height:72dvh;display:flex;flex-direction:column;overflow:hidden;padding-bottom:max(8px,env(safe-area-inset-bottom));}
 .add-temp-hd{padding:12px 16px;border-bottom:1px solid #e3d3ac;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.add-temp-body{overflow-y:auto;padding:10px 12px;}
+.add-temp-body{overflow-y:auto;padding:10px 12px;flex:1;min-height:0;}
+
+/* Assist picker — centrat pe ecran (nu bottom-sheet), pe 2 coloane ca să încapă fără derulare */
+#assistPickerOverlay{align-items:center;padding:16px;}
+#assistPickerOverlay .add-temp-box{border-radius:16px;max-height:min(80vh,80dvh);border-bottom:1px solid #d3bd8c;}
+#assistList{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;}
+#assistList > div{margin-bottom:0 !important;}
+@media(max-width:360px){ #assistList{grid-template-columns:1fr;} }
 .round-detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:450;display:none;align-items:center;justify-content:center;padding:16px;}
 .round-detail-overlay.show{display:flex;}
 .round-detail-box{background:#fff8ed;width:100%;max-width:480px;border-radius:16px;border:1px solid #7c4dff;overflow:hidden;max-height:88vh;max-height:88dvh;display:flex;flex-direction:column;}
@@ -344,49 +396,148 @@ main, body{padding-bottom:80px;}
     .dialog-score{font-size:1.8rem;}
 }
 
-/* ── Landscape / înălțime mică (telefon culcat, tabletă mică) ──
-   Header-ul + timer-bar + score-wrap + bottom-bar fixe lasă puțin loc
-   pe verticală pentru lista de jucători — le comprimăm puțin. */
-@media(orientation:landscape) and (max-height:500px){
+/* ── LANDSCAPE / "Operator Mode" ──────────────────────────────────
+   Telefon/tabletă culcată: header sus (full width), apoi 2 coloane —
+   stânga = control (cronometru, scor, echipa de bancă), dreapta =
+   listă jucători cu butoane mari de gol. Fără elemente fixed care
+   blochează scroll-ul vertical al paginii. */
+@media(orientation:landscape){
+    body.has-bottom-bar{padding-bottom:0;}
+    body{
+        display:grid;
+        grid-template-columns:minmax(220px,34%) 1fr;
+        grid-template-rows:auto auto 1fr auto;
+        grid-template-areas:
+            "header header"
+            "banner banner"
+            "control players"
+            "history history";
+        height:100dvh;
+        overflow:hidden;
+    }
+    .hd{grid-area:header;}
+    .goal-banner{grid-area:banner;margin:0 10px;}
+    #pauseBanner{grid-area:banner;}
+
+    #landscapeLeft{
+        grid-area:control;
+        overflow-y:auto;
+        display:flex;
+        flex-direction:column;
+        border-right:1px solid var(--b);
+    }
+    #landscapeRight{
+        grid-area:players;
+        overflow-y:auto;
+    }
+    .teams-wrap{height:100%;overflow-y:auto;}
+
+    /* Cronometru + scor mai compacte pe verticală, dar butoanele de gol mari */
     .timer-bar{padding:5px 14px;}
     .timer-btn{padding:6px 14px;font-size:.85rem;min-height:36px;}
     .timer-display{font-size:1.2rem;}
     .score-wrap{padding:6px 12px 2px;}
-    .sc-n{font-size:2.6rem;}
-    .sc-sep{font-size:1.3rem;}
+    .sc-n{font-size:2.4rem;}
+    .sc-sep{font-size:1.2rem;}
     .score-sub{padding:1px 0 3px;min-height:14px;}
-    .pr{min-height:38px;}
-    main, body{padding-bottom:64px;}
-    .bottom-bar{padding:5px 12px;}
-    .btn-finalize{padding:9px;min-height:38px;}
+
+    /* Touch targets mari pentru butoanele de gol (degetul mare) */
+    .pr{min-height:48px;}
+    .pr-plus{width:44px;height:44px;font-size:1.3rem;}
+
+    /* Istoric (log goluri + ture) — un singur container, sub cele 2 coloane,
+       înălțime strict limitată + scroll intern propriu, ca să nu împingă restul */
+    #landscapeHistory{
+        grid-area:history;
+        max-height:100px;
+        overflow-y:auto;
+        border-top:1px solid var(--b);
+    }
+    .log-panel{max-height:none;}
+    #tureBody{max-height:none;}
+
+    /* Undo-ul e acum un copil real al .hd-right — în portrait plutește fix jos (vezi CSS de bază),
+       aici anulăm doar poziționarea fixed ca să stea normal, în linie cu Live/Conexiune/Admin/Setări */
+    .universal-undo-btn{
+        position:static;
+        transform:none;
+        margin-bottom:0;
+        max-width:150px;
+        padding:5px 10px;
+        min-height:34px;
+        box-shadow:none;
+    }
+    .universal-undo-btn .uu-main{font-size:.62rem;}
+    .universal-undo-btn .uu-sub{font-size:.52rem;}
+
+    /* Modal "Cine a dat assist?" — compact, foloseşte aproape tot ecranul scurt de landscape */
+    #assistPickerOverlay{padding:8px;}
+    #assistPickerOverlay .add-temp-box{max-height:94vh;max-height:94dvh;}
+    #assistPickerOverlay .add-temp-hd{padding:8px 12px;}
+    #assistList{grid-template-columns:1fr 1fr 1fr;gap:5px;}
+    #assistList > div{padding:6px 8px !important;font-size:.8rem;min-height:36px;}
+    #assistList > div > div:first-child{width:22px !important;height:22px !important;font-size:.7rem !important;}
+    #assistList > div > div:nth-child(2){font-size:.78rem !important;}
+}
+@media(orientation:landscape) and (max-height:420px){
+    .sc-n{font-size:1.9rem;}
+    .timer-bar{padding:3px 10px;}
+    .score-wrap{padding:3px 12px 0;}
 }
 </style>
 </head>
-<body>
+<body class="guest-mode">
 
 <div class="hd">
   <div class="hd-logo">⚽ Arena FC</div>
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
     <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
-    <span class="admin-badge" id="adminBadge" onclick="openCodeAuth()">—</span>
-    <button class="hd-key-btn" onclick="openCodeAuth()" title="Autentificare">🔑</button>
-    <button class="hd-key-btn" id="swapTeamsBtn" onclick="openTeamSwapMenu()" title="Schimbă identitatea echipelor" style="display:none;">⇄</button>
-    <button class="icon-btn" id="threeBtn" style="background:rgba(124,77,255,.15);border-color:#5a2fd9;color:#8e3a9e;font-size:.7rem;padding:5px 8px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:.5px;border-radius:7px;cursor:default;" title="Modul (2/3 echipe) se setează din pagina principală, la Start Meci — nu se poate schimba din Live.">3️⃣</button>
-    <button class="icon-btn danger" onclick="confirmReset()">↺</button>
+    <span class="admin-badge" id="adminBadge" onclick="isLiveAdmin ? logoutAdmin() : openCodeAuth()" style="display:none;">Admin</span>
+    <button class="hd-key-btn" id="loginKeyBtn" onclick="openCodeAuth()" title="Login admin">🔑</button>
+    <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
+      <span class="uu-main">↩ Anulează</span>
+      <span class="uu-sub" id="universalUndoSub"></span>
+    </button>
+    <button class="hd-key-btn" id="adminMenuBtn" onclick="openAdminMenu()" title="Setări admin" style="font-size:.9rem;">⚙️</button>
   </div>
 </div>
 
+<!-- Meniu Setări Admin (popover) — grupează tot ce era înainte împrăștiat în header -->
+<div class="admin-menu-overlay" id="adminMenuOverlay" onclick="if(event.target===this)closeAdminMenu()">
+  <div class="admin-menu-box" id="adminMenuBox">
+    <div class="am-hd">⚙️ Setări Admin</div>
+
+    <div class="am-group-lbl">Acțiuni Meci</div>
+    <button class="am-item" onclick="closeAdminMenu();openFinalize();">🏁 Finalizează Meciul</button>
+    <button class="am-item danger" onclick="closeAdminMenu();confirmReset();">↺ Resetează Meciul</button>
+
+    <div class="am-group-lbl">Gestionare Echipe</div>
+    <button class="am-item" id="amSwapTeams" onclick="closeAdminMenu();openTeamSwapMenu();" style="display:none;">⇄ Schimbă Identitatea Echipelor</button>
+    <div class="am-item static" id="amThreeIndicator" title="Modul (2/3 echipe) se setează din pagina principală, la Start Meci — nu se poate schimba din Live.">3️⃣ Mod: <span id="amThreeVal">—</span></div>
+    <button class="am-item" id="amTransfer" onclick="closeAdminMenu();openTransfer();" style="display:none;">⇄ Transfer Jucător între Echipe</button>
+
+    <div class="am-group-lbl">Loguri &amp; Istoric</div>
+    <button class="am-item" onclick="closeAdminMenu();toggleLog();">📋 Log Goluri</button>
+    <button class="am-item" onclick="closeAdminMenu();toggleTure();">📊 Istoric Ture</button>
+
+    <button class="am-close" onclick="closeAdminMenu()">Închide</button>
+  </div>
+</div>
+
+<div id="landscapeLeft">
 <div class="timer-bar">
   <button class="timer-btn start" id="timerBtn" onclick="timerToggle()">▶ Start</button>
   <div class="timer-display" id="timerDisplay">00:00</div>
   <div class="half-badge" id="halfBadge"></div>
-  <button id="statsBtn" onclick="openLiveStats()" style="margin-left:auto;padding:5px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(21,84,179,.12);border:1px solid #1554b3;color:#1554b3;touch-action:manipulation;white-space:nowrap;min-height:34px;flex-shrink:0;">📊 Stats</button>
+  <button id="statsBtn" class="guest-ok" onclick="openLiveStats()" style="margin-left:auto;padding:5px 10px;border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;background:rgba(21,84,179,.12);border:1px solid #1554b3;color:#1554b3;touch-action:manipulation;white-space:nowrap;min-height:34px;flex-shrink:0;">📊 Stats</button>
   <div id="roundTimerWidget" style="display:none;align-items:center;gap:5px;flex-shrink:0;">
     <div style="width:1px;height:18px;background:#e3d3ac;margin:0 2px;"></div>
     <button id="penBtn" onclick="openPenalty()" style="padding:5px 9px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;background:rgba(198,40,40,.2);border:1px solid #c62828;color:#b71c1c;touch-action:manipulation;white-space:nowrap;min-height:34px;">⚽ Pen</button>
   </div>
 </div>
+
+<div class="goal-banner" id="goalBanner"></div>
 
 <div id="pauseBanner" style="display:none;">⏸ MECI ÎN PAUZĂ</div>
 
@@ -402,16 +553,22 @@ main, body{padding-bottom:80px;}
   <div class="score-sub" id="scoreSub"></div>
 </div>
 
-<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
-
-<!-- Transfer button — vizibil mereu pentru admin, indiferent de mod (2 sau 3 echipe) -->
+<!-- Transfer button — mutat definitiv în meniul de setări (⚙️), rămâne doar ca fallback ascuns -->
 <div id="transferBtnWrap" style="display:none;padding:8px 12px 4px;">
   <button onclick="openTransfer()" style="width:100%;padding:12px;border-radius:9px;background:#fffaf0;border:1px dashed #d3bd8c;color:#7d6849;font-size:.8rem;font-weight:700;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;">
     ⇄ Transfer jucător între echipe
   </button>
 </div>
 
-<!-- Settings: doar în 3-team mode, sub butonul de transfer -->
+</div><!-- /landscapeLeft -->
+
+<div id="landscapeRight">
+<div class="teams-wrap" id="teamsWrap"><div class="empty-teams">Se încarcă...</div></div>
+</div><!-- /landscapeRight -->
+<div id="portraitAnchor"></div>
+
+<!-- Settings: doar în 3-team mode — pe portrait apar SUB tabela de jucători;
+     pe landscape sunt "readuse" vizual în coloana stângă prin grid-area:control -->
 <div id="belowTeamsBar" style="display:none;border-top:1px solid var(--b);">
   <div style="display:flex;align-items:center;gap:0;background:#f7ecd9;">
     <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 12px;border-right:1px solid var(--b);">
@@ -429,8 +586,7 @@ main, body{padding-bottom:80px;}
   </div>
 </div>
 
-<!-- Echipa de pe bancă — mutată sub setările Schimb/Max min, ca cele 2 echipe active
-     + cronometrul să rămână mereu vizibile pe ecran fără scroll -->
+<!-- Echipa de pe bancă — pe portrait sub tabela de jucători -->
 <div class="three-mode-bar" id="threeBar">
   <div class="waiting-team">
     <div class="waiting-hd">
@@ -444,6 +600,7 @@ main, body{padding-bottom:80px;}
   </div>
 </div>
 
+<div id="landscapeHistory">
 <div class="ture-section" id="tureSection">
   <div class="ture-toggle" onclick="toggleTure()">
     <span class="ture-toggle-lbl">📊 Istoric Ture <span class="ture-cnt" id="tureCnt">0</span></span>
@@ -459,14 +616,7 @@ main, body{padding-bottom:80px;}
 <div class="log-panel" id="logPanel">
   <div class="log-empty" id="logEmpty">Niciun gol înregistrat.</div>
 </div>
-
-<div class="bottom-bar">
-  <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
-    <span class="uu-main">↩ Anulează</span>
-    <span class="uu-sub" id="universalUndoSub"></span>
-  </button>
-  <button class="btn-finalize" id="btnFinalize" onclick="openFinalize()" disabled>🏁 Finalizează Meciul</button>
-</div>
+</div><!-- /landscapeHistory -->
 
 <div class="dialog-overlay" id="dialogOverlay">
   <div class="dialog-box" id="dialogBox"></div>
@@ -478,24 +628,21 @@ const SB_URL = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc';
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
-// ── Admin auth via secret code ────────────────────────────────────
-let isLiveAdmin = false; // true = authenticated player (has secret code)
-let _allPlayerCodes = []; // loaded on init: [{name, secret_code, role}]
+// ── Admin auth via Supabase Auth (real login, matches index.html/app.js) ──
+const ADMIN_EMAIL = 'evoluttionofall@gmail.com';
+let isLiveAdmin = false; // true = logged-in admin session (auth.jwt() matches ADMIN_EMAIL server-side too)
 
-async function loadPlayerCodes() {
-    const { data } = await sb.from('players').select('id,name,secret_code,role').order('name');
-    _allPlayerCodes = data || [];
+function openAdminMenu() {
+    if (!isLiveAdmin) return; // siguranță suplimentară — nu doar CSS-ul ascunde butonul
+    document.getElementById('adminMenuOverlay').classList.add('show');
 }
-
-function verifyAdminCode(code) {
-    if (!code) return null;
-    const c = code.trim().toUpperCase();
-    return _allPlayerCodes.find(p => p.secret_code && p.secret_code.toUpperCase() === c) || null;
+function closeAdminMenu() {
+    document.getElementById('adminMenuOverlay').classList.remove('show');
 }
 
 function openCodeAuth() {
     document.getElementById('codeAuthOverlay').classList.add('show');
-    setTimeout(() => document.getElementById('codeAuthInput').focus(), 100);
+    setTimeout(() => document.getElementById('codeAuthEmail').focus(), 100);
 }
 
 function closeCodeAuth() {
@@ -503,30 +650,46 @@ function closeCodeAuth() {
 }
 
 async function submitCode() {
-    const code = document.getElementById('codeAuthInput').value.trim();
-    const player = verifyAdminCode(code);
-    if (!player) {
-        document.getElementById('codeAuthErr').textContent = 'Cod incorect';
+    const email = document.getElementById('codeAuthEmail').value.trim();
+    const password = document.getElementById('codeAuthInput').value;
+    if (!email || !password) {
+        document.getElementById('codeAuthErr').textContent = 'Completează email și parolă';
         return;
     }
-    isLiveAdmin = true; // orice player autentificat cu cod propriu
-    localStorage.setItem('liveAuthCode', code);
-    localStorage.setItem('liveAuthName', player.name);
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error || !data?.user || data.user.email !== ADMIN_EMAIL) {
+        if (data?.user && data.user.email !== ADMIN_EMAIL) await sb.auth.signOut();
+        document.getElementById('codeAuthErr').textContent = 'Autentificare eșuată';
+        return;
+    }
+    isLiveAdmin = true;
     closeCodeAuth();
-    document.getElementById('adminBadge').textContent = player.name;
+    document.getElementById('adminBadge').textContent = 'Admin';
     document.getElementById('adminBadge').style.display = 'inline-block';
-    showToast(`👋 ${player.name} autentificat!`);
+    document.getElementById('loginKeyBtn').style.display = 'none';
+    showToast(`👋 Admin autentificat!`);
     render();
 }
 
-function tryAutoAuth() {
-    const saved = localStorage.getItem('liveAuthCode');
-    if (!saved) return;
-    const player = verifyAdminCode(saved);
-    if (player) {
+async function logoutAdmin() {
+    await sb.auth.signOut();
+    isLiveAdmin = false;
+    document.getElementById('adminBadge').style.display = 'none';
+    document.getElementById('loginKeyBtn').style.display = '';
+    render();
+}
+
+// Sesiunea Supabase e persistată automat (localStorage, per proiect) — dacă adminul
+// s-a logat deja pe index.html/app.js în același browser, sesiunea e reutilizată aici
+// fără să mai ceară login din nou.
+async function tryAutoAuth() {
+    const { data } = await sb.auth.getSession();
+    const user = data?.session?.user;
+    if (user && user.email === ADMIN_EMAIL) {
         isLiveAdmin = true;
-        document.getElementById('adminBadge').textContent = player.name;
+        document.getElementById('adminBadge').textContent = 'Admin';
         document.getElementById('adminBadge').style.display = 'inline-block';
+        document.getElementById('loginKeyBtn').style.display = 'none';
         render();
     }
 }
@@ -664,9 +827,50 @@ function showRotationToast(msg, durationMs = 3000) {
     el.textContent = msg; el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), durationMs);
 }
+// Mută fizic echipa-de-bancă + pragurile în coloana stângă (landscape) sau
+// sub tabela de jucători (portrait) — evită suprapunerea de grid-area.
+function applyResponsiveLayout() {
+    const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+    const left = document.getElementById('landscapeLeft');
+    const anchor = document.getElementById('portraitAnchor');
+    const threeBarEl = document.getElementById('threeBar');
+    const belowBarEl = document.getElementById('belowTeamsBar');
+    if (!left || !anchor || !threeBarEl || !belowBarEl) return;
+    if (isLandscape) {
+        left.appendChild(belowBarEl);
+        left.appendChild(threeBarEl);
+    } else {
+        anchor.after(belowBarEl);
+        belowBarEl.after(threeBarEl);
+    }
+}
+window.addEventListener('resize', applyResponsiveLayout);
+window.addEventListener('orientationchange', applyResponsiveLayout);
+
 function bump(team) {
     const el = document.getElementById(team === 'orange' ? 'scoreO' : 'scoreG');
     el.classList.add('bump'); setTimeout(() => el.classList.remove('bump'), 200);
+}
+
+let _goalBannerTO = null;
+function showGoalBanner(name, team, assistName) {
+    if (isLiveAdmin) return; // adminul vede deja golul pe ecran în timp real, nu are nevoie de popup mare
+    const el = document.getElementById('goalBanner');
+    if (!el) return;
+    const hex = getTeamHex(team);
+    const tName = getTeamName(team);
+    el.style.background = `linear-gradient(135deg, ${hex}22, ${hex}55)`;
+    el.style.border = `1px solid ${hex}`;
+    el.style.color = '#1a1208';
+    el.innerHTML =
+        '<div class="goal-banner-title" style="color:' + hex + ';">⚽ GOOOL!</div>'
+        + '<div class="goal-banner-name">' + name + ' <span style="opacity:.7;font-weight:600;">(' + tName + ')</span></div>'
+        + (assistName ? '<div class="goal-banner-assist">🅰️ assist: ' + assistName + '</div>' : '');
+    el.classList.remove('show');
+    void el.offsetWidth; // restart animația dacă vine un gol nou peste altul încă vizibil
+    el.classList.add('show');
+    if (_goalBannerTO) clearTimeout(_goalBannerTO);
+    _goalBannerTO = setTimeout(() => el.classList.remove('show'), 4000);
 }
 function goalsMap() {
     // In 3-team mode: count goals across ALL rounds + current round
@@ -785,8 +989,6 @@ function applyTimerUI(st) {
     document.getElementById('halfBadge').textContent = Math.floor(s/60) >= 1 ? Math.floor(s/60)+"'" : '';
 
     const pauseBanner = document.getElementById('pauseBanner');
-    const threeBtn = document.getElementById('threeBtn');
-    if (threeBtn) { threeBtn.disabled = true; threeBtn.style.cursor = 'default'; }
     if (st.timer_status === 'running') {
         btn.textContent = '⏸ Pauză'; btn.className = 'timer-btn pause';
         disp.className = 'timer-display running';
@@ -1264,6 +1466,7 @@ async function loadAll() {
 // ── Render ────────────────────────────────────────────────────────
 function render() {
     if (!liveState) return;
+    document.body.classList.toggle('guest-mode', !isLiveAdmin);
     applyTeamColors(); // set --o, --g CSS vars from team configs
     const st   = liveState;
     const mode = st.three_team_mode;
@@ -1322,14 +1525,11 @@ function render() {
     // (bara veche de undo a fost înlocuită de butonul universal fix, vezi updateUniversalUndoBtn())
 
     // Finalize button
-    document.getElementById('btnFinalize').disabled = realGoals.length === 0 && rounds.length === 0;
+    _canFinalize = realGoals.length > 0 || rounds.length > 0;
 
-    // 3-team button visual
-    const threeBtnEl = document.getElementById('threeBtn');
-    if (threeBtnEl) {
-        threeBtnEl.style.background = mode ? 'rgba(124,77,255,.4)' : 'rgba(124,77,255,.15)';
-        threeBtnEl.style.color      = mode ? '#fff' : '#8e3a9e';
-    }
+    // 3-team mode indicator (acum în meniul de setări)
+    const amThreeVal = document.getElementById('amThreeVal');
+    if (amThreeVal) amThreeVal.textContent = mode ? '3 echipe' : '2 echipe';
 
     // Teams grid
     const wrap = document.getElementById('teamsWrap');
@@ -1456,11 +1656,13 @@ function render() {
     const btb = document.getElementById('belowTeamsBar');
     if (btb) btb.style.display = mode ? 'block' : 'none';
 
-    // Swap teams button — show for admin when not started or in 3-team mode
-    const swapBtn = document.getElementById('swapTeamsBtn');
-    if (swapBtn) swapBtn.style.display = isLiveAdmin ? 'flex' : 'none';
+    // Swap teams / Transfer — acum ca intrări în meniul de setări
+    const swapBtn = document.getElementById('amSwapTeams');
+    if (swapBtn) swapBtn.style.display = isLiveAdmin ? 'block' : 'none';
+    const amTransfer = document.getElementById('amTransfer');
+    if (amTransfer) amTransfer.style.display = isLiveAdmin ? 'block' : 'none';
     const tbw = document.getElementById('transferBtnWrap');
-    if (tbw) tbw.style.display = isLiveAdmin ? 'block' : 'none';
+    if (tbw) tbw.style.display = 'none'; // mutat definitiv în meniul de setări
 }
 
 // ── Ture history ──────────────────────────────────────────────────
@@ -1771,7 +1973,7 @@ async function addGoal(name, team, assistName) {
         ? Math.floor(calcElapsedSec(liveState) / 60) : null;
     const tmpId  = 'tmp_' + Date.now();
     goals.push({ id: tmpId, player_name: name, team, minute, assist_name: assistName || null, created_at: new Date().toISOString() });
-    render(); bump(team);
+    render(); bump(team); showGoalBanner(name, team, assistName);
 
     try {
         let insertPayload = { player_name: name, team, minute, assist_name: assistName || null };
@@ -1816,9 +2018,11 @@ function updateUniversalUndoBtn(){
     if (lastAction) {
         btn.classList.add('show');
         if (sub) sub.textContent = lastAction.label || '';
+        document.body.classList.add('has-bottom-bar');
     } else {
         btn.classList.remove('show');
         if (sub) sub.textContent = '';
+        document.body.classList.remove('has-bottom-bar');
     }
 }
 async function universalUndo(){
@@ -2046,12 +2250,14 @@ function openLiveStats(){
         + '<div class="dialog-section">🅰️ Assisturi</div>'
         + '<div>' + assistersHtml + '</div>'
         + '<div class="dialog-actions">'
-        + '<button class="dia-cancel" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
+        + '<button class="dia-cancel guest-ok" onclick="closeDialog()" style="flex:1;">✕ Închide</button>'
         + '</div>';
     document.getElementById('dialogOverlay').classList.add('show');
 }
 
+let _canFinalize = false;
 function openFinalize() {
+    if (!_canFinalize) { showToast('Nu sunt goluri sau ture înregistrate încă'); return; }
     const mode = getThreeTeamMode();
     const allRounds = rounds.map(r => ({...r}));
     const roundG = mode ? getRoundGoals() : [];
@@ -2817,7 +3023,12 @@ function subscribe() {
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'}, p => {
             if (!goals.some(g => g.id === p.new.id)) {
                 const ti = goals.findIndex(g => String(g.id).startsWith('tmp_') && g.player_name===p.new.player_name);
-                if (ti !== -1) goals[ti] = p.new; else goals.push(p.new);
+                if (ti !== -1) {
+                    goals[ti] = p.new; // era optimistic pe device-ul care a marcat — banner deja arătat local
+                } else {
+                    goals.push(p.new);
+                    showGoalBanner(p.new.player_name, p.new.team, p.new.assist_name); // alt device / guest — prima oară că vede golul
+                }
                 render(); bump(p.new.team);
             }
         })
@@ -3052,8 +3263,8 @@ async function init() {
     const urlParams = new URLSearchParams(window.location.search);
     const matchParam = urlParams.get('match') || urlParams.get('id');
 
-    await loadPlayerCodes();
-    tryAutoAuth();
+    await tryAutoAuth();
+    applyResponsiveLayout();
     await loadAll();
 
     // If live_state has three_team_mode active (set from index Start Meci), apply 3-team UI
@@ -3062,8 +3273,8 @@ async function init() {
         if (!liveState.color_map || Object.keys(liveState.color_map).length === 0) {
             await patchState({ color_map: { orange: 'teamA', green: 'teamB', bench: 'teamC' } });
         }
-        const btn = document.getElementById('threeBtn');
-        if (btn) { btn.style.background='rgba(124,77,255,.4)'; btn.style.color='#fff'; }
+        const amThreeVal = document.getElementById('amThreeVal');
+        if (amThreeVal) amThreeVal.textContent = '3 echipe';
     }
 
     // Update URL/title with match ID
@@ -3127,7 +3338,7 @@ init();
         <div class="rd-title" id="rdTitle">Tur 1</div>
         <div class="rd-sub" id="rdSub"></div>
       </div>
-      <button class="rd-close" onclick="closeRoundDetail()">✕</button>
+      <button class="rd-close guest-ok" onclick="closeRoundDetail()">✕</button>
     </div>
     <div class="rd-score-row">
       <div class="rd-team">
@@ -3211,19 +3422,22 @@ init();
 </div>
 
 <div class="rotation-toast" id="rotationToast"></div>
-<!-- Code Auth Modal -->
+<!-- Admin Login Modal (Supabase Auth) -->
 <div class="code-auth-overlay" id="codeAuthOverlay" onclick="if(event.target===this)closeCodeAuth()">
   <div class="code-auth-box">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">🔑 Cod Jucător</div>
-    <div style="font-size:.65rem;color:#6b5840;margin-bottom:14px;">Introdu codul tău secret pentru a te identifica</div>
-    <input id="codeAuthInput" type="text" maxlength="10" placeholder="Cod secret..."
-      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1.2rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;text-transform:uppercase;letter-spacing:3px;margin-bottom:6px;"
-      oninput="this.value=this.value.toUpperCase();document.getElementById('codeAuthErr').textContent=''"
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:4px;">🔑 Login Admin</div>
+    <div style="font-size:.65rem;color:#6b5840;margin-bottom:14px;">Doar pentru administrator — vizitatorii nu au nevoie de login</div>
+    <input id="codeAuthEmail" type="email" placeholder="Email..." autocomplete="username"
+      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:.95rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;margin-bottom:8px;"
+      onkeydown="if(event.key==='Enter')document.getElementById('codeAuthInput').focus()">
+    <input id="codeAuthInput" type="password" placeholder="Parolă..." autocomplete="current-password"
+      style="width:100%;background:#fffaf0;border:1px solid #3d5afe;color:#3a2f1f;border-radius:9px;padding:11px 14px;font-size:1.1rem;font-family:'Rajdhani',sans-serif;font-weight:700;outline:none;margin-bottom:6px;"
+      oninput="document.getElementById('codeAuthErr').textContent=''"
       onkeydown="if(event.key==='Enter')submitCode()">
     <div id="codeAuthErr" style="font-size:.68rem;color:#b71c1c;min-height:16px;margin-bottom:10px;"></div>
     <div style="display:flex;gap:8px;">
-      <button onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
-      <button onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
+      <button class="guest-ok" onclick="closeCodeAuth()" style="flex:1;padding:11px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;cursor:pointer;">Anulează</button>
+      <button class="guest-ok" onclick="submitCode()" style="flex:2;padding:11px;border-radius:9px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;cursor:pointer;background:linear-gradient(135deg,#1a2a4a,#3d5afe);border:1px solid #3d5afe;color:#fff;">✓ Autentifică</button>
     </div>
   </div>
 </div>

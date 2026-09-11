@@ -1,4 +1,7 @@
-const CACHE_NAME = 'arena-fc-v2';
+// IMPORTANT: crește CACHE_NAME de fiecare dată când modifici sw.js — altfel
+// browserul poate considera fișierul "neschimbat" (dacă restul rămâne identic)
+// și nu reinstalează niciodată Service Worker-ul nou.
+const CACHE_NAME = 'arena-fc-v3';
 const OFFLINE_ASSETS = ['/', '/index.html', '/app.js', '/manifest.json'];
 
 self.addEventListener('install', event => {
