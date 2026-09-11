@@ -45,17 +45,16 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 /* Cards */
 .card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
 .card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:2px;color:#888;margin-bottom:10px;}
-.rules-content{font-size:.85rem;line-height:1.65;color:#e0e0e0;}
-.rules-content p{margin:0 0 10px;}
-.rules-content p:last-child{margin-bottom:0;}
-.rules-content h4.rules-h1{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:1px;color:#fff;margin:14px 0 8px;}
-.rules-content h4.rules-h1:first-child{margin-top:0;}
-.rules-content h5.rules-h2{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;color:#aaa;margin:12px 0 6px;}
-.rules-content ol,.rules-content ul{margin:0 0 10px;padding-left:22px;}
-.rules-content li{margin-bottom:5px;}
-.rules-content strong{color:#fff;}
-.rules-empty{font-size:.8rem;color:#555;font-style:italic;}
-#sec-rules code{background:#141720;border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'Rajdhani',sans-serif;font-size:.9em;color:#9db4ff;}
+.rule-edit-card{background:#0d0f18;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.rule-edit-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.rule-edit-order{display:flex;flex-direction:column;gap:2px;}
+.rule-edit-order button{width:24px;height:20px;border-radius:5px;border:1px solid var(--border);background:#0a0c14;color:#aaa;cursor:pointer;font-size:.62rem;line-height:1;padding:0;}
+.rule-edit-order button:disabled{color:#333;cursor:default;}
+.rule-edit-num{flex:1;font-family:'Bebas Neue',sans-serif;font-size:.72rem;letter-spacing:1.5px;color:#555;}
+.rule-edit-del{background:none;border:1px solid #c62828;color:#ef9a9a;padding:3px 8px;border-radius:6px;font-size:.72rem;cursor:pointer;}
+.rule-edit-fields{display:flex;flex-direction:column;gap:8px;}
+.rule-edit-fields textarea{font-family:'Rajdhani',sans-serif;}
+.rules-empty-note{font-size:.75rem;color:#555;text-align:center;padding:14px;}
 
 /* Player list */
 .player-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #0f1118;flex-wrap:wrap;}
@@ -463,31 +462,23 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 <div class="section" id="sec-rules">
     <div class="panel-header">
         <div class="panel-title">📜 Reguli</div>
-        <div class="panel-sub">Textul afișat public în Clasament, secțiunea „📜 Reguli”</div>
+        <div class="panel-sub">Fiecare regulă are titlu, descriere, unde se aplică și sancțiune</div>
     </div>
     <div class="panel-body">
         <div class="card">
-            <div class="card-title" style="margin-bottom:8px;">✏️ Editor</div>
-            <div style="font-size:.68rem;color:#555;margin-bottom:10px;line-height:1.6;">
-                Scrie regulile ca text simplu. Poți folosi format Markdown minimal, fără nicio bibliotecă —
-                se transformă automat în text formatat pe pagina publică:<br>
-                <code># Titlu</code> și <code>## Subtitlu</code> pentru titluri ·
-                linii care încep cu <code>1.</code> pentru listă numerotată ·
-                linii care încep cu <code>-</code> pentru listă cu buline ·
-                <code>**text**</code> pentru <strong>bold</strong>, <code>*text*</code> pentru <em>italic</em>.
-                O linie goală desparte paragrafele.
-            </div>
-            <textarea id="rulesTextarea" oninput="onRulesTextareaInput()" placeholder="REGULI MECIURI&#10;&#10;1. Meciurile se joacă 6v6.&#10;2. Se joacă cu 3 echipe și rotație.&#10;3. Echipa câștigătoare rămâne.&#10;4. Jucătorii trebuie să respecte ora stabilită." style="width:100%;min-height:280px;box-sizing:border-box;background:#0d0f18;border:1px solid var(--border);color:#fff;padding:12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.9rem;line-height:1.5;resize:vertical;outline:none;"></textarea>
-            <div style="display:flex;gap:8px;margin-top:10px;">
-                <button onclick="saveRules()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">💾 Salvează Regulile</button>
-                <button onclick="resetRulesEditor()" style="padding:10px 16px;border-radius:9px;background:none;border:1px solid var(--border);color:#aaa;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;white-space:nowrap;">↺ Restabilește</button>
+            <div class="card-title" style="margin-bottom:8px;">➕ Adaugă o regulă nouă</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <input id="ruleNewTitle" type="text" class="p-input" placeholder="Titlu (ex: Interzis fault dur)" style="width:100%;box-sizing:border-box;">
+                <textarea id="ruleNewDesc" class="p-input" placeholder="Descriere" style="width:100%;box-sizing:border-box;min-height:70px;resize:vertical;font-family:'Rajdhani',sans-serif;"></textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <select id="ruleNewLocation" class="p-input" style="flex:1;min-width:140px;"></select>
+                    <input id="ruleNewSanction" type="text" class="p-input" placeholder="Sancțiune (ex: Cartonaș roșu)" style="flex:1;min-width:140px;">
+                </div>
+                <button onclick="addRule()" style="padding:10px;border-radius:9px;background:linear-gradient(135deg,#1a2a60,var(--accent));border:1px solid var(--accent);color:#fff;font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;cursor:pointer;">➕ Adaugă Regula</button>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-title">👁️ Previzualizare (cum apare public)</div>
-            <div id="rulesPreview" class="rules-content"></div>
-        </div>
+        <div id="rulesEditList"></div>
     </div>
 </div>
 
@@ -608,7 +599,8 @@ let _algoSnapshot=null; // {base, scale} — ce e SALVAT în DB, folosit ca baz�
 // smart-rating.js (încărcat înaintea acestui script). Atributele de bază
 // (PAC/SHO/PAS/DRI/DEF/PHY) se setează manual per jucător, din app.js.
 let csvParsed=null;
-let rulesText=''; // 📜 Reguli — text brut, sincronizat cu ultima versiune salvată (folosit de "↺ Restabilește")
+let rulesList=[]; // 📜 Reguli — array [{id,title,description,location,sanction}], sincronizat cu algo_settings (key: 'rules_list')
+const RULE_LOCATIONS=['Peste tot','Fepa','Greenfield'];
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
 // ── Constants (specifice UI-ului acestei pagini) ────────────────────
@@ -677,71 +669,95 @@ function switchSection(name){
 }
 
 // ── 📜 Reguli ─────────────────────────────────────────────────────
-// Markdown simplu, fără librării — IDENTIC cu formatRulesText() din
-// clasament.html, ca previzualizarea de aici să arate exact ce va vedea
-// jucătorul pe pagina publică. Linie goală = paragraf nou; "# "/"## " =
-// titluri; "- "/"* " sau "1. " = listă; **bold**/*italic* = accent inline.
-function escapeHtml(s){
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// Fiecare regulă: {id, title, description, location, sanction}. Se
+// stochează întreaga listă ca UN singur rând JSON în algo_settings
+// (key: 'rules_list') — tabelă generică key/value, deja folosită pentru
+// setările algoritmului de OVR (weights, tag_bonus_cap).
+function escHtmlAttr(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
-function formatRulesText(raw){
-    const text = (raw||'').trim();
-    if(!text) return '';
-    const inline = s => escapeHtml(s)
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/(^|[^*])\*(?!\*)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
-    let html = '', listBuf = [], listType = null, paraBuf = [];
-    const flushList = () => {
-        if(listBuf.length){
-            html += `<${listType}>${listBuf.map(li=>`<li>${inline(li)}</li>`).join('')}</${listType}>`;
-            listBuf = []; listType = null;
-        }
-    };
-    const flushPara = () => {
-        if(paraBuf.length){ html += `<p>${paraBuf.map(inline).join('<br>')}</p>`; paraBuf = []; }
-    };
-    text.split('\n').forEach(line=>{
-        const l = line.trim();
-        if(!l){ flushList(); flushPara(); return; }
-        const h1 = l.match(/^#\s+(.*)/);
-        const h2 = l.match(/^##\s+(.*)/);
-        const ol = l.match(/^(\d+)[.)]\s+(.*)/);
-        const ul = l.match(/^[-*]\s+(.*)/);
-        if(h2){ flushList(); flushPara(); html += `<h5 class="rules-h2">${inline(h2[1])}</h5>`; return; }
-        if(h1){ flushList(); flushPara(); html += `<h4 class="rules-h1">${inline(h1[1])}</h4>`; return; }
-        if(ol){ flushPara(); if(listType!=='ol'){ flushList(); listType='ol'; } listBuf.push(ol[2]); return; }
-        if(ul){ flushPara(); if(listType!=='ul'){ flushList(); listType='ul'; } listBuf.push(ul[1]); return; }
-        flushList();
-        paraBuf.push(l);
-    });
-    flushList(); flushPara();
-    return html;
+function genRuleId(){
+    return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 }
-function renderRulesPreview(){
-    const text = document.getElementById('rulesTextarea').value;
-    const html = formatRulesText(text);
-    document.getElementById('rulesPreview').innerHTML = html || `<div class="rules-empty">Regulile nu au fost configurate încă.</div>`;
+function ruleLocationOptions(selected){
+    return RULE_LOCATIONS.map(loc=>`<option value="${loc}" ${selected===loc?'selected':''}>${loc==='Peste tot'?'🌍':'📍'} ${loc}</option>`).join('');
 }
-function onRulesTextareaInput(){ renderRulesPreview(); }
-function buildRulesPanel(){
-    document.getElementById('rulesTextarea').value = rulesText;
-    renderRulesPreview();
-}
-function resetRulesEditor(){
-    document.getElementById('rulesTextarea').value = rulesText;
-    renderRulesPreview();
-}
-async function saveRules(){
-    const text = document.getElementById('rulesTextarea').value;
+async function persistRulesList(){
     try{
-        const{error}=await sb.from('algo_settings').upsert({key:'rules_text', value:text}, {onConflict:'key'});
+        const{error}=await sb.from('algo_settings').upsert({key:'rules_list', value:rulesList}, {onConflict:'key'});
         if(error) throw error;
-        rulesText = text;
-        showToast('✅ Regulile au fost salvate!');
     }catch(e){
-        console.error('saveRules:', e.message);
-        showToast('❌ Eroare la salvare: '+e.message);
+        console.error('persistRulesList:', e.message);
+        showToast('❌ Eroare la salvare reguli: '+e.message);
     }
+}
+function buildRulesPanel(){
+    const sel=document.getElementById('ruleNewLocation');
+    if(sel) sel.innerHTML = ruleLocationOptions('Peste tot');
+    const el=document.getElementById('rulesEditList');if(!el)return;
+    if(!rulesList.length){
+        el.innerHTML = `<div class="rule-edit-card"><div class="rules-empty-note">Nicio regulă adăugată încă.</div></div>`;
+        return;
+    }
+    el.innerHTML = rulesList.map((r,i)=>`
+        <div class="rule-edit-card">
+            <div class="rule-edit-head">
+                <div class="rule-edit-order">
+                    <button type="button" onclick="moveRule('${r.id}',-1)" ${i===0?'disabled':''}>▲</button>
+                    <button type="button" onclick="moveRule('${r.id}',1)" ${i===rulesList.length-1?'disabled':''}>▼</button>
+                </div>
+                <div class="rule-edit-num">REGULA ${i+1}</div>
+                <button type="button" class="rule-edit-del" onclick="deleteRule('${r.id}')">🗑️</button>
+            </div>
+            <div class="rule-edit-fields">
+                <input type="text" class="p-input" value="${escHtmlAttr(r.title)}" placeholder="Titlu" style="width:100%;box-sizing:border-box;font-weight:700;" onchange="updateRuleField('${r.id}','title',this.value)">
+                <textarea class="p-input" placeholder="Descriere" style="width:100%;box-sizing:border-box;min-height:64px;resize:vertical;" onchange="updateRuleField('${r.id}','description',this.value)">${escHtmlAttr(r.description)}</textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <select class="p-input" style="flex:1;min-width:140px;" onchange="updateRuleField('${r.id}','location',this.value)">
+                        ${ruleLocationOptions(r.location)}
+                    </select>
+                    <input type="text" class="p-input" value="${escHtmlAttr(r.sanction)}" placeholder="Sancțiune" style="flex:1;min-width:140px;" onchange="updateRuleField('${r.id}','sanction',this.value)">
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+async function addRule(){
+    const title = document.getElementById('ruleNewTitle').value.trim();
+    if(!title){ showToast('⚠️ Introdu un titlu pentru regulă!'); return; }
+    const description = document.getElementById('ruleNewDesc').value.trim();
+    const location = document.getElementById('ruleNewLocation').value || 'Peste tot';
+    const sanction = document.getElementById('ruleNewSanction').value.trim();
+    rulesList.push({ id: genRuleId(), title, description, location, sanction });
+    document.getElementById('ruleNewTitle').value = '';
+    document.getElementById('ruleNewDesc').value = '';
+    document.getElementById('ruleNewSanction').value = '';
+    document.getElementById('ruleNewLocation').value = 'Peste tot';
+    await persistRulesList();
+    buildRulesPanel();
+    showToast('✅ Regulă adăugată!');
+}
+function updateRuleField(id, field, value){
+    const r = rulesList.find(x=>x.id===id); if(!r) return;
+    r[field] = value;
+    clearTimeout(window._ruleSaveTimer);
+    window._ruleSaveTimer = setTimeout(()=>persistRulesList(), 400);
+}
+async function deleteRule(id){
+    showConfirm('🗑️','Șterge regula','Sigur vrei să ștergi această regulă? Nu mai poate fi recuperată.','Șterge','#c62828', async ()=>{
+        rulesList = rulesList.filter(x=>x.id!==id);
+        await persistRulesList();
+        buildRulesPanel();
+        showToast('✅ Regulă ștearsă.');
+    });
+}
+async function moveRule(id, dir){
+    const idx = rulesList.findIndex(x=>x.id===id); if(idx<0) return;
+    const newIdx = idx+dir;
+    if(newIdx<0 || newIdx>=rulesList.length) return;
+    [rulesList[idx], rulesList[newIdx]] = [rulesList[newIdx], rulesList[idx]];
+    await persistRulesList();
+    buildRulesPanel();
 }
 
 // ── Load ──────────────────────────────────────────────────────────
@@ -764,11 +780,11 @@ async function loadAll(){
     const{data:as}=await sb.from('algo_settings').select('key,value');
     applyAlgoSettingsRows(as);
     _algoSnapshot = snapshotAlgoFields(); // baseline pt preview "înainte/după"
-    // 📜 Reguli — cheie separată, 'rules_text', în aceeași tabelă generică
+    // 📜 Reguli — cheie separată, 'rules_list', în aceeași tabelă generică
     // key/value algo_settings (nu afectează applyAlgoSettingsRows, care ignoră
     // cheile pe care nu le recunoaște).
-    const rulesRow = (as||[]).find(r=>r.key==='rules_text');
-    rulesText = rulesRow && typeof rulesRow.value==='string' ? rulesRow.value : '';
+    const rulesRow = (as||[]).find(r=>r.key==='rules_list');
+    rulesList = rulesRow && Array.isArray(rulesRow.value) ? rulesRow.value : [];
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
