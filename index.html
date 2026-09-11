@@ -152,6 +152,9 @@
         .tbp-mode-desc{font-size:.62rem;color:#7d6849;line-height:1.35;margin-top:2px;}
         .tbp-report-wrap{display:none;padding:8px 10px;background:#f3e6cf;border-radius:9px;margin-top:10px;border:1px solid #e3d3ac;}
         .tbp-report-label{color:#7d6849;font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+        .tbp-live-quality{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;background:#fff;border-radius:10px;border:1.5px solid #ddd;transition:border-color .2s;}
+        .tbp-live-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;}
+        .tbp-live-label{font-size:.64rem;color:#7d6849;line-height:1.35;}
 
         /* ── Modal Șansă de Câștig (dinamic 2/3/4 echipe) ── */
         .win-modal-overlay{position:fixed;inset:0;background:rgba(20,14,5,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
@@ -1080,8 +1083,10 @@
 <div class="team-balance-panel admin-only">
     <div class="tbp-header">⚖️ Cum echilibrăm echipele</div>
 
+    <div id="liveBalanceQuality" class="tbp-live-quality" style="display:none;"></div>
+
     <label class="tbp-rivalry">
-        <input type="checkbox" id="rivalryModeToggle">
+        <input type="checkbox" id="rivalryModeToggle" onchange="renderLiveBalanceQuality()">
         <span>⚔️ <b>Mod Rivalitate</b> — pune nemesis-ii unul împotriva celuilalt, pentru spectacol</span>
     </label>
 
