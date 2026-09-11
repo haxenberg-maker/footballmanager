@@ -6099,7 +6099,10 @@ function computeBalanceQualityScore(oArr, gArr, bArr){
     const nonEmpty = teams.filter(t => t.length);
     const avgs = nonEmpty.map(t => t.reduce((s,p)=>s+getSmartRating(p),0)/t.length);
     const maxDiff = avgs.length>1 ? Math.max(...avgs)-Math.min(...avgs) : 0;
-    const diffScore = Math.max(0, 100 - maxDiff*10);
+    // Scor de bază din diferența de rating (scală OVR 1-99) — tolerant, pentru
+    // că la 8-10 jucători/echipă chiar și câteva puncte diferență sunt normale.
+    // Plafonat la minim 30 ca să nu se prăbușească doar din rating-ul brut.
+    const diffScore = Math.max(30, 100 - maxDiff*6);
 
     let antiCount = 0, nemTeammateCount = 0, goodSynCount = 0;
     teams.forEach(t=>{
@@ -6112,10 +6115,13 @@ function computeBalanceQualityScore(oArr, gArr, bArr){
     for (let i=0;i<teams.length;i++) for (let j=i+1;j<teams.length;j++)
         nemOpponentCount += countNemesisAsOpponents(teams[i], teams[j]);
 
-    const antiPenalty = antiCount * 8;
-    const nemPenalty = nemTeammateCount * (rivalryMode ? 12 : 6);
-    const goodBonus = Math.min(10, goodSynCount*3);
-    const spectacleBonus = rivalryMode ? Math.min(8, nemOpponentCount*3) : 0;
+    // Penalizări MICI, plafonate — într-un grup cu istoric bogat e normal să
+    // existe câteva perechi cu winrate slab împreună; nu vrem ca 4-5 perechi
+    // "moștenite" din tot istoricul să ducă scorul la 0, e vorba de UN meci.
+    const antiPenalty = Math.min(15, antiCount * 3);
+    const nemPenalty = Math.min(15, nemTeammateCount * (rivalryMode ? 5 : 3));
+    const goodBonus = Math.min(10, goodSynCount*2);
+    const spectacleBonus = rivalryMode ? Math.min(8, nemOpponentCount*2) : 0;
 
     const score = Math.max(0, Math.min(100, Math.round(diffScore - antiPenalty - nemPenalty + goodBonus + spectacleBonus)));
     return { score, maxDiff, antiCount, nemTeammateCount, goodSynCount, nemOpponentCount };
