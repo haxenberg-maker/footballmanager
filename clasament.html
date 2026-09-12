@@ -1005,6 +1005,14 @@ function getSessionAnchorId(h){
 function showMatchDetail(dbId, opts){
     activeMatchDetailId = String(dbId);
     mdActiveTab = 'tech';
+    // Fixăm tab-ul de pagină pe „Meciuri" — un meci/sesiune e conceptual
+    // parte din tab-ul Meciuri, indiferent dacă ecranul de detalii a fost
+    // deschis de-acolo (click pe card) SAU direct printr-un deep-link
+    // (?match_id=/?session_id=, ex. link distribuit). Astfel, butonul
+    // „← Înapoi la Meciuri" (hideMatchDetail → applyPageMode → setPageTab)
+    // revine mereu pe lista de Meciuri, niciodată pe Clasament — vezi bug-ul
+    // raportat: „Înapoi mă duce la Clasament în loc de Meciuri".
+    pageTab = 'matches';
     // Normalizăm URL-ul pe ?match_id=UUID (păstrăm ?vote_potm dacă era deja
     // acolo — e treaba closePotmModal() să-l șteargă, nu asta).
     const url = new URL(location.href);
@@ -2543,15 +2551,30 @@ function applyPageMode(){
     document.getElementById('matchDetailWrap').style.display = isMatchDetail ? 'block' : 'none';
     document.getElementById('playerProfileWrap').style.display = isProfile ? 'block' : 'none';
     document.getElementById('comparePageWrap').style.display = isCompare ? 'block' : 'none';
-    ['meCardWrap','rulesWrap','lbSeasonRow','lbSeasonBanner','leaderboardSection'].forEach(id=>{
+    ['meCardWrap','rulesWrap'].forEach(id=>{
         const el = document.getElementById(id);
         if (el) el.style.display = (isProfile||isCompare||isMatchDetail) ? 'none' : '';
     });
     const pageTabs = document.querySelector('.page-tabs');
     if (pageTabs) pageTabs.style.display = (isProfile||isCompare||isMatchDetail) ? 'none' : '';
-    const matchesSection = document.getElementById('matchesSection');
-    if (matchesSection) {
-        matchesSection.style.display = (isProfile||isCompare||isMatchDetail) ? 'none' : (pageTab==='matches' ? 'block' : 'none');
+    if (isProfile || isCompare || isMatchDetail) {
+        // Ascundem explicit ambele secțiuni de pagină (Clasament ȘI Meciuri) —
+        // altfel, la ieșirea din ecranul suprapus (profil/compare/detalii meci),
+        // secțiunea GREȘITĂ putea rămâne vizibilă (bug rezolvat mai jos).
+        const lb = document.getElementById('leaderboardSection'); if (lb) lb.style.display = 'none';
+        const ms = document.getElementById('matchesSection'); if (ms) ms.style.display = 'none';
+        const row = document.getElementById('lbSeasonRow'); if (row) row.style.display = 'none';
+        const banner = document.getElementById('lbSeasonBanner'); if (banner) banner.style.display = 'none';
+    } else {
+        // NU în profil/compare/detalii meci — revenim la tab-ul de pagină
+        // (Clasament/Meciuri) care era activ ÎNAINTE de a intra acolo.
+        // Reutilizăm setPageTab() (nu doar un toggle de display) ca să
+        // reafișeze corect TOATE elementele dependente de tab (inclusiv
+        // lbSeasonRow/lbSeasonBanner) și să reîmprospătăm feed-ul de meciuri
+        // — vezi bug-ul "Înapoi mă duce la Clasament în loc de Meciuri",
+        // cauzat anterior de resetarea necondiționată a lui leaderboardSection
+        // la display:'' (vizibil), indiferent de pageTab curent.
+        setPageTab(pageTab);
     }
     if (isMatchDetail) renderMatchDetailScreen(activeMatchDetailId);
     else if (isCompare) renderComparePage(compareP1, compareP2);
