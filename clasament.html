@@ -210,6 +210,14 @@ body{font-family:var(--font-body);background:
 .md-badge-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--ink-faint);font-weight:700;}
 .md-badge-name{font-weight:700;font-size:.86rem;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .md-badge-sub{font-size:.66rem;color:var(--ink-dim);margin-top:1px;}
+/* Selector perechi sesiune 3 echipe (VERDE vs PORTOCALIU / VERDE vs NEGRU / PORTOCALIU vs NEGRU) */
+.md-pair-selector{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 8px;margin-bottom:10px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+.md-pair-selector::-webkit-scrollbar{height:4px;}
+.md-pair-selector::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+.md-pair-btn{flex:0 0 auto;white-space:nowrap;padding:7px 13px;border-radius:20px;font-size:.72rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
+.md-pair-btn:hover{color:var(--ink);border-color:#334155;}
+.md-pair-btn.active{background:rgba(91,127,255,.16);border-color:var(--accent);color:#b3c2ff;}
+.md-pair-btn .md-pair-vs{opacity:.55;font-weight:600;margin:0 3px;}
 @media(min-width:640px){
     .md-teams-score{gap:20px;}
     .md-team-name{font-size:1.4rem;}
@@ -409,6 +417,12 @@ const highlightPlayer = urlParams.get('player') || urlParams.get('p');
 // dată, de handleUrlDeepLink) — pentru starea LIVE (după navigare/click-uri),
 // vezi getUrlMatchId() mai jos, citit dinamic de applyPageMode().
 const urlMatchId = urlParams.get('match_id') || urlParams.get('match') || urlParams.get('vote_match') || null;
+// ?session_id=UUID — identifică sesiunea 3 echipe (dbId-ul primei perechi din
+// grupul de sesiune, vezi getSessionAnchorId()). Folosit ca deep-link către
+// sesiune ATUNCI CÂND nu avem un match_id explicit (ex. link generic "vezi
+// sesiunea"): deschide prima pereche din acea sesiune. Când match_id E
+// prezent, el are prioritate — session_id rămâne doar "context"/afișare în URL.
+const urlSessionId = urlParams.get('session_id') || null;
 // ?vote_potm=1 (opțional, combinat cu match_id/match) — deschide automat
 // modalul de vot POTM peste ecranul meciului. ?vote_match=UUID (schema veche)
 // implică automat intenția de vot, fără alt parametru suplimentar.
@@ -1062,6 +1076,19 @@ function backfillSessionRoundGoals(sessionRows) {
 let activeMatchDetailId = null;
 let mdActiveTab = 'tech'; // 'tech' | 'rounds' | 'stats'
 
+// Returnează un identificator stabil de "sesiune" pentru un rând h — dbId-ul
+// primei perechi din grupul sesiunii (vezi groupHistoryForDisplay/
+// getSessionRowsFor). Doar pentru afișare/share în URL (?session_id=...) —
+// logica de comutare între perechi NU depinde de asta, funcționează exclusiv
+// pe match_id (fiecare pereche are propriul dbId unic, deja folosit peste tot
+// în aplicație pentru deep-linking). Returnează null pentru un meci simplu
+// (2 echipe, fără sesiune).
+function getSessionAnchorId(h){
+    if (!h) return null;
+    const rows = getSessionRowsFor(h);
+    return rows.length > 1 ? rows[0]._dbId : null;
+}
+
 function showMatchDetail(dbId, opts){
     activeMatchDetailId = String(dbId);
     mdActiveTab = 'tech';
@@ -1071,6 +1098,11 @@ function showMatchDetail(dbId, opts){
     url.searchParams.delete('match');
     url.searchParams.delete('vote_match');
     url.searchParams.set('match_id', activeMatchDetailId);
+    // ?session_id=... — doar informativ/pentru share (vezi getSessionAnchorId).
+    const h = db.history.find(x=>String(x._dbId)===activeMatchDetailId);
+    const sessAnchor = getSessionAnchorId(h);
+    if (sessAnchor) url.searchParams.set('session_id', sessAnchor);
+    else url.searchParams.delete('session_id');
     // La deep-link-ul inițial (încărcarea paginii) folosim replaceState, nu
     // pushState — altfel apăsarea "Înapoi" din browser ar crea un du-te-vino
     // inutil între ?vote_match=X și ?match_id=X, fără să iasă din ecran.
@@ -1086,12 +1118,37 @@ function hideMatchDetail(){
     url.searchParams.delete('match');
     url.searchParams.delete('vote_match');
     url.searchParams.delete('vote_potm');
+    url.searchParams.delete('session_id');
     history.pushState({}, '', url);
     applyPageMode();
 }
 function setMdTab(tab){
     mdActiveTab = tab;
     renderMatchDetailScreen(activeMatchDetailId);
+}
+
+// Comută pe altă pereche din ACEEAȘI sesiune 3 echipe (ex. de la Verde vs
+// Portocaliu la Verde vs Negru), fără să reseteze tab-ul activ (spre
+// deosebire de showMatchDetail, care e gândit pentru "intrare" nouă în ecran
+// și resetează mereu pe 'tech') — dacă utilizatorul se uita la Cronologia
+// Turelor, rămâne tot acolo după ce schimbă perechea. URL-ul (match_id +
+// session_id) se actualizează cu pushState, deci share/refresh/butonul
+// Înapoi al browserului funcționează natural, la fel ca la showMatchDetail.
+function selectSessionPair(dbId){
+    dbId = String(dbId);
+    if (dbId === String(activeMatchDetailId)) return;
+    activeMatchDetailId = dbId;
+    const url = new URL(location.href);
+    url.searchParams.delete('match');
+    url.searchParams.delete('vote_match');
+    url.searchParams.set('match_id', activeMatchDetailId);
+    const h = db.history.find(x=>String(x._dbId)===activeMatchDetailId);
+    const sessAnchor = getSessionAnchorId(h);
+    if (sessAnchor) url.searchParams.set('session_id', sessAnchor);
+    else url.searchParams.delete('session_id');
+    history.pushState({ matchDetailId: activeMatchDetailId }, '', url);
+    renderMatchDetailScreen(activeMatchDetailId);
+    window.scrollTo({top:0, behavior:'smooth'});
 }
 
 // Extras identic din vechiul openMatchDetail (ramura hasRounds) — o "tură" =
@@ -1314,9 +1371,25 @@ function renderMatchDetailScreen(dbId){
             </div>
             <div class="md-sub">${subParts.join(' · ')}</div>
         </div>
+        ${hasRounds ? buildSessionPairSelectorHtml(sessionRows, h._dbId) : ''}
         ${(mvpBadgeHtml || potmBadgeHtml) ? `<div class="md-badges-row">${mvpBadgeHtml}${potmBadgeHtml}</div>` : ''}
         ${tabsHtml}
         <div class="stats-section">${tabContentHtml}</div>`;
+}
+
+// Selector/tab-uri cu TOATE perechile jucate într-o sesiune 3 echipe (ex.
+// [🟢 Verde vs 🟠 Portocaliu] [🟢 Verde vs ⚫ Negru] [🟠 Portocaliu vs ⚫ Negru]),
+// afișat în ecranul de detalii meci pentru navigare rapidă între perechi —
+// vezi selectSessionPair(). Nu se afișează la un meci simplu (2 echipe).
+const teamEmojiPublic = { Portocaliu:'🟠', Verde:'🟢', Negru:'⚫' };
+function buildSessionPairSelectorHtml(sessionRows, activeDbId){
+    if (!Array.isArray(sessionRows) || sessionRows.length < 2) return '';
+    const btns = sessionRows.map(r => {
+        const [t1, t2] = getRowTeamNames(r);
+        const isActive = String(r._dbId) === String(activeDbId);
+        return `<button type="button" class="md-pair-btn${isActive?' active':''}" ${isActive?'aria-current="true"':''} onclick="selectSessionPair('${r._dbId}')">${teamEmojiPublic[t1]||''} ${escapeHtml(t1||'?')}<span class="md-pair-vs">vs</span>${teamEmojiPublic[t2]||''} ${escapeHtml(t2||'?')}</button>`;
+    }).join('');
+    return `<div class="md-pair-selector">${btns}</div>`;
 }
 
 function renderMatchesFeed(){
@@ -3078,11 +3151,22 @@ function showToast(msg){
 // când cineva deschide linkul (clasament.html?match_id=UUID&vote_potm=1).
 
 function handleUrlDeepLink(){
-    if (!urlMatchId) return;
-    const h = db.history.find(x=>String(x._dbId)===String(urlMatchId));
-    if (!h) return; // link greșit/meci șters — rămânem pe clasamentul normal
-    showMatchDetail(urlMatchId, { replace: true });
-    if (urlVotePotm) openPotmVoteModal(urlMatchId);
+    if (urlMatchId) {
+        const h = db.history.find(x=>String(x._dbId)===String(urlMatchId));
+        if (!h) return; // link greșit/meci șters — rămânem pe clasamentul normal
+        showMatchDetail(urlMatchId, { replace: true });
+        if (urlVotePotm) openPotmVoteModal(urlMatchId);
+        return;
+    }
+    // Fără match_id, dar cu ?session_id=... (link generic către sesiune, nu
+    // către o pereche anume) — deschidem prima pereche din acea sesiune.
+    if (urlSessionId) {
+        const anchor = db.history.find(x=>String(x._dbId)===String(urlSessionId));
+        if (!anchor) return;
+        const rows = getSessionRowsFor(anchor);
+        const first = rows[0] || anchor;
+        showMatchDetail(first._dbId, { replace: true });
+    }
 }
 
 // Returnează toate rândurile (perechile) sesiunii din care face parte h — sau
