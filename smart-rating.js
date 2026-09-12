@@ -153,6 +153,13 @@ let ASSIST_BONUS_WEIGHT = DEFAULT_ASSIST_BONUS_WEIGHT;
  *   - goalScore:     deltaGoals * goalBonusWeight (component în scorul final)
  * Jucătorii cu matchesPlayed=0 nu au grup relevant → deltaGoals=0.
  */
+// Sub acest prag, grupul "același nr. exact de meciuri" e prea mic ca să
+// însemne ceva statistic — de ex. un jucător cu un nr. UNIC de meciuri
+// jucate (nimeni altcineva exact la fel) ajungea comparat DOAR cu el
+// însuși, deci media grupului = golurile/asisturile lui, delta mereu 0,
+// indiferent cât de bun era (bug real — vezi cazul "Gabi" la asisturi).
+const MIN_DELTA_GROUP_SIZE = 3;
+
 function computeGoalDeltaScores(playersStats, goalBonusWeight = GOAL_BONUS_WEIGHT){
     // 1) Grupare după numărul exact de meciuri jucate.
     const groups = {}; // matchesPlayed -> { totalGoals, count }
@@ -168,11 +175,18 @@ function computeGoalDeltaScores(playersStats, goalBonusWeight = GOAL_BONUS_WEIGH
     Object.keys(groups).forEach(mp=>{
         avgByGroup[mp] = groups[mp].count ? groups[mp].totalGoals / groups[mp].count : 0;
     });
+    // Rată generală (goluri per meci jucat) pe TOT lotul activ — fallback
+    // pentru grupuri sub MIN_DELTA_GROUP_SIZE (vezi comentariul de mai sus).
+    const totalGoalsAll = playersStats.reduce((s,x)=>s+(x.goals||0),0);
+    const totalMatchesAll = playersStats.reduce((s,x)=>s+(x.matchesPlayed||0),0);
+    const globalRate = totalMatchesAll ? totalGoalsAll/totalMatchesAll : 0;
     // 3) Delta + 4) Punctaj_Goluri = deltaGoals * goalBonusWeight
     return playersStats.map(s=>{
-        const groupAvg = s.matchesPlayed ? (avgByGroup[s.matchesPlayed] || 0) : 0;
+        const grp = s.matchesPlayed ? groups[s.matchesPlayed] : null;
+        const usedGlobalAvg = !!s.matchesPlayed && (!grp || grp.count < MIN_DELTA_GROUP_SIZE);
+        const groupAvg = !s.matchesPlayed ? 0 : (usedGlobalAvg ? globalRate * s.matchesPlayed : avgByGroup[s.matchesPlayed]);
         const deltaGoals = (s.goals||0) - groupAvg;
-        return { ...s, groupAvgGoals: groupAvg, deltaGoals, goalScore: deltaGoals * goalBonusWeight };
+        return { ...s, groupAvgGoals: groupAvg, deltaGoals, goalScore: deltaGoals * goalBonusWeight, usedGlobalAvg };
     });
 }
 
@@ -207,10 +221,17 @@ function computeAssistDeltaScores(playersStats, assistBonusWeight = ASSIST_BONUS
     Object.keys(groups).forEach(mp=>{
         avgByGroup[mp] = groups[mp].count ? groups[mp].totalAssists / groups[mp].count : 0;
     });
+    // Rată generală (asisturi per meci jucat) pe TOT lotul activ — fallback
+    // pentru grupuri sub MIN_DELTA_GROUP_SIZE (același bug ca la goluri).
+    const totalAssistsAll = playersStats.reduce((s,x)=>s+(x.assists||0),0);
+    const totalMatchesAll = playersStats.reduce((s,x)=>s+(x.matchesPlayed||0),0);
+    const globalRate = totalMatchesAll ? totalAssistsAll/totalMatchesAll : 0;
     return playersStats.map(s=>{
-        const groupAvg = s.matchesPlayed ? (avgByGroup[s.matchesPlayed] || 0) : 0;
+        const grp = s.matchesPlayed ? groups[s.matchesPlayed] : null;
+        const usedGlobalAvg = !!s.matchesPlayed && (!grp || grp.count < MIN_DELTA_GROUP_SIZE);
+        const groupAvg = !s.matchesPlayed ? 0 : (usedGlobalAvg ? globalRate * s.matchesPlayed : avgByGroup[s.matchesPlayed]);
         const deltaAssists = (s.assists||0) - groupAvg;
-        return { ...s, groupAvgAssists: groupAvg, deltaAssists, assistScore: deltaAssists * assistBonusWeight };
+        return { ...s, groupAvgAssists: groupAvg, deltaAssists, assistScore: deltaAssists * assistBonusWeight, usedGlobalAvg };
     });
 }
 
@@ -463,7 +484,7 @@ function eaComputeGoalBonusDelta(p){
     const mine = scored.find(s=>s.name===p.name);
     if(!mine) return { delta:0, note:null };
     const delta = Math.round(Math.max(-EA_FORM_GOALS_CAP, Math.min(EA_FORM_GOALS_CAP, mine.goalScore)));
-    const note = `${mine.goals} goluri din ${p.games} meciuri vs media grupului (${mine.groupAvgGoals.toFixed(1)})`;
+    const note = `${mine.goals} goluri din ${p.games} meciuri vs media grupului${mine.usedGlobalAvg?' (medie generală, grup prea mic)':''} (${mine.groupAvgGoals.toFixed(1)}) → ${delta>=0?'+':''}${delta} OVR`;
     return { delta, note };
 }
 
@@ -483,7 +504,7 @@ function eaComputeAssistBonusDelta(p){
     const mine = scored.find(s=>s.name===p.name);
     if(!mine) return { delta:0, note:null };
     const delta = Math.round(Math.max(-EA_FORM_ASSISTS_CAP, Math.min(EA_FORM_ASSISTS_CAP, mine.assistScore)));
-    const note = `${mine.assists} asisturi din ${p.games} meciuri vs media grupului (${mine.groupAvgAssists.toFixed(1)})`;
+    const note = `${mine.assists} asisturi din ${p.games} meciuri vs media grupului${mine.usedGlobalAvg?' (medie generală, grup prea mic)':''} (${mine.groupAvgAssists.toFixed(1)}) → ${delta>=0?'+':''}${delta} OVR`;
     return { delta, note };
 }
 
