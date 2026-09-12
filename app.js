@@ -4045,6 +4045,8 @@ function buildModalQuickGlance(p){
     const chip = (label,color)=>`<span style="font-size:.68rem;font-weight:700;padding:4px 9px;border-radius:8px;background:${color}18;border:1px solid ${color}44;color:${color};">${label}</span>`;
     const chips = [];
     chips.push(chip(`⚽ ${p.totalGoals||0} goluri sezon`, '#1b7a43'));
+    const assistTotal = getAllPlayersAssistTotals()[p.name]||0;
+    chips.push(chip(`👟 ${assistTotal} asisturi sezon`, '#0d9488'));
     if((p.totalPenaltyGoals||0)>0) chips.push(chip(`🥅 ${p.totalPenaltyGoals} goluri penalty`, '#7d6849'));
     const tagCount = getPlayerActiveTagObjects(p).length;
     if(tagCount>0) chips.push(chip(`👑 ${tagCount} status${tagCount!==1?'uri':''}`, '#9c4f00'));
