@@ -402,6 +402,14 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── Highlighted player (from ?player=Name in URL) ──
 const urlParams = new URLSearchParams(window.location.search);
 const highlightPlayer = urlParams.get('player') || urlParams.get('p');
+// Deep-link către un meci specific (ecranul dedicat #matchDetailWrap):
+// ?match_id=UUID sau ?match=UUID. Compatibil și cu vechiul ?vote_match=UUID
+// (link-urile de vot generate anterior din setari.html continuă să funcționeze).
+const urlMatchId = urlParams.get('match_id') || urlParams.get('match') || urlParams.get('vote_match') || null;
+// ?vote_potm=1 (opțional, combinat cu match_id/match) — deschide automat
+// modalul de vot POTM peste ecranul meciului. ?vote_match=UUID (schema veche)
+// implică automat intenția de vot, fără alt parametru suplimentar.
+const urlVotePotm = urlParams.get('vote_potm') === '1' || urlParams.has('vote_match');
 const compareP1 = urlParams.get('p1');
 const compareP2 = urlParams.get('p2');
 
@@ -698,7 +706,7 @@ function renderPairBodyPublic(h, opts){
     return { teamsHTML, topScorerHTML, potmHTML, hattrick };
 }
 
-// Folosit de renderMatchDetailScreen (tab „Caseta Tehnică”)
+// Folosit de renderMatchDetailScreen (tab „Tabela scoruri”)
 // (renderSingleMatchCard) — tabelă în oglindă + listă cronologică de goluri +
 // timp jucat, pentru un meci simplu (2 echipe, fără ture/rounds_detail).
 function buildTwoTeamMatchDetails(h){
@@ -1104,10 +1112,9 @@ function buildRoundsTimelineHtml(h){
     return `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;">${listHtml}</div>`;
 }
 
-// Tab „📊 Statistici” — timp pe teren, contribuție goluri/assisturi (bară
-// vizuală) și OVR curent al fiecărui jucător (bară vizuală). Toate din date
-// deja calculate în altă parte a scriptului (getSmartRating, h.goalsList) —
-// nimic inventat, nicio metrică nouă.
+// Tab „📊 Statistici” — timp pe teren și contribuție goluri/assisturi (bară
+// vizuală). Fără ratinguri/OVR aici — vezi cerința de curățare a acestui tab;
+// OVR-ul jucătorilor rămâne vizibil doar în tab-ul „Tabela scoruri”.
 function buildMatchStatsTabHtml(h, hasRounds){
     let totalSec = null;
     if (hasRounds) {
@@ -1147,26 +1154,7 @@ function buildMatchStatsTabHtml(h, hasRounds){
         }).join('')}
     </div>` : `<div style="font-size:.72rem;color:#5b6577;margin-bottom:16px;">Niciun gol înregistrat în acest meci.</div>`;
 
-    const allPlayers = [...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]
-        .map(n => { const p = db.players.find(x=>x.name===n); return p ? {name:n, ovr:getSmartRating(p)} : null; })
-        .filter(Boolean)
-        .sort((a,b)=>b.ovr-a.ovr);
-    const maxOvr = allPlayers.length ? Math.max(...allPlayers.map(p=>p.ovr),1) : 1;
-    const ovrHtml = allPlayers.length ? `<div>
-        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:8px;">🎯 OVR jucători (rating curent)</div>
-        ${allPlayers.map(p=>{
-            const pct = Math.round((p.ovr/maxOvr)*100);
-            return `<div style="margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:3px;">
-                    <span style="font-weight:700;color:#f3f6fa;">${escapeHtml(p.name)}</span>
-                    <span style="font-family:'Bebas Neue',sans-serif;color:#a78bfa;">${p.ovr}</span>
-                </div>
-                <div style="background:#141a24;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#a78bfa;"></div></div>
-            </div>`;
-        }).join('')}
-    </div>` : '';
-
-    return `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;">${timeBlockHtml}${contribHtml}${ovrHtml}</div>`;
+    return `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;">${timeBlockHtml}${contribHtml}</div>`;
 }
 
 // Randează ecranul complet de Detalii Meci în #matchDetailWrap — declanșat de
@@ -1193,12 +1181,27 @@ function renderMatchDetailScreen(dbId){
                     : _ws==='black'  ? teamColorsPublic.black
                     : '#8b96a8';
 
-    const mvp = computeSessionMvpWinner([h]);
-    const potmName = h.potmWinnerName || null;
+    // Pentru o pereche dintr-o sesiune 3 echipe, MVP/POTM se calculează pe
+    // ÎNTREAGA sesiune (toate perechile) — la fel ca pe cardul de sesiune din
+    // feed — nu doar pe această pereche, altfel ar ieși altă persoană decât
+    // MVP-ul/POTM-ul corect al sesiunii. La un meci simplu (2 echipe, fără
+    // sesiune), se calculează normal, doar pe acest meci.
+    let mvp, potmName, sessionRows = [h], sessionIdx = 0;
+    if (hasRounds) {
+        sessionRows = getSessionRowsFor(h);
+        sessionIdx = sessionRows.findIndex(r=>r._dbId===h._dbId);
+        mvp = computeSessionMvpWinner(sessionRows);
+        const { winnerId: sessPotmId } = computePotmWinnerForRows(sessionRows);
+        const sessPotmPlayer = sessPotmId != null ? db.players.find(p=>p.id==sessPotmId) : null;
+        potmName = sessPotmPlayer ? sessPotmPlayer.name : null;
+    } else {
+        mvp = computeSessionMvpWinner([h]);
+        potmName = h.potmWinnerName || null;
+    }
     const mvpBadgeHtml = mvp ? `<div class="md-badge md-badge--mvp">
         <span class="md-badge-icon">🏆</span>
         <div class="md-badge-body">
-            <div class="md-badge-lbl">MVP Meci</div>
+            <div class="md-badge-lbl">MVP ${hasRounds?'Sesiune':'Meci'}</div>
             <div class="md-badge-name">${escapeHtml(mvp.name)}</div>
             <div class="md-badge-sub">⚽${mvp.goals} · 🅰️${mvp.assists} · ⏱${mvp.minutes} min</div>
         </div>
@@ -1219,7 +1222,7 @@ function renderMatchDetailScreen(dbId){
     if (mdActiveTab === 'rounds' && !hasRounds) mdActiveTab = 'tech';
 
     const tabsHtml = `<div class="pp-tabs">
-        <button class="pp-tab${mdActiveTab==='tech'?' active':''}" onclick="setMdTab('tech')">📋 Caseta Tehnică</button>
+        <button class="pp-tab${mdActiveTab==='tech'?' active':''}" onclick="setMdTab('tech')">📋 Tabela scoruri</button>
         ${hasRounds ? `<button class="pp-tab${mdActiveTab==='rounds'?' active':''}" onclick="setMdTab('rounds')">🔄 Cronologie Ture</button>` : ''}
         <button class="pp-tab${mdActiveTab==='stats'?' active':''}" onclick="setMdTab('stats')">📊 Statistici</button>
     </div>`;
@@ -1227,6 +1230,14 @@ function renderMatchDetailScreen(dbId){
     const tabContentHtml = mdActiveTab === 'rounds' && hasRounds ? roundsTabHtml
         : mdActiveTab === 'stats' ? statsTabHtml
         : `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;">${mirrorHtml}</div>`;
+
+    const subParts = [];
+    subParts.push(h.winner ? `🏆 ${escapeHtml(h.winner)} a câștigat` : 'Egal');
+    if (h.imbalanced) subParts.push('⚠️ dezechilibru');
+    if (hasRounds) {
+        subParts.push(`${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}`);
+        subParts.push(`🎮 sesiune 3 echipe · pereche ${sessionIdx+1}/${sessionRows.length}`);
+    }
 
     wrap.innerHTML = `
         <div class="pp-back" onclick="hideMatchDetail()">← Înapoi la Meciuri</div>
@@ -1237,7 +1248,7 @@ function renderMatchDetailScreen(dbId){
                 <span class="md-score">${h.score||'—'}</span>
                 <span class="md-team-name">${escapeHtml(teamNames[1]||'?')}</span>
             </div>
-            <div class="md-sub">${h.winner ? `🏆 ${escapeHtml(h.winner)} a câștigat` : 'Egal'}${h.imbalanced?' · ⚠️ dezechilibru':''}${hasRounds?` · ${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}`:''}</div>
+            <div class="md-sub">${subParts.join(' · ')}</div>
         </div>
         ${(mvpBadgeHtml || potmBadgeHtml) ? `<div class="md-badges-row">${mvpBadgeHtml}${potmBadgeHtml}</div>` : ''}
         ${tabsHtml}
@@ -2981,16 +2992,18 @@ function showToast(msg){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ── POTM — Vot prin link (WhatsApp) ──────────────────────────────────
+// ── Deep-linking meci (?match_id=/?match=) + POTM prin link (?vote_potm=1) ──
 // ═══════════════════════════════════════════════════════════════════
-// Link-ul se generează acum doar din panoul de admin (setari.html) — aici
-// rămâne doar partea care PRIMEȘTE votul, când cineva deschide linkul.
+// Link-ul de vot se generează din panoul de admin (setari.html) — aici e
+// partea care DESCHIDE ecranul meciului și, dacă e cazul, PRIMEȘTE votul,
+// când cineva deschide linkul (clasament.html?match_id=UUID&vote_potm=1).
 
-function checkPotmVoteParam(){
-    const params = new URLSearchParams(location.search);
-    const matchId = params.get('vote_match');
-    if (!matchId) return;
-    openPotmVoteModal(matchId);
+function handleUrlDeepLink(){
+    if (!urlMatchId) return;
+    const h = db.history.find(x=>String(x._dbId)===String(urlMatchId));
+    if (!h) return; // link greșit/meci șters — rămânem pe clasamentul normal
+    showMatchDetail(urlMatchId);
+    if (urlVotePotm) openPotmVoteModal(urlMatchId);
 }
 
 // Returnează toate rândurile (perechile) sesiunii din care face parte h — sau
@@ -3036,9 +3049,15 @@ function potmModalShell(innerHTML){
 function closePotmModal(){
     const overlay = document.getElementById('potmVoteOverlay');
     if (overlay) overlay.remove();
-    // Curățăm parametrul din URL ca un refresh accidental să nu redeschidă modalul
+    // Curățăm doar flagurile de VOT din URL, ca un refresh accidental să nu
+    // redeschidă modalul — dar păstrăm (sau adăugăm) match_id, ca utilizatorul
+    // să rămână fix pe ecranul acelui meci după ce a votat/a închis modalul.
     const url = new URL(location.href);
+    url.searchParams.delete('vote_potm');
     url.searchParams.delete('vote_match');
+    if (_potmMatch && !url.searchParams.get('match_id') && !url.searchParams.get('match')) {
+        url.searchParams.set('match_id', _potmMatch._dbId);
+    }
     history.replaceState({}, '', url);
 }
 
@@ -3194,7 +3213,7 @@ async function submitPotmVote(){
     }
 }
 
-loadAll().then(checkPotmVoteParam);
+loadAll().then(handleUrlDeepLink);
 </script>
 </body>
 </html>
