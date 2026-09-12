@@ -140,6 +140,8 @@ function getCurrentTeammates(p){
 // jucător cu MEDIA grupului lui de jucători cu ACELAȘI matchesPlayed.
 const DEFAULT_GOAL_BONUS_WEIGHT = 0.6; // ia locul fostului `s.goals*0.6`
 let GOAL_BONUS_WEIGHT = DEFAULT_GOAL_BONUS_WEIGHT;
+const DEFAULT_ASSIST_BONUS_WEIGHT = 0.4; // echivalentul goal bonus weight, dar pentru asisturi
+let ASSIST_BONUS_WEIGHT = DEFAULT_ASSIST_BONUS_WEIGHT;
 
 /**
  * computeGoalDeltaScores — primește un array de statistici de jucători
@@ -171,6 +173,44 @@ function computeGoalDeltaScores(playersStats, goalBonusWeight = GOAL_BONUS_WEIGH
         const groupAvg = s.matchesPlayed ? (avgByGroup[s.matchesPlayed] || 0) : 0;
         const deltaGoals = (s.goals||0) - groupAvg;
         return { ...s, groupAvgGoals: groupAvg, deltaGoals, goalScore: deltaGoals * goalBonusWeight };
+    });
+}
+
+// ── Totaluri de asisturi per jucător, din istoricul deja încărcat ──
+// h.playerAssists ({ playerName: assists }) e populat la procesarea
+// meciurilor (vezi loadAll în app.js) — exact "datele existente" cerute,
+// nu o sursă nouă.
+function getAllPlayersAssistTotals(){
+    const totals = {};
+    db.history.forEach(h=>{
+        Object.entries(h.playerAssists||{}).forEach(([name,a])=>{ totals[name] = (totals[name]||0) + a; });
+    });
+    return totals;
+}
+
+/**
+ * computeAssistDeltaScores — analog cu computeGoalDeltaScores, dar pentru
+ * asisturi: primește `{ name, assists, matchesPlayed }` per jucător și
+ * întoarce ACELAȘI array augmentat cu groupAvgAssists / deltaAssists /
+ * assistScore (deltaAssists * assistBonusWeight).
+ */
+function computeAssistDeltaScores(playersStats, assistBonusWeight = ASSIST_BONUS_WEIGHT){
+    const groups = {}; // matchesPlayed -> { totalAssists, count }
+    playersStats.forEach(s=>{
+        const mp = s.matchesPlayed;
+        if(!mp) return;
+        if(!groups[mp]) groups[mp] = { totalAssists:0, count:0 };
+        groups[mp].totalAssists += (s.assists||0);
+        groups[mp].count += 1;
+    });
+    const avgByGroup = {};
+    Object.keys(groups).forEach(mp=>{
+        avgByGroup[mp] = groups[mp].count ? groups[mp].totalAssists / groups[mp].count : 0;
+    });
+    return playersStats.map(s=>{
+        const groupAvg = s.matchesPlayed ? (avgByGroup[s.matchesPlayed] || 0) : 0;
+        const deltaAssists = (s.assists||0) - groupAvg;
+        return { ...s, groupAvgAssists: groupAvg, deltaAssists, assistScore: deltaAssists * assistBonusWeight };
     });
 }
 
@@ -367,6 +407,7 @@ const DEFAULT_EA_FORM_ACTIVITY_SCALE = 20;
 const DEFAULT_EA_FORM_IMBALANCE_PER  = 1.5;
 const DEFAULT_EA_FORM_TOTAL_CAP      = 12;
 const DEFAULT_EA_FORM_GOALS_CAP      = 4; // plafon puncte OVR din bonusul de goluri
+const DEFAULT_EA_FORM_ASSISTS_CAP    = 3; // plafon puncte OVR din bonusul de asisturi
 const DEFAULT_CAREER_ACHV_SCALE      = 1;   // puncte OVR per realizare istorică (MVP+POTM+premiu custom)
 const DEFAULT_CAREER_ACHV_CAP        = 6;   // plafon puncte OVR din realizări istorice
 
@@ -382,6 +423,7 @@ let EA_FORM_ACTIVITY_SCALE = DEFAULT_EA_FORM_ACTIVITY_SCALE;
 let EA_FORM_IMBALANCE_PER  = DEFAULT_EA_FORM_IMBALANCE_PER;
 let EA_FORM_TOTAL_CAP      = DEFAULT_EA_FORM_TOTAL_CAP;
 let EA_FORM_GOALS_CAP      = DEFAULT_EA_FORM_GOALS_CAP;
+let EA_FORM_ASSISTS_CAP    = DEFAULT_EA_FORM_ASSISTS_CAP;
 let CAREER_ACHV_SCALE      = DEFAULT_CAREER_ACHV_SCALE;
 let CAREER_ACHV_CAP        = DEFAULT_CAREER_ACHV_CAP;
 
@@ -425,6 +467,26 @@ function eaComputeGoalBonusDelta(p){
     return { delta, note };
 }
 
+/**
+ * eaComputeAssistBonusDelta — analog cu eaComputeGoalBonusDelta, dar pentru
+ * asisturi: Punctaj_Asisturi (deltaAssists * assistBonusWeight) pentru UN
+ * jucător, față de grupul tuturor jucătorilor cu activitate (games>0) și
+ * ACELAȘI număr de meciuri jucate. Plafonat la ±EA_FORM_ASSISTS_CAP.
+ */
+function eaComputeAssistBonusDelta(p){
+    if(!p.games) return { delta:0, note:null };
+    const assistTotals = getAllPlayersAssistTotals();
+    const roster = db.players
+        .filter(pl=>pl.games>0)
+        .map(pl=>({ name: pl.name, assists: assistTotals[pl.name]||0, matchesPlayed: pl.games }));
+    const scored = computeAssistDeltaScores(roster, ASSIST_BONUS_WEIGHT);
+    const mine = scored.find(s=>s.name===p.name);
+    if(!mine) return { delta:0, note:null };
+    const delta = Math.round(Math.max(-EA_FORM_ASSISTS_CAP, Math.min(EA_FORM_ASSISTS_CAP, mine.assistScore)));
+    const note = `${mine.assists} asisturi din ${p.games} meciuri vs media grupului (${mine.groupAvgAssists.toFixed(1)})`;
+    return { delta, note };
+}
+
 function eaComputeFormDelta(p, context = {}){
     if (!p.games || p.games < 3) return { delta:0, signals:[] };
     const signals = [];
@@ -464,6 +526,9 @@ function eaComputeFormDelta(p, context = {}){
 
     const goalBonus = eaComputeGoalBonusDelta(p);
     if (goalBonus.delta){ total+=goalBonus.delta; signals.push({icon:'⚽', label:'Performanță goluri (sezon curent)', note:goalBonus.note, delta:goalBonus.delta}); }
+
+    const assistBonus = eaComputeAssistBonusDelta(p);
+    if (assistBonus.delta){ total+=assistBonus.delta; signals.push({icon:'👟', label:'Performanță asisturi', note:assistBonus.note, delta:assistBonus.delta}); }
 
     const career = eaComputeCareerAchievementsDelta(p);
     if (career.delta){ total+=career.delta; signals.push({icon:'🏆', label:'Realizări istorice (toate sezoanele)', note:career.note, delta:career.delta}); }
@@ -605,6 +670,16 @@ const ALGO_FIELDS = [
       label:'Plafon (±) puncte OVR', unit:'OVR',
       min:0, max:15, step:1, default:DEFAULT_EA_FORM_GOALS_CAP,
       get:()=>EA_FORM_GOALS_CAP, set:v=>{EA_FORM_GOALS_CAP=v;} },
+
+    // ── Form Rating — Performanță Asisturi (NOU) ──
+    { key:'assist_bonus_weight', group:'👟 Performanță Asisturi (Form)',
+      label:'Pondere per assist peste/sub media grupului (matchesPlayed)', unit:'×',
+      min:0, max:3, step:0.1, default:DEFAULT_ASSIST_BONUS_WEIGHT,
+      get:()=>ASSIST_BONUS_WEIGHT, set:v=>{ASSIST_BONUS_WEIGHT=v;} },
+    { key:'ea_form_assists_cap', group:'👟 Performanță Asisturi (Form)',
+      label:'Plafon (±) puncte OVR', unit:'OVR',
+      min:0, max:15, step:1, default:DEFAULT_EA_FORM_ASSISTS_CAP,
+      get:()=>EA_FORM_ASSISTS_CAP, set:v=>{EA_FORM_ASSISTS_CAP=v;} },
 
     // ── Form Rating — Realizări Istorice (NOU — toate sezoanele) ──
     { key:'career_achv_scale', group:'🏆 Realizări Istorice (Form, toate sezoanele)',
