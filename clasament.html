@@ -735,12 +735,13 @@ function getRowPlaySeconds(h){
 
 const MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună
 
-// Calculează câștigătorul AUTOMAT (fără suprascriere manuală) pentru un set
-// de rânduri deja filtrate pe luna calendaristică dorită (vezi
-// computeMotmForMonth mai jos, care face filtrarea + aplică suprascrierea).
-// Semnătură cerută: computeMotmWinner(currentMonthRows).
-function computeMotmWinner(currentMonthRows){
-    if (!Array.isArray(currentMonthRows) || !currentMonthRows.length) return null;
+// Calculează statisticile TUTUROR jucătorilor cu minute în luna dată (rows
+// deja filtrate pe lună) — inclusiv cei SUB pragul de eligibilitate, cu
+// `eligible:false`. Extras separat de computeMotmWinner ca să poată fi
+// folosit și pentru banner-ul „în curs de conturare" (vezi renderMotmBanner)
+// atunci când ÎNCĂ nimeni nu a atins cele 2 sesiuni minime.
+function computeMotmCandidates(currentMonthRows){
+    if (!Array.isArray(currentMonthRows) || !currentMonthRows.length) return [];
 
     // Grupăm pe SESIUNE/meci (nu pe pereche) — o sesiune 3 echipe (3 perechi)
     // numără o singură dată la eligibilitate și la titlurile POTM/MVP.
@@ -784,16 +785,22 @@ function computeMotmWinner(currentMonthRows){
         }
     });
 
-    const candidates = Object.values(stats)
-        .filter(s => s.sessions >= MOTM_MIN_SESSIONS)
+    return Object.values(stats)
         .map(s => {
             const minutes = Math.round(s.seconds/60);
             const score = s.goals*1 + s.assists*1 + s.wins*0.5 + s.titles*2 + (s.seconds/60)/90;
-            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, minutes, titles:s.titles, sessions:s.sessions, score: Math.round(score*100)/100 };
+            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, minutes, titles:s.titles, sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
         })
-        .sort((a,b) => b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
+        .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
+}
 
-    return candidates[0] || null;
+// Calculează câștigătorul AUTOMAT (fără suprascriere manuală) pentru un set
+// de rânduri deja filtrate pe luna calendaristică dorită (vezi
+// computeMotmForMonth mai jos, care face filtrarea + aplică suprascrierea).
+// Semnătură cerută: computeMotmWinner(currentMonthRows).
+function computeMotmWinner(currentMonthRows){
+    const candidates = computeMotmCandidates(currentMonthRows);
+    return candidates.find(c => c.eligible) || null;
 }
 
 // Suprascriere manuală MOTM pentru o lună (monthKey = 'YYYY-MM') — vezi nota
@@ -1804,19 +1811,70 @@ function renderStreakBanner(){
 function renderMotmBanner(){
     const el = document.getElementById('motmBanner');
     if (!el) return;
-    const motm = getCurrentMonthMotm();
-    if (!motm) { el.style.display='none'; el.innerHTML=''; return; }
-    const monthLabel = formatMotmMonthLabel(getMonthKey(new Date()));
-    const subParts = motm.manual
-        ? ['ales manual de admin']
-        : [`${motm.goals} goluri`, `${motm.assists} assisturi`, `${motm.wins} victorii`, `${motm.minutes} min`];
+    const now = new Date();
+    const monthKey = getMonthKey(now);
+    const monthLabel = formatMotmMonthLabel(monthKey);
+
+    // Suprascrierea manuală (player_awards: title='MOTM', note=monthKey) are
+    // prioritate absolută — dacă e setată, o afișăm direct, indiferent de câte
+    // sesiuni s-au jucat până acum în lună.
+    const manual = getMotmManualOverride(monthKey);
+    if (manual) {
+        el.style.display = 'block';
+        el.innerHTML = `<div class="motm-banner-card" onclick="location.href='clasament.html?player='+encodeURIComponent('${manual.name.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+            <div class="motm-banner-icon">🏅</div>
+            <div style="flex:1;min-width:0;">
+                <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}<span class="motm-banner-manual">SETAT MANUAL</span></div>
+                <div class="motm-banner-name">${manual.name}</div>
+            </div>
+        </div>`;
+        return;
+    }
+
+    const rows = db.history.filter(h => {
+        const d = parseDateToObj(h.date);
+        return d && !isNaN(d.getTime()) && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+    });
+    const candidates = computeMotmCandidates(rows);
+    const winner = candidates.find(c => c.eligible);
+
+    if (winner) {
+        el.style.display = 'block';
+        el.innerHTML = `<div class="motm-banner-card" onclick="location.href='clasament.html?player='+encodeURIComponent('${winner.name.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+            <div class="motm-banner-icon">🏅</div>
+            <div style="flex:1;min-width:0;">
+                <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}</div>
+                <div class="motm-banner-name">${winner.name}</div>
+                <div class="motm-banner-sub">${winner.goals} goluri · ${winner.assists} assisturi · ${winner.wins} victorii · ${winner.minutes} min</div>
+            </div>
+        </div>`;
+        return;
+    }
+
+    // ÎNCĂ nimeni eligibil (prag: minim ${MOTM_MIN_SESSIONS} sesiuni/meciuri în
+    // lună) — în loc să ascundem tăcut banner-ul (greu de depanat/de văzut că
+    // funcționează), arătăm cine conduce provizoriu + progresul spre prag, sau
+    // un mesaj explicit dacă încă nu s-a jucat nimic luna asta.
+    if (candidates.length) {
+        const leader = candidates[0];
+        el.style.display = 'block';
+        el.innerHTML = `<div class="motm-banner-card" style="opacity:.85;">
+            <div class="motm-banner-icon">🏅</div>
+            <div style="flex:1;min-width:0;">
+                <div class="motm-banner-lbl">Omul Lunii · ${monthLabel} <span style="opacity:.8;font-weight:400;text-transform:none;letter-spacing:0;">(se conturează)</span></div>
+                <div class="motm-banner-name">${leader.name}</div>
+                <div class="motm-banner-sub">provizoriu, lider · ${leader.sessions}/${MOTM_MIN_SESSIONS} sesiuni jucate luna asta (prag minim de eligibilitate)</div>
+            </div>
+        </div>`;
+        return;
+    }
+
     el.style.display = 'block';
-    el.innerHTML = `<div class="motm-banner-card" onclick="location.href='clasament.html?player='+encodeURIComponent('${motm.name.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+    el.innerHTML = `<div class="motm-banner-card" style="opacity:.75;">
         <div class="motm-banner-icon">🏅</div>
         <div style="flex:1;min-width:0;">
-            <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}${motm.manual ? '<span class="motm-banner-manual">SETAT MANUAL</span>' : ''}</div>
-            <div class="motm-banner-name">${motm.name}</div>
-            <div class="motm-banner-sub">${subParts.join(' · ')}</div>
+            <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}</div>
+            <div class="motm-banner-sub">Niciun meci jucat încă luna asta.</div>
         </div>
     </div>`;
 }
@@ -2486,6 +2544,16 @@ function renderPlayerProfile(name){
                     <div class="pp-record-lbl">Victorii cu același coechipier</div>
                     ${teammate ? `<div class="pp-record-meta">${teammate.name}</div>` : ''}
                 </div>
+            </div>
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">🏆 TROFEE</div>
+            <div class="pp-grid" style="grid-template-columns:repeat(4,1fr);">
+                <div class="pp-stat"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">👑 MVP</div></div>
+                <div class="pp-stat"><div class="pp-stat-val">${p.careerPotmCount||0}</div><div class="pp-stat-lbl">⭐ POTM</div></div>
+                <div class="pp-stat"><div class="pp-stat-val">${myMotmMonths.length}</div><div class="pp-stat-lbl">🏅 MOTM</div></div>
+                <div class="pp-stat"><div class="pp-stat-val">${myAwards.length}</div><div class="pp-stat-lbl">🏆 Premii</div></div>
             </div>
         </div>
 
