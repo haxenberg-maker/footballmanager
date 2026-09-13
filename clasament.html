@@ -295,6 +295,13 @@ body{font-family:var(--font-body);background:
 .lb-ach-badge:hover{background:rgba(255,210,63,.18);}
 .lb-mini-chip-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
 .lb-mini-chip{display:inline-block;font-size:.62rem;font-weight:700;border-radius:6px;padding:1px 6px;border:1px solid;line-height:1.6;white-space:nowrap;}
+/* ── 📍 Identitate utilizator ("Cine ești?") — highlight peste tot unde apare
+   numele jucătorului salvat: carduri de meci, ecran detalii, ture, statistici. */
+.um-badge{display:inline-flex;align-items:center;gap:3px;font-size:.62rem;font-weight:700;color:#93b4ff;background:rgba(91,127,255,.16);border:1px solid rgba(91,127,255,.4);border-radius:6px;padding:2px 7px;white-space:nowrap;}
+.um-name{font-weight:800 !important;color:#dbe4ff !important;}
+.um-row{background:rgba(91,127,255,.2) !important;border-radius:6px;}
+.match-card.um-card{border-color:rgba(91,127,255,.5);box-shadow:0 4px 20px -10px rgba(0,0,0,.6), 0 0 0 1px rgba(91,127,255,.35) inset;}
+.mirror-row.um-row{background:rgba(91,127,255,.16) !important;}
 .pp-tabs{display:flex;gap:4px;margin-bottom:12px;}
 .pp-tab{padding:6px 14px;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-dim);transition:all .15s;}
 .pp-tab:hover{color:var(--ink);border-color:#334155;}
@@ -558,6 +565,30 @@ function syncUserIdentityName(){
     currentUserName = p ? p.name : null;
     // id salvat, dar jucătorul nu mai există (șters) — curățăm identitatea orfană.
     if (!p) { currentUserId = null; localStorage.removeItem(USER_IDENTITY_STORAGE_KEY); }
+}
+
+// Verifică dacă `playerName` (un nume dintr-un rând din db.history — meciurile
+// nu stochează id-uri de jucător, doar nume) e identitatea salvată. Ignoră
+// diacritice/spații/majuscule (normalizeSearchStr) — un "Ștefan " din DB tot
+// trebuie să se potrivească cu "Stefan" salvat altundeva. currentUserName e
+// deja derivat din currentUserId (sursa de adevăr, vezi syncUserIdentityName),
+// deci funcția asta acoperă implicit ambele cazuri (ID sau Nume).
+function isCurrentUser(playerName){
+    if (!playerName) return false;
+    const myName = currentUserName
+        || (currentUserId ? (db.players.find(p=>String(p.id)===String(currentUserId))||{}).name : null);
+    if (!myName) return false;
+    return normalizeSearchStr(playerName) === normalizeSearchStr(myName);
+}
+// A jucat identitatea salvată în acest rând (pereche/meci)? / în oricare din
+// aceste rânduri (o sesiune întreagă)? — folosit pentru insigna "📍 Joci în
+// acest meci" pe carduri și pentru accentul de bordură.
+function isUserInRow(h){
+    if (!h) return false;
+    return [...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])].some(isCurrentUser);
+}
+function isUserInRows(rows){
+    return Array.isArray(rows) && rows.some(isUserInRow);
 }
 
 // Populează dropdown-ul din header cu toți jucătorii (sortați alfabetic) —
@@ -1036,10 +1067,10 @@ function renderPairBodyPublic(h, opts){
     // Mod 2 echipe (showHattrick=false): fără mențiunea/logica de hat-trick —
     // doar un ⭐ MVP simplu, goluri afișate simplu (⚽/⚽×N) oriunde altundeva.
     const topScorerHTML = mvpWinner
-        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b>${mvpWinner.name}</b> ${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
+        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b class="${isCurrentUser(mvpWinner.name)?'um-name':''}">${mvpWinner.name}</b> ${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
         : '';
     const potmHTML = h.potmWinnerName
-        ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <b>${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}</div>`
+        ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <b class="${isCurrentUser(h.potmWinnerName)?'um-name':''}">${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}</div>`
         : '';
     return { teamsHTML, topScorerHTML, potmHTML, hattrick };
 }
@@ -1088,9 +1119,11 @@ function buildTwoTeamMatchDetails(h){
             const statsHtml = statsParts.length ? `<span class="mirror-stats">${statsParts.join(' ')}</span>` : '';
             const mvpBadge = n === mvpNameMirror ? '<span class="mirror-badge" title="MVP">🏆</span>' : '';
             const potmBadge = n === potmNameMirror ? '<span class="mirror-badge" title="POTM">⭐</span>' : '';
-            const nameHtml = `<span class="mirror-name" title="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
-            const badges = mvpBadge + potmBadge;
-            return `<div class="mirror-row mirror-row--${align}">
+            const iAmThis = isCurrentUser(n);
+            const meBadge = iAmThis ? '<span class="mirror-badge" title="Tu">📍</span>' : '';
+            const nameHtml = `<span class="mirror-name${iAmThis?' um-name':''}" title="${escapeHtml(n)}">${escapeHtml(n)}</span>`;
+            const badges = mvpBadge + potmBadge + meBadge;
+            return `<div class="mirror-row mirror-row--${align}${iAmThis?' um-row':''}">
                 <span class="mirror-namegroup">${ratingHtml}${nameHtml}</span>
                 <span class="mirror-statsgroup">${statsHtml}${badges}</span>
             </div>`;
@@ -1109,10 +1142,14 @@ function buildTwoTeamMatchDetails(h){
 
     const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
     const goalsHtml = normalGoals.length
-        ? normalGoals.map(g=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;">
-            <span style="color:${teamHex(g.team)};font-weight:700;">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${g.assist_name} 🅰️)</span>` : ''}</span>
+        ? normalGoals.map(g=>{
+            const iScored = isCurrentUser(g.player_name), iAssisted = isCurrentUser(g.assist_name);
+            const rowCls = (iScored||iAssisted) ? ' um-row' : '';
+            return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #1b2330;font-size:.72rem;" class="${rowCls}">
+            <span style="color:${teamHex(g.team)};font-weight:700;" class="${iScored?'um-name':''}">⚽ ${g.player_name}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;" class="${iAssisted?'um-name':''}">(${g.assist_name} 🅰️)</span>` : ''}</span>
             <span style="color:#8b96a8;">${g.minute!=null?`min ${g.minute}`:''}</span>
-        </div>`).join('')
+        </div>`;
+        }).join('')
         : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
     const listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}`;
 
@@ -1128,12 +1165,14 @@ function renderSingleMatchCard(h){
                    : '#8b96a8';
     const { topScorerHTML, potmHTML } = renderPairBodyPublic(h, { showHattrick: false });
     const badgesHTML = (topScorerHTML || potmHTML) ? `<div class="mc-badges" style="margin-top:8px;">${topScorerHTML}${potmHTML}</div>` : '';
-    return `<div class="match-card mc-clickable" onclick="showMatchDetail('${h._dbId}')">
+    const iPlayed = isUserInRow(h);
+    return `<div class="match-card mc-clickable${iPlayed?' um-card':''}" onclick="showMatchDetail('${h._dbId}')">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
             <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
         </div>
         <div class="match-card-body">
+            ${iPlayed ? `<span class="um-badge">📍 Joci în acest meci</span>` : ''}
             ${badgesHTML}
             <div class="mc-details-toggle" style="pointer-events:none;">📋 Vezi detalii complete</div>
         </div>
@@ -1194,7 +1233,7 @@ function renderSessionCard(rows){
             <div class="mc-timeline-content">
                 <div class="mc-timeline-teams">${idx===0?'▶ START · ':''}${tA||'?'} vs ${tB||'?'}</div>
                 <div class="mc-timeline-score">ture ${h.score||'—'} · câștigă ${h.winner||'—'}</div>
-                ${h.topScorer ? `<div class="mc-timeline-scorer">${h.topScorer.goals>=3?'🎩':'⚽'} ${h.topScorer.name} ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}</div>` : ''}
+                ${h.topScorer ? `<div class="mc-timeline-scorer${isCurrentUser(h.topScorer.name)?' um-name':''}">${h.topScorer.goals>=3?'🎩':'⚽'} ${h.topScorer.name} ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}</div>` : ''}
             </div>
         </div>`;
     }).join('');
@@ -1204,17 +1243,19 @@ function renderSessionCard(rows){
     // perechi (buildSessionPairSelectorHtml) permite comutarea la oricare
     // dintre celelalte. Butoanele/rândurile interne (timeline) fac
     // event.stopPropagation() ca să nu declanșeze și click-ul cardului.
-    return `<div class="match-card mc-clickable" onclick="showMatchDetail('${first._dbId}')">
+    const iPlayedSession = isUserInRows(chrono);
+    return `<div class="match-card mc-clickable${iPlayedSession?' um-card':''}" onclick="showMatchDetail('${first._dbId}')">
         <div class="match-card-hero" style="background:linear-gradient(135deg,#5b7fff,#a78bfa);">
             <div class="mc-date">${first.date||'—'}</div>
             <div class="mc-title">🎮 Sesiune 3 Echipe · ${chrono.length} meciuri jucate</div>
         </div>
         <div class="match-card-body">
+            ${iPlayedSession ? `<span class="um-badge">📍 Joci în acest meci</span>` : ''}
             <div class="mc-standing">${standingHTML}</div>
             <div class="mc-badges">
-                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: ${sessionTop.name} (${sessionTop.goals} goluri · ${sessionTop.assists||0} assist · ${sessionTop.minutes} min)</div>` : ''}
-                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: ${sessionPotmPlayer.name}${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
-                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: ${sessionPenTop.name} (${sessionPenTop.goals})</div>` : ''}
+                ${sessionTop ? `<div class="mc-badge" style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#34d399;">⭐ MVP: <span class="${isCurrentUser(sessionTop.name)?'um-name':''}">${sessionTop.name}</span> (${sessionTop.goals} goluri · ${sessionTop.assists||0} assist · ${sessionTop.minutes} min)</div>` : ''}
+                ${sessionPotmPlayer ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <span class="${isCurrentUser(sessionPotmPlayer.name)?'um-name':''}">${sessionPotmPlayer.name}</span>${sessionPotmSource==='voted'?` <span style="font-weight:400;">(${sessionPotmVotes[String(sessionPotmWinnerId)]||0} voturi)</span>`:' <span style="font-weight:400;">(manual)</span>'}</div>` : ''}
+                ${sessionPenTop ? `<div class="mc-badge" style="background:rgba(139,150,168,.1);border:1px solid rgba(139,150,168,.3);color:#8b96a8;">🥅 Penalty: <span class="${isCurrentUser(sessionPenTop.name)?'um-name':''}">${sessionPenTop.name}</span> (${sessionPenTop.goals})</div>` : ''}
             </div>
             <div class="mc-timeline" style="margin-top:10px;">${timelineHTML}</div>
             <div class="mc-details-toggle" style="pointer-events:none;margin-top:10px;">📋 Vezi detalii complete</div>
@@ -1401,7 +1442,7 @@ function buildRoundsTimelineHtml(h){
     const rosterInner = pairTeams.length ? `<div style="display:flex;justify-content:space-between;gap:10px;">
             ${pairTeams.map(t=>`<div style="flex:1;min-width:0;">
                 <div style="font-size:.62rem;font-weight:700;color:${teamHex(t.col)};margin-bottom:2px;">${escapeHtml(t.name)}</div>
-                ${t.players.map(n=>`<div style="font-size:.68rem;color:#c7d0dd;">${escapeHtml(n)}</div>`).join('')}
+                ${t.players.map(n=>`<div style="font-size:.68rem;color:#c7d0dd;" class="${isCurrentUser(n)?'um-name':''}">${escapeHtml(n)}${isCurrentUser(n)?' 📍':''}</div>`).join('')}
             </div>`).join('')}
         </div>` : '';
     const turHtml = h.roundsDetail.map((r,ri)=>{
@@ -1409,7 +1450,10 @@ function buildRoundsTimelineHtml(h){
         const ds = r.duration_sec ? r.duration_sec%60 : 0;
         const durStr = r.duration_sec ? `${dm}:${String(ds).padStart(2,'0')}` : '—';
         const goalsHtml = Array.isArray(r.goals) && r.goals.length
-            ? r.goals.map(g=>`<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;">⚽ ${escapeHtml(g.player_name)}${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;">(${escapeHtml(g.assist_name)} 🅰️)</span>` : ''}${g.minute!=null ? ` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>` : ''}</div>`).join('')
+            ? r.goals.map(g=>{
+                const iScored = isCurrentUser(g.player_name), iAssisted = isCurrentUser(g.assist_name);
+                return `<div style="font-size:.68rem;color:${teamHex(g.team)};font-weight:700;" class="${(iScored||iAssisted)?'um-row':''}"><span class="${iScored?'um-name':''}">⚽ ${escapeHtml(g.player_name)}</span>${g.assist_name ? ` <span style="color:#60a5fa;font-weight:500;" class="${iAssisted?'um-name':''}">(${escapeHtml(g.assist_name)} 🅰️)</span>` : ''}${g.minute!=null ? ` <span style="color:#8b96a8;font-weight:400;">min ${g.minute}${g._reconstructed?' ~':''}</span>` : ''}</div>`;
+            }).join('')
             : `<div style="font-size:.66rem;color:#5b6577;">${anyGoalsData ? 'Fără goluri în această tură' : 'Detalii indisponibile'}</div>`;
         const roundWinnerName = getRoundWinnerName(h, r);
         const winnerHtml = roundWinnerName
@@ -1448,6 +1492,18 @@ function buildMatchStatsTabHtml(h, hasRounds, sessionRows){
     const rows = hasRounds ? (sessionRows||[h]) : [h];
     const standingColor = { Portocaliu: teamColorsPublic.orange, Verde: teamColorsPublic.green, Negru: teamColorsPublic.black };
 
+    // Echipa din care face parte identitatea salvată (dacă a jucat aici) —
+    // folosită ca să evidențiem rândul EI în bara "timp pe teren per echipă"
+    // (acolo statisticile sunt per echipă, nu per jucător individual).
+    let myTeamName = null;
+    if (currentUserName || currentUserId) {
+        for (const r of rows) {
+            if ((r.orangePlayers||[]).some(isCurrentUser)) { myTeamName = 'Portocaliu'; break; }
+            if ((r.greenPlayers ||[]).some(isCurrentUser)) { myTeamName = 'Verde'; break; }
+            if ((r.blackPlayers ||[]).some(isCurrentUser)) { myTeamName = 'Negru'; break; }
+        }
+    }
+
     let timeBlockHtml = '';
     if (hasRounds) {
         const teamSeconds = {};
@@ -1465,9 +1521,10 @@ function buildMatchStatsTabHtml(h, hasRounds, sessionRows){
                 ${teamTimeList.map((t,i)=>{
                     const mm = Math.floor(t.sec/60), ss = t.sec%60;
                     const pct = maxTeamSec>0 ? Math.round((t.sec/maxTeamSec)*100) : 0;
-                    return `<div style="margin-bottom:8px;">
+                    const isMyTeam = t.name === myTeamName;
+                    return `<div style="margin-bottom:8px;padding:${isMyTeam?'4px 6px':'0'};" class="${isMyTeam?'um-row':''}">
                         <div style="display:flex;justify-content:space-between;font-size:.74rem;font-weight:700;margin-bottom:3px;">
-                            <span style="color:${t.hex};">${i===0?'👑 ':''}${escapeHtml(t.name)}</span>
+                            <span style="color:${t.hex};" class="${isMyTeam?'um-name':''}">${i===0?'👑 ':''}${escapeHtml(t.name)}${isMyTeam?' 📍':''}</span>
                             <span style="color:#f3f6fa;">${mm}:${String(ss).padStart(2,'0')}</span>
                         </div>
                         <div style="background:#141a24;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${t.hex};"></div></div>
@@ -1499,12 +1556,13 @@ function buildMatchStatsTabHtml(h, hasRounds, sessionRows){
         <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:8px;">⚽ Goluri + assisturi${hasRounds?' — toată sesiunea':''}</div>
         ${contribRows.map(r=>{
             const pct = Math.round((r.total/maxContrib)*100);
-            return `<div style="margin-bottom:8px;">
+            const iAmThis = isCurrentUser(r.name);
+            return `<div style="margin-bottom:8px;padding:${iAmThis?'4px 6px':'0'};" class="${iAmThis?'um-row':''}">
                 <div style="display:flex;justify-content:space-between;font-size:.74rem;margin-bottom:3px;">
-                    <span style="font-weight:700;color:#f3f6fa;">${escapeHtml(r.name)}</span>
+                    <span style="font-weight:700;color:#f3f6fa;" class="${iAmThis?'um-name':''}">${escapeHtml(r.name)}${iAmThis?' 📍':''}</span>
                     <span style="color:#8b96a8;">${r.goals>0?`⚽${r.goals>1?'×'+r.goals:''} `:''}${r.assists>0?`🅰️${r.assists>1?'×'+r.assists:''}`:''}</span>
                 </div>
-                <div style="background:#141a24;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#5b7fff;"></div></div>
+                <div style="background:#141a24;border-radius:6px;height:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${iAmThis?'#93b4ff':'#5b7fff'};"></div></div>
             </div>`;
         }).join('')}
     </div>` : `<div style="font-size:.72rem;color:#5b6577;">Niciun gol înregistrat.</div>`;
@@ -1557,7 +1615,7 @@ function renderMatchDetailScreen(dbId){
         <span class="md-badge-icon">🏆</span>
         <div class="md-badge-body">
             <div class="md-badge-lbl">MVP ${hasRounds?'Sesiune':'Meci'}</div>
-            <div class="md-badge-name">${escapeHtml(mvp.name)}</div>
+            <div class="md-badge-name${isCurrentUser(mvp.name)?' um-name':''}">${escapeHtml(mvp.name)}${isCurrentUser(mvp.name)?' 📍':''}</div>
             <div class="md-badge-sub">⚽${mvp.goals} · 🅰️${mvp.assists} · ⏱${mvp.minutes} min</div>
         </div>
     </div>` : '';
@@ -1565,7 +1623,7 @@ function renderMatchDetailScreen(dbId){
         <span class="md-badge-icon">⭐</span>
         <div class="md-badge-body">
             <div class="md-badge-lbl">POTM</div>
-            <div class="md-badge-name">${escapeHtml(potmName)}</div>
+            <div class="md-badge-name${isCurrentUser(potmName)?' um-name':''}">${escapeHtml(potmName)}${isCurrentUser(potmName)?' 📍':''}</div>
         </div>
     </div>` : '';
 
