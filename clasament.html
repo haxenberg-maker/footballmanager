@@ -337,6 +337,22 @@ body{font-family:var(--font-body);background:
 .pp-ach-progress-lbl{font-family:var(--font-mono);font-size:.74rem;color:var(--ink-dim);margin-bottom:14px;}
 .pp-ach-close{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 18px;font-size:.76rem;font-weight:700;cursor:pointer;}
 .pp-ach-close:hover{border-color:var(--accent);}
+.pp-trophy-card{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:20px;max-width:380px;width:100%;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 12px 32px -8px rgba(0,0,0,.6);}
+.pp-trophy-header{display:flex;align-items:center;gap:10px;margin-bottom:2px;}
+.pp-trophy-emoji{font-size:1.8rem;line-height:1;}
+.pp-trophy-title{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);}
+.pp-trophy-count{font-size:.68rem;color:var(--ink-dim);margin-bottom:10px;}
+.pp-trophy-list{overflow-y:auto;flex:1;margin:2px 0 14px;}
+.pp-trophy-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #232c3c;}
+.pp-trophy-row:last-child{border-bottom:none;}
+.pp-trophy-row-date{font-size:.76rem;font-weight:700;color:var(--ink);white-space:nowrap;}
+.pp-trophy-row-sub{font-size:.7rem;color:var(--ink-dim);text-align:right;}
+.pp-trophy-empty{font-size:.78rem;color:var(--ink-faint);text-align:center;padding:20px 0;}
+.pp-trophy-close{background:var(--surface-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 18px;font-size:.76rem;font-weight:700;cursor:pointer;align-self:center;}
+.pp-trophy-close:hover{border-color:var(--accent);}
+.pp-stat.pp-stat-clickable{cursor:pointer;transition:transform .1s;}
+.pp-stat.pp-stat-clickable:hover{transform:translateY(-1px);}
+.pp-stat.pp-stat-clickable:active{transform:translateY(0);}
 </style>
 </head>
 <body>
@@ -355,6 +371,7 @@ body{font-family:var(--font-body);background:
     <div id="playerProfileWrap" style="display:none;"></div>
     <div id="matchDetailWrap" style="display:none;"></div>
     <div id="achModalWrap"></div>
+    <div id="trophyModalWrap"></div>
     <div id="comparePageWrap" style="display:none;"></div>
     <div id="ppAchModalWrap"></div>
 
@@ -865,8 +882,38 @@ function getMotmMonthsWonBy(playerName){
             return { monthKey, winner: computeMotmForMonth(y, m-1) };
         })
         .filter(x => x.winner && x.winner.name === playerName)
-        .map(x => ({ monthKey: x.monthKey, manual: x.winner.manual, isCurrent: x.monthKey === nowKey }))
+        .map(x => ({
+            monthKey: x.monthKey, manual: x.winner.manual, isCurrent: x.monthKey === nowKey,
+            // Statistici lunii — doar pentru câștigul AUTOMAT (calculat); la o
+            // suprascriere manuală (player_awards) nu există un scor de arătat.
+            goals: x.winner.goals, assists: x.winner.assists, wins: x.winner.wins, minutes: x.winner.minutes,
+        }))
         .sort((a,b) => b.monthKey.localeCompare(a.monthKey));
+}
+
+// ── Istoric detaliat pe tip de trofeu, pentru modalul de pe profil ─────
+// Toate calculate pe ÎNTREG istoricul (all-time), la fel ca
+// p.careerMvpCount/p.careerPotmCount/myMotmMonths.length de mai sus.
+function getPlayerMvpHistory(playerName){
+    const out = [];
+    groupHistoryForDisplay(db.history).forEach(item => {
+        const winner = computeSessionMvpWinner(item.rows);
+        if (winner && winner.name === playerName) {
+            out.push({ date: item.rows[0].date, goals: winner.goals, assists: winner.assists, minutes: winner.minutes });
+        }
+    });
+    return out.sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+}
+
+function getPlayerPotmHistory(playerId){
+    const out = [];
+    groupHistoryForDisplay(db.history).forEach(item => {
+        const { winnerId, source, votes } = computePotmWinnerForRows(item.rows);
+        if (winnerId === playerId) {
+            out.push({ date: item.rows[0].date, votes: source==='voted' ? (votes[String(winnerId)]||0) : null, manual: source==='manual' });
+        }
+    });
+    return out.sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
 }
 
 // Markup comun (scoruri per echipă + golgheter) pentru o pereche
@@ -2550,25 +2597,12 @@ function renderPlayerProfile(name){
         <div class="stats-section" style="margin-bottom:14px;">
             <div class="pp-section-title">🏆 TROFEE</div>
             <div class="pp-grid" style="grid-template-columns:repeat(4,1fr);">
-                <div class="pp-stat"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">👑 MVP</div></div>
-                <div class="pp-stat"><div class="pp-stat-val">${p.careerPotmCount||0}</div><div class="pp-stat-lbl">⭐ POTM</div></div>
-                <div class="pp-stat"><div class="pp-stat-val">${myMotmMonths.length}</div><div class="pp-stat-lbl">🏅 MOTM</div></div>
-                <div class="pp-stat"><div class="pp-stat-val">${myAwards.length}</div><div class="pp-stat-lbl">🏆 Premii</div></div>
+                <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('mvp')"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">👑 MVP</div></div>
+                <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('potm')"><div class="pp-stat-val">${p.careerPotmCount||0}</div><div class="pp-stat-lbl">⭐ POTM</div></div>
+                <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('motm')"><div class="pp-stat-val">${myMotmMonths.length}</div><div class="pp-stat-lbl">🏅 MOTM</div></div>
+                <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('custom')"><div class="pp-stat-val">${myAwards.length}</div><div class="pp-stat-lbl">🏆 Premii</div></div>
             </div>
         </div>
-
-        ${myMotmMonths.length ? `
-        <div class="stats-section" style="margin-bottom:14px;">
-            <div class="pp-section-title">🏅 OMUL LUNII</div>
-            <div class="pp-chip-row">
-                ${myMotmMonths.map(m=>`
-                    <div class="pp-chip">
-                        <div class="pp-chip-emoji">🏅</div>
-                        <div class="pp-chip-lbl">${formatMotmMonthLabel(m.monthKey)}</div>
-                        <div class="pp-card-sub" style="margin-top:2px;">${m.isCurrent ? 'luna curentă' : ''}${m.manual ? (m.isCurrent?' · ':'')+'setat manual' : ''}</div>
-                    </div>`).join('')}
-            </div>
-        </div>` : ''}
 
         ${myAwards.length ? `
         <div class="stats-section" style="margin-bottom:14px;">
@@ -2698,6 +2732,59 @@ function showAchievementInfo(i){
 
 function closeAchievementInfo(){
     document.getElementById('achModalWrap').innerHTML = '';
+}
+
+// Popup cu istoricul detaliat pentru un tip de trofeu (👑 MVP / ⭐ POTM /
+// 🏅 MOTM / 🏆 Premii custom), deschis la click pe insignele din secțiunea
+// TROFEE a profilului. Jucătorul curent al profilului = highlightPlayer
+// (global, setat din ?player=Nume — la fel ca restul paginii de profil).
+function showTrophyDetail(type){
+    const p = db.players.find(x=>x.name===highlightPlayer);
+    if (!p) return;
+
+    let title, emoji, rows;
+    if (type === 'mvp') {
+        title = 'MVP — istoric'; emoji = '👑';
+        rows = getPlayerMvpHistory(p.name).map(m => ({
+            left: ppFormatDate(m.date),
+            right: `${m.goals} gol${m.goals!==1?'uri':''} · ${m.assists} assist${m.assists!==1?'uri':''}`,
+        }));
+    } else if (type === 'potm') {
+        title = 'POTM — istoric'; emoji = '⭐';
+        rows = getPlayerPotmHistory(p.id).map(m => ({
+            left: ppFormatDate(m.date),
+            right: m.manual ? 'setat manual' : `${m.votes} vot${m.votes!==1?'uri':''}`,
+        }));
+    } else if (type === 'motm') {
+        title = 'Omul Lunii — istoric'; emoji = '🏅';
+        rows = getMotmMonthsWonBy(p.name).map(m => ({
+            left: formatMotmMonthLabel(m.monthKey) + (m.isCurrent ? ' (curentă)' : ''),
+            right: m.manual ? 'setat manual' : `${m.goals} goluri · ${m.assists} assisturi`,
+        }));
+    } else if (type === 'custom') {
+        title = 'Premii speciale'; emoji = '🏆';
+        rows = (db.playerAwards||[]).filter(a=>a.player_id===p.id).map(a => ({
+            left: `${a.icon||'🏆'} ${a.title}`,
+            right: [a.season, a.note].filter(Boolean).join(' · ') || '—',
+        }));
+    } else return;
+
+    const listHtml = rows.length
+        ? rows.map(r => `<div class="pp-trophy-row"><div class="pp-trophy-row-date">${r.left}</div><div class="pp-trophy-row-sub">${r.right}</div></div>`).join('')
+        : `<div class="pp-trophy-empty">Niciun titlu încă.</div>`;
+
+    document.getElementById('trophyModalWrap').innerHTML = `
+        <div class="pp-ach-backdrop" onclick="if(event.target===this) closeTrophyDetail()">
+            <div class="pp-trophy-card">
+                <div class="pp-trophy-header"><div class="pp-trophy-emoji">${emoji}</div><div class="pp-trophy-title">${title}</div></div>
+                <div class="pp-trophy-count">${p.name} · ${rows.length} total</div>
+                <div class="pp-trophy-list">${listHtml}</div>
+                <button class="pp-trophy-close" onclick="closeTrophyDetail()">Închide</button>
+            </div>
+        </div>`;
+}
+function closeTrophyDetail(){
+    document.getElementById('trophyModalWrap').innerHTML = '';
 }
 
 // Meciuri directe (echipe diferite, în același meci) între doi jucători —
