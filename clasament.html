@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="smart-rating.js?v=20260904a"></script>
 <style>
 :root {
@@ -248,6 +249,38 @@ body{font-family:var(--font-body);background:
 
 /* ── Player Profile ── */
 .pp-back{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:var(--ink-dim);background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;margin-bottom:12px;transition:all .15s;}
+.share-match-btn{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:#fff;background:linear-gradient(135deg,#22357a,#5b7fff);border:1px solid #5b7fff;border-radius:9px;padding:7px 14px;cursor:pointer;transition:filter .15s;}
+.share-match-btn:hover{filter:brightness(1.1);}
+.share-match-btn:disabled{opacity:.6;cursor:default;}
+/* ── #matchShareCard — cardul convertit în imagine PNG (html2canvas). Randat
+   offscreen (poziționat în afara ecranului, NU display:none — html2canvas nu
+   poate desena elemente ne-randate), la dimensiune fixă 540×675 (raport 4:5,
+   gen story/card sportiv), exportat cu scale:2 → 1080×1350 final. */
+#matchShareCardWrap{position:fixed;top:0;left:-99999px;pointer-events:none;z-index:-1;}
+#matchShareCard{width:540px;min-height:675px;box-sizing:border-box;padding:28px 26px;background:linear-gradient(160deg,#0b0f16,#161d2c 55%,#0b0f16);font-family:'Inter',sans-serif;color:#f3f6fa;display:flex;flex-direction:column;}
+.msc-header{text-align:center;margin-bottom:16px;}
+.msc-brand{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#5b7fff;}
+.msc-date{font-size:.8rem;color:#8b96a8;margin-top:2px;}
+.msc-tag{display:inline-block;margin-top:8px;font-size:.68rem;font-weight:700;color:#a78bfa;background:rgba(167,139,250,.14);border:1px solid rgba(167,139,250,.4);border-radius:20px;padding:4px 14px;}
+.msc-score-big{text-align:center;font-family:'Bebas Neue',sans-serif;font-size:3.2rem;line-height:1;margin:14px 0 6px;}
+.msc-teams-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+.msc-team-name{font-weight:800;font-size:1.15rem;flex:1;}
+.msc-table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+.msc-table th{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;text-align:left;padding:0 6px 8px;font-weight:700;}
+.msc-table th:not(:first-child){text-align:center;}
+.msc-table td{font-size:.86rem;padding:8px 6px;border-top:1px solid #262f3f;}
+.msc-table td:not(:first-child){text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.05rem;}
+.msc-team-cell{display:flex;align-items:center;gap:7px;font-weight:800;}
+.msc-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.msc-section-title{font-size:.62rem;text-transform:uppercase;letter-spacing:1.4px;color:#8b96a8;font-weight:700;margin:14px 0 8px;}
+.msc-highlight{display:flex;align-items:center;gap:10px;background:#161d2c;border:1px solid #262f3f;border-radius:12px;padding:11px 13px;margin-bottom:8px;}
+.msc-highlight-icon{font-size:1.5rem;}
+.msc-highlight-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;font-weight:700;}
+.msc-highlight-name{font-weight:800;font-size:1rem;}
+.msc-highlight-sub{font-size:.7rem;color:#8b96a8;}
+.msc-pair-row{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;padding:6px 0;border-bottom:1px solid #1b2330;}
+.msc-footer{margin-top:auto;padding-top:16px;text-align:center;font-size:.66rem;color:#5b6577;}
+
 .pp-back:hover{color:var(--ink);border-color:#334155;}
 .pp-header{background:linear-gradient(135deg,#1c2740,#05070a);border:1px solid rgba(91,127,255,.35);box-shadow:0 0 0 1px rgba(91,127,255,.08),0 8px 24px -8px rgba(91,127,255,.35);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
 .pp-num{font-family:var(--font-display);font-size:1.1rem;color:var(--ink-faint);letter-spacing:1px;}
@@ -377,6 +410,7 @@ body{font-family:var(--font-body);background:
             <div class="hd-sub">Arena Friends FC · doar afișare</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
+            <button id="myProfileBtn" class="pp-back" style="display:none;margin:0;" onclick="goToMyProfile()">👤 Profilul Meu</button>
             <select id="userIdentitySelect" class="user-identity-select" onchange="setUserIdentity(this.value)">
                 <option value="">👤 Cine ești?</option>
             </select>
@@ -388,6 +422,7 @@ body{font-family:var(--font-body);background:
     <div id="matchDetailWrap" style="display:none;"></div>
     <div id="achModalWrap"></div>
     <div id="trophyModalWrap"></div>
+    <div id="matchShareCardWrap"><div id="matchShareCard"></div></div>
     <div id="comparePageWrap" style="display:none;"></div>
     <div id="ppAchModalWrap"></div>
 
@@ -601,6 +636,21 @@ function populateUserIdentitySelect(){
     sel.innerHTML = '<option value="">👤 Cine ești?</option>'
         + names.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     sel.value = currentUserId || '';
+    updateMyProfileBtnVisibility();
+}
+
+// Arată/ascunde butonul "👤 Profilul Meu" din header — vizibil doar când
+// există o identitate salvată (currentUserId), altfel n-are ce deschide.
+function updateMyProfileBtnVisibility(){
+    const btn = document.getElementById('myProfileBtn');
+    if (!btn) return;
+    btn.style.display = currentUserId ? 'inline-flex' : 'none';
+}
+function goToMyProfile(){
+    if (!currentUserId) return;
+    const p = db.players.find(x => String(x.id) === String(currentUserId));
+    if (!p) return;
+    location.href = 'clasament.html?player=' + encodeURIComponent(p.name);
 }
 
 // Apelat din dropdown-ul din header (onchange) ȘI din Pasul 1 al votului POTM
@@ -612,6 +662,7 @@ function setUserIdentity(pid){
     syncUserIdentityName();
     const sel = document.getElementById('userIdentitySelect');
     if (sel) sel.value = currentUserId || '';
+    updateMyProfileBtnVisibility();
     // Re-randăm tot ce arată highlight-ul de "tu" — clasament (rânduri +
     // Top 10 Formă) și, dacă suntem pe profil, banner-ul MOTM/streak nu se
     // schimbă, dar clasamentul da.
@@ -1659,7 +1710,10 @@ function renderMatchDetailScreen(dbId){
     }
 
     wrap.innerHTML = `
-        <div class="pp-back" onclick="hideMatchDetail()">← Înapoi la Meciuri</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+            <div class="pp-back" style="margin:0;" onclick="hideMatchDetail()">← Înapoi la Meciuri</div>
+            <button type="button" class="share-match-btn" onclick="shareMatch('${h._dbId}', this)">📲 Distribuie Meci</button>
+        </div>
         <div class="match-detail-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="md-date">${h.date||'—'}</div>
             <div class="md-teams-score">
@@ -1688,6 +1742,172 @@ function buildSessionPairSelectorHtml(sessionRows, activeDbId){
         return `<button type="button" class="md-pair-btn${isActive?' active':''}" ${isActive?'aria-current="true"':''} onclick="selectSessionPair('${r._dbId}')">${teamEmojiPublic[t1]||''} ${escapeHtml(t1||'?')}<span class="md-pair-vs">vs</span>${teamEmojiPublic[t2]||''} ${escapeHtml(t2||'?')}</button>`;
     }).join('');
     return `<div class="md-pair-selector">${btns}</div>`;
+}
+
+// ── 📲 Share Meci — construiește markup-ul cardului convertit în imagine
+// (html2canvas, vezi shareMatch() mai jos). Structură diferită pentru sesiune
+// 3 echipe (mini-tabelă clasament + rezultate perechi) vs meci simplu 2 echipe
+// (scor mare + golgheteri). Reutilizează exact aceleași funcții de calcul ca
+// restul aplicației (computeSessionMvpWinner/computePotmWinnerForRows) — nimic
+// reinventat, deci cardul de share arată mereu la fel cu ecranul de detalii.
+const standingColorPublic = { Portocaliu: teamColorsPublic.orange, Verde: teamColorsPublic.green, Negru: teamColorsPublic.black };
+
+function buildShareCardHtml(h){
+    const hasRounds = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+    const dateStr = h.date || '—';
+
+    if (hasRounds) {
+        const sessionRows = getSessionRowsFor(h);
+        const chrono = [...sessionRows].reverse();
+
+        // Clasament 3 echipe: meciuri jucate/câștigate, ture câștigate, goluri
+        const teamPlayed = {}, teamWon = {}, teamRoundsWon = {}, teamGoals = {};
+        chrono.forEach(r => {
+            getRowTeamNames(r).forEach(t => { teamPlayed[t] = (teamPlayed[t]||0) + 1; });
+            if (r.winner) teamWon[r.winner] = (teamWon[r.winner]||0) + 1;
+            (r.roundsDetail||[]).forEach(rd => {
+                const rw = getRoundWinnerName(r, rd);
+                if (rw) teamRoundsWon[rw] = (teamRoundsWon[rw]||0) + 1;
+            });
+            const tg = r.teamGoals || {};
+            teamGoals['Portocaliu'] = (teamGoals['Portocaliu']||0) + (tg.orange||0);
+            teamGoals['Verde']      = (teamGoals['Verde']||0)      + (tg.green||0);
+            teamGoals['Negru']      = (teamGoals['Negru']||0)      + (tg.black||0);
+        });
+        const teamsOrder = ['Portocaliu','Verde','Negru'].filter(t => teamPlayed[t] > 0);
+        const tableRows = teamsOrder.map(t => `<tr>
+            <td><div class="msc-team-cell"><span class="msc-dot" style="background:${standingColorPublic[t]};"></span>${t}</div></td>
+            <td>${teamWon[t]||0}/${teamPlayed[t]||0}</td>
+            <td>${teamRoundsWon[t]||0}</td>
+            <td>${teamGoals[t]||0}</td>
+        </tr>`).join('');
+
+        const mvp = computeSessionMvpWinner(chrono);
+        const { winnerId: potmId, source: potmSource, votes: potmVotes } = computePotmWinnerForRows(chrono);
+        const potmPlayer = potmId != null ? db.players.find(p=>p.id===potmId) : null;
+
+        // Golgheteri sesiune — total goluri per jucător, hat-trick-urile (3+)
+        // ies în evidență separat de restul topului.
+        const totalGoals = {};
+        chrono.forEach(r => { Object.entries(r.playerGoals||{}).forEach(([n,g]) => { totalGoals[n] = (totalGoals[n]||0) + g; }); });
+        const scorers = Object.entries(totalGoals).filter(([,g])=>g>0).sort((a,b)=>b[1]-a[1]);
+        const hattricks = scorers.filter(([,g]) => g >= 3);
+        const topScorers = scorers.slice(0, 3);
+
+        const pairResultsHtml = chrono.map(r => {
+            const [tA, tB] = getRowTeamNames(r);
+            return `<div class="msc-pair-row">
+                <span>${teamEmojiPublic[tA]||''} ${escapeHtml(tA||'?')} <span style="color:#5b6577;">vs</span> ${teamEmojiPublic[tB]||''} ${escapeHtml(tB||'?')}</span>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;">${escapeHtml(r.score||'—')}</span>
+            </div>`;
+        }).join('');
+
+        return `
+            <div class="msc-header">
+                <div class="msc-brand">ARENA FRIENDS FC</div>
+                <div class="msc-date">${escapeHtml(dateStr)}</div>
+                <div class="msc-tag">🎮 Sesiune 3 Echipe</div>
+            </div>
+            <table class="msc-table">
+                <thead><tr><th>Echipă</th><th>V/M</th><th>Ture</th><th>Goluri</th></tr></thead>
+                <tbody>${tableRows}</tbody>
+            </table>
+            <div class="msc-section-title">Repere</div>
+            ${mvp ? `<div class="msc-highlight"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP Sesiune</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri · ${mvp.assists} assist · ${mvp.minutes} min</div></div></div>` : ''}
+            ${potmPlayer ? `<div class="msc-highlight"><span class="msc-highlight-icon">⭐</span><div><div class="msc-highlight-lbl">POTM</div><div class="msc-highlight-name">${escapeHtml(potmPlayer.name)}</div><div class="msc-highlight-sub">${potmSource==='voted' ? (potmVotes[String(potmId)]||0)+' voturi' : 'setat manual'}</div></div></div>` : ''}
+            ${hattricks.length ? `<div class="msc-highlight"><span class="msc-highlight-icon">🎩</span><div><div class="msc-highlight-lbl">Hat-trick</div><div class="msc-highlight-name">${hattricks.map(([n,g])=>`${escapeHtml(n)} (${g})`).join(', ')}</div></div></div>`
+                : (topScorers.length ? `<div class="msc-highlight"><span class="msc-highlight-icon">⚽</span><div><div class="msc-highlight-lbl">Golgheteri</div><div class="msc-highlight-name" style="font-size:.86rem;">${topScorers.map(([n,g])=>`${escapeHtml(n)} (${g})`).join(', ')}</div></div></div>` : '')}
+            <div class="msc-section-title">Rezultate perechi</div>
+            ${pairResultsHtml}
+            <div class="msc-footer">Arena Friends FC · Bârlad &nbsp;·&nbsp; ${escapeHtml(dateStr)}</div>`;
+    }
+
+    // ── Meci simplu (2 echipe) ──
+    const teamNames = getRowTeamNames(h);
+    const _ws = getWinnerSideFromScore(h);
+    const winColor = _ws==='orange' ? teamColorsPublic.orange : _ws==='green' ? teamColorsPublic.green : '#8b96a8';
+    const goalsByPlayer = {};
+    (h.goalsList||[]).forEach(g => {
+        if (g.is_penalty) return;
+        goalsByPlayer[g.player_name] = (goalsByPlayer[g.player_name]||0) + 1;
+    });
+    const topScorers = Object.entries(goalsByPlayer).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const mvp = computeSessionMvpWinner([h]);
+    const potmName = h.potmWinnerName || null;
+
+    return `
+        <div class="msc-header">
+            <div class="msc-brand">ARENA FRIENDS FC</div>
+            <div class="msc-date">${escapeHtml(dateStr)}</div>
+        </div>
+        <div class="msc-teams-row">
+            <div class="msc-team-name" style="text-align:left;color:${teamColorsPublic.orange};">${escapeHtml(teamNames[0]||'?')}</div>
+            <div class="msc-team-name" style="text-align:right;color:${teamColorsPublic.green};">${escapeHtml(teamNames[1]||'?')}</div>
+        </div>
+        <div class="msc-score-big" style="color:${winColor};">${escapeHtml(h.score||'—')}</div>
+        <div style="text-align:center;font-size:.8rem;color:#8b96a8;margin-bottom:16px;">🏆 ${escapeHtml(h.winner||'Egal')} a câștigat</div>
+        ${topScorers.length ? `<div class="msc-section-title">Golgheteri</div>${topScorers.map(([n,g])=>`<div class="msc-pair-row"><span>⚽ ${escapeHtml(n)}</span><span style="font-family:'Bebas Neue',sans-serif;">${g}</span></div>`).join('')}` : ''}
+        ${mvp ? `<div class="msc-highlight" style="margin-top:14px;"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri</div></div></div>` : ''}
+        ${potmName ? `<div class="msc-highlight"><span class="msc-highlight-icon">⭐</span><div><div class="msc-highlight-lbl">POTM</div><div class="msc-highlight-name">${escapeHtml(potmName)}</div></div></div>` : ''}
+        <div class="msc-footer">Arena Friends FC · Bârlad &nbsp;·&nbsp; ${escapeHtml(dateStr)}</div>`;
+}
+
+// Distribuie meciul: (1) copiază link-ul curent în clipboard, (2) generează
+// imaginea cardului (html2canvas) și o trimite prin Web Share API (mobil, cu
+// suport pentru fișiere) SAU o descarcă direct ca .png (desktop/fallback).
+async function shareMatch(dbId){
+    const h = db.history.find(x => String(x._dbId) === String(dbId));
+    if (!h) { showToast('⚠️ Meciul nu a fost găsit.'); return; }
+    const btn = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    const btnOriginalText = btn ? btn.textContent : null;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Se pregătește...'; }
+
+    // 1) Copiere link — independentă de generarea imaginii, ca linkul să
+    // ajungă oricum în clipboard chiar dacă html2canvas eșuează.
+    try {
+        await navigator.clipboard.writeText(location.href);
+        showToast('🔗 Link-ul meciului a fost copiat!');
+    } catch (e) {
+        console.warn('Clipboard copy failed:', e.message);
+    }
+
+    // 2) Generare imagine
+    try {
+        const cardEl = document.getElementById('matchShareCard');
+        cardEl.innerHTML = buildShareCardHtml(h);
+        if (typeof html2canvas !== 'function') throw new Error('html2canvas indisponibil');
+        const canvas = await html2canvas(cardEl, { scale: 2, backgroundColor: '#0b0f16', useCORS: true });
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) throw new Error('Generarea imaginii a eșuat.');
+
+        const fileName = `arena-friends-fc-${(h.date||'meci').replace(/\./g,'-')}.png`;
+        const file = new File([blob], fileName, { type: 'image/png' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: 'Arena Friends FC',
+                text: `${h.winner ? '🏆 '+h.winner+' a câștigat · ' : ''}${h.score||''}`,
+            });
+            showToast('📲 Trimis!');
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = fileName;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 4000);
+            showToast('🖼️ Imaginea a fost descărcată!');
+        }
+    } catch (e) {
+        if (e && e.name === 'AbortError') {
+            // utilizatorul a închis meniul nativ de share — nu e o eroare reală
+        } else {
+            console.warn('Share image failed:', e);
+            showToast('⚠️ Nu am putut genera imaginea, dar link-ul e copiat.');
+        }
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = btnOriginalText || '📲 Distribuie Meci'; }
+    }
 }
 
 function renderMatchesFeed(){
