@@ -94,6 +94,12 @@ body{font-family:var(--font-body);background:
 .streak-banner-card{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:11px;}
 .streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,60,.14),rgba(239,68,68,.08));border:1px solid rgba(255,140,60,.35);}
 .streak-banner-card.goal{background:linear-gradient(135deg,rgba(52,211,153,.14),rgba(134,239,172,.08));border:1px solid rgba(52,211,153,.32);}
+.motm-banner-card{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:linear-gradient(135deg,rgba(255,210,63,.16),rgba(167,139,250,.08));border:1px solid rgba(255,210,63,.4);}
+.motm-banner-icon{font-size:1.7rem;line-height:1;}
+.motm-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
+.motm-banner-name{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);}
+.motm-banner-sub{font-size:.68rem;color:var(--ink-dim);}
+.motm-banner-manual{font-size:.6rem;color:#eab308;font-weight:700;margin-left:6px;}
 .streak-banner-icon{font-size:1.5rem;line-height:1;}
 .streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
 .streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
@@ -369,6 +375,7 @@ body{font-family:var(--font-body);background:
 
     <div class="stats-section" id="leaderboardSection">
         <h3>🏅 Clasament</h3>
+        <div id="motmBanner" style="display:none;margin-bottom:10px;"></div>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
@@ -684,6 +691,175 @@ function computeSessionMvpWinner(chrono){
         }
     }
     return candidates[0] || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── 🏅 MOTM — Omul Lunii (luna calendaristică în curs) ──────────────────
+// Formulă Scor MOTM, per lună calendaristică:
+//   • 1 punct / gol marcat în lună
+//   • 1 punct / assist în lună
+//   • 0.5 puncte / victorie (per meci/pereche — la fel cum se numără
+//     "Victorii" peste tot în aplicație, ex. computeWeekPlayerStats)
+//   • 2 puncte / titlu POTM sau MVP câștigat într-o sesiune/meci din lună
+//     (calculat pe ÎNTREAGA sesiune, nu per pereche — la fel ca
+//     computeSessionMvpWinner/computePotmWinnerForRows, folosite peste tot)
+//   • minute jucate în lună / 90
+// Prag de eligibilitate: minim 2 sesiuni/meciuri jucate în lună — o sesiune
+// 3 echipe numără o SINGURĂ dată (nu per pereche), la fel ca peste tot în
+// aplicație (vezi groupHistoryForDisplay).
+// Suprascriere manuală: NU există o coloană DB dedicată (manual_motm_player_id)
+// și nicio migrare SQL nouă în acest task — reutilizăm mecanismul EXISTENT de
+// premii custom (tabelul player_awards, gestionat deja din setari.html →
+// „Premii/Titluri"), prin convenția title==='MOTM' + note==='YYYY-MM'. Adminul
+// poate seta/schimba manual câștigătorul unei luni fix din acel panou, fără
+// nicio modificare de schemă — vezi getMotmManualOverride().
+// ═══════════════════════════════════════════════════════════════════════
+
+function getMonthKey(date){
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+
+// Durata jucată (secunde) pe un rând din db.history — sesiune 3 echipe
+// (sumă ture) SAU meci simplu 2 echipe (started_at → ended_at). Extras ca
+// helper reutilizabil — logica identică apărea deja, duplicată, în mai multe
+// locuri (computeSessionMvpWinner, buildMatchStatsTabHtml etc.).
+function getRowPlaySeconds(h){
+    if (Array.isArray(h.roundsDetail) && h.roundsDetail.length) {
+        return h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0), 0);
+    }
+    if (h.startedAt && h.endedAt) {
+        return Math.max(0, Math.round((new Date(h.endedAt) - new Date(h.startedAt)) / 1000));
+    }
+    return 0;
+}
+
+const MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună
+
+// Calculează câștigătorul AUTOMAT (fără suprascriere manuală) pentru un set
+// de rânduri deja filtrate pe luna calendaristică dorită (vezi
+// computeMotmForMonth mai jos, care face filtrarea + aplică suprascrierea).
+// Semnătură cerută: computeMotmWinner(currentMonthRows).
+function computeMotmWinner(currentMonthRows){
+    if (!Array.isArray(currentMonthRows) || !currentMonthRows.length) return null;
+
+    // Grupăm pe SESIUNE/meci (nu pe pereche) — o sesiune 3 echipe (3 perechi)
+    // numără o singură dată la eligibilitate și la titlurile POTM/MVP.
+    const items = groupHistoryForDisplay(currentMonthRows);
+
+    const stats = {}; // { playerName: {goals,assists,wins,seconds,titles,sessions} }
+    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, seconds:0, titles:0, sessions:0 });
+
+    items.forEach(item => {
+        const playersInItem = new Set();
+        item.rows.forEach(h => {
+            const winO = h.winner === 'Portocaliu', winG = h.winner === 'Verde', winB = h.winner === 'Negru';
+            const addPlayer = (n, isWinner) => {
+                playersInItem.add(n);
+                const s = ensure(n);
+                s.goals   += (h.playerGoals   && h.playerGoals[n])   || 0;
+                s.assists += (h.playerAssists && h.playerAssists[n]) || 0;
+                if (isWinner) s.wins++;
+            };
+            (h.orangePlayers||[]).forEach(n => addPlayer(n, winO));
+            (h.greenPlayers ||[]).forEach(n => addPlayer(n, winG));
+            (h.blackPlayers ||[]).forEach(n => addPlayer(n, winB));
+
+            // Minute jucate — doar echipele care AU JUCAT efectiv acest rând
+            // (la o sesiune 3 echipe, a 3-a echipă stă pe margine prin rotație).
+            const rowSeconds = getRowPlaySeconds(h);
+            if (rowSeconds > 0) {
+                const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
+                playersInRow.forEach(n => { ensure(n).seconds += rowSeconds; });
+            }
+        });
+        playersInItem.forEach(n => { ensure(n).sessions++; });
+
+        // Titluri POTM/MVP câștigate în ACEST eveniment — pe toată sesiunea.
+        const mvpWinner = computeSessionMvpWinner(item.rows);
+        if (mvpWinner) ensure(mvpWinner.name).titles++;
+        const { winnerId: potmId } = computePotmWinnerForRows(item.rows);
+        if (potmId != null) {
+            const potmPlayer = db.players.find(p => p.id === potmId);
+            if (potmPlayer) ensure(potmPlayer.name).titles++;
+        }
+    });
+
+    const candidates = Object.values(stats)
+        .filter(s => s.sessions >= MOTM_MIN_SESSIONS)
+        .map(s => {
+            const minutes = Math.round(s.seconds/60);
+            const score = s.goals*1 + s.assists*1 + s.wins*0.5 + s.titles*2 + (s.seconds/60)/90;
+            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, minutes, titles:s.titles, sessions:s.sessions, score: Math.round(score*100)/100 };
+        })
+        .sort((a,b) => b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
+
+    return candidates[0] || null;
+}
+
+// Suprascriere manuală MOTM pentru o lună (monthKey = 'YYYY-MM') — vezi nota
+// din antetul secțiunii despre convenția player_awards folosită.
+function getMotmManualOverride(monthKey){
+    const award = (db.playerAwards||[]).find(a =>
+        (a.title||'').trim().toUpperCase() === 'MOTM' && (a.note||'').trim() === monthKey);
+    if (!award) return null;
+    return db.players.find(p => p.id === award.player_id) || null;
+}
+
+// Câștigătorul MOTM pentru o lună calendaristică dată (year = an complet,
+// month = 0-based, ca la Date.getMonth()) — suprascrierea manuală are
+// prioritate; altfel se aplică formula automată (computeMotmWinner) pe
+// TOATE meciurile din acea lună (indiferent de sezon — o lună trecută rămâne
+// „câștigată" chiar dacă sezonul ei a fost arhivat între timp).
+function computeMotmForMonth(year, month){
+    const monthKey = `${year}-${String(month+1).padStart(2,'0')}`;
+    const manual = getMotmManualOverride(monthKey);
+    if (manual) return { name: manual.name, monthKey, manual: true };
+
+    const rows = db.history.filter(h => {
+        const d = parseDateToObj(h.date);
+        return d && !isNaN(d.getTime()) && d.getFullYear()===year && d.getMonth()===month;
+    });
+    const winner = computeMotmWinner(rows);
+    return winner ? { ...winner, monthKey, manual: false } : null;
+}
+
+// Câștigătorul MOTM pentru luna CURENTĂ (recalculat mereu din `new Date()`,
+// nu memorat — se adaptează automat când trecem în altă lună, vezi cerința 3).
+function getCurrentMonthMotm(){
+    const now = new Date();
+    return computeMotmForMonth(now.getFullYear(), now.getMonth());
+}
+
+const MOTM_MONTH_NAMES_RO = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+function formatMotmMonthLabel(monthKey){
+    const [y,m] = monthKey.split('-').map(Number);
+    return `${MOTM_MONTH_NAMES_RO[m-1]} ${y}`;
+}
+
+// Toate lunile calendaristice care apar în db.history (indiferent de sezon),
+// sortate crescător — folosit pentru reconstruirea istoricului de titluri
+// MOTM (profilul jucătorului, vezi getMotmMonthsWonBy).
+function getAllMotmMonthKeys(){
+    const keys = new Set();
+    db.history.forEach(h => {
+        const d = parseDateToObj(h.date);
+        if (d && !isNaN(d.getTime())) keys.add(getMonthKey(d));
+    });
+    return [...keys].sort();
+}
+
+// Lunile în care `playerName` a câștigat MOTM (trecut SAU luna curentă) —
+// folosit de renderPlayerProfile pentru insigna 🏅 MOTM.
+function getMotmMonthsWonBy(playerName){
+    const nowKey = getMonthKey(new Date());
+    return getAllMotmMonthKeys()
+        .map(monthKey => {
+            const [y,m] = monthKey.split('-').map(Number);
+            return { monthKey, winner: computeMotmForMonth(y, m-1) };
+        })
+        .filter(x => x.winner && x.winner.name === playerName)
+        .map(x => ({ monthKey: x.monthKey, manual: x.winner.manual, isCurrent: x.monthKey === nowKey }))
+        .sort((a,b) => b.monthKey.localeCompare(a.monthKey));
 }
 
 // Markup comun (scoruri per echipă + golgheter) pentru o pereche
@@ -1622,6 +1798,29 @@ function renderStreakBanner(){
     </div>`;
 }
 
+// Badge/card dedicat pentru 🏅 MOTM — Omul Lunii curente. Se recalculează la
+// fiecare randare a clasamentului (vezi apelul din loadAll/refreshUI), deci
+// se adaptează automat la schimbarea lunii calendaristice — nu e stocat.
+function renderMotmBanner(){
+    const el = document.getElementById('motmBanner');
+    if (!el) return;
+    const motm = getCurrentMonthMotm();
+    if (!motm) { el.style.display='none'; el.innerHTML=''; return; }
+    const monthLabel = formatMotmMonthLabel(getMonthKey(new Date()));
+    const subParts = motm.manual
+        ? ['ales manual de admin']
+        : [`${motm.goals} goluri`, `${motm.assists} assisturi`, `${motm.wins} victorii`, `${motm.minutes} min`];
+    el.style.display = 'block';
+    el.innerHTML = `<div class="motm-banner-card" onclick="location.href='clasament.html?player='+encodeURIComponent('${motm.name.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+        <div class="motm-banner-icon">🏅</div>
+        <div style="flex:1;min-width:0;">
+            <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}${motm.manual ? '<span class="motm-banner-manual">SETAT MANUAL</span>' : ''}</div>
+            <div class="motm-banner-name">${motm.name}</div>
+            <div class="motm-banner-sub">${subParts.join(' · ')}</div>
+        </div>
+    </div>`;
+}
+
 function getLongestWinStreak(p){
     let longest=0, cur=0;
     (p.matchHistory||[]).forEach(r=>{ if(r==='W'){ cur++; longest=Math.max(longest,cur); } else cur=0; });
@@ -2207,6 +2406,7 @@ function renderPlayerProfile(name){
     ppCurrentAchievements = achievements; // pentru showAchievementInfo(i)
     const form = getFormIndex(p);
     const myAwards = (db.playerAwards||[]).filter(a=>a.player_id===p.id);
+    const myMotmMonths = getMotmMonthsWonBy(p.name); // vezi cerința 4 — 🏅 MOTM pe profil
     // Tot sezonul curent selectat (currentSeason — același selector ca restul
     // clasamentului; null = sezonul live), nu doar ultimele N per total istoric.
     const seasonMatches = ppMatchesFor(p.name).filter(h => h.season === currentSeason);
@@ -2288,6 +2488,19 @@ function renderPlayerProfile(name){
                 </div>
             </div>
         </div>
+
+        ${myMotmMonths.length ? `
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">🏅 OMUL LUNII</div>
+            <div class="pp-chip-row">
+                ${myMotmMonths.map(m=>`
+                    <div class="pp-chip">
+                        <div class="pp-chip-emoji">🏅</div>
+                        <div class="pp-chip-lbl">${formatMotmMonthLabel(m.monthKey)}</div>
+                        <div class="pp-card-sub" style="margin-top:2px;">${m.isCurrent ? 'luna curentă' : ''}${m.manual ? (m.isCurrent?' · ':'')+'setat manual' : ''}</div>
+                    </div>`).join('')}
+            </div>
+        </div>` : ''}
 
         ${myAwards.length ? `
         <div class="stats-section" style="margin-bottom:14px;">
@@ -3034,6 +3247,7 @@ async function loadAll(){
         });
 
         renderMeCard();
+        renderMotmBanner();
         renderStreakBanner();
         renderRulesCard();
         updateSeasonUI();
