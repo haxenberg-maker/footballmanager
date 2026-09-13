@@ -53,6 +53,8 @@ body{font-family:var(--font-body);background:
 .hd-title{font-family:var(--font-display);font-size:1.7rem;letter-spacing:3px;color:var(--ink);}
 .hd-sub{font-size:.7rem;color:var(--ink-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;font-weight:500;}
 .live-pill{display:flex;align-items:center;gap:6px;background:rgba(47,214,107,.13);border:1px solid rgba(47,214,107,.35);padding:5px 11px;border-radius:20px;flex-shrink:0;box-shadow:0 0 16px -4px rgba(47,214,107,.5);}
+.user-identity-select{max-width:118px;flex-shrink:1;padding:6px 8px;border-radius:20px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);font-size:.72rem;font-weight:700;font-family:var(--font-body);cursor:pointer;}
+.user-identity-select:focus{outline:none;border-color:var(--accent);}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 1.5s infinite;}
 @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
 .live-lbl{font-size:.64rem;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:1.2px;font-family:var(--font-mono);}
@@ -367,7 +369,12 @@ body{font-family:var(--font-body);background:
             <div class="hd-title">🏆 CLASAMENT</div>
             <div class="hd-sub">Arena Friends FC · doar afișare</div>
         </div>
-        <div class="live-pill"><div class="live-dot"></div><div class="live-lbl">Live</div></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <select id="userIdentitySelect" class="user-identity-select" onchange="setUserIdentity(this.value)">
+                <option value="">👤 Cine ești?</option>
+            </select>
+            <div class="live-pill"><div class="live-dot"></div><div class="live-lbl">Live</div></div>
+        </div>
     </div>
 
     <div id="playerProfileWrap" style="display:none;"></div>
@@ -439,6 +446,15 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ── Highlighted player (from ?player=Name in URL) ──
 const urlParams = new URLSearchParams(window.location.search);
 const highlightPlayer = urlParams.get('player') || urlParams.get('p');
+
+// ── Identitate utilizator ("Cine ești?") — persistă în localStorage, NU în
+// URL (spre deosebire de highlightPlayer, care e per-link/per-share).
+// currentUserId ține id-ul jucătorului (numeric); currentUserName se
+// recalculează din db.players de fiecare dată — id-ul e sursa de adevăr
+// (numele se poate schimba din setari.html, id-ul nu).
+const USER_IDENTITY_STORAGE_KEY = 'af_user_player_id';
+let currentUserId = localStorage.getItem(USER_IDENTITY_STORAGE_KEY) || null;
+let currentUserName = null; // recalculat în syncUserIdentityName(), după ce db.players e populat
 // Deep-link către un meci specific (ecranul dedicat #matchDetailWrap):
 // ?match_id=UUID sau ?match=UUID. Compatibil și cu vechiul ?vote_match=UUID
 // (link-urile de vot generate anterior din setari.html continuă să funcționeze).
@@ -531,6 +547,44 @@ function parseDateToObj(dateStr) {
 // Elimină diacriticele ca să caute "Stefan" -> "Ștefan", "Barbu" -> "Bărbu" etc.
 function normalizeSearchStr(s){
     return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// ── Identitate utilizator ("Cine ești?") ──────────────────────────────
+// Recalculează currentUserName din currentUserId + db.players (id-ul e
+// sursa de adevăr — numele poate fi editat din setari.html între timp).
+function syncUserIdentityName(){
+    if (!currentUserId) { currentUserName = null; return; }
+    const p = db.players.find(x => String(x.id) === String(currentUserId));
+    currentUserName = p ? p.name : null;
+    // id salvat, dar jucătorul nu mai există (șters) — curățăm identitatea orfană.
+    if (!p) { currentUserId = null; localStorage.removeItem(USER_IDENTITY_STORAGE_KEY); }
+}
+
+// Populează dropdown-ul din header cu toți jucătorii (sortați alfabetic) —
+// apelat din loadAll() de fiecare dată când se reîncarcă db.players, ca să
+// rămână la zi (jucători noi adăugați între timp).
+function populateUserIdentitySelect(){
+    const sel = document.getElementById('userIdentitySelect');
+    if (!sel) return;
+    const names = [...db.players].sort((a,b) => a.name.localeCompare(b.name,'ro'));
+    sel.innerHTML = '<option value="">👤 Cine ești?</option>'
+        + names.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    sel.value = currentUserId || '';
+}
+
+// Apelat din dropdown-ul din header (onchange) ȘI din Pasul 1 al votului POTM
+// (când utilizatorul nu avea încă o identitate salvată) — vezi renderPotmStep1.
+function setUserIdentity(pid){
+    currentUserId = pid || null;
+    if (currentUserId) localStorage.setItem(USER_IDENTITY_STORAGE_KEY, currentUserId);
+    else localStorage.removeItem(USER_IDENTITY_STORAGE_KEY);
+    syncUserIdentityName();
+    const sel = document.getElementById('userIdentitySelect');
+    if (sel) sel.value = currentUserId || '';
+    // Re-randăm tot ce arată highlight-ul de "tu" — clasament (rânduri +
+    // Top 10 Formă) și, dacă suntem pe profil, banner-ul MOTM/streak nu se
+    // schimbă, dar clasamentul da.
+    renderLeaderboard();
 }
 
 // ── Tab de pagină: Clasament / Meciuri / Premii ──
@@ -1715,6 +1769,7 @@ function renderOvrLeaderboard(wrap){
         const { p, card } = r;
         const currentRank = i + 1;
         const before = beforeMap[p.name];
+        const isMe = (currentUserId && String(p.id)===String(currentUserId)) || (highlightPlayer && p.name===highlightPlayer);
         // Doi indicatori SEPARAȚI, fiecare cu culoarea și săgeata lui — nu
         // mai sunt combinați într-un singur <span>. Fiecare apare doar
         // dacă partea lui s-a schimbat față de meciul anterior.
@@ -1731,11 +1786,11 @@ function renderOvrLeaderboard(wrap){
                 ovrTrend = `<span style="color:${up?'#34d399':'#ef4444'};font-weight:700;font-size:.72rem;white-space:nowrap;">${up?'▲':'▼'} ${up?'+':''}${ovrDelta}</span>`;
             }
         }
-        return `<div class="match-card" style="padding:12px 16px;">
+        return `<div class="match-card${isMe?' row-highlight':''}" style="padding:12px 16px;${isMe?'background:rgba(91,127,255,.10);':''}">
             <div style="display:flex;align-items:center;gap:10px;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;min-width:30px;text-align:center;color:${medals[i]?'var(--star)':'#8b96a8'};">${medals[i]||'#'+(i+1)}</span>
                 ${rankTrend}
-                <span style="font-weight:700;color:#f3f6fa;flex:1;">${p.name}</span>
+                <span style="font-weight:700;color:#f3f6fa;flex:1;">${p.name}${isMe?' 📍':''}</span>
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#f3f6fa;">${card.currentOVR}</span>
                 ${ovrTrend}
             </div>
@@ -3149,7 +3204,10 @@ function renderLeaderboard(){
             const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
             const pct=Math.round((numVal/maxVal)*100);
             const medalColors=['#ffd23f','#cbd5e1','#e0995e'];
-            const isMe = highlightPlayer && p.name===highlightPlayer;
+            // "Tu" = identitatea salvată din header (currentUserId/currentUserName,
+            // localStorage) SAU jucătorul din link-ul ?player=Nume (highlightPlayer)
+            // — oricare din cele două aprinde același highlight/📍.
+            const isMe = (currentUserId && String(p.id)===String(currentUserId)) || (highlightPlayer && p.name===highlightPlayer);
             const bg=isMe?'rgba(91,127,255,.10)':i===0?`rgba(167,139,250,.06)`:i===1?`rgba(203,213,225,.03)`:i===2?`rgba(224,153,94,.03)`:'transparent';
             const nameColor=i<3?'#f3f6fa':'#8b96a8';
             const form=viewingPastSeason ? {last5:[]} : getFormIndex(p);
@@ -3238,6 +3296,11 @@ async function loadAll(){
         // players + ratings
         const playersRaw = dataOf(playersRes);
         db.players = (playersRaw || []).map(rowToPlayer);
+        // Identitate utilizator ("Cine ești?") — id-ul era deja în localStorage
+        // (citit la încărcarea scriptului); acum că avem db.players, recalculăm
+        // numele și populăm dropdown-ul din header cu roster-ul la zi.
+        syncUserIdentityName();
+        populateUserIdentitySelect();
 
         // match history + goals
         const histRaw = dataOf(histRes);
@@ -3577,8 +3640,10 @@ async function openPotmVoteModal(matchId){
 
 // Pasul 1: cine ești?
 function renderPotmStep1(participants){
+    // Pre-selectăm automat identitatea salvată (header/localStorage), dacă
+    // jucătorul respectiv a participat la ACEST meci — vezi currentUserId.
     const options = participants.sort((a,b)=>a.name.localeCompare(b.name))
-        .map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+        .map(p=>`<option value="${p.id}"${currentUserId && String(p.id)===String(currentUserId) ? ' selected' : ''}>${p.name}</option>`).join('');
     const isSessionVote = Array.isArray(_potmMatch.roundsDetail) && _potmMatch.roundsDetail.length > 0;
     const subtitle = isSessionVote
         ? `${_potmMatch.date||''} · 🎮 Sesiune 3 Echipe`
@@ -3597,6 +3662,12 @@ function renderPotmStep1(participants){
         const pid = parseInt(sel.value);
         if (!pid){ showToast('⚠️ Alege-ți numele întâi!'); return; }
         _potmVoter = db.players.find(p=>p.id===pid);
+        // Dacă utilizatorul NU avea deja o identitate salvată, memorăm alegerea
+        // de-acum (localStorage + selectorul din header) pentru toate vizitele
+        // viitoare — vezi setUserIdentity(). Dacă avea deja una salvată, nu o
+        // suprascriem automat (poate votează ocazional pentru altcineva/de pe
+        // alt telefon) — schimbarea explicită rămâne treaba selectorului din header.
+        if (!currentUserId) setUserIdentity(String(pid));
         await checkAlreadyVotedAndProceed();
     };
 }
