@@ -103,20 +103,32 @@ body{font-family:var(--font-body);background:
 .motm-banner-name{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);}
 .motm-banner-sub{font-size:.68rem;color:var(--ink-dim);}
 .motm-banner-manual{font-size:.6rem;color:#eab308;font-weight:700;margin-left:6px;}
-.motm-podium-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:2px;}
-.motm-podium-item{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 4px;border-radius:8px;transition:background .15s ease;}
-.motm-podium-item:hover{background:rgba(255,255,255,.06);}
-.motm-podium-icon{line-height:1;}
-.motm-podium-score{font-size:.66rem;color:var(--ink-dim);}
-.motm-podium-rank1 .motm-podium-icon{font-size:1.25rem;}
-.motm-podium-rank1 .motm-podium-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:.5px;color:#f5c518;font-weight:700;text-shadow:0 0 10px rgba(245,197,24,.35);}
-.motm-podium-rank1 .motm-podium-score{color:#f5c518;opacity:.85;}
-.motm-podium-rank2 .motm-podium-icon{font-size:1.05rem;}
-.motm-podium-rank2 .motm-podium-name{font-size:.88rem;color:#c9d2da;font-weight:600;}
-.motm-podium-rank2 .motm-podium-score{color:#c9d2da;opacity:.75;}
-.motm-podium-rank3 .motm-podium-icon{font-size:1.05rem;}
-.motm-podium-rank3 .motm-podium-name{font-size:.88rem;color:#cd8a4f;font-weight:600;}
-.motm-podium-rank3 .motm-podium-score{color:#cd8a4f;opacity:.75;}
+.motm-section{border-radius:14px;padding:14px;background:linear-gradient(135deg,rgba(255,210,63,.10),rgba(167,139,250,.05));border:1px solid rgba(255,210,63,.3);}
+.motm-section-head{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+.motm-section-icon{font-size:1.5rem;line-height:1;}
+.motm-section-lbl{font-size:.65rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:700;}
+.motm-cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:stretch;}
+@media(max-width:640px){.motm-cards-grid{grid-template-columns:1fr;}}
+.motm-card{display:flex;flex-direction:column;gap:8px;padding:12px 13px;border-radius:12px;cursor:pointer;border:1px solid transparent;transition:transform .15s ease,box-shadow .15s ease;background:rgba(255,255,255,.03);}
+.motm-card:hover{transform:translateY(-2px);}
+.motm-card-head{display:flex;align-items:flex-start;gap:9px;}
+.motm-card-medal{font-size:1.35rem;line-height:1;}
+.motm-card-place{font-size:.58rem;text-transform:uppercase;letter-spacing:1px;color:var(--ink-dim);font-weight:700;}
+.motm-card-name{font-family:var(--font-display);color:var(--ink);word-break:break-word;}
+.motm-card-score{font-size:.9rem;font-weight:700;}
+.motm-card-stats{display:flex;flex-direction:column;gap:3px;font-size:.7rem;color:var(--ink-dim);margin-top:2px;}
+.motm-card-stats span{display:flex;align-items:center;gap:5px;}
+.motm-card-rank1{grid-column:span 1;background:linear-gradient(160deg,rgba(255,210,63,.22),rgba(255,210,63,.05));border-color:rgba(255,210,63,.55);box-shadow:0 4px 18px rgba(255,210,63,.16);}
+.motm-card-rank1 .motm-card-medal{font-size:1.9rem;}
+.motm-card-rank1 .motm-card-name{font-size:1.22rem;letter-spacing:.4px;color:#f5c518;font-weight:700;text-shadow:0 0 12px rgba(245,197,24,.35);}
+.motm-card-rank1 .motm-card-score{color:#f5c518;font-size:1rem;}
+.motm-card-rank2{background:rgba(201,210,218,.07);border-color:rgba(201,210,218,.32);opacity:.96;}
+.motm-card-rank2 .motm-card-name{font-size:1rem;color:#c9d2da;font-weight:600;}
+.motm-card-rank2 .motm-card-score{color:#c9d2da;}
+.motm-card-rank3{background:rgba(205,138,79,.07);border-color:rgba(205,138,79,.32);opacity:.94;}
+.motm-card-rank3 .motm-card-name{font-size:1rem;color:#cd8a4f;font-weight:600;}
+.motm-card-rank3 .motm-card-score{color:#cd8a4f;}
+@media(max-width:640px){.motm-card-rank1{order:-1;}}
 .streak-banner-icon{font-size:1.5rem;line-height:1;}
 .streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
 .streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
@@ -2172,19 +2184,32 @@ function renderStreakBanner(){
     </div>`;
 }
 
-// Randează un singur "loc" (1/2/3) din podiumul MOTM afișat în banner —
-// icon (🏆/🥈/🥉) + nume + scor, toate pe aceeași linie (vezi .motm-podium-row,
-// display:flex). Locul 1 are stil vizual mai puternic (auriu, font mai mare),
-// Locurile 2 și 3 folosesc un stil secundar (argintiu / bronz) — vezi CSS-ul
-// .motm-podium-rank1/2/3 de mai sus.
-function renderMotmPodiumItem(candidate, idx){
-    const rankIcons = ['🏆','🥈','🥉'];
-    const rankClasses = ['motm-podium-rank1','motm-podium-rank2','motm-podium-rank3'];
+// Randează un card individual pentru un "loc" (1/2/3) din clasamentul MOTM —
+// fiecare card e independent și conține: medalie + Loc N + nume, scorul total
+// și statistica completă din lună (goluri/assist-uri/victorii/minute). Locul 1
+// primește un stil vizual mai puternic (bordură+fundal auriu, nume mai mare) —
+// vezi .motm-card-rank1/2/3 din CSS. Cardurile stau alăturate pe desktop
+// (.motm-cards-grid, grid pe 3 coloane) și se stivuiesc pe mobil (<640px).
+function renderMotmCard(candidate, idx){
+    const medals = ['🏆','🥈','🥉'];
+    const places = ['Locul 1','Locul 2','Locul 3'];
+    const rankClasses = ['motm-card-rank1','motm-card-rank2','motm-card-rank3'];
     const safeName = candidate.name.replace(/'/g,"\\'");
-    return `<div class="motm-podium-item ${rankClasses[idx] || ''}" onclick="event.stopPropagation();location.href='clasament.html?player='+encodeURIComponent('${safeName}')">
-        <span class="motm-podium-icon">${rankIcons[idx] || '🏅'}</span>
-        <span class="motm-podium-name">${candidate.name}</span>
-        <span class="motm-podium-score">${candidate.score} pct</span>
+    return `<div class="motm-card ${rankClasses[idx] || ''}" onclick="location.href='clasament.html?player='+encodeURIComponent('${safeName}')">
+        <div class="motm-card-head">
+            <span class="motm-card-medal">${medals[idx] || '🏅'}</span>
+            <div style="min-width:0;">
+                <div class="motm-card-place">${places[idx] || ''}</div>
+                <div class="motm-card-name">${candidate.name}</div>
+            </div>
+        </div>
+        <div class="motm-card-score">${candidate.score} pct</div>
+        <div class="motm-card-stats">
+            <span>⚽ ${candidate.goals} goluri</span>
+            <span>🎯 ${candidate.assists} assist-uri</span>
+            <span>🏆 ${candidate.wins} victorii</span>
+            <span>⏱️ ${candidate.minutes} min</span>
+        </div>
     </div>`;
 }
 
@@ -2224,13 +2249,12 @@ function renderMotmBanner(){
 
     if (winner) {
         el.style.display = 'block';
-        el.innerHTML = `<div class="motm-banner-card" style="align-items:flex-start;">
-            <div class="motm-banner-icon">🏅</div>
-            <div style="flex:1;min-width:0;">
-                <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}</div>
-                <div class="motm-podium-row">${top3.map((c,i)=>renderMotmPodiumItem(c,i)).join('')}</div>
-                <div class="motm-banner-sub" style="margin-top:4px;">${winner.goals} goluri · ${winner.assists} assisturi · ${winner.wins} victorii · ${winner.minutes} min</div>
+        el.innerHTML = `<div class="motm-section">
+            <div class="motm-section-head">
+                <div class="motm-section-icon">🏅</div>
+                <div class="motm-section-lbl">Omul Lunii · ${monthLabel}</div>
             </div>
+            <div class="motm-cards-grid">${top3.map((c,i)=>renderMotmCard(c,i)).join('')}</div>
         </div>`;
         return;
     }
