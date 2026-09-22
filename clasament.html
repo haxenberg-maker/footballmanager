@@ -103,6 +103,20 @@ body{font-family:var(--font-body);background:
 .motm-banner-name{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);}
 .motm-banner-sub{font-size:.68rem;color:var(--ink-dim);}
 .motm-banner-manual{font-size:.6rem;color:#eab308;font-weight:700;margin-left:6px;}
+.motm-podium-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;margin-top:2px;}
+.motm-podium-item{display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 4px;border-radius:8px;transition:background .15s ease;}
+.motm-podium-item:hover{background:rgba(255,255,255,.06);}
+.motm-podium-icon{line-height:1;}
+.motm-podium-score{font-size:.66rem;color:var(--ink-dim);}
+.motm-podium-rank1 .motm-podium-icon{font-size:1.25rem;}
+.motm-podium-rank1 .motm-podium-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:.5px;color:#f5c518;font-weight:700;text-shadow:0 0 10px rgba(245,197,24,.35);}
+.motm-podium-rank1 .motm-podium-score{color:#f5c518;opacity:.85;}
+.motm-podium-rank2 .motm-podium-icon{font-size:1.05rem;}
+.motm-podium-rank2 .motm-podium-name{font-size:.88rem;color:#c9d2da;font-weight:600;}
+.motm-podium-rank2 .motm-podium-score{color:#c9d2da;opacity:.75;}
+.motm-podium-rank3 .motm-podium-icon{font-size:1.05rem;}
+.motm-podium-rank3 .motm-podium-name{font-size:.88rem;color:#cd8a4f;font-weight:600;}
+.motm-podium-rank3 .motm-podium-score{color:#cd8a4f;opacity:.75;}
 .streak-banner-icon{font-size:1.5rem;line-height:1;}
 .streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
 .streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
@@ -976,13 +990,22 @@ function computeMotmCandidates(currentMonthRows){
         .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
 }
 
+// Primii 3 jucători ELIGIBILI (Locul 1/2/3) pentru un set de rânduri deja
+// filtrate pe luna calendaristică dorită — folosit de renderMotmBanner ca să
+// arate, pe lângă câștigător, și cine urmează la rând (locurile 2 și 3).
+// `computeMotmCandidates` întoarce deja lista sortată (eligibili primii, apoi
+// după scor), deci aici doar filtrăm eligibilii și păstrăm primii 3.
+function computeMotmTop3(currentMonthRows){
+    const candidates = computeMotmCandidates(currentMonthRows);
+    return candidates.filter(c => c.eligible).slice(0, 3);
+}
+
 // Calculează câștigătorul AUTOMAT (fără suprascriere manuală) pentru un set
 // de rânduri deja filtrate pe luna calendaristică dorită (vezi
 // computeMotmForMonth mai jos, care face filtrarea + aplică suprascrierea).
 // Semnătură cerută: computeMotmWinner(currentMonthRows).
 function computeMotmWinner(currentMonthRows){
-    const candidates = computeMotmCandidates(currentMonthRows);
-    return candidates.find(c => c.eligible) || null;
+    return computeMotmTop3(currentMonthRows)[0] || null;
 }
 
 // Suprascriere manuală MOTM pentru o lună (monthKey = 'YYYY-MM') — vezi nota
@@ -2149,6 +2172,22 @@ function renderStreakBanner(){
     </div>`;
 }
 
+// Randează un singur "loc" (1/2/3) din podiumul MOTM afișat în banner —
+// icon (🏆/🥈/🥉) + nume + scor, toate pe aceeași linie (vezi .motm-podium-row,
+// display:flex). Locul 1 are stil vizual mai puternic (auriu, font mai mare),
+// Locurile 2 și 3 folosesc un stil secundar (argintiu / bronz) — vezi CSS-ul
+// .motm-podium-rank1/2/3 de mai sus.
+function renderMotmPodiumItem(candidate, idx){
+    const rankIcons = ['🏆','🥈','🥉'];
+    const rankClasses = ['motm-podium-rank1','motm-podium-rank2','motm-podium-rank3'];
+    const safeName = candidate.name.replace(/'/g,"\\'");
+    return `<div class="motm-podium-item ${rankClasses[idx] || ''}" onclick="event.stopPropagation();location.href='clasament.html?player='+encodeURIComponent('${safeName}')">
+        <span class="motm-podium-icon">${rankIcons[idx] || '🏅'}</span>
+        <span class="motm-podium-name">${candidate.name}</span>
+        <span class="motm-podium-score">${candidate.score} pct</span>
+    </div>`;
+}
+
 // Badge/card dedicat pentru 🏅 MOTM — Omul Lunii curente. Se recalculează la
 // fiecare randare a clasamentului (vezi apelul din loadAll/refreshUI), deci
 // se adaptează automat la schimbarea lunii calendaristice — nu e stocat.
@@ -2180,16 +2219,17 @@ function renderMotmBanner(){
         return d && !isNaN(d.getTime()) && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
     });
     const candidates = computeMotmCandidates(rows);
-    const winner = candidates.find(c => c.eligible);
+    const top3 = computeMotmTop3(rows);
+    const winner = top3[0];
 
     if (winner) {
         el.style.display = 'block';
-        el.innerHTML = `<div class="motm-banner-card" onclick="location.href='clasament.html?player='+encodeURIComponent('${winner.name.replace(/'/g,"\\'")}')" style="cursor:pointer;">
+        el.innerHTML = `<div class="motm-banner-card" style="align-items:flex-start;">
             <div class="motm-banner-icon">🏅</div>
             <div style="flex:1;min-width:0;">
                 <div class="motm-banner-lbl">Omul Lunii · ${monthLabel}</div>
-                <div class="motm-banner-name">${winner.name}</div>
-                <div class="motm-banner-sub">${winner.goals} goluri · ${winner.assists} assisturi · ${winner.wins} victorii · ${winner.minutes} min</div>
+                <div class="motm-podium-row">${top3.map((c,i)=>renderMotmPodiumItem(c,i)).join('')}</div>
+                <div class="motm-banner-sub" style="margin-top:4px;">${winner.goals} goluri · ${winner.assists} assisturi · ${winner.wins} victorii · ${winner.minutes} min</div>
             </div>
         </div>`;
         return;
