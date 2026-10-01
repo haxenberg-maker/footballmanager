@@ -42,6 +42,16 @@ body{font-family:var(--font-body);background:
   background-attachment:fixed;color:var(--ink);margin:0;padding:0;min-height:100vh;
   -webkit-font-smoothing:antialiased;letter-spacing:.1px;}
 .wrap{max-width:640px;margin:0 auto;padding:16px 14px 64px;}
+/* Navigare rapidă fixă jos — doar pe mobil; pe desktop header-ul ajunge. */
+.quick-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;background:rgba(14,18,26,.97);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));}
+.quick-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink-dim);text-decoration:none;font-size:.6rem;font-weight:600;letter-spacing:.2px;border-radius:10px;transition:color .15s ease,background .15s ease;-webkit-tap-highlight-color:transparent;}
+.quick-nav-item:active{background:rgba(255,255,255,.07);}
+.quick-nav-icon{font-size:1.15rem;line-height:1;}
+.quick-nav-item.active{color:var(--accent);}
+@media(max-width:720px){
+    .quick-nav{display:flex;}
+    .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));}
+}
 
 /* ── Floodlight glow — signature treatment for hero surfaces ── */
 .glow{position:relative;isolation:isolate;}
@@ -50,7 +60,11 @@ body{font-family:var(--font-body);background:
   pointer-events:none;z-index:0;opacity:.8;}
 .glow>*{position:relative;z-index:1;}
 
-.hd{display:flex;align-items:center;justify-content:space-between;padding:6px 2px 18px;}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 2px 18px;}
+@media(max-width:480px){
+    .hd-title{font-size:1.35rem;letter-spacing:2px;}
+    .hd > div[style*="display:flex"]{flex-wrap:wrap;justify-content:flex-end;gap:6px !important;}
+}
 .hd-title{font-family:var(--font-display);font-size:1.7rem;letter-spacing:3px;color:var(--ink);}
 .hd-sub{font-size:.7rem;color:var(--ink-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;font-weight:500;}
 .live-pill{display:flex;align-items:center;gap:6px;background:rgba(47,214,107,.13);border:1px solid rgba(47,214,107,.35);padding:5px 11px;border-radius:20px;flex-shrink:0;box-shadow:0 0 16px -4px rgba(47,214,107,.5);}
@@ -129,6 +143,22 @@ body{font-family:var(--font-body);background:
 .motm-card-rank3 .motm-card-name{font-size:1rem;color:#cd8a4f;font-weight:600;}
 .motm-card-rank3 .motm-card-score{color:#cd8a4f;}
 @media(max-width:640px){.motm-card-rank1{order:-1;}}
+.motm-hist{border-radius:12px;border:1px solid var(--line);background:var(--surface-2);overflow:hidden;}
+.motm-hist-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 13px;cursor:pointer;font-size:.72rem;font-weight:700;color:var(--ink-dim);letter-spacing:.3px;user-select:none;}
+.motm-hist-toggle:hover{color:var(--ink);}
+.motm-hist-arrow{transition:transform .15s ease;font-size:.65rem;}
+.motm-hist-arrow.open{transform:rotate(180deg);}
+.motm-hist-list{display:none;padding:2px 13px 11px;max-height:320px;overflow-y:auto;}
+.motm-hist-list.open{display:block;}
+.motm-hist-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft);cursor:pointer;}
+.motm-hist-row:first-child{border-top:none;}
+.motm-hist-row:hover .motm-hist-name{text-decoration:underline;}
+.motm-hist-month{font-size:.67rem;color:var(--ink-dim);min-width:84px;flex-shrink:0;}
+.motm-hist-medal{flex-shrink:0;}
+.motm-hist-name{flex:1;min-width:0;font-weight:600;color:var(--ink);font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.motm-hist-score{font-size:.72rem;color:var(--ink-dim);white-space:nowrap;flex-shrink:0;}
+.motm-hist-manual{font-size:.56rem;color:#eab308;font-weight:700;margin-left:4px;}
+.motm-hist-empty{font-size:.76rem;color:var(--ink-faint);text-align:center;padding:14px 0;}
 .streak-banner-icon{font-size:1.5rem;line-height:1;}
 .streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
 .streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
@@ -436,6 +466,7 @@ body{font-family:var(--font-body);background:
             <div class="hd-sub">Arena Friends FC · doar afișare</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
+            <button id="goIndexBtn" class="pp-back" style="display:none;margin:0;" onclick="location.href='index.html'">🏠 Acasă</button>
             <button id="myProfileBtn" class="pp-back" style="display:none;margin:0;" onclick="goToMyProfile()">👤 Profilul Meu</button>
             <select id="userIdentitySelect" class="user-identity-select" onchange="setUserIdentity(this.value)">
                 <option value="">👤 Cine ești?</option>
@@ -469,7 +500,8 @@ body{font-family:var(--font-body);background:
 
     <div class="stats-section" id="leaderboardSection">
         <h3>🏅 Clasament</h3>
-        <div id="motmBanner" style="display:none;margin-bottom:10px;"></div>
+        <div id="motmBanner" style="display:none;margin-bottom:6px;"></div>
+        <div id="motmHistoryWrap" style="display:none;margin-bottom:10px;"></div>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
@@ -505,6 +537,24 @@ body{font-family:var(--font-body);background:
 
     <div class="footer-note">Actualizare automată · fără cont necesar</div>
 </div>
+
+<!-- Navigare rapidă (mobil) — permite trecerea instant între paginile
+     aplicației fără să mai cauți linkul prin header; e ascunsă pe ecrane
+     late (≥721px), unde nu e nevoie de ea. -->
+<nav class="quick-nav" aria-label="Navigare rapidă">
+    <a href="index.html" class="quick-nav-item">
+        <span class="quick-nav-icon">🏠</span><span class="quick-nav-lbl">Acasă</span>
+    </a>
+    <a href="clasament.html" class="quick-nav-item active">
+        <span class="quick-nav-icon">🏅</span><span class="quick-nav-lbl">Clasament</span>
+    </a>
+    <a href="live.html" class="quick-nav-item">
+        <span class="quick-nav-icon">🔴</span><span class="quick-nav-lbl">Live</span>
+    </a>
+    <a href="setari.html" class="quick-nav-item">
+        <span class="quick-nav-icon">⚙️</span><span class="quick-nav-lbl">Setări</span>
+    </a>
+</nav>
 
 <script>
 const SUPABASE_URL      = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
@@ -665,12 +715,15 @@ function populateUserIdentitySelect(){
     updateMyProfileBtnVisibility();
 }
 
-// Arată/ascunde butonul "👤 Profilul Meu" din header — vizibil doar când
-// există o identitate salvată (currentUserId), altfel n-are ce deschide.
+// Arată/ascunde butonul "👤 Profilul Meu" ȘI butonul "🏠 Acasă" din header —
+// vizibile doar când există o identitate salvată (currentUserId), adică
+// ești "logat" ca un anumit jucător; altfel n-are ce profil să deschidă, și
+// nici nu ne-am aștepta să vrea cineva nelogat să sară direct la index.
 function updateMyProfileBtnVisibility(){
     const btn = document.getElementById('myProfileBtn');
-    if (!btn) return;
-    btn.style.display = currentUserId ? 'inline-flex' : 'none';
+    const idxBtn = document.getElementById('goIndexBtn');
+    if (btn) btn.style.display = currentUserId ? 'inline-flex' : 'none';
+    if (idxBtn) idxBtn.style.display = currentUserId ? 'inline-flex' : 'none';
 }
 function goToMyProfile(){
     if (!currentUserId) return;
@@ -2287,6 +2340,61 @@ function renderMotmBanner(){
     </div>`;
 }
 
+// 📜 Istoric Omul Lunii — câștigătorii TUTUROR lunilor trecute (excludem luna
+// curentă, deja afișată mai sus în motmBanner), sortați descrescător (cel mai
+// recent prim). Reutilizează computeMotmForMonth (aceeași sursă de adevăr ca
+// banner-ul curent și ca insigna de profil), deci o suprascriere manuală sau
+// un calcul retroactiv se reflectă automat și aici. Secțiunea e strânsă
+// (collapsed) by default ca să nu aglomereze pagina — se extinde la click.
+let motmHistoryOpen = false;
+function renderMotmHistory(){
+    const el = document.getElementById('motmHistoryWrap');
+    if (!el) return;
+    const nowKey = getMonthKey(new Date());
+
+    const pastMonths = getAllMotmMonthKeys()
+        .filter(monthKey => monthKey !== nowKey)
+        .sort((a,b) => b.localeCompare(a)) // descrescător, cel mai recent primul
+        .map(monthKey => {
+            const [y,m] = monthKey.split('-').map(Number);
+            return { monthKey, winner: computeMotmForMonth(y, m-1) };
+        })
+        .filter(x => x.winner); // excludem lunile fără niciun câștigător eligibil
+
+    if (!pastMonths.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+    el.style.display = 'block';
+    const rows = pastMonths.map(({monthKey, winner}) => {
+        const safeName = winner.name.replace(/'/g,"\\'");
+        const scoreHtml = winner.manual
+            ? `<span class="motm-hist-manual">MANUAL</span>`
+            : `<span class="motm-hist-score">${winner.score} pct</span>`;
+        return `<div class="motm-hist-row" onclick="location.href='clasament.html?player='+encodeURIComponent('${safeName}')">
+            <span class="motm-hist-month">${formatMotmMonthLabel(monthKey)}</span>
+            <span class="motm-hist-medal">🏅</span>
+            <span class="motm-hist-name">${winner.name}</span>
+            ${scoreHtml}
+        </div>`;
+    }).join('');
+
+    el.innerHTML = `<div class="motm-hist">
+        <div class="motm-hist-toggle" onclick="toggleMotmHistory()">
+            <span>📜 Omul Lunii din lunile anterioare (${pastMonths.length})</span>
+            <span class="motm-hist-arrow${motmHistoryOpen ? ' open' : ''}" id="motmHistArrow">▾</span>
+        </div>
+        <div class="motm-hist-list${motmHistoryOpen ? ' open' : ''}" id="motmHistList">
+            ${rows || '<div class="motm-hist-empty">Niciun istoric încă.</div>'}
+        </div>
+    </div>`;
+}
+function toggleMotmHistory(){
+    motmHistoryOpen = !motmHistoryOpen;
+    const list = document.getElementById('motmHistList');
+    const arrow = document.getElementById('motmHistArrow');
+    if (list) list.classList.toggle('open', motmHistoryOpen);
+    if (arrow) arrow.classList.toggle('open', motmHistoryOpen);
+}
+
 function getLongestWinStreak(p){
     let longest=0, cur=0;
     (p.matchHistory||[]).forEach(r=>{ if(r==='W'){ cur++; longest=Math.max(longest,cur); } else cur=0; });
@@ -3815,6 +3923,7 @@ async function loadAll(){
 
         renderMeCard();
         renderMotmBanner();
+        renderMotmHistory();
         renderStreakBanner();
         renderRulesCard();
         updateSeasonUI();
