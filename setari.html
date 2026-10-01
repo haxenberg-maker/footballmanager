@@ -2,7 +2,7 @@
 <html lang="ro">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Setări · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -174,14 +174,59 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
 @media(max-width:640px){
     .sidebar{display:none;}
     .mobile-tabs{display:flex;overflow-x:auto;background:#080a12;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;-webkit-overflow-scrolling:touch;}
-    .mobile-tab{flex-shrink:0;padding:10px 14px;font-size:.72rem;font-weight:700;color:#555;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;}
+    .mobile-tab{flex-shrink:0;padding:12px 15px;font-size:.74rem;font-weight:700;color:#555;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;min-height:44px;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;}
     .mobile-tab.active{color:#fff;border-bottom-color:var(--accent);}
-    .panel-body{padding:12px 14px;}
+    .panel-body{padding:12px 14px;padding-bottom:84px;} /* loc pt. bara de navigare rapidă fixă jos */
     .weights-grid{grid-template-columns:1fr;}
     .form-grid{grid-template-columns:1fr;}
+
+    /* ── Ținte de atingere mai mari pe mobil — multe butoane/input-uri erau
+       gândite pentru mouse (20-24px), prea mici ca să le nimerești cu
+       degetul; le mărim DOAR sub acest breakpoint, fără să schimbăm nimic
+       pe desktop. ── */
+    .btn-sm{padding:8px 12px;min-height:36px;}
+    .w-btn{width:34px;height:34px;font-size:1.05rem;}
+    .w-num{width:52px;padding:7px;font-size:.95rem;}
+    .tw-btn{width:30px;height:30px;font-size:.9rem;}
+    .tw-val{width:40px;}
+    .rule-edit-order button{width:32px;height:28px;font-size:.72rem;}
+    .rule-edit-del{padding:6px 10px;}
+    .ar-input{min-height:32px;}
+    .ar-clear{padding:4px 7px;font-size:.85rem;}
+    .code-regen{padding:6px 11px;min-height:32px;}
+    .p-input, .form-input, .tag-input-sm, .tag-select-sm{min-height:38px;}
+    .add-player-btn, .data-btn, .codes-copy-btn{min-height:46px;}
+    .preset-btn{padding:9px 4px;min-height:38px;}
+
+    /* ── Rânduri care se înghesuiau (selecturi/input-uri cu min-width fix
+       de 130-150px, alăturate) — le lăsăm să ocupe tot rândul pe ecran
+       îngust în loc să se comprime ilizibil. ── */
+    .ar-wrap{width:100%;}
+    .ar-input[style*="width:130px"]{width:100% !important;flex:1;}
+    .player-row .ar-wrap select.ar-input{width:100% !important;}
+    .rule-edit-fields select[style*="min-width:140px"],
+    .rule-edit-fields input[style*="min-width:140px"],
+    #ruleNewLocation, #ruleNewSanction{min-width:0 !important;width:100%;flex:1 1 100% !important;}
+    div[style*="min-width:150px"]{min-width:0 !important;width:100%;}
+
+    /* ── Bară de navigare rapidă (vezi markup la finalul <body>) — identică
+       cu cea din index.html/clasament.html, ca trecerea între pagini să fie
+       instant și în aceeași poziție peste tot. ── */
+    .quick-nav{
+        display:flex;position:fixed;left:0;right:0;bottom:0;z-index:500;
+        background:#080a12;border-top:1px solid var(--border);
+        box-shadow:0 -6px 18px rgba(0,0,0,.4);
+        padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+    }
+    .quick-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;padding:6px 2px;border-radius:10px;font-size:.62rem;font-weight:700;color:#777;letter-spacing:.3px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .quick-nav-btn .qn-ico{font-size:1.15rem;line-height:1;}
+    .quick-nav-btn:active{background:rgba(255,255,255,.06);}
+    .quick-nav-btn.qn-active{color:var(--accent);}
+    .save-bar.show{bottom:64px;} /* nu se mai suprapune cu bara de navigare */
 }
 @media(min-width:641px){
     .mobile-tabs{display:none;}
+    .quick-nav{display:none;}
 }
 </style>
 </head>
@@ -491,6 +536,14 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     </div>
     <div class="panel-body">
         <div class="card">
+            <div class="card-title" style="margin-bottom:8px;">⚙️ Prag Omul Lunii (MOTM)</div>
+            <div style="font-size:.68rem;color:#555;margin-bottom:10px;">Un jucător devine eligibil pentru titlul de „Omul Lunii" (clasament.html) doar după ce a jucat minim atâtea sesiuni/meciuri în luna calendaristică respectivă.</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <input id="motmMinSessionsInput" type="number" class="p-input" min="1" max="30" step="1" style="width:80px;text-align:center;flex:none;" oninput="saveMotmMinSessions(this.value)">
+                <span style="font-size:.78rem;color:#888;">sesiuni minime / lună</span>
+            </div>
+        </div>
+        <div class="card">
             <div class="card-title" style="margin-bottom:8px;">➕ Adaugă un premiu</div>
             <div style="font-size:.68rem;color:#555;margin-bottom:10px;">Premiul apare pe jucător imediat, și în clasamentul de Premii din pagina publică.</div>
             <select id="awardPlayerSelect" class="p-input" style="width:100%;margin-bottom:8px;">
@@ -600,6 +653,7 @@ let _algoSnapshot=null; // {base, scale} — ce e SALVAT în DB, folosit ca baz�
 // (PAC/SHO/PAS/DRI/DEF/PHY) se setează manual per jucător, din app.js.
 let csvParsed=null;
 let rulesList=[]; // 📜 Reguli — array [{id,title,description,location,sanction}], sincronizat cu algo_settings (key: 'rules_list')
+let motmMinSessions=2; // Prag eligibilitate "Omul Lunii" (clasament.html) — algo_settings (key: 'motm_min_sessions')
 const RULE_LOCATIONS=['Peste tot','Fepa','Greenfield'];
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
@@ -690,6 +744,25 @@ async function persistRulesList(){
         console.error('persistRulesList:', e.message);
         showToast('❌ Eroare la salvare reguli: '+e.message);
     }
+}
+
+// ⚙️ Prag MOTM — salvat debounced (ca la greutățile algoritmului), ca să nu
+// trimitem un request la fiecare apăsare de tastă pe input-ul numeric.
+let _motmSaveTimer=null;
+function saveMotmMinSessions(val){
+    const n = Math.max(1, Math.min(30, parseInt(val)||2));
+    motmMinSessions = n;
+    clearTimeout(_motmSaveTimer);
+    _motmSaveTimer = setTimeout(async ()=>{
+        try{
+            const{error}=await sb.from('algo_settings').upsert({key:'motm_min_sessions', value:n}, {onConflict:'key'});
+            if(error) throw error;
+            showToast('✅ Prag MOTM salvat: '+n+' sesiuni/lună');
+        }catch(e){
+            console.error('saveMotmMinSessions:', e.message);
+            showToast('❌ Eroare la salvare prag MOTM: '+e.message);
+        }
+    }, 500);
 }
 function buildRulesPanel(){
     const sel=document.getElementById('ruleNewLocation');
@@ -785,6 +858,11 @@ async function loadAll(){
     // cheile pe care nu le recunoaște).
     const rulesRow = (as||[]).find(r=>r.key==='rules_list');
     rulesList = rulesRow && Array.isArray(rulesRow.value) ? rulesRow.value : [];
+    // ⚙️ Prag MOTM — aceeași tabelă generică key/value, key: 'motm_min_sessions'.
+    const motmRow = (as||[]).find(r=>r.key==='motm_min_sessions');
+    motmMinSessions = motmRow ? (parseInt(motmRow.value)||2) : 2;
+    const motmInput = document.getElementById('motmMinSessionsInput');
+    if (motmInput) motmInput.value = motmMinSessions;
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -1324,6 +1402,10 @@ const DEFAULT_MILESTONE_CONFIG=[
     {category:'winrate',           threshold:70,  emoji:'💯',  label:'Consistent',          sort_order:1},
     {category:'rating',            threshold:80,  emoji:'🏔️', label:'Elite',               sort_order:1},
     {category:'teammate_wins',     threshold:15,  emoji:'🤝',  label:'Bromance',            sort_order:1},
+    {category:'penalty_attempts',  threshold:5,   emoji:'🎯',  label:'5 Penalty-uri Executate', sort_order:1},
+    {category:'penalty_attempts',  threshold:15,  emoji:'🥅',  label:'15 Penalty-uri Executate', sort_order:2},
+    {category:'penalty_goals',     threshold:5,   emoji:'⚽',  label:'5 Penalty-uri Reușite',   sort_order:1},
+    {category:'penalty_goals',     threshold:15,  emoji:'🔥',  label:'15 Penalty-uri Reușite',  sort_order:2},
 ];
 const MILESTONE_CAT_LABELS={
     goals:'⚽ Goluri Totale',
@@ -1337,8 +1419,10 @@ const MILESTONE_CAT_LABELS={
     winrate:`💯 Winrate % (min. 5 meciuri) — Achievement profil`,
     rating:'🏔️ Rating Curent — Achievement profil',
     teammate_wins:'🤝 Victorii cu Același Coechipier — Achievement profil',
+    penalty_attempts:'🎯 Penalty-uri Executate (total carieră) — Achievement profil',
+    penalty_goals:'⚽ Penalty-uri Reușite (total carieră) — Achievement profil',
 };
-const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals','best_match_assists','assists','mvp_count','winrate','rating','teammate_wins'];
+const MILESTONE_CAT_ORDER=['goals','wins','games','streak','best_match_goals','best_match_assists','assists','mvp_count','winrate','rating','teammate_wins','penalty_attempts','penalty_goals'];
 
 // ═══════════════════════════════════════════════════════════════════
 // ── PLAYER OF THE MATCH — panou administrare ─────────────────────────
@@ -2119,6 +2203,16 @@ async function loadCompareResults(configId, players){
 // ── Init ──────────────────────────────────────────────────────────
 loadAll();
 </script>
+
+<!-- Navigare rapidă (mobil) — identică cu cea din index.html/clasament.html,
+     ca utilizatorul să poată sări instant pe altă pagină fără să caute un
+     link micuț prin sidebar (ascuns oricum sub 640px). -->
+<div class="quick-nav" id="quickNav">
+    <button class="quick-nav-btn" onclick="window.location.href='index.html'"><span class="qn-ico">🏠</span><span>Acasă</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='clasament.html'"><span class="qn-ico">🏆</span><span>Clasament</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='cheltuieli.html'"><span class="qn-ico">💰</span><span>Cheltuieli</span></button>
+    <button class="quick-nav-btn qn-active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span class="qn-ico">⚙️</span><span>Setări</span></button>
+</div>
 
 </body>
 </html>
