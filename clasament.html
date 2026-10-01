@@ -42,14 +42,22 @@ body{font-family:var(--font-body);background:
   background-attachment:fixed;color:var(--ink);margin:0;padding:0;min-height:100vh;
   -webkit-font-smoothing:antialiased;letter-spacing:.1px;}
 .wrap{max-width:640px;margin:0 auto;padding:16px 14px 64px;}
-/* Navigare rapidă fixă jos — doar pe mobil; pe desktop header-ul ajunge. */
-.quick-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:none;background:rgba(14,18,26,.97);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));}
-.quick-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;color:var(--ink-dim);text-decoration:none;font-size:.6rem;font-weight:600;letter-spacing:.2px;border-radius:10px;transition:color .15s ease,background .15s ease;-webkit-tap-highlight-color:transparent;}
-.quick-nav-item:active{background:rgba(255,255,255,.07);}
-.quick-nav-icon{font-size:1.15rem;line-height:1;}
-.quick-nav-item.active{color:var(--accent);}
-@media(max-width:720px){
-    .quick-nav{display:flex;}
+/* Navigare rapidă fixă jos (mobil) — ACELAȘI component (clase/markup) ca în
+   index.html, ca experiența de "trecere rapidă de la o pagină la alta" să
+   fie identică/predictibilă în toată aplicația, doar recolorată pentru tema
+   închisă a acestei pagini. */
+.quick-nav{display:none;}
+@media(max-width:640px){
+    .quick-nav{
+        display:flex;position:fixed;left:0;right:0;bottom:0;z-index:500;
+        background:rgba(14,18,26,.97);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+        border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.35);
+        padding:6px 4px calc(6px + env(safe-area-inset-bottom,0px));
+    }
+    .quick-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;padding:6px 2px;border-radius:10px;font-size:.62rem;font-weight:700;color:var(--ink-dim);letter-spacing:.3px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+    .quick-nav-btn .qn-ico{font-size:1.15rem;line-height:1;}
+    .quick-nav-btn:active{background:rgba(255,255,255,.07);}
+    .quick-nav-btn.qn-active{color:var(--accent);}
     .wrap{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));}
 }
 
@@ -538,23 +546,14 @@ body{font-family:var(--font-body);background:
     <div class="footer-note">Actualizare automată · fără cont necesar</div>
 </div>
 
-<!-- Navigare rapidă (mobil) — permite trecerea instant între paginile
-     aplicației fără să mai cauți linkul prin header; e ascunsă pe ecrane
-     late (≥721px), unde nu e nevoie de ea. -->
-<nav class="quick-nav" aria-label="Navigare rapidă">
-    <a href="index.html" class="quick-nav-item">
-        <span class="quick-nav-icon">🏠</span><span class="quick-nav-lbl">Acasă</span>
-    </a>
-    <a href="clasament.html" class="quick-nav-item active">
-        <span class="quick-nav-icon">🏅</span><span class="quick-nav-lbl">Clasament</span>
-    </a>
-    <a href="live.html" class="quick-nav-item">
-        <span class="quick-nav-icon">🔴</span><span class="quick-nav-lbl">Live</span>
-    </a>
-    <a href="setari.html" class="quick-nav-item">
-        <span class="quick-nav-icon">⚙️</span><span class="quick-nav-lbl">Setări</span>
-    </a>
-</nav>
+<!-- Navigare rapidă (mobil) — ACELAȘI set de destinații ca în index.html,
+     ca trecerea de pe o pagină pe alta să fie instant și predictibilă. -->
+<div class="quick-nav" id="quickNav">
+    <button class="quick-nav-btn" onclick="window.location.href='index.html'"><span class="qn-ico">🏠</span><span>Acasă</span></button>
+    <button class="quick-nav-btn qn-active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span class="qn-ico">🏆</span><span>Clasament</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='cheltuieli.html'"><span class="qn-ico">💰</span><span>Cheltuieli</span></button>
+    <button class="quick-nav-btn" onclick="window.location.href='setari.html'"><span class="qn-ico">⚙️</span><span>Setări</span></button>
+</div>
 
 <script>
 const SUPABASE_URL      = 'https://lfnumwbjikiyngdxsgrk.supabase.co';
@@ -994,7 +993,7 @@ function getRowPlaySeconds(h){
     return 0;
 }
 
-const MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună
+let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună; suprascris din algo_settings (key: 'motm_min_sessions'), configurabil din Setări → Premii/Titluri
 
 // Calculează statisticile TUTUROR jucătorilor cu minute în luna dată (rows
 // deja filtrate pe lună) — inclusiv cei SUB pragul de eligibilitate, cu
@@ -2623,6 +2622,31 @@ function computeSeasonStats(seasonName){
     return stats;
 }
 
+// Penalty-uri pe TOATĂ cariera (toate sezoanele, inclusiv cele arhivate) —
+// spre deosebire de computeSeasonStats (scopată pe un singur sezon), aici
+// scanăm db.history fără nicio filtrare după h.season. Necesar pentru
+// achievement-urile de profil "Penalty-uri executate/reușite", configurabile
+// din Setări → Milestone-uri (categoriile penalty_attempts/penalty_goals) —
+// vezi ACHIEVEMENT_STAT_GETTERS mai jos, unde rezultatul e atașat pe player
+// (p.careerPenaltyAttempts/p.careerPenaltyGoals) o singură dată, în loadAll().
+function computeCareerPenaltyStats(){
+    const stats = {};
+    const ensure = n => stats[n] || (stats[n] = {attempts:0, goals:0});
+    db.history.forEach(h=>{
+        if (!Array.isArray(h.roundsDetail)) return;
+        h.roundsDetail.forEach(r=>{
+            if (!Array.isArray(r.penalty_shots)) return;
+            r.penalty_shots.forEach(s=>{
+                if (!s.player_name) return;
+                const st = ensure(s.player_name);
+                st.attempts++;
+                if (s.state === 'goal') st.goals++;
+            });
+        });
+    });
+    return stats;
+}
+
 function getSeasonMatches(seasonName){
     return db.history.filter(h=>h.season===seasonName).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
 }
@@ -2858,6 +2882,8 @@ const ACHIEVEMENT_STAT_GETTERS = {
     winrate:              (p, s) => s.games>=PP_MIN_WR_GAMES ? Math.round((s.wins/s.games)*100) : -1,
     rating:                (p, s) => s.rating,
     teammate_wins:        (p, s) => s.teammateWins||0,
+    penalty_attempts:     (p, s) => p.careerPenaltyAttempts||0,
+    penalty_goals:        (p, s) => p.careerPenaltyGoals||0,
 };
 const ACHIEVEMENT_UNIT_LABELS = {
     goals:'goluri (total carieră)', games:'meciuri jucate', streak:'victorii la rând (cea mai lungă serie)',
@@ -2865,6 +2891,7 @@ const ACHIEVEMENT_UNIT_LABELS = {
     wins:'victorii', assists:'assisturi', mvp_count:'MVP-uri',
     winrate:`% winrate (min. ${PP_MIN_WR_GAMES} meciuri)`, rating:'rating',
     teammate_wins:'victorii cu același coechipier',
+    penalty_attempts:'penalty-uri executate (total carieră)', penalty_goals:'penalty-uri reușite (total carieră)',
 };
 function computeAchievements(p, stats){
     const chips = [];
@@ -3741,6 +3768,7 @@ async function loadAll(){
             if(row.key==='weights') Object.assign(W, row.value);
             if(row.key==='tag_bonus_cap') TAG_BONUS_CAP = parseFloat(row.value)||10.0;
             if(row.key==='rules_list') rulesList = Array.isArray(row.value) ? row.value : [];
+            if(row.key==='motm_min_sessions') MOTM_MIN_SESSIONS = parseInt(row.value)||2;
         });
 
         // players + ratings
@@ -3919,6 +3947,16 @@ async function loadAll(){
         (db.playerAwards||[]).forEach(a=>{
             const pl = db.players.find(x=>x.id===a.player_id);
             if (pl) pl.careerAwardsCount = (pl.careerAwardsCount||0) + 1;
+        });
+
+        // p.careerPenaltyAttempts / careerPenaltyGoals — total carieră, pentru
+        // achievement-urile "Penalty-uri executate/reușite" (vezi
+        // computeCareerPenaltyStats + ACHIEVEMENT_STAT_GETTERS).
+        const careerPenStats = computeCareerPenaltyStats();
+        db.players.forEach(p=>{
+            const cp = careerPenStats[p.name] || {attempts:0, goals:0};
+            p.careerPenaltyAttempts = cp.attempts;
+            p.careerPenaltyGoals = cp.goals;
         });
 
         renderMeCard();
