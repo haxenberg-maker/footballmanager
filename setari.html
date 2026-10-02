@@ -7,7 +7,7 @@
 <title>Setări · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="smart-rating.js?v=20260903c"></script>
+<script src="smart-rating.js?v=20261002a"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
@@ -943,12 +943,14 @@ async function loadAll(){
     // ce lăsa goalsPerMatch complet gol → toți jucătorii apăreau cu 0 goluri în MVP,
     // deși golurile erau salvate corect în DB. select('*') e sigur indiferent ce
     // coloane există (la fel ca în app.js/clasament.html, unde era deja reparat).
-    let goalsPerMatch={}, assistsPerMatch={};
+    let goalsPerMatch={}, assistsPerMatch={}, teamGoalsPerMatch={};
     try{
         const{data:goalsRaw,error}=await sb.from('match_goals').select('*');
         if(error) throw error;
         (goalsRaw||[]).forEach(g=>{
             if(g.is_penalty) return;
+            if(!teamGoalsPerMatch[g.match_id]) teamGoalsPerMatch[g.match_id]={orange:0,green:0,black:0};
+            if(teamGoalsPerMatch[g.match_id][g.team]!==undefined) teamGoalsPerMatch[g.match_id][g.team]+=(g.goals||1); // pt. semnalul Defensivă din preview
             if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]={};
             goalsPerMatch[g.match_id][g.player_name]=(goalsPerMatch[g.match_id][g.player_name]||0)+(g.goals||1);
             if(g.assist_name){
@@ -960,6 +962,7 @@ async function loadAll(){
     db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
         orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
+        season:h.season||null,teamGoals:teamGoalsPerMatch[h.id]||null,
         playerGoals:goalsPerMatch[h.id]||{},playerAssists:assistsPerMatch[h.id]||{},
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
         manualMvpId:h.manual_mvp_player_id!=null?h.manual_mvp_player_id:null,

@@ -235,6 +235,78 @@ function computeAssistDeltaScores(playersStats, assistBonusWeight = ASSIST_BONUS
     });
 }
 
+// ── Defensivă / Goluri încasate ─────────────────────────────────────
+// Media golurilor încasate de echipa jucătorului per meci (rând din
+// match_history) la care a participat. Sursa: golurile marcate de
+// echipa/echipele ADVERSE în același rând (penalty-urile de departajare
+// NU se numără). Rândurile fără date de goluri sunt ignorate (nu se
+// presupune 0), ca media să nu fie falsificată.
+const DEFAULT_DEFENSE_PENALTY_WEIGHT = 0.5; // puncte OVR per gol/meci peste (−) sau sub (+) media lotului
+const DEFAULT_EA_FORM_DEFENSE_CAP    = 3;   // plafon (±) puncte OVR din semnalul defensiv
+const DEFAULT_DEFENSE_MIN_GAMES      = 5;   // minim meciuri pentru Top Defensivă ȘI pentru semnalul din Form
+let DEFENSE_PENALTY_WEIGHT = DEFAULT_DEFENSE_PENALTY_WEIGHT;
+let EA_FORM_DEFENSE_CAP    = DEFAULT_EA_FORM_DEFENSE_CAP;
+let DEFENSE_MIN_GAMES      = DEFAULT_DEFENSE_MIN_GAMES;
+
+/** Goluri normale pe culoare {orange,green,black} pentru un rând de istoric; null dacă nu există date. */
+function getRowGoalsByTeam(h){
+    const COLS = ['orange','green','black'];
+    const t = { orange:0, green:0, black:0 };
+    // 1) match_goals (h.goalsList) — sursa cea mai sigură
+    if (Array.isArray(h.goalsList) && h.goalsList.length){
+        let found=false;
+        h.goalsList.forEach(g=>{ if(!g.is_penalty && t[g.team]!==undefined){ t[g.team]+=(g.goals||1); found=true; } });
+        if (found) return t;
+    }
+    // 2) total pre-calculat pe echipă
+    if (h.teamGoals && COLS.some(c=>(h.teamGoals[c]||0)>0)){
+        COLS.forEach(c=>{ t[c]=h.teamGoals[c]||0; });
+        return t;
+    }
+    // 3) golurile din ture (rounds_detail), pt. sesiunile 3 echipe
+    if (Array.isArray(h.roundsDetail) && h.roundsDetail.length){
+        let found=false;
+        h.roundsDetail.forEach(r=>(r.goals||[]).forEach(g=>{ if(t[g.team]!==undefined){ t[g.team]+=1; found=true; } }));
+        return found ? t : null;
+    }
+    // 4) meci simplu 2 echipe: scorul e chiar golurile (Portocaliu:Verde)
+    const m = String(h.score||'').match(/^\s*(\d+)\s*:\s*(\d+)\s*$/);
+    if (m){ t.orange=parseInt(m[1]); t.green=parseInt(m[2]); return t; }
+    return null;
+}
+
+/** { numeJucător: { games, conceded } } pentru un sezon (null = sezonul curent). */
+function computeGoalsConcededStats(history, seasonName = null){
+    const stats = {};
+    (history||[]).forEach(h=>{
+        if ((h.season||null) !== seasonName) return;
+        const tg = getRowGoalsByTeam(h); if(!tg) return;
+        const teams = [['orange',h.orangePlayers],['green',h.greenPlayers],['black',h.blackPlayers]]
+            .filter(([,pl])=>Array.isArray(pl) && pl.length);
+        teams.forEach(([col,pl])=>{
+            const conc = teams.reduce((s,[oc])=> oc===col ? s : s + tg[oc], 0);
+            pl.forEach(n=>{ const s = stats[n] || (stats[n]={games:0,conceded:0}); s.games++; s.conceded += conc; });
+        });
+    });
+    return stats;
+}
+
+/** Depunctare/bonus defensiv: −(media jucătorului − media lotului) × pondere, plafonat. */
+function eaComputeDefenseDelta(p){
+    if (!DEFENSE_PENALTY_WEIGHT) return { delta:0, note:null };
+    const stats = computeGoalsConcededStats(db.history, null);
+    const mine = stats[p.name];
+    if (!mine || mine.games < DEFENSE_MIN_GAMES) return { delta:0, note:null };
+    let tg=0, tm=0;
+    Object.values(stats).forEach(s=>{ if(s.games>=DEFENSE_MIN_GAMES){ tg+=s.conceded; tm+=s.games; } });
+    if (!tm) return { delta:0, note:null };
+    const leagueRate = tg/tm, myRate = mine.conceded/mine.games;
+    const raw = -(myRate - leagueRate) * DEFENSE_PENALTY_WEIGHT;
+    const delta = Math.round(Math.max(-EA_FORM_DEFENSE_CAP, Math.min(EA_FORM_DEFENSE_CAP, raw)));
+    const note = `${mine.conceded} goluri încasate în ${mine.games} meciuri (${myRate.toFixed(1)}/meci) vs media lotului (${leagueRate.toFixed(1)}) → ${delta>=0?'+':''}${delta} OVR`;
+    return { delta, note };
+}
+
 // ── Activitate recentă (absențe) — folosit de Form Rating ────────────
 function getActivityMultiplier(p){
     const recentMatches = db.history.slice(0, 8);
@@ -551,6 +623,9 @@ function eaComputeFormDelta(p, context = {}){
     const assistBonus = eaComputeAssistBonusDelta(p);
     if (assistBonus.delta){ total+=assistBonus.delta; signals.push({icon:'👟', label:'Performanță asisturi', note:assistBonus.note, delta:assistBonus.delta}); }
 
+    const defense = eaComputeDefenseDelta(p);
+    if (defense.delta){ total+=defense.delta; signals.push({icon:'🛡️', label:'Defensivă (goluri încasate)', note:defense.note, delta:defense.delta}); }
+
     const career = eaComputeCareerAchievementsDelta(p);
     if (career.delta){ total+=career.delta; signals.push({icon:'🏆', label:'Realizări istorice (toate sezoanele)', note:career.note, delta:career.delta}); }
 
@@ -701,6 +776,20 @@ const ALGO_FIELDS = [
       label:'Plafon (±) puncte OVR', unit:'OVR',
       min:0, max:15, step:1, default:DEFAULT_EA_FORM_ASSISTS_CAP,
       get:()=>EA_FORM_ASSISTS_CAP, set:v=>{EA_FORM_ASSISTS_CAP=v;} },
+
+    // ── Form Rating — Defensivă / Goluri încasate (NOU) ──
+    { key:'defense_penalty_weight', group:'🛡️ Defensivă / Goluri încasate (Form)',
+      label:'Depunctare per gol/meci încasat peste media lotului (sub medie = bonus)', unit:'OVR/gol',
+      min:0, max:3, step:0.1, default:DEFAULT_DEFENSE_PENALTY_WEIGHT,
+      get:()=>DEFENSE_PENALTY_WEIGHT, set:v=>{DEFENSE_PENALTY_WEIGHT=v;} },
+    { key:'ea_form_defense_cap', group:'🛡️ Defensivă / Goluri încasate (Form)',
+      label:'Plafon (±) puncte OVR', unit:'OVR',
+      min:0, max:15, step:1, default:DEFAULT_EA_FORM_DEFENSE_CAP,
+      get:()=>EA_FORM_DEFENSE_CAP, set:v=>{EA_FORM_DEFENSE_CAP=v;} },
+    { key:'defense_min_games', group:'🛡️ Defensivă / Goluri încasate (Form)',
+      label:'Minim meciuri pentru calificare (Form + Top Defensivă)', unit:'meciuri',
+      min:1, max:30, step:1, default:DEFAULT_DEFENSE_MIN_GAMES,
+      get:()=>DEFENSE_MIN_GAMES, set:v=>{DEFENSE_MIN_GAMES=v;} },
 
     // ── Form Rating — Realizări Istorice (NOU — toate sezoanele) ──
     { key:'career_achv_scale', group:'🏆 Realizări Istorice (Form, toate sezoanele)',
