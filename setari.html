@@ -180,6 +180,17 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     .weights-grid{grid-template-columns:1fr;}
     .form-grid{grid-template-columns:1fr;}
 
+    /* ── BUG PRINCIPAL: .panel-header era display:flex ORIZONTAL, deci
+       titlul ("Player of The Match" etc.) și subtitlul stăteau unul lângă
+       altul, înghesuite la jumătate de lățime fiecare — de-aici efectul de
+       "2 cuvinte pe rând". Pe mobil le stivuim: titlul sus, subtitlul dedesubt,
+       fiecare pe toată lățimea disponibilă. Rezolvă problema pe TOATE
+       secțiunile (Algoritm, Jucători, Milestone-uri, POTM, etc. — folosesc
+       aceeași structură). ── */
+    .panel-header{flex-direction:column;align-items:flex-start;gap:3px;padding:14px 14px 10px;}
+    .panel-title{font-size:1.2rem;letter-spacing:2px;}
+    .panel-sub{font-size:.7rem;line-height:1.4;}
+
     /* ── Ținte de atingere mai mari pe mobil — multe butoane/input-uri erau
        gândite pentru mouse (20-24px), prea mici ca să le nimerești cu
        degetul; le mărim DOAR sub acest breakpoint, fără să schimbăm nimic
@@ -204,9 +215,9 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
     .ar-wrap{width:100%;}
     .ar-input[style*="width:130px"]{width:100% !important;flex:1;}
     .player-row .ar-wrap select.ar-input{width:100% !important;}
-    .rule-edit-fields select[style*="min-width:140px"],
-    .rule-edit-fields input[style*="min-width:140px"],
-    #ruleNewLocation, #ruleNewSanction{min-width:0 !important;width:100%;flex:1 1 100% !important;}
+    select[style*="min-width:140px"],
+    input[style*="min-width:140px"],
+    #ruleNewLocation, #ruleNewSanction{min-width:0 !important;flex:1 1 100% !important;}
     div[style*="min-width:150px"]{min-width:0 !important;width:100%;}
 
     /* ── Bară de navigare rapidă (vezi markup la finalul <body>) — identică
