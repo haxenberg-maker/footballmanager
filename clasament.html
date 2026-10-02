@@ -722,7 +722,7 @@ function updateMyProfileBtnVisibility(){
     const btn = document.getElementById('myProfileBtn');
     const idxBtn = document.getElementById('goIndexBtn');
     if (btn) btn.style.display = currentUserId ? 'inline-flex' : 'none';
-    if (idxBtn) idxBtn.style.display = currentUserId ? 'inline-flex' : 'none';
+    if (idxBtn) idxBtn.style.display = 'none'; // Se menține mereu ascuns
 }
 function goToMyProfile(){
     if (!currentUserId) return;
