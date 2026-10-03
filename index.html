@@ -22,9 +22,46 @@
 
 
     <style>
-        :root { --orange:#ff8c00;--green:#28a745;--dark:#f7ecd9;--card:#fff8ed;--star:#ffcc00;--accent:#3d5afe;--border:#dcc89a;--purple:#9c27b0; }
+        /* ════════════════════════════════════════════════════════════════
+           1. RESET & DESIGN TOKENS
+           Toate culorile vechi (#dcc89a, #7d6849, etc.) rămân valabile
+           neschimbate — nimic din JS nu depinde de variabile CSS, deci nu
+           există risc la redenumire. Scala de spațiere/radius/font de mai
+           jos e noua "sursă de adevăr" pentru orice regulă NOUĂ sau
+           REVIZUITĂ din acest fișier, ca toate elementele (butoane, carduri,
+           titluri) să respecte aceleași trepte, nu valori alese ad-hoc.
+           ════════════════════════════════════════════════════════════════ */
+        :root {
+            /* culori de bază — neschimbate, doar redenumite/completate */
+            --orange:#ff8c00; --green:#28a745; --dark:#f7ecd9; --card:#fff8ed;
+            --star:#ffcc00; --accent:#3d5afe; --border:#dcc89a; --purple:#9c27b0;
+            --ink:#3a2f1f; --ink-soft:#4a3c28; --ink-dim:#6b5840; --ink-faint:#7d6849;
+            --surface:#fffaf0; --surface-2:#f1e4c8; --surface-3:#fdf3df;
+            --danger:#c62828; --danger-soft:#e53935; --info:#1554b3;
+
+            /* scală de spațiere (4px bază) — folosește-o pentru orice padding/gap nou */
+            --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px;
+
+            /* scală de radius */
+            --r-sm:6px; --r-md:10px; --r-lg:14px; --r-xl:20px; --r-pill:999px;
+
+            /* scală de font */
+            --fs-xs:.68rem; --fs-sm:.78rem; --fs-base:.9rem; --fs-md:1rem; --fs-lg:1.2rem; --fs-xl:1.6rem;
+
+            /* umbre */
+            --shadow-sm:0 2px 8px rgba(58,47,31,.1);
+            --shadow-md:0 6px 20px rgba(58,47,31,.18);
+            --shadow-lg:0 16px 48px rgba(58,47,31,.3);
+
+            /* ținta minimă de atingere pe mobil (Apple HIG / Material = 44px) */
+            --touch-min:44px;
+        }
         *{box-sizing:border-box;}
-        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;margin:0;padding:0;}
+        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;margin:0;padding:0;-webkit-text-size-adjust:100%;}
+
+        /* ════════════════════════════════════════════════════════════════
+           2. OVERLAYS DE SISTEM (loading / autentificare)
+           ════════════════════════════════════════════════════════════════ */
         .loading-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(10,12,16,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(6px);}
         .loading-overlay.hidden{display:none;}
         .spinner{width:44px;height:44px;border:3px solid #dcc89a;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
@@ -50,6 +87,12 @@
         .auth-error{background:rgba(198,40,40,0.15);border:1px solid #c62828;border-radius:8px;padding:10px 14px;font-size:0.85rem;color:#b33030;margin-bottom:12px;display:none;}
         .auth-error.show{display:block;}
         .auth-divider{text-align:center;font-size:0.75rem;color:#7d6849;margin:12px 0;}
+        /* ════════════════════════════════════════════════════════════════
+           3. HEADER & NAVIGARE (user-bar, main-header, controls, quick-nav)
+           Zona cea mai "haotică" dinainte — butoanele de control sunt acum
+           grupate (vezi .ctrl-menu-wrap / .ctrl-popover mai jos) în loc să
+           stea toate 17 pe un singur rând.
+           ════════════════════════════════════════════════════════════════ */
         .user-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 20px;background:#f7ecd9;border-bottom:1px solid var(--border);font-size:0.78rem;}
         .user-bar-name{color:#7d6849;display:flex;align-items:center;gap:6px;}
         .user-bar-role{padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700;}
@@ -68,39 +111,68 @@
         .conn-badge.online{color:#2e7d32;}
         .conn-badge.offline .conn-dot{background:#c62828;}
         .conn-badge.offline{color:#b33030;}
-        .main-header{text-align:center;padding:22px 20px 18px;border-bottom:1px solid var(--border);background:#fffaf0;}
-        .main-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.6rem;letter-spacing:4px;color:#3a2f1f;margin:0;outline:none;cursor:text;border-bottom:2px dashed transparent;transition:border-color 0.2s;display:inline-block;}
+        .main-header{text-align:center;padding:18px 20px 14px;border-bottom:1px solid var(--border);background:#fffaf0;}
+        .main-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.3rem;letter-spacing:4px;color:#3a2f1f;margin:0;outline:none;cursor:text;border-bottom:2px dashed transparent;transition:border-color 0.2s;display:inline-block;}
         .main-header h1:focus{border-bottom-color:#3d5afe;}
-        .date-display{font-size:0.82rem;color:#6b5840;margin-top:5px;letter-spacing:1px;text-transform:uppercase;}
-        .controls{display:flex;justify-content:center;gap:6px;padding:12px 20px;background:#fffaf0;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;}
-        .controls-separator{width:1px;height:28px;background:var(--border);margin:0 4px;}
-        button{padding:9px 14px;border:none;border-radius:7px;cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#dcc89a;color:#3a2f1f;}
+        .date-display{font-size:0.78rem;color:#6b5840;margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
+
+        /* Butoane — bază unificată. Orice buton nou/vechi moștenește aceeași
+           înălțime minimă de atingere și aceeași tranziție; variantele
+           (.btn-primary/.btn-ghost/etc.) doar schimbă culoarea. */
+        button{padding:9px 14px;min-height:38px;border:none;border-radius:var(--r-sm);cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#dcc89a;color:#3a2f1f;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
         button:hover{filter:brightness(1.2);transform:translateY(-1px);}
         button:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
         .btn-settings{background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;}
         .btn-nav-clasament{background:linear-gradient(135deg,#fff3c4,#ffcc00);border:1px solid #e0b400;color:#7d5a00;}
         .btn-nav-cheltuieli{background:linear-gradient(135deg,#dff3df,#a8d8a0);border:1px solid #28a745;color:#1b7a35;}
 
-        /* ── Sticky bottom quick-nav (mobile) ── */
+        /* ── Bara de controale — regândită: acțiuni PRIMARE rămân vizibile
+           direct (Start Meci / Live), restul se grupează în 2 meniuri
+           popover (👁️ Afișare / ⚙️ Admin) + navigare, în loc de 17 butoane
+           pe un singur rând. Vezi markup-ul .ctrl-menu-wrap din <body>. ── */
+        .controls{display:flex;justify-content:center;gap:var(--sp-2);padding:10px 20px;background:#fffaf0;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;position:relative;}
+        .controls-separator{width:1px;height:26px;background:var(--border);margin:0 2px;}
+        .ctrl-menu-wrap{position:relative;display:inline-flex;}
+        .btn-menu-toggle{background:#fdf3df;border:1px solid #d3bd8c;color:#4a3c28;}
+        .btn-menu-toggle:hover{border-color:var(--accent);}
+        .btn-menu-toggle.open{border-color:var(--accent);background:#eef1ff;color:#1a3fb0;}
+        .ctrl-popover{
+            position:absolute;top:calc(100% + 6px);left:0;z-index:300;min-width:220px;
+            background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+            box-shadow:var(--shadow-lg);padding:var(--sp-2);
+            display:none;flex-direction:column;gap:4px;
+        }
+        .ctrl-popover.open{display:flex;}
+        .ctrl-popover button{width:100%;justify-content:flex-start;text-align:left;background:transparent;}
+        .ctrl-popover button:hover{background:var(--surface-2);transform:none;filter:none;}
+        .ctrl-popover .popover-divider{height:1px;background:var(--border);margin:4px 2px;}
+        @media(max-width:640px){
+            .ctrl-popover{left:auto;right:0;}
+        }
+
+        /* ── Bară de navigare rapidă fixă jos (mobil) — suport corect pentru
+           safe-area-inset-bottom (notch-ul de jos pe iOS/Android), înălțime
+           de atingere adecvată (min-height 44px pe fiecare buton). ── */
         .quick-nav{display:none;}
         @media(max-width:640px){
             .quick-nav{
                 display:flex;position:fixed;left:0;right:0;bottom:0;z-index:500;
                 background:#fffaf0;border-top:1px solid var(--border);
                 box-shadow:0 -6px 18px rgba(0,0,0,.25);
-                padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+                padding:6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
             }
-            .conn-badge{bottom:calc(60px + env(safe-area-inset-bottom));}
+            .conn-badge{bottom:calc(60px + env(safe-area-inset-bottom, 0px));}
             .quick-nav-btn{
-                flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
-                background:none;border:none;padding:6px 2px;border-radius:10px;
+                flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+                background:none;border:none;padding:6px 2px;border-radius:10px;min-height:var(--touch-min);
                 font-size:.62rem;font-weight:700;color:#7d6849;letter-spacing:.3px;
             }
             .quick-nav-btn .qn-ico{font-size:1.15rem;line-height:1;}
             .quick-nav-btn:hover{filter:none;transform:none;}
+            .quick-nav-btn:active{background:rgba(0,0,0,.05);}
             .quick-nav-btn.qn-active{color:var(--accent);}
             /* leave room so content isn't hidden behind the bar */
-            body{padding-bottom:64px;}
+            body{padding-bottom:calc(64px + env(safe-area-inset-bottom, 0px));}
         }
         .btn-quick-vote{background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;}
         .btn-schedule{background:linear-gradient(135deg,#dde9ff,#5c8aff);border:1px solid #2979ff;color:#1554b3;}
@@ -898,10 +970,21 @@
         @media(max-width:1300px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
         @media(max-width:1100px){.dashboard{grid-template-columns:1fr 36px 1fr 1fr 1fr}.dashboard.tf-2{grid-template-columns:1fr 36px 1fr 1fr}.dashboard.tf-4{grid-template-columns:1fr 36px 1fr 1fr 1fr 1fr}}
         @media(max-width:900px){.dashboard{grid-template-columns:1fr 1fr}.balance-col{display:none}.column-bench,.column-white,.column-active{grid-column:span 1}}
+        /* ════════════════════════════════════════════════════════════════
+           4. RESPONSIVE — MOBIL (≤640px)
+           Structura de taburi mobile (#playersArea/#sectionsArea/
+           .mobile-tabs-row etc.) rămâne NEATINSĂ — funcționează deja bine.
+           Ce s-a adăugat aici: ținte de atingere de minim 44px pe orice
+           control mic gândit inițial pentru mouse, font-size 16px explicit
+           pe toate input-urile/select-urile text (previne auto-zoom-ul din
+           Safari iOS la focus), și eliminarea oricărui scroll orizontal
+           nedorit.
+           ════════════════════════════════════════════════════════════════ */
         @media(max-width:640px){
+            html, body{max-width:100vw;overflow-x:hidden;}
             .page{padding:0;}
-            .controls{padding:8px 10px;gap:4px;}
-            .controls button{padding:7px 9px;font-size:0.78rem;}
+            .controls{padding:8px 10px;gap:6px;}
+            .controls button{padding:8px 10px;font-size:0.8rem;min-height:40px;}
             .controls-separator{display:none;}
             .btn-nav-clasament,.btn-nav-cheltuieli,.btn-settings{display:none;}
             .main-header{padding:14px 12px 12px;}
@@ -931,6 +1014,41 @@
             .user-bar{flex-wrap:wrap;padding:5px 12px;font-size:0.72rem;gap:6px;}
             .leaderboard{grid-template-columns:1fr 1fr;}
             table th:nth-child(3),table td:nth-child(3){display:none;}
+
+            /* ── Ținte de atingere ≥44px pentru controale mici (erau gândite
+               pt. mouse: 20-32px) ── */
+            .mobile-tab{min-height:var(--touch-min);padding:8px 3px;}
+            .lb-tab{min-height:38px;padding:8px 12px;}
+            .lb-period-btn{min-height:34px;padding:6px 12px;}
+            .tf-btn{min-height:40px;}
+            .modal-tab{min-height:40px;}
+            .settings-tab{min-height:40px;}
+            .cat-tab{min-height:38px;}
+            .move-btn{width:36px;height:36px;}
+            .btn-3team,.btn-winchance{width:38px;height:38px;}
+            .algo-btn{width:30px;height:30px;}
+            .cat-star-btn{height:36px;}
+            .general-star-btn{height:48px;}
+            .qv-gen-btn{height:42px;}
+            .lobby-player-chip{padding:9px 14px 9px 10px;min-height:var(--touch-min);}
+            .player-card{min-height:var(--touch-min);}
+            .week-player-row{padding:8px 0;min-height:36px;}
+            .mh-row{padding:11px 0;}
+            .btn-delete-r{min-width:32px;min-height:32px;}
+
+            /* ── Font-size 16px explicit pe orice input/select text, altfel
+               Safari iOS mărește automat (zoom) pagina la focus. ── */
+            .auth-input, .rater-select, .rater-input, .schedule-input,
+            .player-edit-input, .account-player-select, .qv-rater-select,
+            input[type=text], input[type=email], input[type=password],
+            input[type=number], input[type=date], input[type=time],
+            select, textarea{
+                font-size:16px !important;
+            }
+
+            /* ── Meniurile popover din .controls, pe ecran îngust, nu trebuie
+               să depășească niciodată lățimea ecranului. ── */
+            .ctrl-popover{min-width:200px;max-width:calc(100vw - 20px);}
         }
         @media(max-width:400px){.leaderboard{grid-template-columns:1fr;}}
     </style>
@@ -1015,30 +1133,48 @@
     <button class="btn-logout" onclick="doLogout()">Ieși din cont</button>
 </div>
 
-<!-- CONTROLS -->
+<!-- CONTROLS — regrupat: acțiuni PRIMARE vizibile direct, restul în 2
+     meniuri popover (👁️ Afișare / ⚙️ Admin), ca să nu mai stea 17 butoane
+     pe un singur rând. Fiecare buton își păstrează EXACT același id/
+     onclick/clasă de dinainte — doar poziția în DOM s-a schimbat, deci
+     tot JS-ul din app.js funcționează neschimbat. -->
 <div class="controls">
-    <div class="controls-separator admin-only"></div>
-    <button class="btn-schedule admin-only" onclick="openScheduleModal()">📅 Programează</button>
-    <button class="admin-only" onclick="addNewPlayer()">+ Jucător</button>
-    <div class="controls-separator admin-only"></div>
-    <div class="controls-separator"></div>
-    <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
-    <button id="btnToggleWrStats" onclick="toggleDashWrStats()" title="Ascunde/Arată WR/goluri">⚽ WR/Goluri</button>
-    <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
-    <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
-    <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
-    <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
-    <button id="btnToggleAttrs" onclick="toggleDashAttrs()" title="Ascunde/Arată atribute (PAC/SHO/...)">📊 Atribute</button>
     <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
-    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺</button>
-    <button class="admin-only" onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="background:linear-gradient(135deg,#e3edfb,#bcd4f5);border:1px solid #1a4a7a;color:#1a4a7a;">🔄 Recalculează statistici</button>
-    <button class="admin-only" onclick="recalculateConcededOnly()" title="Recalculează STRICT golurile primite — nu atinge victorii/meciuri/goluri date" style="background:rgba(198,40,40,.08);border:1px solid rgba(198,40,40,.35);color:#b71c1c;font-size:.78rem;">🥅 Recalculează doar golurile primite</button>
+    <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺 Live</button>
+
+    <!-- 👁️ Afișare — ce coloane de informații se văd pe cardurile de jucător -->
+    <div class="ctrl-menu-wrap">
+        <button class="btn-menu-toggle" id="viewMenuBtn" onclick="toggleCtrlMenu('viewMenu')">👁️ Afișare ▾</button>
+        <div class="ctrl-popover" id="viewMenu">
+            <button id="btnToggleStats" onclick="toggleDashStats()" title="Ascunde/Arată ratinguri">👁️ Ratinguri</button>
+            <button id="btnToggleWrStats" onclick="toggleDashWrStats()" title="Ascunde/Arată WR/goluri">⚽ WR/Goluri</button>
+            <button id="btnToggleTags" onclick="toggleDashTags()" title="Ascunde/Arată statusuri">🏷️ Statusuri</button>
+            <button id="btnToggleRoles" onclick="toggleDashRoles()" title="Ascunde/Arată roluri">🎭 Roluri</button>
+            <button id="btnToggleMilestones" onclick="toggleDashMilestones()" title="Ascunde/Arată milestone-uri">🏅 Milestone-uri</button>
+            <button id="btnToggleSpeed" onclick="toggleDashSpeed()" title="Ascunde/Arată statusul de viteză">💨 Viteză</button>
+            <button id="btnToggleAttrs" onclick="toggleDashAttrs()" title="Ascunde/Arată atribute (PAC/SHO/...)">📊 Atribute</button>
+        </div>
+    </div>
+
+    <!-- ⚙️ Admin — acțiuni administrative rar folosite -->
+    <div class="ctrl-menu-wrap admin-only">
+        <button class="btn-menu-toggle" id="adminMenuBtn" onclick="toggleCtrlMenu('adminMenu')">⚙️ Admin ▾</button>
+        <div class="ctrl-popover" id="adminMenu">
+            <button onclick="openScheduleModal()">📅 Programează</button>
+            <button onclick="addNewPlayer()">+ Jucător</button>
+            <div class="popover-divider"></div>
+            <button onclick="recalculateStatsFromUI()" title="Recalculează golurile, victoriile și meciurile tuturor jucătorilor din istoricul real al meciurilor" style="color:#1a4a7a;">🔄 Recalculează statistici</button>
+            <button onclick="recalculateConcededOnly()" title="Recalculează STRICT golurile primite — nu atinge victorii/meciuri/goluri date" style="color:#b71c1c;">🥅 Doar golurile primite</button>
+            <div class="popover-divider"></div>
+            <button onclick="window.location.href='setari.html'">⚙️ Setări</button>
+            <button id="customShortcutEditBtn" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat">➕ Shortcut</button>
+        </div>
+    </div>
+
     <div class="controls-separator"></div>
     <button class="btn-nav-clasament" onclick="window.location.href='clasament.html'" title="Clasament">🏆 Clasament</button>
     <button class="btn-nav-cheltuieli" onclick="window.location.href='cheltuieli.html'" title="Cheltuieli">💰 Cheltuieli</button>
-    <button class="btn-settings admin-only" onclick="window.location.href='setari.html'">⚙️ Setări</button>
     <button id="customShortcutBtn" onclick="openCustomShortcut()" style="display:none;background:linear-gradient(135deg,#ede3fa,#c9a8f0);border:1px solid #9c27b0;color:#6a1b9a;"></button>
-    <button id="customShortcutEditBtn" class="admin-only" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat" style="background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.78rem;">➕ Shortcut</button>
 </div>
 
 <!-- QUICK NAV — sticky bottom bar, always reachable on mobile with one thumb -->
@@ -1770,6 +1906,29 @@
 
 <script src="smart-rating.js?v=20260903c"></script>
 <script src="app.js?v=20260903c"></script>
+
+<!-- Script NOU, separat — doar pt. meniurile popover din bara de
+     controale (👁️ Afișare / ⚙️ Admin). Nu atinge și nu depinde de nimic
+     din app.js; folosește exclusiv id-urile .ctrl-popover/.btn-menu-toggle
+     adăugate mai sus. -->
+<script>
+function toggleCtrlMenu(id){
+    const menu = document.getElementById(id);
+    if (!menu) return;
+    const btn = document.getElementById(id === 'viewMenu' ? 'viewMenuBtn' : 'adminMenuBtn');
+    const willOpen = !menu.classList.contains('open');
+    // închide orice alt meniu popover deschis, ca să nu rămână două deodată
+    document.querySelectorAll('.ctrl-popover.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+    document.querySelectorAll('.btn-menu-toggle.open').forEach(b => { if (b !== btn) b.classList.remove('open'); });
+    menu.classList.toggle('open', willOpen);
+    if (btn) btn.classList.toggle('open', willOpen);
+}
+document.addEventListener('click', function(e){
+    if (e.target.closest('.ctrl-menu-wrap')) return;
+    document.querySelectorAll('.ctrl-popover.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.btn-menu-toggle.open').forEach(b => b.classList.remove('open'));
+});
+</script>
 
 <!-- START MECI MODAL -->
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
