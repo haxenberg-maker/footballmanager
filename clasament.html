@@ -1204,9 +1204,10 @@ function renderPairBodyPublic(h, opts){
     const mvpWinner = computeSessionMvpWinner([h]); // override-aware — la 2 echipe, goluri+minute e echivalent cu goluri (minute egale), dar respectă suprascrierea manuală
     const hattrick = showHattrick && mvpWinner && mvpWinner.goals >= 3;
     // Mod 2 echipe (showHattrick=false): fără mențiunea/logica de hat-trick —
-    // doar un ⭐ MVP simplu, goluri afișate simplu (⚽/⚽×N) oriunde altundeva.
+    // doar un ⭐ MVP simplu. Afișăm goluri · assist · min, la fel ca la
+    // sesiunile 3 echipe (vezi renderSessionCard), nu doar golurile simplu.
     const topScorerHTML = mvpWinner
-        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b class="${isCurrentUser(mvpWinner.name)?'um-name':''}">${mvpWinner.name}</b> ${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''}${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
+        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b class="${isCurrentUser(mvpWinner.name)?'um-name':''}">${mvpWinner.name}</b> (${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''} · ${mvpWinner.assists||0} assist · ${mvpWinner.minutes} min)${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
         : '';
     const potmHTML = h.potmWinnerName
         ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <b class="${isCurrentUser(h.potmWinnerName)?'um-name':''}">${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}</div>`
@@ -1290,7 +1291,7 @@ function buildTwoTeamMatchDetails(h){
         </div>`;
         }).join('')
         : `<div style="font-size:.7rem;color:#5b6577;padding:4px 0;">Niciun gol înregistrat.</div>`;
-    const listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Goluri</div>${goalsHtml}`;
+    const listHtml = `<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#8b96a8;margin-bottom:4px;">⚽ Cronologie Goluri</div>${goalsHtml}`;
 
     return { mirrorHtml, listHtml, timeHtml };
 }
@@ -1766,7 +1767,7 @@ function renderMatchDetailScreen(dbId){
         </div>
     </div>` : '';
 
-    const { mirrorHtml } = buildTwoTeamMatchDetails(h);
+    const { mirrorHtml, listHtml: goalTimelineHtml } = buildTwoTeamMatchDetails(h);
     const roundsTabHtml = hasRounds ? buildRoundsTimelineHtml(h) : '';
     const statsTabHtml = buildMatchStatsTabHtml(h, hasRounds, sessionRows);
 
@@ -1784,9 +1785,14 @@ function renderMatchDetailScreen(dbId){
         ${hasRounds ? `<button class="pp-tab${mdActiveTab==='rounds'?' active':''}" onclick="setMdTab('rounds')">🔄 Cronologie Ture</button>` : ''}
     </div>`;
 
+    // La un meci simplu (2 echipe, fără ture), adăugăm și cronologia golurilor
+    // (ordinea exactă + autorii asisturilor) — exact ca la "Cronologie Ture"
+    // de la sesiunile 3 echipe, dar aici e deja gata calculată de
+    // buildTwoTeamMatchDetails (goalTimelineHtml), doar nu era afișată nicăieri.
     const tabContentHtml = mdActiveTab === 'rounds' && hasRounds
         ? roundsTabHtml
         : `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;">${mirrorHtml}</div>
+           ${!hasRounds ? `<div style="background:#1b2330;border-radius:9px;padding:11px 13px;border:1px solid #262f3f;margin-top:12px;">${goalTimelineHtml}</div>` : ''}
            <div style="margin-top:12px;">${statsTabHtml}</div>`;
 
     const subParts = [];
@@ -1935,7 +1941,7 @@ function buildShareCardHtml(h){
         <div class="msc-score-big" style="color:${winColor};">${escapeHtml(h.score||'—')}</div>
         <div style="text-align:center;font-size:.8rem;color:#8b96a8;margin-bottom:16px;">🏆 ${escapeHtml(h.winner||'Egal')} a câștigat</div>
         ${topScorers.length ? `<div class="msc-section-title">Golgheteri</div>${topScorers.map(([n,g])=>`<div class="msc-pair-row"><span>⚽ ${escapeHtml(n)}</span><span style="font-family:'Bebas Neue',sans-serif;">${g}</span></div>`).join('')}` : ''}
-        ${mvp ? `<div class="msc-highlight" style="margin-top:14px;"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri</div></div></div>` : ''}
+        ${mvp ? `<div class="msc-highlight" style="margin-top:14px;"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri · ${mvp.assists||0} assist · ${mvp.minutes} min</div></div></div>` : ''}
         ${potmName ? `<div class="msc-highlight"><span class="msc-highlight-icon">⭐</span><div><div class="msc-highlight-lbl">POTM</div><div class="msc-highlight-name">${escapeHtml(potmName)}</div></div></div>` : ''}
         <div class="msc-footer">Arena Friends FC · Bârlad &nbsp;·&nbsp; ${escapeHtml(dateStr)}</div>`;
 }
@@ -2340,12 +2346,14 @@ function renderMotmBanner(){
     </div>`;
 }
 
-// 📜 Istoric Omul Lunii — câștigătorii TUTUROR lunilor trecute (excludem luna
-// curentă, deja afișată mai sus în motmBanner), sortați descrescător (cel mai
-// recent prim). Reutilizează computeMotmForMonth (aceeași sursă de adevăr ca
-// banner-ul curent și ca insigna de profil), deci o suprascriere manuală sau
-// un calcul retroactiv se reflectă automat și aici. Secțiunea e strânsă
-// (collapsed) by default ca să nu aglomereze pagina — se extinde la click.
+// 📜 Istoric Omul Lunii — DOAR luna imediat precedentă (excludem luna
+// curentă, deja afișată mai sus în motmBanner). Lista e sortată descrescător
+// (cel mai recent prim) și tăiată la 1 element cu .slice(0,1) — dacă luna
+// precedentă n-a avut niciun câștigător eligibil, nu mai căutăm înapoi la
+// alta mai veche, secțiunea dispare pur și simplu pentru luna asta.
+// Reutilizează computeMotmForMonth (aceeași sursă de adevăr ca banner-ul
+// curent și ca insigna de profil), deci o suprascriere manuală sau un calcul
+// retroactiv se reflectă automat și aici.
 let motmHistoryOpen = false;
 function renderMotmHistory(){
     const el = document.getElementById('motmHistoryWrap');
@@ -2355,11 +2363,12 @@ function renderMotmHistory(){
     const pastMonths = getAllMotmMonthKeys()
         .filter(monthKey => monthKey !== nowKey)
         .sort((a,b) => b.localeCompare(a)) // descrescător, cel mai recent primul
+        .slice(0, 1) // DOAR luna imediat precedentă
         .map(monthKey => {
             const [y,m] = monthKey.split('-').map(Number);
             return { monthKey, winner: computeMotmForMonth(y, m-1) };
         })
-        .filter(x => x.winner); // excludem lunile fără niciun câștigător eligibil
+        .filter(x => x.winner); // excludem luna dacă n-a avut niciun câștigător eligibil
 
     if (!pastMonths.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
 
@@ -2379,11 +2388,11 @@ function renderMotmHistory(){
 
     el.innerHTML = `<div class="motm-hist">
         <div class="motm-hist-toggle" onclick="toggleMotmHistory()">
-            <span>📜 Omul Lunii din lunile anterioare (${pastMonths.length})</span>
+            <span>📜 Omul Lunii din luna anterioară</span>
             <span class="motm-hist-arrow${motmHistoryOpen ? ' open' : ''}" id="motmHistArrow">▾</span>
         </div>
         <div class="motm-hist-list${motmHistoryOpen ? ' open' : ''}" id="motmHistList">
-            ${rows || '<div class="motm-hist-empty">Niciun istoric încă.</div>'}
+            ${rows}
         </div>
     </div>`;
 }
