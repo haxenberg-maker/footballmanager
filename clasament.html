@@ -515,6 +515,7 @@ body{font-family:var(--font-body);background:
             <button class="lb-tab active" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
             <button class="lb-tab"        id="lbt-wins"    onclick="setLbTab('wins')"   >🏆 Victorii</button>
             <button class="lb-tab"        id="lbt-pen"     onclick="setLbTab('pen')"    >🥅 Penalty</button>
+            <button class="lb-tab"        id="lbt-def"     onclick="setLbTab('def')"    >🛡️ Defensivă</button>
             <button class="lb-tab"        id="lbt-ovr"     onclick="setLbTab('ovr')"    >🔥 Top 10</button>
         </div>
         <div id="contribSubTabs" style="display:flex;gap:4px;margin-bottom:8px;"></div>
@@ -3659,6 +3660,23 @@ function renderLeaderboard(){
                 return g+' goluri la penalty'+(pct?' · '+pct:'');
             };
             bigColor='#ef4444';
+            break;
+        case 'def':
+            // Rating defensiv = media atributului "aparare" din rating-urile
+            // peer-to-peer (vezi getCatAvg/p.ratings, aceeași sursă folosită de
+            // smart-rating.js la calculul OVR-ului) — identic ca metodă cu tab-ul
+            // 🔥 "general" (getGeneralAvg), doar pe categoria "aparare" în loc de
+            // "general". Nu filtrăm după poziție, ca să nu rămână tab-ul gol dacă
+            // puțini jucători au o poziție setată — dar o AFIȘĂM în subtitlu.
+            sorted=[...all].sort((a,b)=>getCatAvg(b,'aparare')-getCatAvg(a,'aparare'));
+            getValue=p=>getCatAvg(p,'aparare').toFixed(1);
+            subLabel=p=>{
+                const posInfo=POSITIONS[p.positionPrimary];
+                const posLabel=posInfo ? `${posInfo.emoji} ${posInfo.label}` : 'Fără poziție setată';
+                const n=p.ratings?.length||0;
+                return `${posLabel} · ${n} evaluăr${n===1?'e':'i'}`;
+            };
+            bigColor='#1b7a43';
             break;
         default:
             sorted=withCurrentSeasonHistory(()=>[...all].sort((a,b)=>getSmartRating(b)-getSmartRating(a)));
