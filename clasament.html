@@ -2742,7 +2742,7 @@ function renderContribSubTabs(){
     }
     wrap.style.display='flex';
     if(searchWrap) searchWrap.style.display='block';
-    const subs=[['total','Total'],['goals','⚽ Goluri'],['assists','🅰️ Asisturi']];
+    const subs=[['total','Total'],['goals','⚽ Goluri'],['assists','🅰️ Asisturi'],['def','🛡️ Defensivă']];
     wrap.innerHTML=subs.map(([id,label])=>
         `<button class="lb-subtab${currentContribSubTab===id?' active':''}" onclick="setContribSubTab('${id}')">${label}</button>`
     ).join('');
@@ -3601,6 +3601,23 @@ function renderLeaderboard(){
               bigColor = '#60a5fa';
               break;
           }
+          if (currentContribSubTab === 'def') {
+              // Defensivă: principalul e media de GOLURI ÎNCASATE / MECI (mai
+              // MICĂ = mai bun apărător, deci sortăm ascendent), iar dedesubt
+              // afișăm totalul de goluri încasate pe toată cariera. Spre
+              // deosebire de restul sub-taburilor (unde mai mult = mai bun),
+              // aici sortarea e INVERSATĂ — vezi și nota de la calculul lui
+              // `pct`/`maxVal` mai jos, unde compensăm asta ca bara să rămână
+              // plină pentru cel mai bun apărător, nu pentru cel mai slab.
+              const concededOf = p => p.totalGoalsConceded||0;
+              sorted = [...withGames]
+                  .filter(p => gamesOf(p) >= LB_MIN_GAMES)
+                  .sort((a,b) => (concededOf(a)/gamesOf(a)) - (concededOf(b)/gamesOf(b)));
+              getValue = p => (concededOf(p)/gamesOf(p)).toFixed(2);
+              subLabel = p => `${concededOf(p)} goluri încasate (total)`;
+              bigColor = '#1b7a43';
+              break;
+          }
           // 'total' (implicit)
           sorted = [...withGames]
               .filter(p => contribOf(p) > 0)
@@ -3683,13 +3700,23 @@ function renderLeaderboard(){
         content.innerHTML=`<p style="color:#8b96a8;font-size:.85rem;text-align:center;padding:14px;">${emptyMsg}</p>`;
         return;
     }
-    const maxVal=parseFloat(getValue(sorted[0]).replace(/[^0-9.]/g,''))||1;
+    // isInverseTab: sub-tabul 🛡️ Defensivă e singurul unde "mai mic = mai bun"
+    // (cel sortat primul, sorted[0], are cea mai MICĂ valoare, nu cea mai
+    // mare ca la restul tab-urilor) — maxVal trebuie calculat ca maximul real
+    // din listă (nu doar valoarea lui sorted[0]), iar bara trebuie umplută
+    // invers, ca cel mai bun apărător (medie mică) să aibă bara plină, nu goală.
+    const isInverseTab = currentLbTab==='contrib' && currentContribSubTab==='def';
+    const allVals = sorted.map(p=>parseFloat(getValue(p).replace(/[^0-9.]/g,''))||0);
+    const maxVal = (isInverseTab ? Math.max(...allVals) : allVals[0]) || 1;
+    const minVal = isInverseTab ? Math.min(...allVals) : 0;
     const visibleCount = lbExpanded ? sorted.length : Math.min(10, sorted.length);
     content.innerHTML='<div style="display:flex;flex-direction:column;gap:4px;">'+
         sorted.slice(0,visibleCount).map((p,i)=>{
             const val=getValue(p);
             const numVal=parseFloat(val.replace(/[^0-9.]/g,''))||0;
-            const pct=Math.round((numVal/maxVal)*100);
+            const pct = isInverseTab
+                ? (maxVal>minVal ? Math.round(100 - ((numVal-minVal)/(maxVal-minVal))*100) : 100)
+                : Math.round((numVal/maxVal)*100);
             const medalColors=['#ffd23f','#cbd5e1','#e0995e'];
             // "Tu" = identitatea salvată din header (currentUserId/currentUserName,
             // localStorage) SAU jucătorul din link-ul ?player=Nume (highlightPlayer)
