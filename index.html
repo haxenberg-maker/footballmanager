@@ -1168,6 +1168,8 @@
             <div class="popover-divider"></div>
             <button onclick="window.location.href='setari.html'">⚙️ Setări</button>
             <button id="customShortcutEditBtn" onclick="configureCustomShortcut()" title="Creează sau editează un buton scurtătură personalizat">➕ Shortcut</button>
+            <div class="popover-divider"></div>
+            <button onclick="copyAllPlayersStats(this)" title="Copiază TOȚI jucătorii afișați, cu toate statisticile lor (WR, goluri, assist, OVR, atribute...)">📋 Copiază toți jucătorii</button>
         </div>
     </div>
 
@@ -1403,6 +1405,7 @@
             <button class="btn-edit-schedule admin-only" onclick="openScheduleModal()">✏️</button>
             <button class="admin-only" onclick="resetPrezenta()" title="Resetează prezența tuturor" style="background:rgba(198,40,40,.1);border:1px solid rgba(198,40,40,.3);color:#b71c1c;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;">🔄 Reset Prezență</button>
             <button class="admin-only" onclick="copyConfirmedPresence()" title="Copiază lista alfabetică a jucătorilor confirmați (fără echipă)" style="background:rgba(61,90,254,.1);border:1px solid rgba(61,90,254,.3);color:#1c2d8a;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📋 Copiază Prezența</button>
+            <button class="admin-only" onclick="copyPresentPlayersStats(this)" title="Copiază jucătorii confirmați prezenți ÎMPREUNĂ CU toate statisticile lor (WR, goluri, assist, OVR, atribute...)" style="background:rgba(40,167,69,.1);border:1px solid rgba(40,167,69,.3);color:#1b7a35;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📋 Prezență + Statistici</button>
             <button class="btn-form-teams admin-only" onclick="formTeamsFromLobby()">⚡ Echipe</button>
         </div>
         <div class="lobby-body">
@@ -1445,6 +1448,7 @@
 <div class="modal">
     <button class="modal-close-btn" onclick="closeModal()">✕</button>
     <button class="modal-close-btn" id="modalShareLinkBtn" onclick="copyPlayerLink()" title="Copiază link clasament live" style="right:auto;left:14px;">🔗</button>
+    <button class="modal-close-btn" onclick="copyPlayerModalStats(this)" title="Copiază toate statisticile acestui jucător (WR, goluri, assist, OVR, atribute, chimie...)" style="right:54px;">📋</button>
 
     <!-- FIFA Header -->
     <div class="modal-fifa-header" id="modalFifaHeader">
@@ -1928,6 +1932,151 @@ document.addEventListener('click', function(e){
     document.querySelectorAll('.ctrl-popover.open').forEach(m => m.classList.remove('open'));
     document.querySelectorAll('.btn-menu-toggle.open').forEach(b => b.classList.remove('open'));
 });
+
+/* ════════════════════════════════════════════════════════════════════
+   COPIERE STATISTICI JUCĂTORI — citește direct din DOM (din ce e deja
+   afișat pe ecran: carduri de jucători, modal, lobby), NU recalculează
+   nimic și nu depinde de nicio variabilă din app.js. Folosește
+   textContent (nu innerText), ca să prindă datele chiar dacă vreun
+   toggle de "Afișare" (Ratinguri/Atribute/etc.) e momentan oprit —
+   elementele tot există în DOM, doar sunt display:none.
+   ════════════════════════════════════════════════════════════════════ */
+
+// Copiază `text` în clipboard; `btnEl` (opțional) primește feedback vizual
+// temporar ("✅ Copiat!") direct pe buton, fără alert()/toast necunoscut.
+function copyTextToClipboard(text, btnEl){
+    const done = (ok) => {
+        if (!btnEl) return;
+        if (btnEl.dataset.origHtml === undefined) btnEl.dataset.origHtml = btnEl.innerHTML;
+        btnEl.innerHTML = ok ? '✅' : '❌';
+        btnEl.disabled = true;
+        clearTimeout(btnEl._copyFeedbackTimer);
+        btnEl._copyFeedbackTimer = setTimeout(() => {
+            btnEl.innerHTML = btnEl.dataset.origHtml;
+            btnEl.disabled = false;
+        }, 1600);
+    };
+    const fallback = () => {
+        try{
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.focus(); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+            done(true);
+        }catch(e){ done(false); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => done(true)).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+
+// Extrage un rezumat text dintr-un SINGUR .player-card (de pe dashboard):
+// nume, OVR/rating, badge-uri, mini-statistici (WR/goluri/assist/jocuri...),
+// atribute FIFA (PAC/SHO/DEF/...) și formă (ultimele rezultate W/L).
+function scrapePlayerCardText(card){
+    const name = card.querySelector('.player-name')?.textContent.trim();
+    if (!name) return null;
+    const ovr = card.querySelector('.fifa-rating-num')?.textContent.trim() || '';
+    const ovrLbl = card.querySelector('.fifa-rating-lbl')?.textContent.trim() || 'OVR';
+    const smartGen = card.querySelector('.fifa-rating-gen')?.textContent.trim() || '';
+    const badges = Array.from(card.querySelectorAll('.rating-badges .rating-badge, .rating-badges .rating-badge-smart'))
+        .map(b => b.textContent.trim()).filter(Boolean);
+    const stats = Array.from(card.querySelectorAll('.fifa-stats-row .fifa-stat, .player-stats'))
+        .map(s => s.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
+    const attrs = Array.from(card.querySelectorAll('.fifa-attr-row')).map(r => {
+        const lbl = r.querySelector('.fifa-attr-lbl')?.textContent.trim() || '';
+        const val = r.querySelector('.fifa-attr-val')?.textContent.trim() || '';
+        return lbl && val ? `${lbl} ${val}` : '';
+    }).filter(Boolean);
+    const form = Array.from(card.querySelectorAll('.form-row .form-dot'))
+        .map(d => d.classList.contains('W') ? 'W' : d.classList.contains('L') ? 'L' : '')
+        .filter(Boolean).join('');
+
+    const parts = [`• ${name}`];
+    if (ovr) parts.push(`${ovrLbl} ${ovr}${smartGen ? ' ('+smartGen+')' : ''}`);
+    if (badges.length) parts.push(badges.join(' '));
+    if (stats.length) parts.push(stats.join(' · '));
+    if (attrs.length) parts.push(attrs.join(' '));
+    if (form) parts.push(`Formă ${form}`);
+    return parts.join(' | ');
+}
+
+// Toate cardurile de jucători vizibile oriunde pe pagină (toate coloanele:
+// portocalie/verde/bench/alb), deduplicate după nume.
+function getAllPlayerCardsUnique(){
+    const seen = new Set(); const out = [];
+    document.querySelectorAll('.player-card').forEach(c => {
+        const name = c.querySelector('.player-name')?.textContent.trim();
+        if (!name || seen.has(name)) return;
+        seen.add(name); out.push(c);
+    });
+    return out;
+}
+
+// Buton din MODALUL de jucător — copiază TOT ce se vede în modal pentru
+// jucătorul curent deschis (rating, WR, formă, breakdown-ul de atribute,
+// și top-ul de chimie cu coechipierii).
+function copyPlayerModalStats(btnEl){
+    const name = document.getElementById('modalPlayerName')?.textContent.trim() || 'Jucător';
+    const ratingLbl = document.getElementById('modalRatingLabel')?.textContent.trim() || 'Rating';
+    const rating = document.getElementById('modalRatingBig')?.textContent.trim() || '';
+    const streak = document.getElementById('modalStreak')?.textContent.trim() || '';
+    const winRate = document.getElementById('modalWinRate')?.textContent.trim() || '';
+    const glance = Array.from(document.querySelectorAll('#modalQuickGlance > *'))
+        .map(el => el.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
+    const breakdown = Array.from(document.querySelectorAll('#algoBreakdown .algo-row')).map(row => {
+        const lbl = row.querySelector('.algo-label')?.textContent.trim() || '';
+        const val = row.querySelector('.algo-val')?.textContent.trim() || '';
+        return lbl && val ? `${lbl}: ${val}` : '';
+    }).filter(Boolean);
+    const chem = Array.from(document.querySelectorAll('#chemistryList > *')).slice(0, 15).map(row => {
+        const n = row.querySelector('.chem-name')?.textContent.trim();
+        const s = row.querySelector('.chem-score')?.textContent.trim();
+        const d = row.querySelector('.chem-detail')?.textContent.trim();
+        if (!n) return row.textContent.replace(/\s+/g,' ').trim();
+        return `${n}${s ? ': '+s : ''}${d ? ' ('+d+')' : ''}`;
+    }).filter(Boolean);
+
+    const lines = [`⚽ ${name}`];
+    if (rating) lines.push(`${ratingLbl}: ${rating}`);
+    if (winRate) lines.push(`Win Rate: ${winRate}`);
+    if (streak) lines.push(`Formă: ${streak}`);
+    if (glance.length) lines.push('', glance.join(' · '));
+    if (breakdown.length) lines.push('', '📊 Atribute:', ...breakdown);
+    if (chem.length) lines.push('', '🤝 Chimie cu coechipierii:', ...chem);
+
+    copyTextToClipboard(lines.join('\n'), btnEl);
+}
+
+// Buton din meniul Admin — copiază TOȚI jucătorii vizibili pe dashboard,
+// fiecare cu statisticile lui, ca listă.
+function copyAllPlayersStats(btnEl){
+    const cards = getAllPlayerCardsUnique();
+    if (!cards.length) { copyTextToClipboard('(Niciun jucător vizibil pe pagină momentan.)', btnEl); return; }
+    const lines = cards.map(scrapePlayerCardText).filter(Boolean);
+    const text = `📋 TOȚI JUCĂTORII (${lines.length})\n\n` + lines.join('\n');
+    copyTextToClipboard(text, btnEl);
+}
+
+// Buton din Lobby — copiază DOAR jucătorii bifați "prezent" (confirmați),
+// fiecare cu statisticile lui (spre deosebire de butonul existent
+// "Copiază Prezența", care copiază doar numele).
+function copyPresentPlayersStats(btnEl){
+    const confirmedNames = Array.from(document.querySelectorAll('.lobby-player-chip.confirmed .chip-name'))
+        .map(n => n.textContent.trim()).filter(Boolean);
+    if (!confirmedNames.length) { copyTextToClipboard('(Niciun jucător confirmat prezent momentan.)', btnEl); return; }
+    const cards = getAllPlayerCardsUnique();
+    const byName = {};
+    cards.forEach(c => { const n = c.querySelector('.player-name')?.textContent.trim(); if (n) byName[n] = c; });
+    const lines = confirmedNames.map(n => {
+        const card = byName[n];
+        return card ? scrapePlayerCardText(card) : `• ${n}`;
+    }).filter(Boolean);
+    const text = `📋 JUCĂTORI PREZENȚI (${lines.length})\n\n` + lines.join('\n');
+    copyTextToClipboard(text, btnEl);
+}
 </script>
 
 <!-- START MECI MODAL -->
