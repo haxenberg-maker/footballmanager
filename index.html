@@ -1934,27 +1934,30 @@ document.addEventListener('click', function(e){
 });
 
 /* ════════════════════════════════════════════════════════════════════
-   COPIERE STATISTICI JUCĂTORI — citește direct din DOM (din ce e deja
-   afișat pe ecran: carduri de jucători, modal, lobby), NU recalculează
-   nimic și nu depinde de nicio variabilă din app.js. Folosește
-   textContent (nu innerText), ca să prindă datele chiar dacă vreun
-   toggle de "Afișare" (Ratinguri/Atribute/etc.) e momentan oprit —
-   elementele tot există în DOM, doar sunt display:none.
+   COPIERE STATISTICI JUCĂTORI — v2, REscrisă după ce am primit app.js.
+   Varianta anterioară citea din DOM (ghiceam clasele CSS) — motiv pentru
+   care lipseau atributele (clasa reală e .fifa-attrs-row, cu <span>-uri
+   simple în ea, nu .fifa-attr-row/.fifa-attr-val cum presupusesem) și
+   filtrarea pe prezență nu era 100% fiabilă. Acum citim DIRECT din sursa
+   de adevăr a aplicației: db.players, db.nextMatch.confirmedIds,
+   getEligiblePlayers(), getSmartRating(), eaGetPlayerCard() etc. — exact
+   aceleași date/funcții pe care le folosește deja restul lui app.js (ex.
+   getEligiblePlayers e folosită și la formarea echipelor din lobby).
    ════════════════════════════════════════════════════════════════════ */
 
 // Copiază `text` în clipboard; `btnEl` (opțional) primește feedback vizual
-// temporar ("✅ Copiat!") direct pe buton, fără alert()/toast necunoscut.
+// temporar pe buton. Folosește showToast() din app.js dacă există (e
+// funcția reală de toast a aplicației), cu fallback silențios dacă nu.
 function copyTextToClipboard(text, btnEl){
     const done = (ok) => {
+        if (typeof showToast === 'function') {
+            try{ showToast(ok ? '✅ Copiat în clipboard!' : '⚠️ Nu am putut copia — verifică permisiunile browserului.'); }catch(e){}
+        }
         if (!btnEl) return;
         if (btnEl.dataset.origHtml === undefined) btnEl.dataset.origHtml = btnEl.innerHTML;
         btnEl.innerHTML = ok ? '✅' : '❌';
-        btnEl.disabled = true;
         clearTimeout(btnEl._copyFeedbackTimer);
-        btnEl._copyFeedbackTimer = setTimeout(() => {
-            btnEl.innerHTML = btnEl.dataset.origHtml;
-            btnEl.disabled = false;
-        }, 1600);
+        btnEl._copyFeedbackTimer = setTimeout(() => { btnEl.innerHTML = btnEl.dataset.origHtml; }, 1600);
     };
     const fallback = () => {
         try{
@@ -1972,146 +1975,95 @@ function copyTextToClipboard(text, btnEl){
     }
 }
 
-// Extrage atributele (PAC/SHO/DEF/...) dintr-un card, încercând MAI MULTE
-// variante de selectoare — nu știm sigur cum le construiește exact app.js
-// (nu avem acces la el), așa că încercăm pe rând mai multe tipare uzuale în
-// loc să ne bazăm pe un singur nume de clasă ghicit.
-function scrapeAttrsFromCard(card){
-    // 1) rânduri gen .fifa-attr-row / .live-attr-row / orice "*attr-row*"
-    const rowEls = card.querySelectorAll('[class*="attr-row" i]');
-    if (rowEls.length) {
-        const out = [];
-        rowEls.forEach(r => {
-            const lblEl = r.querySelector('[class*="attr-lbl" i], [class*="attr-label" i]');
-            const valEl = r.querySelector('[class*="attr-val" i], [class*="attr-value" i]');
-            let lbl = lblEl?.textContent.trim();
-            let val = valEl?.textContent.trim();
-            if (!lbl || !val) {
-                // fallback generic: primul copil = etichetă, ultimul = valoare
-                const kids = Array.from(r.children).filter(k => k.textContent.trim());
-                if (!lbl && kids[0]) lbl = kids[0].textContent.trim();
-                if (!val && kids.length > 1) val = kids[kids.length-1].textContent.trim();
-            }
-            if (lbl && val) out.push(`${lbl} ${val}`);
+// Atributele EA (PAC/SHO/PAS/DRI/DEF/PHY, sau DIV/HAN/KIC/REF/POS/SPD la
+// portari) — citite direct din eaGetPlayerCard(p), funcția reală folosită
+// și de cardurile mici de pe dashboard (vezi app.js).
+function formatPlayerAttrs(p){
+    try{
+        const card = eaGetPlayerCard(p);
+        const labels = card.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
+        return Object.keys(labels).map(k => `${labels[k]} ${card.attrs[k]}`).join(' · ');
+    }catch(e){ return ''; }
+}
+
+// Chimia unui jucător cu toți coechipierii — aceeași formulă ca
+// buildChemistry() din modal (freq*0.4 + winrate*0.6, scor 0-10),
+// recalculată aici direct din db.history, nu citită din DOM.
+function formatPlayerChemistry(p, limit){
+    try{
+        const myMatches = db.history.filter(h =>
+            (h.orangePlayers||[]).includes(p.name) || (h.greenPlayers||[]).includes(p.name) || (h.blackPlayers||[]).includes(p.name));
+        if (!myMatches.length) return '';
+        const chemMap = {};
+        myMatches.forEach(h => {
+            const inOrange = (h.orangePlayers||[]).includes(p.name);
+            const inBlack  = (h.blackPlayers||[]).includes(p.name);
+            const myTeam   = inOrange ? h.orangePlayers : inBlack ? (h.blackPlayers||[]) : h.greenPlayers;
+            const won = playerWonMatch(h, p.name) === true;
+            (myTeam||[]).forEach(name => {
+                if (name === p.name) return;
+                if (!chemMap[name]) chemMap[name] = {together:0, wins:0};
+                chemMap[name].together++;
+                if (won) chemMap[name].wins++;
+            });
         });
-        if (out.length) return out;
+        const total = myMatches.length;
+        const results = Object.entries(chemMap).map(([name,d]) => {
+            const freq = d.together/total, wr = d.together>0 ? d.wins/d.together : 0;
+            return { name, score:(freq*0.4+wr*0.6)*10, together:d.together, wr };
+        }).sort((a,b) => b.score - a.score);
+        return results.slice(0, limit||5)
+            .map(r => `${r.name} ${r.score.toFixed(1)} (${r.together}m, ${Math.round(r.wr*100)}%V)`).join(' · ');
+    }catch(e){ return ''; }
+}
+
+// Rezumatul complet al UNUI jucător — folosit și la export bulk (listă),
+// și (cu chimie inclusă) la copierea din modal.
+function formatPlayerStatsLine(p, withChem){
+    const smart = (typeof getSmartRating === 'function') ? getSmartRating(p) : '—';
+    const general = (typeof getGeneralAvg === 'function') ? getGeneralAvg(p).toFixed(1) : '—';
+    const wr = p.games > 0 ? Math.round((p.wins/p.games)*100)+'%' : '—';
+    const assists = (typeof getAllPlayersAssistTotals === 'function') ? (getAllPlayersAssistTotals()[p.name]||0) : '—';
+    const attrs = formatPlayerAttrs(p);
+    let teamConceded = null;
+    try{ teamConceded = computeTeamConcededWhilePlaying(p); }catch(e){}
+
+    const parts = [`OVR ${smart}`, `General ${general}`, `WR ${wr} (${p.wins||0}V/${p.games||0}M)`,
+        `⚽ ${p.totalGoals||0} goluri`, `👟 ${assists} assist`];
+    if ((p.totalPenaltyGoals||0) > 0) parts.push(`🥅pen ${p.totalPenaltyGoals}`);
+    if ((p.totalGoalsConceded||0) > 0) parts.push(`🧤 ${p.totalGoalsConceded} primite`);
+    if (teamConceded && teamConceded.games > 0) parts.push(`Primite echipă ${teamConceded.conceded} (${teamConceded.perGame.toFixed(1)}/m)`);
+    if (attrs) parts.push(attrs);
+
+    let line = `• ${p.name} | ` + parts.join(' | ');
+    if (withChem) {
+        const chem = formatPlayerChemistry(p, 5);
+        if (chem) line += `\n   🤝 Chimie: ${chem}`;
     }
-    // 2) hexagon SVG (radar chart) — etichetele/valorile sunt elemente <text>
-    const svgTexts = card.querySelectorAll('[class*="hex" i] text, svg text');
-    if (svgTexts.length) {
-        const out = Array.from(svgTexts).map(t => t.textContent.trim()).filter(Boolean);
-        if (out.length) return [out.join(' ')];
-    }
-    // 3) orice element cu clasă "attr" (ultimă soluție, text brut al containerului)
-    const generic = card.querySelector('[class*="attr" i]:not([class*="attr-row" i])');
-    if (generic && generic.textContent.trim()) return [generic.textContent.replace(/\s+/g,' ').trim()];
-    return [];
+    return line;
 }
 
-// Extrage un rezumat text dintr-un SINGUR .player-card (de pe dashboard):
-// nume, OVR/rating, badge-uri, mini-statistici (WR/goluri/assist/jocuri...),
-// atribute FIFA (PAC/SHO/DEF/...) și formă (ultimele rezultate W/L).
-function scrapePlayerCardText(card){
-    const name = card.querySelector('.player-name')?.textContent.trim();
-    if (!name) return null;
-    const ovr = card.querySelector('.fifa-rating-num')?.textContent.trim() || '';
-    const ovrLbl = card.querySelector('.fifa-rating-lbl')?.textContent.trim() || 'OVR';
-    const smartGen = card.querySelector('.fifa-rating-gen')?.textContent.trim() || '';
-    const badges = Array.from(card.querySelectorAll('.rating-badges .rating-badge, .rating-badges .rating-badge-smart, .rating-badge, .rating-badge-smart'))
-        .map(b => b.textContent.trim()).filter(Boolean);
-    const stats = Array.from(card.querySelectorAll('.fifa-stats-row .fifa-stat, .fifa-stat, .player-stats'))
-        .map(s => s.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
-    const attrs = scrapeAttrsFromCard(card);
-    const form = Array.from(card.querySelectorAll('.form-row .form-dot, .form-dot'))
-        .map(d => d.classList.contains('W') ? 'W' : d.classList.contains('L') ? 'L' : '')
-        .filter(Boolean).join('');
-
-    const parts = [`• ${name}`];
-    if (ovr) parts.push(`${ovrLbl} ${ovr}${smartGen ? ' ('+smartGen+')' : ''}`);
-    if (badges.length) parts.push([...new Set(badges)].join(' '));
-    if (stats.length) parts.push(stats.join(' · '));
-    if (attrs.length) parts.push(attrs.join(' '));
-    if (form) parts.push(`Formă ${form}`);
-    return parts.join(' | ');
-}
-
-// Toate cardurile de jucători vizibile oriunde pe pagină (toate coloanele:
-// portocalie/verde/bench/alb), deduplicate după nume.
-function getAllPlayerCardsUnique(){
-    const seen = new Set(); const out = [];
-    document.querySelectorAll('.player-card').forEach(c => {
-        const name = c.querySelector('.player-name')?.textContent.trim();
-        if (!name || seen.has(name)) return;
-        seen.add(name); out.push(c);
-    });
-    return out;
-}
-
-// Buton din MODALUL de jucător — copiază TOT ce se vede în modal pentru
-// jucătorul curent deschis (rating, WR, formă, breakdown-ul de atribute,
-// și top-ul de chimie cu coechipierii).
+// Buton din MODALUL de jucător — jucătorul curent e cel din
+// `currentPlayerId` (variabila globală setată de openModal() în app.js).
 function copyPlayerModalStats(btnEl){
-    const name = document.getElementById('modalPlayerName')?.textContent.trim() || 'Jucător';
-    const ratingLbl = document.getElementById('modalRatingLabel')?.textContent.trim() || 'Rating';
-    const rating = document.getElementById('modalRatingBig')?.textContent.trim() || '';
-    const streak = document.getElementById('modalStreak')?.textContent.trim() || '';
-    const winRate = document.getElementById('modalWinRate')?.textContent.trim() || '';
-    const glance = Array.from(document.querySelectorAll('#modalQuickGlance > *'))
-        .map(el => el.textContent.replace(/\s+/g,' ').trim()).filter(Boolean);
-    const breakdown = Array.from(document.querySelectorAll('#algoBreakdown .algo-row')).map(row => {
-        const lbl = row.querySelector('.algo-label')?.textContent.trim() || '';
-        const val = row.querySelector('.algo-val')?.textContent.trim() || '';
-        return lbl && val ? `${lbl}: ${val}` : '';
-    }).filter(Boolean);
-    const chem = Array.from(document.querySelectorAll('#chemistryList > *')).slice(0, 15).map(row => {
-        const n = row.querySelector('.chem-name')?.textContent.trim();
-        const s = row.querySelector('.chem-score')?.textContent.trim();
-        const d = row.querySelector('.chem-detail')?.textContent.trim();
-        if (!n) return row.textContent.replace(/\s+/g,' ').trim();
-        return `${n}${s ? ': '+s : ''}${d ? ' ('+d+')' : ''}`;
-    }).filter(Boolean);
-
-    const lines = [`⚽ ${name}`];
-    if (rating) lines.push(`${ratingLbl}: ${rating}`);
-    if (winRate) lines.push(`Win Rate: ${winRate}`);
-    if (streak) lines.push(`Formă: ${streak}`);
-    if (glance.length) lines.push('', glance.join(' · '));
-    if (breakdown.length) lines.push('', '📊 Atribute:', ...breakdown);
-    if (chem.length) lines.push('', '🤝 Chimie cu coechipierii:', ...chem);
-
-    copyTextToClipboard(lines.join('\n'), btnEl);
+    const p = db.players.find(x => x.id == currentPlayerId);
+    if (!p) { copyTextToClipboard('(Niciun jucător selectat.)', btnEl); return; }
+    copyTextToClipboard(`⚽ ${formatPlayerStatsLine(p, true)}`, btnEl);
 }
 
-// Normalizează un nume pentru comparație (fără diacritice, fără spații
-// multiple, lowercase) — ca potrivirea chip-lobby ↔ card-jucător să nu
-// rateze din cauza unor diferențe mici de scriere (ex. diacritice).
-function normalizeNameForMatch(s){
-    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
-}
-
-// Buton din Lobby + buton din meniul Admin — AMÂNDOUĂ copiază DOAR
-// jucătorii bifați "prezent" (confirmați) în lobby, fiecare cu
-// statisticile lui complete. Nu există variantă "toți jucătorii,
-// indiferent de prezență" — scopul e mereu strict cei bifați.
+// Butoane din Lobby + din meniul Admin — AMÂNDOUĂ folosesc
+// getEligiblePlayers(), exact aceeași sursă de adevăr pe care o folosește
+// deja aplicația pentru "cine e eligibil" la formarea echipelor: DOAR cei
+// bifați în db.nextMatch.confirmedIds (cu fallback la jucătorii activi pe
+// dashboard dacă nimeni nu e bifat încă — ca și restul aplicației).
 function copyPresentPlayersStats(btnEl){
-    const confirmedNames = Array.from(document.querySelectorAll('.lobby-player-chip.confirmed .chip-name'))
-        .map(n => n.textContent.trim()).filter(Boolean);
-    if (!confirmedNames.length) { copyTextToClipboard('(Niciun jucător bifat prezent momentan în lobby.)', btnEl); return; }
-    const cards = getAllPlayerCardsUnique();
-    const byNormName = {};
-    cards.forEach(c => {
-        const n = c.querySelector('.player-name')?.textContent.trim();
-        if (n) byNormName[normalizeNameForMatch(n)] = c;
-    });
-    const lines = confirmedNames.map(n => {
-        const card = byNormName[normalizeNameForMatch(n)];
-        return card ? scrapePlayerCardText(card) : `• ${n} (card nu a fost găsit pe dashboard)`;
-    }).filter(Boolean);
+    const players = (typeof getEligiblePlayers === 'function') ? getEligiblePlayers() : [];
+    if (!players.length) { copyTextToClipboard('(Niciun jucător bifat prezent momentan.)', btnEl); return; }
+    const sorted = [...players].sort((a,b) => a.name.localeCompare(b.name, 'ro'));
+    const lines = sorted.map(p => formatPlayerStatsLine(p, false));
     const text = `📋 JUCĂTORI PREZENȚI (${lines.length})\n\n` + lines.join('\n');
     copyTextToClipboard(text, btnEl);
 }
-// Alias — butonul din meniul Admin folosește aceeași logică strict pe
-// prezență (vezi comentariul de mai sus).
 function copyAllPlayersStats(btnEl){ copyPresentPlayersStats(btnEl); }
 </script>
 
