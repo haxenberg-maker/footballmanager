@@ -2991,6 +2991,68 @@ function ppFormatDate(d){
     try{ const dt=parseDateToObj(d); return dt.toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}).toUpperCase(); }catch(e){ return d; }
 }
 
+// Format scurt de dată DOAR pentru timestamp-uri ISO complete (ex. coloana
+// `created_at` din player_rating_history: "2026-03-15T14:23:01.456+00:00").
+// NU folosim ppFormatDate/parseDateToObj aici — acelea tratează special
+// orice string cu un "." în el ca fiind "DD.MM.YYYY", ceea ce ar rupe un
+// ISO timestamp (microsecundele conțin și ele un ".").
+function formatIsoDateShort(iso){
+    if (!iso) return '—';
+    try{ return new Date(iso).toLocaleDateString('ro-RO',{day:'2-digit',month:'short'}).toUpperCase(); }
+    catch(e){ return '—'; }
+}
+
+// 📈 Evoluția ratingului unui jucător — grafic SVG simplu (fără librărie
+// externă), construit din db.ratingHistory[p.id] (populat în loadAll() din
+// tabela player_rating_history, scrisă automat de snapshotPlayerRatings()
+// în app.js de fiecare dată când ratingul se schimbă efectiv).
+function buildRatingHistoryChart(p){
+    const points = (db.ratingHistory && db.ratingHistory[p.id]) || [];
+    if (points.length < 2) {
+        return `<div class="pp-empty" style="padding:14px 0;">📈 Nu există încă suficient istoric de rating — se înregistrează automat la fiecare schimbare (minim 2 puncte necesare pentru grafic).</div>`;
+    }
+
+    const W = 600, H = 150, padL = 30, padR = 12, padT = 14, padB = 22;
+    const vals = points.map(pt => pt.rating);
+    let min = Math.min(...vals), max = Math.max(...vals);
+    if (min === max) { min -= 1; max += 1; } // evită împărțire la 0 dacă ratingul n-a variat deloc
+    const pad = (max - min) * 0.15;
+    min -= pad; max += pad;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const xOf = i => padL + (points.length === 1 ? innerW/2 : (i/(points.length-1)) * innerW);
+    const yOf = v => padT + innerH - ((v - min) / (max - min)) * innerH;
+
+    const pathD = points.map((pt,i) => `${i===0?'M':'L'}${xOf(i).toFixed(1)},${yOf(pt.rating).toFixed(1)}`).join(' ');
+
+    const dotsHtml = points.map((pt,i) => {
+        const prev = i > 0 ? points[i-1].rating : pt.rating;
+        const c = pt.rating > prev ? 'var(--green)' : pt.rating < prev ? 'var(--red)' : 'var(--ink-dim)';
+        return `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(pt.rating).toFixed(1)}" r="3.2" fill="${c}" stroke="var(--surface-2)" stroke-width="1.2"><title>${formatIsoDateShort(pt.date)}: ${pt.rating}</title></circle>`;
+    }).join('');
+
+    const first = points[0].rating, last = points[points.length-1].rating;
+    const totalDelta = Math.round((last - first) * 10) / 10;
+    const deltaColor = totalDelta > 0 ? 'var(--green)' : totalDelta < 0 ? 'var(--red)' : 'var(--ink-faint)';
+    const deltaArrow = totalDelta > 0 ? '↑' : totalDelta < 0 ? '↓' : '—';
+
+    return `
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;">
+            <div style="font-size:.74rem;color:var(--ink-dim);">Din ${formatIsoDateShort(points[0].date)} · ${points.length} înregistrări</div>
+            <div style="font-weight:800;color:${deltaColor};font-size:.95rem;">${deltaArrow} ${totalDelta>0?'+':''}${totalDelta}</div>
+        </div>
+        <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;overflow:visible;">
+            <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--line)" stroke-width="1"/>
+            <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)" stroke-width="1"/>
+            <text x="${padL-5}" y="${padT+4}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${Math.round(max)}</text>
+            <text x="${padL-5}" y="${H-padB}" text-anchor="end" font-size="9" fill="var(--ink-faint)">${Math.round(min)}</text>
+            <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+            ${dotsHtml}
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--ink-faint);margin-top:2px;">
+            <span>${formatIsoDateShort(points[0].date)}</span><span>${formatIsoDateShort(points[points.length-1].date)}</span>
+        </div>`;
+}
+
 // ⭐ POTM / 👑 MVP per meci — calculate la nivel de SESIUNE (groupHistoryForDisplay),
 // exact ca restul aplicației (renderSessionCard/renderCompactAwardChips), nu o a
 // treia logică separată. Într-o sesiune 3 echipe, premiul e per sesiune întreagă,
@@ -3075,6 +3137,11 @@ function renderPlayerProfile(name){
             <div class="pp-stat"><div class="pp-stat-val">${p.totalGoals||0}</div><div class="pp-stat-lbl">Goluri</div></div>
             <div class="pp-stat"><div class="pp-stat-val">${assists}</div><div class="pp-stat-lbl">Assisturi</div></div>
             <div class="pp-stat"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">MVP-uri</div></div>
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">📈 EVOLUȚIE RATING</div>
+            ${buildRatingHistoryChart(p)}
         </div>
 
         <div class="pp-row2">
@@ -3780,7 +3847,7 @@ async function loadAll(){
         // bordaVotes/mvpWinCount/mvpLossCount nu mai erau folosite nicăieri în
         // pagină (cod mort, doar tăiau timp din load).
         const [
-            tagsRes, algoRes, playersRes, histRes, goalsRes, potmRes, awardsRes
+            tagsRes, algoRes, playersRes, histRes, goalsRes, potmRes, awardsRes, ratingHistRes
         ] = await Promise.allSettled([
             sb.from('tags_config').select('*').order('sort_order'),
             sb.from('algo_settings').select('key,value'),
@@ -3790,6 +3857,13 @@ async function loadAll(){
             sb.from('potm_votes').select('match_id,voted_player_id'),
             sb.from('player_awards').select('*').order('created_at',{ascending:false}),
             loadMilestoneConfig(), // mutează direct milestoneConfig — nu ne interesează rezultatul aici
+            // 📈 Evoluția ratingului — populată de snapshotPlayerRatings() în
+            // app.js (index.html), de fiecare dată când ratingul unui jucător
+            // se schimbă efectiv. Citim tot istoricul o singură dată aici,
+            // grupat pe jucător mai jos (db.ratingHistory), ca profilul fiecărui
+            // jucător să poată desena graficul sincron, fără un query separat
+            // la fiecare deschidere de profil.
+            sb.from('player_rating_history').select('player_id,rating,created_at').order('created_at',{ascending:true}),
         ]);
         const dataOf = r => r.status==='fulfilled' ? (r.value?.data ?? null) : null;
 
@@ -3948,6 +4022,21 @@ async function loadAll(){
             if (awardsRes.value.error) throw awardsRes.value.error;
             db.playerAwards = awardsRaw || [];
         }catch(e){ console.warn('player_awards load:', e.message); db.playerAwards = []; }
+
+        // 📈 Istoric rating — grupat pe player_id, ca profilul fiecărui jucător
+        // să poată desena graficul instant (vezi buildRatingHistoryChart).
+        // Best-effort: dacă tabelul nu există încă (ex. nu s-a rulat migrarea),
+        // nu blocăm restul paginii — graficul doar nu apare.
+        try{
+            const rhRaw = dataOf(ratingHistRes);
+            if (ratingHistRes.status!=='fulfilled') throw (ratingHistRes.reason||new Error('fetch failed'));
+            if (ratingHistRes.value.error) throw ratingHistRes.value.error;
+            db.ratingHistory = {};
+            (rhRaw||[]).forEach(r=>{
+                if (!db.ratingHistory[r.player_id]) db.ratingHistory[r.player_id] = [];
+                db.ratingHistory[r.player_id].push({ rating:r.rating, date:r.created_at });
+            });
+        }catch(e){ console.warn('player_rating_history load:', e.message); db.ratingHistory = {}; }
 
         // p.potmCount / p.mvpCount — necesare de eaComputeFormDelta (din
         // smart-rating.js) pentru semnalele ⭐/👑 din Form Rating. IMPORTANT:
