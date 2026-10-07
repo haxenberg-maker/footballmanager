@@ -2395,17 +2395,18 @@ async function openSeasonArchive(seasonName){
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
+// NOTĂ: resetSeason() ștergea definitiv (sb...delete()) tot
+// match_history, fără să arhiveze nimic întâi — goluri, asisturi,
+// penalty-uri, tot, distruse ireversibil (inclusiv orice cascadă spre
+// match_goals, dacă schema Supabase are foreign key cu ON DELETE CASCADE
+// spre match_history). saveSeason() e funcția CORECTĂ — arhivează
+// (UPDATE season=nume, nu DELETE), exact ce trebuie la încheierea reală a
+// unui sezon. În loc să întreținem două implementări care pot diverge,
+// resetSeason() acum doar redirecționează spre saveSeason(), ca orice
+// buton care-l cheamă (inclusiv cel din panoul de Setări intern) să
+// folosească mereu calea sigură.
 async function resetSeason(){
-    showConfirm('↺','Reset Sezon','Victoriile și istoricul se șterg. Ratingurile rămân.','Reset','#c62828',async()=>{
-        db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];});
-        db.history=[];db.nextMatch.confirmedIds=[];db.nextMatch.absentIds=[];render();
-        try{
-            await Promise.all(db.players.map(p=>dbUpdatePlayer(p)));
-            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await dbSaveNextMatch();
-            showToast('↺ Sezon resetat!');
-        }catch(e){showToast('⚠️ '+e.message);}
-    });
+    await saveSeason();
 }
 
 async function resetAllGoals(){

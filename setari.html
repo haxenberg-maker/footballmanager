@@ -7,7 +7,7 @@
 <title>Setări · Arena Friends FC</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="smart-rating.js?v=20261002a"></script>
+<script src="smart-rating.js?v=20260903c"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-height:100vh;}
@@ -386,6 +386,23 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
             <div class="algo-panel-grid weights-grid" id="weightsList"></div>
         </div>
         <div style="font-size:.62rem;color:#555;text-align:center;padding:4px 0 8px;">🏷️ Efectele in-line ale fiecărui tag (ce alimentează direct PAC/SHO/PAS/DRI/DEF/PHY) se editează în secțiunea <strong>Tag-uri</strong>.</div>
+
+        <div class="card">
+            <div class="card-title">📜 Istoric Sezoane Trecute în OVR</div>
+            <div style="font-size:.68rem;color:#555;margin-bottom:10px;line-height:1.5;">
+                Cât de mult contează golurile/asisturile/victoriile din sezoanele <strong>ARHIVATE</strong> (nu doar sezonul curent) la calculul ratingului unui jucător. La <strong>0%</strong>, doar sezonul curent contează — după ce „Încheiei Sezonul" din secțiunea <strong>Sezon</strong> și victoriile/meciurile pornesc de la 0, ratingul unui jucător bun poate scădea brusc, pentru că istoricul lui nu mai cântărește nimic. Crește valoarea de mai jos ca ratingul să rămână stabil peste reset-uri de sezon.
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <input id="pastSeasonWeightInput" type="range" min="0" max="100" step="5" value="30"
+                    style="flex:1;accent-color:var(--accent);"
+                    oninput="savePastSeasonWeight(this.value)">
+                <span id="pastSeasonWeightVal" style="min-width:46px;text-align:right;font-weight:700;color:#fff;">30%</span>
+            </div>
+            <div style="font-size:.6rem;color:#7a6a40;background:rgba(255,193,7,.08);border:1px solid rgba(255,193,7,.25);border-radius:8px;padding:7px 9px;margin-top:10px;line-height:1.5;">
+                ⚠️ Important: valoarea de mai sus e doar <strong>stocată</strong> aici (în <code>algo_settings</code>, cheia <code>past_season_weight</code>). Ca să influențeze efectiv ratingul calculat, formula din <code>smart-rating.js</code> trebuie să citească și ea această valoare — fișierul ăla e extern și nu a fost editat încă. Dacă vrei ca setarea asta să aibă efect real, spune și trimite <code>smart-rating.js</code> ca să-l conectez.
+            </div>
+        </div>
+
         <div class="save-bar show" id="algoSaveBar">
             <button class="reset-btn-sm" onclick="resetAlgorithm()">↺ Reset</button>
             <button class="save-btn" onclick="saveAlgorithm()">💾 Salvează Algoritmul</button>
@@ -661,14 +678,15 @@ html,body{background:#0a0c10;color:#fff;font-family:'Rajdhani',sans-serif;min-he
         <div class="panel-sub">Reset și ștergere date</div>
     </div>
     <div class="panel-body">
-        <div class="card">
-            <div class="action-row">
-                <div class="action-info">
-                    <div class="action-title">Reset Sezon</div>
-                    <div class="action-desc">Șterge scoruri și istoricul meciurilor. Ratingurile rămân.</div>
+        <div class="card" style="background:rgba(40,167,69,.07);border:1px solid rgba(40,167,69,.3);">
+            <div class="action-info" style="margin-bottom:10px;">
+                <div class="action-title">🏁 Încheierea sezonului se face din pagina principală</div>
+                <div class="action-desc">
+                    Butonul corect e <strong>💾 Salvează Sezon</strong>, lângă lobby în <code>index.html</code> — el face totul: ARHIVEAZĂ meciurile curente (goluri, asisturi, penalty-uri rămân 100% intacte, vizibile oricând din „📂 Sezoane Anterioare"), pornește scorurile de sezon de la 0, și golește lista de prezență pentru sezonul nou. Am lăsat <strong>strict un singur loc</strong> cu această logică (nu o copie aici în Setări), ca să nu existe risc ca vreo variantă să rămână în urmă și să șteargă ceva din greșeală.
                 </div>
-                <button class="btn-sm btn-del" onclick="resetSeason()">↺ Reset</button>
             </div>
+            <button class="btn-sm" style="background:rgba(40,167,69,.15);border:1px solid rgba(40,167,69,.4);color:#1b7a35;font-weight:700;" onclick="window.location.href='index.html'">🏠 Mergi la Acasă → 💾 Salvează Sezon</button>
+        </div>
             <div class="action-row">
                 <div class="action-info">
                     <div class="action-title">Resetează Goluri Jucători</div>
@@ -710,6 +728,7 @@ let _algoSnapshot=null; // {base, scale} — ce e SALVAT în DB, folosit ca baz�
 let csvParsed=null;
 let rulesList=[]; // 📜 Reguli — array [{id,title,description,location,sanction}], sincronizat cu algo_settings (key: 'rules_list')
 let motmMinSessions=2; // Prag eligibilitate "Omul Lunii" (clasament.html) — algo_settings (key: 'motm_min_sessions')
+let pastSeasonWeight=30; // Cât de mult contează sezoanele ARHIVATE (nu doar cel curent) la OVR — algo_settings (key: 'past_season_weight'). Doar STOCAT aici — vezi nota din HTML, trebuie citit și de smart-rating.js ca să aibă efect real.
 const RULE_LOCATIONS=['Peste tot','Fepa','Greenfield'];
 const CATS=['general','viteza','tehnica','strategie','aparare'];
 
@@ -820,6 +839,30 @@ function saveMotmMinSessions(val){
         }
     }, 500);
 }
+
+// 📜 Pondere istoric (sezoane trecute) în OVR — salvat debounced, la fel ca
+// pragul MOTM. ATENȚIE: asta doar STOCHEAZĂ valoarea în algo_settings — ca
+// să aibă efect REAL asupra ratingului calculat, smart-rating.js trebuie să
+// citească și el 'past_season_weight' și să-l folosească în formulă (fișier
+// extern, nu e inclus aici — vezi nota din HTML pentru detalii).
+let _pswSaveTimer=null;
+function savePastSeasonWeight(val){
+    const n = Math.max(0, Math.min(100, parseInt(val)||0));
+    pastSeasonWeight = n;
+    const lbl = document.getElementById('pastSeasonWeightVal');
+    if (lbl) lbl.textContent = n + '%';
+    clearTimeout(_pswSaveTimer);
+    _pswSaveTimer = setTimeout(async ()=>{
+        try{
+            const{error}=await sb.from('algo_settings').upsert({key:'past_season_weight', value:n}, {onConflict:'key'});
+            if(error) throw error;
+            showToast('✅ Pondere istoric salvată: '+n+'%');
+        }catch(e){
+            console.error('savePastSeasonWeight:', e.message);
+            showToast('❌ Eroare la salvare pondere istoric: '+e.message);
+        }
+    }, 500);
+}
 function buildRulesPanel(){
     const sel=document.getElementById('ruleNewLocation');
     if(sel) sel.innerHTML = ruleLocationOptions('Peste tot');
@@ -919,6 +962,13 @@ async function loadAll(){
     motmMinSessions = motmRow ? (parseInt(motmRow.value)||2) : 2;
     const motmInput = document.getElementById('motmMinSessionsInput');
     if (motmInput) motmInput.value = motmMinSessions;
+    // 📜 Pondere istoric (sezoane trecute) în OVR — tot algo_settings, key: 'past_season_weight'.
+    const pswRow = (as||[]).find(r=>r.key==='past_season_weight');
+    pastSeasonWeight = pswRow ? Math.max(0, Math.min(100, parseInt(pswRow.value)||30)) : 30;
+    const pswInput = document.getElementById('pastSeasonWeightInput');
+    const pswVal = document.getElementById('pastSeasonWeightVal');
+    if (pswInput) pswInput.value = pastSeasonWeight;
+    if (pswVal) pswVal.textContent = pastSeasonWeight + '%';
     // Players
     const{data:pr}=await sb.from('players').select('*,ratings(*)').order('name');
     db.players=(pr||[]).map(p=>({secretCode:p.secret_code||null,role:p.role||null,
@@ -943,14 +993,12 @@ async function loadAll(){
     // ce lăsa goalsPerMatch complet gol → toți jucătorii apăreau cu 0 goluri în MVP,
     // deși golurile erau salvate corect în DB. select('*') e sigur indiferent ce
     // coloane există (la fel ca în app.js/clasament.html, unde era deja reparat).
-    let goalsPerMatch={}, assistsPerMatch={}, teamGoalsPerMatch={};
+    let goalsPerMatch={}, assistsPerMatch={};
     try{
         const{data:goalsRaw,error}=await sb.from('match_goals').select('*');
         if(error) throw error;
         (goalsRaw||[]).forEach(g=>{
             if(g.is_penalty) return;
-            if(!teamGoalsPerMatch[g.match_id]) teamGoalsPerMatch[g.match_id]={orange:0,green:0,black:0};
-            if(teamGoalsPerMatch[g.match_id][g.team]!==undefined) teamGoalsPerMatch[g.match_id][g.team]+=(g.goals||1); // pt. semnalul Defensivă din preview
             if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]={};
             goalsPerMatch[g.match_id][g.player_name]=(goalsPerMatch[g.match_id][g.player_name]||0)+(g.goals||1);
             if(g.assist_name){
@@ -962,7 +1010,6 @@ async function loadAll(){
     db.history=(mh||[]).map(h=>({_dbId:h.id,date:h.date,winner:h.winner,score:h.score||null,
         orangePlayers:h.orange_players||[],greenPlayers:h.green_players||[],blackPlayers:h.black_players||[],
         roundsDetail:h.rounds_detail||null,createdAt:h.created_at||null,
-        season:h.season||null,teamGoals:teamGoalsPerMatch[h.id]||null,
         playerGoals:goalsPerMatch[h.id]||{},playerAssists:assistsPerMatch[h.id]||{},
         manualPotmId:h.manual_potm_player_id!=null?h.manual_potm_player_id:null,
         manualMvpId:h.manual_mvp_player_id!=null?h.manual_mvp_player_id:null,
@@ -2073,16 +2120,11 @@ async function importData(event){
 }
 
 // ── SEASON SECTION ────────────────────────────────────────────────
-async function resetSeason(){
-    showConfirm('↺','Reset Sezon','Victoriile și istoricul se șterg. Ratingurile rămân.','Reset','#c62828',async()=>{
-        db.players.forEach(p=>{p.wins=0;p.games=0;p.matchHistory=[];});
-        try{
-            await Promise.all(db.players.map(p=>sb.from('players').update({wins:0,games:0,match_history:[]}).eq('id',p.id)));
-            await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            showToast('↺ Sezon resetat!');buildPlayerEditList();
-        }catch(e){showToast('⚠️ '+e.message);}
-    });
-}
+// Încheierea sezonului (arhivare) se face DOAR din index.html — funcția
+// saveSeason() de acolo (app.js) e singura implementare, ca să nu existe
+// risc de divergență între două copii ale aceleiași logici. Cardul de mai
+// sus din HTML trimite direct acolo (vezi onclick="window.location.href=
+// 'index.html'"), deci nu mai e nevoie de o funcție resetSeason() aici.
 
 async function resetAllGoals(){
     showConfirm('⚽','Resetezi toate golurile?','Se șterg golurile marcate/primite din profilul tuturor jucătorilor.','Reset','#c62828',async()=>{
