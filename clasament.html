@@ -825,6 +825,39 @@ function getRowTeamNames(h){
     return names;
 }
 
+// Scorul afișat ca text ("4:0" etc.) TREBUIE să fie în aceeași ordine ca
+// numele din getRowTeamNames(h) (Portocaliu, apoi Verde, apoi Negru).
+// La o sesiune 3 echipe, h.score = TURE câștigate (nu goluri), salvat de
+// live.html ca "ture_echipaA:ture_echipaB", unde A/B vin din ordinea
+// INTERNĂ de generare a perechii (oricare culoare poate fi pe poziția A),
+// nu din prioritatea portocaliu→verde→negru. Rezultat: Negru câștiga 4 ture
+// la 0, dar apărea "Portocaliu 4:0 Negru" — numărul corect, lipit de echipa
+// greșită. Aici renumărăm turele câștigate per echipă din roundsDetail
+// (getRoundWinnerName — câștigătorul fiecărei ture e înregistrat explicit,
+// fără ambiguitate A/B) și le punem în ordinea numelor afișate.
+// Siguranță: folosim numărătoarea proprie DOAR dacă cele două numere sunt
+// exact cele din h.score (eventual inversate); altfel rămânem pe scorul
+// brut. La meciurile simple (2 echipe, fără ture), live.html salvează deja
+// portocaliu:verde, adică exact ordinea afișată — nu le modificăm.
+function getOrderedScoreStr(h){
+    const raw = h.score || '—';
+    if (!Array.isArray(h.roundsDetail) || !h.roundsDetail.length) return raw;
+    const teamNames = getRowTeamNames(h);
+    if (teamNames.length !== 2) return raw;
+    const rawParts = String(h.score).split(':').map(s => parseInt(s.trim(), 10));
+    if (rawParts.length !== 2 || isNaN(rawParts[0]) || isNaN(rawParts[1])) return raw;
+    let w0 = 0, w1 = 0;
+    h.roundsDetail.forEach(r => {
+        const w = getRoundWinnerName(h, r);
+        if (w === teamNames[0]) w0++;
+        else if (w === teamNames[1]) w1++;
+    });
+    if (Math.min(w0,w1) === Math.min(rawParts[0],rawParts[1]) && Math.max(w0,w1) === Math.max(rawParts[0],rawParts[1])) {
+        return `${w0}:${w1}`;
+    }
+    return raw;
+}
+
 // Numele echipei care a câștigat o TURĂ (rând din roundsDetail) a unei perechi
 // dintr-o sesiune 3 echipe. Folosește loser_name (setat pentru orice tură cu
 // un câștigător clar) și penalty_winner_name (pentru turele decise la penalty).
@@ -1309,7 +1342,7 @@ function renderSingleMatchCard(h){
     return `<div class="match-card mc-clickable${iPlayed?' um-card':''}" onclick="showMatchDetail('${h._dbId}')">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
-            <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${h.score||'—'}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
+            <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${getOrderedScoreStr(h)}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
         </div>
         <div class="match-card-body">
             ${iPlayed ? `<span class="um-badge">📍 Joci în acest meci</span>` : ''}
@@ -1372,7 +1405,7 @@ function renderSessionCard(rows){
             <span class="mc-timeline-dot" style="background:${dotColor};"></span>
             <div class="mc-timeline-content">
                 <div class="mc-timeline-teams">${idx===0?'▶ START · ':''}${tA||'?'} vs ${tB||'?'}</div>
-                <div class="mc-timeline-score">ture ${h.score||'—'} · câștigă ${h.winner||'—'}</div>
+                <div class="mc-timeline-score">ture ${getOrderedScoreStr(h)} · câștigă ${h.winner||'—'}</div>
                 ${h.topScorer ? `<div class="mc-timeline-scorer${isCurrentUser(h.topScorer.name)?' um-name':''}">${h.topScorer.goals>=3?'🎩':'⚽'} ${h.topScorer.name} ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}</div>` : ''}
             </div>
         </div>`;
@@ -1812,7 +1845,7 @@ function renderMatchDetailScreen(dbId){
             <div class="md-date">${h.date||'—'}</div>
             <div class="md-teams-score">
                 <span class="md-team-name">${escapeHtml(teamNames[0]||'?')}</span>
-                <span class="md-score">${h.score||'—'}</span>
+                <span class="md-score">${getOrderedScoreStr(h)}</span>
                 <span class="md-team-name">${escapeHtml(teamNames[1]||'?')}</span>
             </div>
             <div class="md-sub">${subParts.join(' · ')}</div>
@@ -1938,7 +1971,7 @@ function buildShareCardHtml(h){
             <div class="msc-team-name" style="text-align:left;color:${teamColorsPublic.orange};">${escapeHtml(teamNames[0]||'?')}</div>
             <div class="msc-team-name" style="text-align:right;color:${teamColorsPublic.green};">${escapeHtml(teamNames[1]||'?')}</div>
         </div>
-        <div class="msc-score-big" style="color:${winColor};">${escapeHtml(h.score||'—')}</div>
+        <div class="msc-score-big" style="color:${winColor};">${escapeHtml(getOrderedScoreStr(h))}</div>
         <div style="text-align:center;font-size:.8rem;color:#8b96a8;margin-bottom:16px;">🏆 ${escapeHtml(h.winner||'Egal')} a câștigat</div>
         ${topScorers.length ? `<div class="msc-section-title">Golgheteri</div>${topScorers.map(([n,g])=>`<div class="msc-pair-row"><span>⚽ ${escapeHtml(n)}</span><span style="font-family:'Bebas Neue',sans-serif;">${g}</span></div>`).join('')}` : ''}
         ${mvp ? `<div class="msc-highlight" style="margin-top:14px;"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri · ${mvp.assists||0} assist · ${mvp.minutes} min</div></div></div>` : ''}
@@ -1981,7 +2014,7 @@ async function shareMatch(dbId){
             await navigator.share({
                 files: [file],
                 title: 'Arena Friends FC',
-                text: `${h.winner ? '🏆 '+h.winner+' a câștigat · ' : ''}${h.score||''}`,
+                text: `${h.winner ? '🏆 '+h.winner+' a câștigat · ' : ''}${getOrderedScoreStr(h)}`,
             });
             showToast('📲 Trimis!');
         } else {
@@ -2712,7 +2745,7 @@ function renderSeasonMatchesList(){
         + '<div style="margin-top:8px;">' + matches.map(h=>`
             <div class="season-match-row">
                 <div class="season-match-date">${h.date||''}</div>
-                <div class="season-match-score">${h.score||'—'} ${h.winner?`· câștigă ${h.winner}`:''}</div>
+                <div class="season-match-score">${getOrderedScoreStr(h)} ${h.winner?`· câștigă ${h.winner}`:''}</div>
             </div>`).join('') + '</div>';
 }
 
@@ -3248,7 +3281,7 @@ function renderPlayerProfile(name){
                 return `<div class="pp-match-row">
                     <div class="pp-match-date">${ppFormatDate(h.date)}</div>
                     <div class="pp-match-result" style="background:${resColor}22;color:${resColor};">${resLabel}</div>
-                    <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+h.score:''}${isPotm?' <span title="POTM">⭐</span>':''}${isMvp?' <span title="MVP">👑</span>':''}</div>
+                    <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+getOrderedScoreStr(h):''}${isPotm?' <span title="POTM">⭐</span>':''}${isMvp?' <span title="MVP">👑</span>':''}</div>
                     <div class="pp-match-contrib">${goals?'⚽'+goals+' ':''}${ast?'🅰️'+ast:''}</div>
                 </div>`;
             }).join('') : `<div class="pp-empty">Fără meciuri ${currentSeason?'în acest sezon':'înregistrate'}.</div>`}
@@ -3510,7 +3543,7 @@ function renderComparePage(nameA, nameB){
                 const resColor = m.wonA===true?'#22c55e':m.wonB===true?'#ef4444':'#64748b';
                 return `<div class="pp-match-row">
                     <div class="pp-match-date">${ppFormatDate(m.h.date)}</div>
-                    <div class="pp-match-score" style="flex:1;">${getRowTeamNames(m.h).join(' vs ')}${m.h.score?' · '+m.h.score:''}</div>
+                    <div class="pp-match-score" style="flex:1;">${getRowTeamNames(m.h).join(' vs ')}${m.h.score?' · '+getOrderedScoreStr(m.h):''}</div>
                     <div class="pp-match-contrib" style="color:${resColor};font-weight:700;">${resLabel}</div>
                 </div>`;
             }).join('') : `<div class="pp-empty">Fără meciuri directe încă (nu au fost niciodată în echipe diferite).</div>`}
@@ -4262,7 +4295,7 @@ function renderPotmStep1(participants){
     const isSessionVote = Array.isArray(_potmMatch.roundsDetail) && _potmMatch.roundsDetail.length > 0;
     const subtitle = isSessionVote
         ? `${_potmMatch.date||''} · 🎮 Sesiune 3 Echipe`
-        : `${_potmMatch.date||''} · ${_potmMatch.score||''}`;
+        : `${_potmMatch.date||''} · ${getOrderedScoreStr(_potmMatch)}`;
     potmModalShell(`
         <div style="font-size:.72rem;color:#8b96a8;margin-bottom:14px;">${subtitle}</div>
         <div style="font-size:.8rem;color:#f3f6fa;font-weight:700;margin-bottom:8px;">Cine ești?</div>
