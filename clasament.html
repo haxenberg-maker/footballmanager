@@ -872,6 +872,27 @@ function getRoundWinnerName(h, r) {
     return null;
 }
 
+// 🏅 Câștigătorul SESIUNII (nu al unei singure perechi) — echipa cu cele
+// mai multe TURE câștigate, însumate pe toate cele 3 perechi ale sesiunii
+// (nu "câte perechi a câștigat", ca la standingHTML, ci turele individuale
+// din interiorul fiecărei perechi — un indicator mai fin al cine a dominat
+// efectiv). Returnează null la egalitate exactă (fără câștigător clar).
+function computeSessionWinnerTeam(sessionRows){
+    const teamRoundsWon = {};
+    let totalRounds = 0;
+    (sessionRows||[]).forEach(h => {
+        (h.roundsDetail||[]).forEach(r => {
+            totalRounds++;
+            const rw = getRoundWinnerName(h, r);
+            if (rw) teamRoundsWon[rw] = (teamRoundsWon[rw]||0) + 1;
+        });
+    });
+    const entries = Object.entries(teamRoundsWon).sort((a,b) => b[1]-a[1]);
+    if (!entries.length) return null;
+    if (entries.length > 1 && entries[0][1] === entries[1][1]) return null; // egalitate
+    return { team: entries[0][0], rounds: entries[0][1], totalRounds };
+}
+
 function getWinnerSideFromScore(h) {
     const w = (h.winner||'').toLowerCase().trim();
     if (!w || w === 'egal') return 'draw';
@@ -1393,6 +1414,19 @@ function renderSessionCard(rows){
         `<span style="color:${standingColor[t]||'#f3f6fa'};font-weight:700;">${t}</span> <span style="color:#8b96a8;">${teamWon[t]||0}/${teamPlayed[t]}</span><span style="color:#5b6577;font-size:.82em;"> (${teamRoundsWon[t]||0} ture)</span>`
     ).join('<span style="color:#3a4759;margin:0 6px;">·</span>');
 
+    // 🏅 Câștigătorul sesiunii — echipa cu cele mai multe TURE câștigate în
+    // total (vezi computeSessionWinnerTeam). Folosit și pentru culoarea
+    // antetului cardului (ca la meciurile simple, unde fundalul reflectă
+    // echipa câștigătoare), nu doar la un mov fix indiferent de rezultat.
+    const sessionWinner = computeSessionWinnerTeam(chrono);
+    const sessionWinnerColor = sessionWinner ? (standingColor[sessionWinner.team] || '#5b7fff') : null;
+    const heroGradient = sessionWinnerColor
+        ? `linear-gradient(135deg,${sessionWinnerColor},${sessionWinnerColor}cc)`
+        : `linear-gradient(135deg,#5b7fff,#a78bfa)`;
+    const sessionWinnerTitle = sessionWinner
+        ? `${teamEmojiPublic[sessionWinner.team]||'🏅'} ${sessionWinner.team} câștigă sesiunea · ${sessionWinner.rounds}/${sessionWinner.totalRounds} ture`
+        : `🎮 Sesiune 3 Echipe · ${chrono.length} meciuri jucate`;
+
     // Timeline vizual — un rând per pereche, în ordine cronologică. Fiecare
     // rând e clickable direct spre PERECHEA lui specifică; stopPropagation
     // ca să nu declanșeze și click-ul cardului întreg (care deschide prima
@@ -1418,9 +1452,9 @@ function renderSessionCard(rows){
     // event.stopPropagation() ca să nu declanșeze și click-ul cardului.
     const iPlayedSession = isUserInRows(chrono);
     return `<div class="match-card mc-clickable${iPlayedSession?' um-card':''}" onclick="showMatchDetail('${first._dbId}')">
-        <div class="match-card-hero" style="background:linear-gradient(135deg,#5b7fff,#a78bfa);">
+        <div class="match-card-hero" style="background:${heroGradient};">
             <div class="mc-date">${first.date||'—'}</div>
-            <div class="mc-title">🎮 Sesiune 3 Echipe · ${chrono.length} meciuri jucate</div>
+            <div class="mc-title">${sessionWinnerTitle}</div>
         </div>
         <div class="match-card-body">
             ${iPlayedSession ? `<span class="um-badge">📍 Joci în acest meci</span>` : ''}
@@ -1799,6 +1833,19 @@ function renderMatchDetailScreen(dbId){
             <div class="md-badge-name${isCurrentUser(potmName)?' um-name':''}">${escapeHtml(potmName)}${isCurrentUser(potmName)?' 📍':''}</div>
         </div>
     </div>` : '';
+    // 🏅 Câștigătorul SESIUNII (echipa cu cele mai multe ture, pe toate cele
+    // 3 perechi) — distinct de h.winner, care e doar câștigătorul PERECHII
+    // curent afișate. Vizibil doar la o sesiune 3 echipe (hasRounds).
+    const sessionWinnerInfo = hasRounds ? computeSessionWinnerTeam(sessionRows) : null;
+    const sessionWinnerColorMap = { Portocaliu: teamColorsPublic.orange, Verde: teamColorsPublic.green, Negru: teamColorsPublic.black };
+    const sessionWinnerBadgeHtml = sessionWinnerInfo ? `<div class="md-badge" style="background:${sessionWinnerColorMap[sessionWinnerInfo.team]}1a;border-color:${sessionWinnerColorMap[sessionWinnerInfo.team]}55;">
+        <span class="md-badge-icon">${teamEmojiPublic[sessionWinnerInfo.team]||'🏅'}</span>
+        <div class="md-badge-body">
+            <div class="md-badge-lbl">Câștigător Sesiune</div>
+            <div class="md-badge-name" style="color:${sessionWinnerColorMap[sessionWinnerInfo.team]};">${escapeHtml(sessionWinnerInfo.team)}</div>
+            <div class="md-badge-sub">${sessionWinnerInfo.rounds}/${sessionWinnerInfo.totalRounds} ture câștigate</div>
+        </div>
+    </div>` : '';
 
     const { mirrorHtml, listHtml: goalTimelineHtml } = buildTwoTeamMatchDetails(h);
     const roundsTabHtml = hasRounds ? buildRoundsTimelineHtml(h) : '';
@@ -1851,7 +1898,7 @@ function renderMatchDetailScreen(dbId){
             <div class="md-sub">${subParts.join(' · ')}</div>
         </div>
         ${hasRounds ? buildSessionPairSelectorHtml(sessionRows, h._dbId) : ''}
-        ${(mvpBadgeHtml || potmBadgeHtml) ? `<div class="md-badges-row">${mvpBadgeHtml}${potmBadgeHtml}</div>` : ''}
+        ${(sessionWinnerBadgeHtml || mvpBadgeHtml || potmBadgeHtml) ? `<div class="md-badges-row">${sessionWinnerBadgeHtml}${mvpBadgeHtml}${potmBadgeHtml}</div>` : ''}
         ${tabsHtml}
         <div class="stats-section">${tabContentHtml}</div>`;
 }
