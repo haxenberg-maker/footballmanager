@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="smart-rating.js?v=20260904a"></script>
 <style>
 :root {
@@ -1887,6 +1888,7 @@ function renderMatchDetailScreen(dbId){
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
             <div class="pp-back" style="margin:0;" onclick="hideMatchDetail()">← Înapoi la Meciuri</div>
             <button type="button" class="share-match-btn" onclick="shareMatch('${h._dbId}', this)">📲 Distribuie Meci</button>
+            <button type="button" class="share-match-btn" onclick="exportMatchPDF('${h._dbId}', this)" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#f87171;">📄 Export PDF</button>
         </div>
         <div class="match-detail-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="md-date">${h.date||'—'}</div>
@@ -2081,6 +2083,165 @@ async function shareMatch(dbId){
         }
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = btnOriginalText || '📲 Distribuie Meci'; }
+    }
+}
+
+// 📄 Export PDF detaliat al unui meci/sesiuni — tabela principală cu
+// scoruri sus, cronologia completă (goluri la 2 echipe / ture la 3 echipe)
+// dedesubt. Paletă/stil identice cu exportPDF() din app.js (raportul de
+// sezon), ca cele două PDF-uri ale aplicației să arate consistent.
+// IMPORTANT: fără emoji în interiorul doc.text() — fonturile implicite ale
+// jsPDF (helvetica/times/courier) nu au glife pentru emoji, ar apărea goale
+// sau ca pătrățele; exact de-asta exportPDF() din app.js nu folosește emoji
+// nicăieri în text-ul desenat în PDF (doar etichete simple, cu diacritice
+// obișnuite, care SE randează corect).
+function exportMatchPDF(dbId, btnEl){
+    const h = db.history.find(x => String(x._dbId) === String(dbId));
+    if (!h) { showToast('⚠️ Meciul nu a fost găsit.'); return; }
+    if (typeof window.jspdf === 'undefined') { showToast('⚠️ Generatorul de PDF nu s-a încărcat — verifică conexiunea.'); return; }
+
+    const originalLabel = btnEl ? btnEl.textContent : null;
+    if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Se generează...'; }
+
+    try{
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+        const W = 210, M = 16; let y = 20;
+        const C = { orange:[255,140,0], green:[40,167,69], black:[170,180,200], dark:[14,17,24], card:[30,34,48], grey:[42,45,60], light:[190,195,215], star:[255,204,0], white:[255,255,255] };
+        const colOf = col => col==='orange'?C.orange:col==='green'?C.green:col==='black'?C.black:C.light;
+        const colorForName = n => n==='Portocaliu'?'orange':n==='Verde'?'green':n==='Negru'?'black':null;
+        const bg = () => { doc.setFillColor(...C.dark); doc.rect(0,0,W,297,'F'); };
+        const ensureSpace = (need) => { if (y + need > 282) { doc.addPage(); bg(); y = 16; } };
+        bg();
+
+        const hasRounds = Array.isArray(h.roundsDetail) && h.roundsDetail.length > 0;
+        const sessionRows = hasRounds ? getSessionRowsFor(h) : [h];
+
+        // ── Antet ──
+        doc.setFillColor(...C.card); doc.roundedRect(M, y-6, W-M*2, 22, 4, 4, 'F');
+        doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(...C.white);
+        doc.text('Arena Friends FC', W/2, y+2, {align:'center'});
+        doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...C.light);
+        doc.text(`${hasRounds ? 'Sesiune 3 Echipe' : 'Meci'} - ${h.date||'-'}`, W/2, y+10, {align:'center'});
+        y += 26;
+
+        if (hasRounds) {
+            // ── Tabela principală: cele 3 perechi + scor ordonat corect ──
+            doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...C.white);
+            doc.text('REZULTATE PERECHI', M, y); y += 7;
+            sessionRows.forEach(pr => {
+                const names = getRowTeamNames(pr);
+                if (names.length !== 2) return;
+                ensureSpace(12);
+                doc.setFillColor(...C.grey); doc.roundedRect(M, y, W-M*2, 10, 2, 2, 'F');
+                doc.setFontSize(9); doc.setFont('helvetica','bold');
+                doc.setTextColor(...colOf(colorForName(names[0]))); doc.text(names[0], M+4, y+6.5);
+                doc.setTextColor(...C.white); doc.text(getOrderedScoreStr(pr), W/2, y+6.5, {align:'center'});
+                doc.setTextColor(...colOf(colorForName(names[1]))); doc.text(names[1], W-M-4, y+6.5, {align:'right'});
+                y += 12;
+            });
+            y += 2;
+
+            // ── Clasament sesiune (ture câștigate, pe toate cele 3 perechi) ──
+            const sessionWinner = computeSessionWinnerTeam(sessionRows);
+            const teamRoundsWon = {};
+            sessionRows.forEach(pr => (pr.roundsDetail||[]).forEach(r => {
+                const w = getRoundWinnerName(pr, r);
+                if (w) teamRoundsWon[w] = (teamRoundsWon[w]||0) + 1;
+            }));
+            ensureSpace(14);
+            doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...C.white);
+            doc.text('CLASAMENT SESIUNE (ture castigate)', M, y); y += 7;
+            Object.entries(teamRoundsWon).sort((a,b)=>b[1]-a[1]).forEach(([team,rounds]) => {
+                ensureSpace(11);
+                const isWinner = sessionWinner && sessionWinner.team === team;
+                doc.setFillColor(...(isWinner?[25,65,40]:C.grey)); doc.roundedRect(M, y, W-M*2, 9, 2, 2, 'F');
+                doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...colOf(colorForName(team)));
+                doc.text((isWinner?'[Castigator] ':'')+team, M+4, y+6);
+                doc.setTextColor(...C.white); doc.text(`${rounds} ture`, W-M-4, y+6, {align:'right'});
+                y += 11;
+            });
+            y += 4;
+
+            // ── Cronologie completă ture (toate cele 3 perechi) ──
+            ensureSpace(10);
+            doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...C.white);
+            doc.text('ISTORIC TURE', M, y); y += 7;
+            sessionRows.forEach(pr => {
+                const names = getRowTeamNames(pr);
+                if (!Array.isArray(pr.roundsDetail)) return;
+                pr.roundsDetail.forEach(r => {
+                    ensureSpace(6);
+                    const winnerName = getRoundWinnerName(pr, r);
+                    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...C.light);
+                    doc.text(`Tur ${r.num} (${names.join(' vs ')})`, M, y);
+                    doc.setTextColor(...(winnerName?colOf(colorForName(winnerName)):C.light));
+                    doc.text(winnerName ? winnerName : 'Egal', W-M, y, {align:'right'});
+                    y += 5;
+                    (r.goals||[]).filter(g=>!g.is_penalty).forEach(g => {
+                        ensureSpace(4.5);
+                        doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(...colOf(g.team));
+                        const line = `  - ${g.player_name}${g.assist_name ? ' (asist: '+g.assist_name+')' : ''}${g.minute!=null?' - min '+g.minute:''}`;
+                        doc.text(line, M+2, y); y += 4.5;
+                    });
+                    y += 1.5;
+                });
+            });
+        } else {
+            // ── MECI SIMPLU (2 echipe) ──
+            const names = getRowTeamNames(h);
+            doc.setFillColor(...C.grey); doc.roundedRect(M, y, W-M*2, 16, 3, 3, 'F');
+            doc.setFontSize(13); doc.setFont('helvetica','bold');
+            doc.setTextColor(...colOf(colorForName(names[0]))); doc.text(names[0]||'-', M+5, y+10);
+            doc.setFontSize(16); doc.setTextColor(...C.white); doc.text(getOrderedScoreStr(h), W/2, y+10.5, {align:'center'});
+            doc.setFontSize(13); doc.setTextColor(...colOf(colorForName(names[1]))); doc.text(names[1]||'-', W-M-5, y+10, {align:'right'});
+            y += 22;
+
+            if (h.imbalanced) {
+                doc.setFontSize(8); doc.setFont('helvetica','italic'); doc.setTextColor(...C.light);
+                doc.text('Echipe dezechilibrate', M, y); y += 7;
+            }
+
+            const mvpWinner = computeSessionMvpWinner([h]);
+            if (mvpWinner) {
+                ensureSpace(16);
+                doc.setFillColor(25,65,40); doc.roundedRect(M, y, W-M*2, 11, 3, 3, 'F');
+                doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(...C.white);
+                doc.text(`MVP: ${mvpWinner.name}  (${mvpWinner.goals} goluri, ${mvpWinner.assists||0} assist)`, W/2, y+7, {align:'center'});
+                y += 16;
+            }
+
+            // ── Cronologie goluri ──
+            ensureSpace(10);
+            doc.setFontSize(10); doc.setFont('helvetica','bold'); doc.setTextColor(...C.white);
+            doc.text('CRONOLOGIE GOLURI', M, y); y += 7;
+            const normalGoals = (h.goalsList||[]).filter(g=>!g.is_penalty).sort((a,b)=>(a.minute??999)-(b.minute??999));
+            if (!normalGoals.length) {
+                doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...C.light);
+                doc.text('Niciun gol inregistrat.', M, y); y += 7;
+            } else {
+                normalGoals.forEach(g => {
+                    ensureSpace(10);
+                    doc.setFillColor(...C.grey); doc.roundedRect(M, y, W-M*2, 8, 2, 2, 'F');
+                    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(...colOf(g.team));
+                    doc.text(g.player_name, M+3, y+5.5);
+                    doc.setFont('helvetica','normal'); doc.setTextColor(...C.light);
+                    const sub = `${g.assist_name ? 'asist: '+g.assist_name+'   ' : ''}${g.minute!=null?'min '+g.minute:''}`;
+                    doc.text(sub, W-M-3, y+5.5, {align:'right'});
+                    y += 10;
+                });
+            }
+        }
+
+        doc.setFontSize(7); doc.setTextColor(50,55,70);
+        doc.text('Arena Friends FC - generat automat din Clasament', W/2, 292, {align:'center'});
+        doc.save(`meci-${(h.date||'arena').replace(/\./g,'-')}.pdf`);
+        showToast('📄 PDF generat!');
+    }catch(e){
+        console.warn('exportMatchPDF failed:', e);
+        showToast('⚠️ Eroare la generarea PDF-ului: '+e.message);
+    }finally{
+        if (btnEl) { btnEl.disabled = false; btnEl.textContent = originalLabel || '📄 Export PDF'; }
     }
 }
 
