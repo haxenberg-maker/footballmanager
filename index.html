@@ -185,8 +185,12 @@
         .column-bench{border-style:dashed;border-color:#1a5276;}
         .column-white{border-style:dashed;border-color:#9a8663;}
         .column-active{border-style:dashed;border-color:#7d6849;}
-        .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:4px;}
+        .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px;}
         .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
+        /* ── Info de echilibrare/sortare echipă (balanță + rating mediu +
+           nr. jucători + bară) — grupată vizual separat de titlu, ca un mic
+           "panou de stare", nu doar text liber sub nume. ── */
+        .col-header-stats{display:flex;flex-direction:column;gap:5px;padding-top:4px;border-top:1px solid rgba(0,0,0,.08);}
         .header-orange .col-header{background:linear-gradient(135deg,#ff6a00,#ee8a00);}
         .header-green .col-header{background:linear-gradient(135deg,#a8d8a0,#28a745);}
         .header-bench .col-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);}
@@ -933,9 +937,35 @@
         .btn-link-account{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;white-space:nowrap;}
 
         .balance-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;gap:8px;}
-        .btn-balance{background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#d1b3ff;width:36px;height:36px;border-radius:50%;font-size:1rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 10px rgba(124,77,255,0.3);}
-        .btn-balance:hover{background:linear-gradient(135deg,#ede3fa,#7c4dff);transform:scale(1.1) rotate(20deg);box-shadow:0 4px 16px rgba(124,77,255,0.5);}
-        .balance-popup{position:absolute;background:#fdf3df;border:1px solid #3d2bbf;border-radius:12px;padding:8px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);min-width:170px;display:none;}
+        /* ── Butoanele din .balance-col (🔧 🎲 📋) — unificate într-un singur
+           stil circular consistent (mărime, umbră, hover), în loc de 3
+           tratamente diferite (unul chiar cu stil inline complet separat).
+           Fiecare păstrează DOAR culoarea proprie de accent, prin variabila
+           --bc-accent, setată per buton. ── */
+        .balance-col-btn{
+            --bc-accent:#7c4dff;
+            width:36px;height:36px;border-radius:50%;padding:0;flex-shrink:0;
+            display:flex;align-items:center;justify-content:center;
+            font-size:1rem;cursor:pointer;transition:transform .2s,box-shadow .2s;
+            background:#ede3fa; /* rezervă pt. browsere fără color-mix() */
+            background:color-mix(in srgb, var(--bc-accent) 14%, #fdf3df);
+            border:1px solid var(--bc-accent);
+            color:var(--bc-accent);
+            box-shadow:0 2px 10px rgba(124,77,255,.3); /* rezervă */
+            box-shadow:0 2px 10px color-mix(in srgb, var(--bc-accent) 30%, transparent);
+        }
+        .balance-col-btn:hover{transform:scale(1.1);box-shadow:0 4px 16px color-mix(in srgb, var(--bc-accent) 45%, transparent);}
+        .btn-balance{--bc-accent:#7c4dff;}
+        .btn-balance:hover{transform:scale(1.1) rotate(20deg);}
+        .btn-winchance{--bc-accent:#ff8f00;}
+        .btn-export-teams{--bc-accent:#1b7a43;}
+
+        .balance-popup{position:absolute;background:#fdf3df;border:1px solid #3d2bbf;border-radius:12px;padding:10px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.6);min-width:190px;display:none;}
+        /* ── Secțiuni clar separate în popover (în loc de o linie-separator
+           cu stil inline repetat la fiecare secțiune) ── */
+        .balance-section{padding:4px 2px 6px;}
+        .balance-section + .balance-section{border-top:1px solid #e3d3ac;margin-top:4px;}
+        .balance-section-title{font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:2px 8px 4px;}
         /* Scenario slots */
         .scenario-bar{display:flex;gap:4px;padding:6px 10px 4px;border-top:1px solid #dcc89a;margin-top:4px;}
         .sc-btn{flex:1;padding:5px 2px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;border:1px solid #dcc89a;background:#fff8ed;color:#6b5840;transition:all .12s;text-align:center;white-space:nowrap;}
@@ -1283,74 +1313,87 @@
     <div class="column header-orange" id="col-orange" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title" id="titleOrange" onclick="startEditTeamName('orange')" title="Click pentru editare" style="cursor:pointer;">Echipa Portocalie</div>
-            <div class="team-balance-indicator" id="balance-orange"></div>
-            <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
-            <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
+            <div class="col-header-stats">
+                <div class="team-balance-indicator" id="balance-orange"></div>
+                <div class="team-rating-info"><span class="team-avg-badge" id="avg-orange">★ —</span><span class="team-count-badge" id="count-orange">0 jucători</span></div>
+                <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-orange" style="width:0%"></div></div>
+            </div>
         </div>
         <div class="col-body" id="list-orange"></div>
     </div>
     <div class="balance-col admin-only" style="position:relative;">
-        <button class="btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Alte instrumente pentru echipe">🔧</button>
-        <button class="btn-winchance" id="btnWinChance" onclick="openWinChanceModal()" title="Șansă de Câștig">🎲</button>
-        <button onclick="exportTeamsText()" title="Exportă echipele" style="width:32px;height:32px;border-radius:50%;background:rgba(105,240,174,.1);border:1px solid rgba(105,240,174,.3);color:#1b7a43;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform=''">📋</button>
+        <button class="balance-col-btn btn-balance" id="balanceBtn" onclick="toggleBalancePopup(event)" title="Alte instrumente pentru echipe">🔧</button>
+        <button class="balance-col-btn btn-winchance" id="btnWinChance" onclick="openWinChanceModal()" title="Șansă de Câștig">🎲</button>
+        <button class="balance-col-btn btn-export-teams" onclick="exportTeamsText()" title="Exportă echipele">📋</button>
         <div class="balance-popup" id="balancePopup">
             <div class="balance-popup-title">🔧 Alte Instrumente Echipe</div>
 
-            <div class="balance-opt" onclick="openDraftMode()" style="color:#8e3a9e;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
-            <div class="balance-opt" onclick="doRotation()" style="color:#2e7d32;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
-            <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#1554b3;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
-
-            <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px 4px;">3️⃣ Rotații 3 Echipe</div>
-            <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);" id="swapOptOrange">
-                <span class="balance-opt-icon">↔</span><span id="swapLblOrange">Echipa 1 ↔ Bancă</span>
-            </div>
-            <div class="balance-opt" onclick="quickSwap('green')" style="color:var(--green);" id="swapOptGreen">
-                <span class="balance-opt-icon">↔</span><span id="swapLblGreen">Echipa 2 ↔ Bancă</span>
+            <div class="balance-section">
+                <div class="balance-opt" onclick="openDraftMode()" style="color:#8e3a9e;"><span class="balance-opt-icon">🎲</span><span>Draft Mode</span></div>
+                <div class="balance-opt" onclick="doRotation()" style="color:#2e7d32;"><span class="balance-opt-icon">🔄</span><span>Rotație Echipe</span></div>
+                <div class="balance-opt" onclick="moveTeamsToBench()" style="color:#1554b3;"><span class="balance-opt-icon">🔵</span><span>Mută toți pe Bancă</span></div>
             </div>
 
-            <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div class="balance-opt" onclick="exportTeamsTable()" style="color:#1b7a43;"><span class="balance-opt-icon">📊</span><span>Export Tabelă</span></div>
-            <div class="balance-opt" onclick="exportTeamsText()" style="color:#1554b3;"><span class="balance-opt-icon">📋</span><span>Export Text WhatsApp</span></div>
-
-            <div style="height:1px;background:#e3d3ac;margin:4px 0;"></div>
-            <div style="font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;padding:4px 8px 2px;">💾 Scenarii</div>
-            <div class="scenario-bar">
-                <button class="sc-btn active" id="scBtn1" onclick="switchScenario(1)">S1</button>
-                <button class="sc-btn" id="scBtn2" onclick="switchScenario(2)">S2</button>
-                <button class="sc-btn" id="scBtn3" onclick="switchScenario(3)">S3</button>
-                <button onclick="saveScenario()" style="flex:1;padding:5px 4px;border-radius:6px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid #28a745;background:rgba(40,167,69,.1);color:#1b7a43;">💾 Salvează</button>
-                <button onclick="resetScenarios()" title="Șterge toate scenariile" style="padding:5px 7px;border-radius:6px;font-size:.7rem;cursor:pointer;border:1px solid #c62828;background:rgba(198,40,40,.08);color:#b71c1c;">🗑️</button>
+            <div class="balance-section">
+                <div class="balance-section-title">3️⃣ Rotații 3 Echipe</div>
+                <div class="balance-opt" onclick="quickSwap('orange')" style="color:var(--orange);" id="swapOptOrange">
+                    <span class="balance-opt-icon">↔</span><span id="swapLblOrange">Echipa 1 ↔ Bancă</span>
+                </div>
+                <div class="balance-opt" onclick="quickSwap('green')" style="color:var(--green);" id="swapOptGreen">
+                    <span class="balance-opt-icon">↔</span><span id="swapLblGreen">Echipa 2 ↔ Bancă</span>
+                </div>
             </div>
-            <div class="sc-vote-link" onclick="openVoteTeamsLink()">
-                <span>🗳️</span><span style="flex:1;">Deschide Vot Echipe</span>
+
+            <div class="balance-section">
+                <div class="balance-opt" onclick="exportTeamsTable()" style="color:#1b7a43;"><span class="balance-opt-icon">📊</span><span>Export Tabelă</span></div>
+                <div class="balance-opt" onclick="exportTeamsText()" style="color:#1554b3;"><span class="balance-opt-icon">📋</span><span>Export Text WhatsApp</span></div>
+            </div>
+
+            <div class="balance-section">
+                <div class="balance-section-title">💾 Scenarii</div>
+                <div class="scenario-bar">
+                    <button class="sc-btn active" id="scBtn1" onclick="switchScenario(1)">S1</button>
+                    <button class="sc-btn" id="scBtn2" onclick="switchScenario(2)">S2</button>
+                    <button class="sc-btn" id="scBtn3" onclick="switchScenario(3)">S3</button>
+                    <button onclick="saveScenario()" style="flex:1;padding:5px 4px;border-radius:6px;font-size:.62rem;font-weight:700;cursor:pointer;border:1px solid #28a745;background:rgba(40,167,69,.1);color:#1b7a43;">💾 Salvează</button>
+                    <button onclick="resetScenarios()" title="Șterge toate scenariile" style="padding:5px 7px;border-radius:6px;font-size:.7rem;cursor:pointer;border:1px solid #c62828;background:rgba(198,40,40,.08);color:#b71c1c;">🗑️</button>
+                </div>
+                <div class="sc-vote-link" onclick="openVoteTeamsLink()">
+                    <span>🗳️</span><span style="flex:1;">Deschide Vot Echipe</span>
+                </div>
             </div>
         </div>
     </div>
     <div class="column header-green" id="col-green" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title" id="titleGreen" onclick="startEditTeamName('green')" title="Click pentru editare" style="cursor:pointer;">Echipa Verde</div>
-            <div class="team-balance-indicator" id="balance-green"></div>
-            <div class="team-rating-info"><span class="team-avg-badge" id="avg-green">★ —</span><span class="team-count-badge" id="count-green">0 jucători</span></div>
-            <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-green" style="width:0%"></div></div>
+            <div class="col-header-stats">
+                <div class="team-balance-indicator" id="balance-green"></div>
+                <div class="team-rating-info"><span class="team-avg-badge" id="avg-green">★ —</span><span class="team-count-badge" id="count-green">0 jucători</span></div>
+                <div class="rating-bar-wrap"><div class="rating-bar-fill" id="bar-green" style="width:0%"></div></div>
+            </div>
         </div>
         <div class="col-body" id="list-green"></div>
     </div>
     <div class="column column-bench header-bench" id="col-bench" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title" id="titleBench">Bancă</div>
-            <div class="team-balance-indicator" id="balance-bench"></div>
-            <div class="team-rating-info"><span class="team-avg-badge" id="avg-bench" style="display:none;">★ —</span><span class="team-count-badge" id="count-bench">0 jucători</span></div>
-            <div class="rating-bar-wrap" id="bar-bench-wrap" style="display:none;"><div class="rating-bar-fill" id="bar-bench" style="width:0%;background:rgba(206,147,216,0.6);"></div></div>
+            <div class="col-header-stats">
+                <div class="team-balance-indicator" id="balance-bench"></div>
+                <div class="team-rating-info"><span class="team-avg-badge" id="avg-bench" style="display:none;">★ —</span><span class="team-count-badge" id="count-bench">0 jucători</span></div>
+                <div class="rating-bar-wrap" id="bar-bench-wrap" style="display:none;"><div class="rating-bar-fill" id="bar-bench" style="width:0%;background:rgba(206,147,216,0.6);"></div></div>
+            </div>
         </div>
         <div class="col-body" id="list-bench"></div>
     </div>
     <div class="column column-white header-white" id="col-white" style="display:none;" ondrop="adminDrop(event)" ondragover="adminAllowDrop(event)">
         <div class="col-header">
             <div class="col-header-title" id="titleWhite">Alb</div>
-            <div class="team-balance-indicator" id="balance-white"></div>
-            <div class="team-rating-info"><span class="team-avg-badge" id="avg-white">★ —</span><span class="team-count-badge" id="count-white">0 jucători</span></div>
-            <div class="rating-bar-wrap" id="bar-white-wrap"><div class="rating-bar-fill" id="bar-white" style="width:0%;background:rgba(220,220,220,0.9);"></div></div>
+            <div class="col-header-stats">
+                <div class="team-balance-indicator" id="balance-white"></div>
+                <div class="team-rating-info"><span class="team-avg-badge" id="avg-white">★ —</span><span class="team-count-badge" id="count-white">0 jucători</span></div>
+                <div class="rating-bar-wrap" id="bar-white-wrap"><div class="rating-bar-fill" id="bar-white" style="width:0%;background:rgba(220,220,220,0.9);"></div></div>
+            </div>
         </div>
         <div class="col-body" id="list-white"></div>
     </div>
