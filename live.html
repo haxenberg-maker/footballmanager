@@ -696,7 +696,7 @@ async function logoutAdmin() {
 async function tryAutoAuth() {
     const { data } = await sb.auth.getSession();
     const user = data?.session?.user;
-    if (user && user.email === ADMIN_EMAIL) {
+    if (user && ADMIN_EMAILS.includes(user.email)) {
         isLiveAdmin = true;
         document.getElementById('adminBadge').textContent = 'Admin';
         document.getElementById('adminBadge').style.display = 'inline-block';
