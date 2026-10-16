@@ -583,6 +583,17 @@ async function loadAll() {
         _antiSynergyPairs = getAntiSynergyPairs();
         _nemesisPairs = getNemesisPairs();
         render();
+
+        // 📈 Istoric rating (graficul din clasament.html → profil jucător).
+        // Înainte, snapshotPlayerRatings() rula DOAR din recalculateAllPlayerStats()
+        // — adică doar la editarea/ștergerea unui meci sau la apăsarea manuală
+        // pe „Recalculează statistici". Un meci jucat normal (salvat din
+        // live.html) sau o notă nouă de la un jucător NU declanșau nimic, deci
+        // fiecare jucător ajungea cu 0-1 rânduri și graficul rămânea gol. Acum
+        // înregistrăm și la fiecare încărcare a paginii, DOAR pentru admin (ca
+        // să nu scrie în tabel toți invitații deodată). Funcția inserează un
+        // rând doar dacă ratingul s-a schimbat față de ultimul salvat.
+        if (isAdmin()) snapshotPlayerRatings();
     } catch (err) {
         setConnected(false);
         showToast('❌ Eroare conectare DB: ' + (err.message||err), '');
@@ -5205,7 +5216,14 @@ let currentMobileTab = 'orange';
 
 function switchMobileTab(tab) {
     currentMobileTab = tab;
-    if (window.innerWidth > 640) return; // desktop: CSS handles everything
+    // NOTĂ (redesign navigare): înainte, pe desktop (>640px) funcția ieșea
+    // imediat aici ("CSS handles everything" — toate secțiunile erau mereu
+    // vizibile simultan, stivuite = pagină interminabilă). Acum folosim
+    // ACEEAȘI logică de comutare pe tab-uri și pe desktop, ca navigarea
+    // Meci Activ/Jucători/Lobby/Istoric să fie consecventă peste tot, nu
+    // doar un comportament ascuns de mobil. Restul funcției (mai jos) era
+    // deja complet independent de lățimea ecranului — doar togglează
+    // display pe ID-uri fixe — deci a mers neschimbată pentru desktop.
 
     // Hide all columns
     ['orange','green','bench','active'].forEach(t =>
@@ -5216,12 +5234,20 @@ function switchMobileTab(tab) {
     document.getElementById('sectionsArea').style.display = 'none';
     document.getElementById('sec-lobby').style.display    = 'none';
     document.getElementById('sec-history').style.display  = 'none';
+    // .balance-col (uneltele de echilibrare echipe, 🔧🎲📋) nu era menționată
+    // aici înainte — pe mobil nu conta, era deja ascunsă necondiționat sub
+    // 900px prin CSS. Acum că tab-urile sunt active și pe desktop (>900px),
+    // trebuie ascunsă explicit în afara tab-ului "Meci Activ", altfel ar
+    // rămâne vizibilă, "plutind" lângă tab-urile Jucători/Lobby/Istoric.
+    const balanceColEl = document.querySelector('.balance-col');
+    if (balanceColEl) balanceColEl.style.display = 'none';
 
     if (tab === 'match') {
         // Show orange + verde + bench stacked
         ['orange','green','bench'].forEach(t => {
             document.getElementById(`col-${t}`).style.display = 'flex';
         });
+        if (balanceColEl) balanceColEl.style.display = '';
     } else if (tab === 'players') {
         // Show active column + leaderboard
         document.getElementById('col-active').style.display   = 'flex';
@@ -5388,24 +5414,15 @@ function initSwipe() {
 }
 
 function initMobile() {
-    if (window.innerWidth <= 640) {
-        switchMobileTab('match');
-    }
+    // Activă pe orice lățime acum (vezi nota din switchMobileTab) — pornim
+    // mereu pe tab-ul "Meci Activ", consistent pe desktop și mobil.
+    switchMobileTab(currentMobileTab || 'match');
 }
 window.addEventListener('resize', () => {
-    if (window.innerWidth > 640) {
-        // Desktop: clear all inline styles so CSS takes over
-        ['orange','green','bench','active'].forEach(t => {
-            const el = document.getElementById('col-'+t);
-            if (el) el.style.display = '';
-        });
-        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
-        });
-    } else {
-        switchMobileTab(currentMobileTab || 'match');
-    }
+    // Păstrăm tab-ul curent la orice schimbare de lățime a ferestrei — nu
+    // mai „resetăm” la desktop arătând totul simultan (vezi nota din
+    // switchMobileTab/initMobile).
+    switchMobileTab(currentMobileTab || 'match');
 });
 
 function moveTeamsToBench() {
