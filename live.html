@@ -656,20 +656,23 @@ async function submitCode() {
         document.getElementById('codeAuthErr').textContent = 'Completează email și parolă';
         return;
     }
+    
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     
-    if (error || !data?.user || data.user.email !== ADMIN_EMAIL) {
-        if (data?.user && data.user.email !== ADMIN_EMAIL) {
-            // Protejăm apelul de signOut cu try/catch pentru a ignora eroarea 403
-            try {
-                await sb.auth.signOut();
-            } catch (signOutErr) {
-                console.warn('Logout ignorat:', signOutErr);
-            }
-        }
-        document.getElementById('codeAuthErr').textContent = 'Autentificare eșuată';
+    // Dacă apare o eroare de la server, o afișăm direct pe ecran
+    if (error) {
+        document.getElementById('codeAuthErr').textContent = 'Eroare: ' + error.message;
         return;
     }
+
+    if (!data?.user || data.user.email !== ADMIN_EMAIL) {
+        try {
+            await sb.auth.signOut();
+        } catch (signOutErr) {}
+        document.getElementById('codeAuthErr').textContent = 'Cont neautorizat pentru admin';
+        return;
+    }
+    
     isLiveAdmin = true;
     closeCodeAuth();
     document.getElementById('adminBadge').textContent = 'Admin';
