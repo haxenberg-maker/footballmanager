@@ -656,12 +656,22 @@ async function submitCode() {
         document.getElementById('codeAuthErr').textContent = 'Completează email și parolă';
         return;
     }
+    
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    
     if (error || !data?.user || data.user.email !== ADMIN_EMAIL) {
-        if (data?.user && data.user.email !== ADMIN_EMAIL) await sb.auth.signOut();
+        if (data?.user && data.user.email !== ADMIN_EMAIL) {
+            // Folosim un bloc try/catch pentru a preveni blocarea în caz de 403 Forbidden
+            try {
+                await sb.auth.signOut();
+            } catch (signOutErr) {
+                console.warn(' signOut ignorat din cauza erorii de sesiune:', signOutErr);
+            }
+        }
         document.getElementById('codeAuthErr').textContent = 'Autentificare eșuată';
         return;
     }
+    
     isLiveAdmin = true;
     closeCodeAuth();
     document.getElementById('adminBadge').textContent = 'Admin';
