@@ -629,7 +629,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const sb = window.supabase.createClient(SB_URL, SB_KEY);
 
 // ── Admin auth via Supabase Auth (real login, matches index.html/app.js) ──
-const ADMIN_EMAIL = ['evoluttionofall@gmail.com', 'arbitru@bpf.ro'];
+const ADMIN_EMAILS = ['evoluttionofall@gmail.com', 'arbitru@bpf.ro'];
 let isLiveAdmin = false; // true = logged-in admin session (auth.jwt() matches ADMIN_EMAIL server-side too)
 
 function openAdminMenu() {
@@ -665,8 +665,8 @@ async function submitCode() {
         return;
     }
 
-    if (!data?.user || data.user.email !== ADMIN_EMAIL) {
-        try {
+   if (!data?.user || !ADMIN_EMAILS.includes(data.user.email)) {        
+      try {
             await sb.auth.signOut();
         } catch (signOutErr) {}
         document.getElementById('codeAuthErr').textContent = 'Cont neautorizat pentru admin';
