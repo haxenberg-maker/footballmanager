@@ -1462,7 +1462,7 @@ function render(){
             // butonul 📊 din bara de sus (toggleDashAttrs).
             const eaCardMini = eaGetPlayerCard(p);
             const eaMiniLabels = eaCardMini.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
-            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;">
+            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;flex-wrap:wrap;">
                 ${Object.keys(eaMiniLabels).map(k=>`<span style="font-size:.56rem;font-weight:700;color:${eaAttrColor(eaCardMini.attrs[k])};">${eaMiniLabels[k]} <span style="color:#3a2f1f;">${eaCardMini.attrs[k]}</span></span>`).join('')}
             </div>`;
             card.innerHTML=`
@@ -1483,7 +1483,7 @@ function render(){
                             ${goalsLine}${gcLine}
                         </div>
                         ${attrsRowHtml}
-                        <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
+                        <div class="ptag-row">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
                         ${renderMilestoneBadges(p)}
                         ${renderSpeedBadge(p)}
                     </div>
@@ -1495,8 +1495,10 @@ function render(){
     updateTeamStats();renderLeaderboard();renderStreakBanner();renderWeeklyCards();renderHistory();renderLobby();renderTeamTitles();applyThreeTeamUI();
     checkLiveStatus();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
-    // Keep mobile tab active after re-render
-    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
+    // Keep active tab (Meci Activ/Jucători/Lobby/Istoric) consistent după
+    // fiecare re-randare de date — pe orice lățime, nu doar pe mobil (vezi
+    // nota din switchMobileTab/initMobile pentru context complet).
+    switchMobileTab(currentMobileTab || 'match');
     applyDashStatsVisibility();
     applyDashWrStatsVisibility();
     applyDashTagsVisibility();
