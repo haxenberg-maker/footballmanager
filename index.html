@@ -57,7 +57,7 @@
             --touch-min:44px;
         }
         *{box-sizing:border-box;}
-        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#3a2f1f;margin:0;padding:0;-webkit-text-size-adjust:100%;}
+        body{font-family:'Rajdhani',sans-serif;background:var(--dark);color:#edf4fb;margin:0;padding:0;-webkit-text-size-adjust:100%;}
 
         /* ════════════════════════════════════════════════════════════════
            2. OVERLAYS DE SISTEM (loading / autentificare)
@@ -66,27 +66,27 @@
         .loading-overlay.hidden{display:none;}
         .spinner{width:44px;height:44px;border:3px solid #dcc89a;border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;}
         @keyframes spin{to{transform:rotate(360deg)}}
-        .loading-text{font-size:0.9rem;color:#7d6849;letter-spacing:2px;text-transform:uppercase;}
+        .loading-text{font-size:0.9rem;color:#9bacc0;letter-spacing:2px;text-transform:uppercase;}
         .auth-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:#f7ecd9;z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;}
         .auth-overlay.hidden{display:none;}
         .auth-box{width:100%;max-width:400px;background:#fff8ed;border-radius:20px;border:1px solid #d3bd8c;box-shadow:0 30px 80px rgba(0,0,0,0.8);overflow:hidden;}
         .auth-logo{background:linear-gradient(135deg,#fffaf0,#fff3df);padding:32px 28px 24px;text-align:center;border-bottom:1px solid #e3d3ac;}
-        .auth-logo-title{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:4px;color:#3a2f1f;margin-bottom:4px;}
-        .auth-logo-sub{font-size:0.8rem;color:#6b5840;letter-spacing:2px;text-transform:uppercase;}
+        .auth-logo-title{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;letter-spacing:4px;color:#edf4fb;margin-bottom:4px;}
+        .auth-logo-sub{font-size:0.8rem;color:#a8bacd;letter-spacing:2px;text-transform:uppercase;}
         .auth-tabs{display:flex;border-bottom:1px solid #e3d3ac;}
-        .auth-tab{flex:1;padding:14px;text-align:center;font-weight:700;font-size:0.9rem;cursor:pointer;color:#6b5840;transition:all 0.15s;border-bottom:2px solid transparent;}
-        .auth-tab.active{color:#3a2f1f;border-bottom-color:var(--accent);}
+        .auth-tab{flex:1;padding:14px;text-align:center;font-weight:700;font-size:0.9rem;cursor:pointer;color:#a8bacd;transition:all 0.15s;border-bottom:2px solid transparent;}
+        .auth-tab.active{color:#edf4fb;border-bottom-color:var(--accent);}
         .auth-body{padding:24px;}
         .auth-field{margin-bottom:14px;}
-        .auth-field label{display:block;font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-        .auth-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:12px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;transition:border-color 0.2s;}
+        .auth-field label{display:block;font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+        .auth-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:12px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;transition:border-color 0.2s;}
         .auth-input:focus{border-color:var(--accent);}
         .auth-btn{width:100%;padding:14px;border-radius:10px;font-size:1rem;letter-spacing:1px;margin-top:4px;}
-        .auth-btn-login{background:var(--accent);color:#3a2f1f;}
+        .auth-btn-login{background:var(--accent);color:#edf4fb;}
         .auth-btn-register{background:#28a745;color:#fff;border:1px solid #1b7a35;}
         .auth-error{background:rgba(198,40,40,0.15);border:1px solid #c62828;border-radius:8px;padding:10px 14px;font-size:0.85rem;color:#b33030;margin-bottom:12px;display:none;}
         .auth-error.show{display:block;}
-        .auth-divider{text-align:center;font-size:0.75rem;color:#7d6849;margin:12px 0;}
+        .auth-divider{text-align:center;font-size:0.75rem;color:#9bacc0;margin:12px 0;}
         /* ════════════════════════════════════════════════════════════════
            3. HEADER & NAVIGARE (user-bar, main-header, controls, quick-nav)
            Zona cea mai "haotică" dinainte — butoanele de control sunt acum
@@ -94,12 +94,12 @@
            stea toate 17 pe un singur rând.
            ════════════════════════════════════════════════════════════════ */
         .user-bar{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 20px;background:#f7ecd9;border-bottom:1px solid var(--border);font-size:0.78rem;}
-        .user-bar-name{color:#7d6849;display:flex;align-items:center;gap:6px;}
+        .user-bar-name{color:#9bacc0;display:flex;align-items:center;gap:6px;}
         .user-bar-role{padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700;}
         .role-admin{background:rgba(255,140,0,0.15);color:var(--orange);border:1px solid rgba(255,140,0,0.3);}
         .role-player{background:rgba(61,90,254,0.15);color:#7986cb;border:1px solid rgba(61,90,254,0.3);}
         .user-bar-player{color:#2e7d32;font-size:0.75rem;}
-        .btn-logout{background:transparent;border:1px solid #dcc89a;color:#6b5840;padding:4px 10px;border-radius:6px;font-size:0.75rem;}
+        .btn-logout{background:transparent;border:1px solid #dcc89a;color:#a8bacd;padding:4px 10px;border-radius:6px;font-size:0.75rem;}
         .btn-logout:hover{border-color:#c62828;color:#b33030;filter:none;transform:none;}
         .admin-only{display:none;}
         body.is-admin .admin-only{display:inline-flex;}
@@ -112,17 +112,17 @@
         .conn-badge.offline .conn-dot{background:#c62828;}
         .conn-badge.offline{color:#b33030;}
         .main-header{text-align:center;padding:18px 20px 14px;border-bottom:1px solid var(--border);background:#fffaf0;}
-        .main-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.3rem;letter-spacing:4px;color:#3a2f1f;margin:0;outline:none;cursor:text;border-bottom:2px dashed transparent;transition:border-color 0.2s;display:inline-block;}
+        .main-header h1{font-family:'Bebas Neue',sans-serif;font-size:2.3rem;letter-spacing:4px;color:#edf4fb;margin:0;outline:none;cursor:text;border-bottom:2px dashed transparent;transition:border-color 0.2s;display:inline-block;}
         .main-header h1:focus{border-bottom-color:#3d5afe;}
-        .date-display{font-size:0.78rem;color:#6b5840;margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
+        .date-display{font-size:0.78rem;color:#a8bacd;margin-top:4px;letter-spacing:1px;text-transform:uppercase;}
 
         /* Butoane — bază unificată. Orice buton nou/vechi moștenește aceeași
            înălțime minimă de atingere și aceeași tranziție; variantele
            (.btn-primary/.btn-ghost/etc.) doar schimbă culoarea. */
-        button{padding:9px 14px;min-height:38px;border:none;border-radius:var(--r-sm);cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#dcc89a;color:#3a2f1f;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+        button{padding:9px 14px;min-height:38px;border:none;border-radius:var(--r-sm);cursor:pointer;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.88rem;transition:all 0.15s;background:#dcc89a;color:#edf4fb;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
         button:hover{filter:brightness(1.2);transform:translateY(-1px);}
         button:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
-        .btn-settings{background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;}
+        .btn-settings{background:#fdf3df;border:1px solid #d3bd8c;color:#9bacc0;}
         .btn-nav-clasament{background:linear-gradient(135deg,#fff3c4,#ffcc00);border:1px solid #e0b400;color:#7d5a00;}
         .btn-nav-cheltuieli{background:linear-gradient(135deg,#dff3df,#a8d8a0);border:1px solid #28a745;color:#1b7a35;}
 
@@ -133,7 +133,7 @@
         .controls{display:flex;justify-content:center;gap:var(--sp-2);padding:10px 20px;background:#fffaf0;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center;position:relative;}
         .controls-separator{width:1px;height:26px;background:var(--border);margin:0 2px;}
         .ctrl-menu-wrap{position:relative;display:inline-flex;}
-        .btn-menu-toggle{background:#fdf3df;border:1px solid #d3bd8c;color:#4a3c28;}
+        .btn-menu-toggle{background:#fdf3df;border:1px solid #d3bd8c;color:#c6d5e4;}
         .btn-menu-toggle:hover{border-color:var(--accent);}
         .btn-menu-toggle.open{border-color:var(--accent);background:#eef1ff;color:#1a3fb0;}
         .ctrl-popover{
@@ -165,7 +165,7 @@
             .quick-nav-btn{
                 flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
                 background:none;border:none;padding:6px 2px;border-radius:10px;min-height:var(--touch-min);
-                font-size:.62rem;font-weight:700;color:#7d6849;letter-spacing:.3px;
+                font-size:.62rem;font-weight:700;color:#9bacc0;letter-spacing:.3px;
             }
             .quick-nav-btn .qn-ico{font-size:1.15rem;line-height:1;}
             .quick-nav-btn:hover{filter:none;transform:none;}
@@ -184,9 +184,9 @@
         .column{background:#f1e4c8;border-radius:14px;border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;}
         .column-bench{border-style:dashed;border-color:#1a5276;}
         .column-white{border-style:dashed;border-color:#9a8663;}
-        .column-active{border-style:dashed;border-color:#7d6849;}
+        .column-active{border-style:dashed;border-color:#9bacc0;}
         .col-header{padding:12px 16px 10px;display:flex;flex-direction:column;gap:6px;}
-        .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;}
+        .col-header-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#edf4fb;}
         /* ── Info de echilibrare/sortare echipă (balanță + rating mediu +
            nr. jucători + bară) — grupată vizual separat de titlu, ca un mic
            "panou de stare", nu doar text liber sub nume. ── */
@@ -201,49 +201,49 @@
         .team4-active .col-header-title{color:var(--white-text, #3a2f1f)!important;}
         .btn-3team{background:rgba(124,77,255,.15);border:1px solid #7c4dff;color:#8e3a9e;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
         .btn-3team:hover{background:rgba(124,77,255,.4);}
-        .btn-3team.active{background:rgba(124,77,255,.5);color:#3a2f1f;box-shadow:0 0 12px rgba(124,77,255,.5);}
+        .btn-3team.active{background:rgba(124,77,255,.5);color:#edf4fb;box-shadow:0 0 12px rgba(124,77,255,.5);}
         .header-bench .col-header-title{color:var(--bench-text, #82b1ff);}
         .header-white .col-header-title{color:#5a4a30;}
         .header-active .col-header{background:#fdf3df;}
-        .header-active .col-header-title{color:#7d6849;}
+        .header-active .col-header-title{color:#9bacc0;}
 
         /* ── Selector Format Echipe (2/3/4) — sus, pe pagina principală ── */
         .team-format-selector{display:flex;align-items:center;gap:8px;justify-content:center;margin:0 0 14px;flex-wrap:wrap;}
-        .tf-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
+        .tf-label{font-size:.68rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;}
         .tf-btn-group{display:flex;background:#f1e4c8;border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
-        .tf-btn{border:none;background:transparent;color:#7d6849;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .2s;}
+        .tf-btn{border:none;background:transparent;color:#9bacc0;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;padding:8px 18px;border-radius:9px;cursor:pointer;transition:all .2s;}
         .tf-btn:hover{background:rgba(124,77,255,.12);}
         .tf-btn.active{background:linear-gradient(135deg,#7c4dff,#5c2ecf);color:#fff;box-shadow:0 2px 10px rgba(124,77,255,.4);}
         /* ── Panou de echilibrare, mutat lângă selectorul de Format ── */
         .team-balance-panel{background:#fdf3df;border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:0 0 14px;}
-        .tbp-header{font-size:.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;margin-bottom:10px;text-align:center;}
-        .tbp-rivalry{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:0 0 10px;background:#fff3d6;border-radius:9px;border:1px solid #e8d19a;cursor:pointer;font-size:.72rem;color:#5c4a32;}
+        .tbp-header{font-size:.7rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1.3px;font-weight:700;margin-bottom:10px;text-align:center;}
+        .tbp-rivalry{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:0 0 10px;background:#fff3d6;border-radius:9px;border:1px solid #e8d19a;cursor:pointer;font-size:.72rem;color:#dce7f3;}
         .tbp-rivalry input{width:16px;height:16px;flex-shrink:0;}
         .tbp-modes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
         @media(max-width:640px){.tbp-modes{grid-template-columns:1fr;}}
         .tbp-mode-card{background:#fff;border:1.5px solid var(--border);border-radius:11px;padding:10px 11px;cursor:pointer;transition:all .15s;text-align:left;}
         .tbp-mode-card:hover{border-color:#7c4dff;box-shadow:0 3px 10px rgba(124,77,255,.18);transform:translateY(-1px);}
         .tbp-mode-icon{font-size:1.15rem;margin-bottom:3px;}
-        .tbp-mode-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.8px;color:#3a2f1f;}
-        .tbp-mode-desc{font-size:.62rem;color:#7d6849;line-height:1.35;margin-top:2px;}
+        .tbp-mode-title{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.8px;color:#edf4fb;}
+        .tbp-mode-desc{font-size:.62rem;color:#9bacc0;line-height:1.35;margin-top:2px;}
         .tbp-report-wrap{display:none;padding:8px 10px;background:#f3e6cf;border-radius:9px;margin-top:10px;border:1px solid #e3d3ac;}
-        .tbp-report-label{color:#7d6849;font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+        .tbp-report-label{color:#9bacc0;font-size:.6rem;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
         .tbp-live-quality{display:flex;align-items:center;gap:10px;padding:9px 12px;margin-bottom:10px;background:#fff;border-radius:10px;border:1.5px solid #ddd;transition:border-color .2s;}
         .tbp-live-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;line-height:1;}
-        .tbp-live-label{font-size:.64rem;color:#7d6849;line-height:1.35;}
+        .tbp-live-label{font-size:.64rem;color:#9bacc0;line-height:1.35;}
 
         /* ── Modal Șansă de Câștig (dinamic 2/3/4 echipe) ── */
         .win-modal-overlay{position:fixed;inset:0;background:rgba(20,14,5,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;}
         .win-modal{background:#fdf6e6;border-radius:18px;padding:22px;max-width:640px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);}
-        .win-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#3a2f1f;margin:0 0 4px;text-align:center;}
-        .win-modal-sub{font-size:.72rem;color:#9c7a4a;text-align:center;margin-bottom:16px;}
-        .win-modal-close{position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;color:#7d6849;cursor:pointer;}
+        .win-modal-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#edf4fb;margin:0 0 4px;text-align:center;}
+        .win-modal-sub{font-size:.72rem;color:#9bacc0;text-align:center;margin-bottom:16px;}
+        .win-modal-close{position:absolute;top:14px;right:18px;background:none;border:none;font-size:1.3rem;color:#9bacc0;cursor:pointer;}
         /* Versus (2 echipe) */
         .wm-versus{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
         .wm-versus-side{flex:1;text-align:center;}
         .wm-versus-pct{font-family:'Bebas Neue',sans-serif;font-size:2.4rem;line-height:1;}
         .wm-versus-name{font-weight:700;font-size:.85rem;margin-top:2px;}
-        .wm-versus-vs{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#9c7a4a;padding:0 4px;}
+        .wm-versus-vs{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:#9bacc0;padding:0 4px;}
         .wm-dual-bar{height:14px;border-radius:7px;background:#e9dcbb;overflow:hidden;display:flex;margin-bottom:18px;}
         .wm-dual-fill{height:100%;transition:width .6s ease;}
         /* Grid (3/4 echipe) */
@@ -258,12 +258,12 @@
         .wm-team-avg{font-size:.62rem;margin-top:4px;opacity:.9;}
         /* Balance badge */
         .wm-balance-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:16px;padding:9px;border-radius:10px;background:#f3e6cf;border:1px solid #e3d3ac;}
-        .wm-balance-label{font-size:.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
+        .wm-balance-label{font-size:.68rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;}
         .wm-balance-badge{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;padding:3px 12px;border-radius:20px;color:#fff;}
         /* Attribute comparison */
-        .wm-attr-title{font-size:.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin:4px 0 8px;text-align:center;}
+        .wm-attr-title{font-size:.65rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin:4px 0 8px;text-align:center;}
         .wm-attr-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
-        .wm-attr-label{width:74px;flex-shrink:0;font-size:.68rem;color:#7d6849;font-weight:700;}
+        .wm-attr-label{width:74px;flex-shrink:0;font-size:.68rem;color:#9bacc0;font-weight:700;}
         .wm-attr-bars{flex:1;display:flex;gap:3px;height:16px;border-radius:4px;overflow:hidden;background:#e9dcbb;}
         .wm-attr-seg{height:100%;transition:width .5s ease;}
         .btn-winchance{background:linear-gradient(135deg,#ffe082,#ffb300);border:1px solid #ff8f00;color:#7d4f00;width:32px;height:32px;border-radius:50%;font-size:.85rem;padding:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
@@ -291,7 +291,7 @@
         .dash-attrs-hidden .fifa-attrs-row { display:none !important; }        /* FIFA attr bars */
         .fifa-attr-grid{display:flex;flex-direction:column;gap:2px;margin:4px 0;}
         .fifa-attr-row{display:flex;align-items:center;gap:4px;}
-        .fifa-attr-lbl{font-size:.52rem;color:#6b5840;text-transform:uppercase;width:22px;flex-shrink:0;letter-spacing:.5px;}
+        .fifa-attr-lbl{font-size:.52rem;color:#a8bacd;text-transform:uppercase;width:22px;flex-shrink:0;letter-spacing:.5px;}
         .fifa-attr-track{flex:1;height:3px;background:#e3d3ac;border-radius:2px;overflow:hidden;}
         .fifa-attr-fill{height:100%;border-radius:2px;transition:width .3s;}
         .fifa-attr-val{font-family:'Bebas Neue',sans-serif;font-size:.7rem;width:18px;text-align:right;flex-shrink:0;}
@@ -342,29 +342,29 @@
         .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
         .fifa-rating-col{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:46px;padding-right:10px;border-right:1px solid rgba(255,255,255,.06);}
-        .fifa-rating-num{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;line-height:1;color:#3a2f1f;letter-spacing:1px;}
-        .fifa-rating-lbl{font-size:.5rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+        .fifa-rating-num{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;line-height:1;color:#edf4fb;letter-spacing:1px;}
+        .fifa-rating-lbl{font-size:.5rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
         .fifa-rating-gen{font-size:.68rem;color:var(--star);font-weight:700;margin-top:2px;}
         /* Right: name + stats */
         .fifa-info-col{flex:1;padding-left:10px;display:flex;flex-direction:column;gap:3px;}
-        .player-name{font-weight:700;color:#3a2f1f;font-size:.92rem;line-height:1.2;letter-spacing:.3px;}
+        .player-name{font-weight:700;color:#edf4fb;font-size:.92rem;line-height:1.2;letter-spacing:.3px;}
         /* Form dots row */
         .form-row{display:flex;align-items:center;gap:3px;margin-top:1px;}
         .form-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px currentColor;}
         .form-dot.W{background:#4caf50;color:#2e7d32;}
         .form-dot.L{background:#e53935;color:#a52020;}
         .form-dot.empty{background:#dcc89a;color:transparent;}
-        .form-label{font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;margin-left:2px;}
+        .form-label{font-size:.55rem;color:#a8bacd;text-transform:uppercase;letter-spacing:.8px;margin-left:2px;}
         /* Stats mini row */
         .fifa-stats-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px;}
-        .fifa-stat{font-size:.65rem;color:#7d6849;white-space:nowrap;}
-        .fifa-stat span{color:#7d6849;font-weight:700;}
+        .fifa-stat{font-size:.65rem;color:#9bacc0;white-space:nowrap;}
+        .fifa-stat span{color:#9bacc0;font-weight:700;}
         /* Tags row */
         .card-top{display:flex;justify-content:space-between;align-items:center;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
         .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
-        .player-id-tag{font-size:0.6rem;color:#7d6849;font-family:monospace;margin-left:5px;}
+        .player-id-tag{font-size:0.6rem;color:#9bacc0;font-family:monospace;margin-left:5px;}
         .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
         .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
@@ -378,27 +378,27 @@
         .move-sheet{background:#fff8ed;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:12px 18px calc(20px + env(safe-area-inset-bottom));border:1px solid #d3bd8c;border-bottom:none;box-shadow:0 -10px 40px rgba(0,0,0,.5);animation:moveSheetUp .22s cubic-bezier(.34,1.56,.64,1);}
         @keyframes moveSheetUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
         .move-sheet-handle{width:40px;height:4px;background:#dcc89a;border-radius:3px;margin:0 auto 12px;}
-        .move-sheet-title{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:2px;color:#3a2f1f;text-align:center;margin-bottom:4px;}
-        .move-sheet-sub{font-size:.7rem;color:#7d6849;text-align:center;margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;}
+        .move-sheet-title{font-family:'Bebas Neue',sans-serif;font-size:1.15rem;letter-spacing:2px;color:#edf4fb;text-align:center;margin-bottom:4px;}
+        .move-sheet-sub{font-size:.7rem;color:#9bacc0;text-align:center;margin-bottom:14px;text-transform:uppercase;letter-spacing:1px;}
         .move-sheet-options{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
-        .move-opt{display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:12px;font-size:1rem;font-weight:700;border:1px solid var(--border);background:#fdf3df;cursor:pointer;transition:transform .12s,background .12s;color:#3a2f1f;}
+        .move-opt{display:flex;align-items:center;gap:12px;padding:15px 16px;border-radius:12px;font-size:1rem;font-weight:700;border:1px solid var(--border);background:#fdf3df;cursor:pointer;transition:transform .12s,background .12s;color:#edf4fb;}
         .move-opt:active{transform:scale(.97);background:#f3e6cf;}
         .move-opt-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
         .move-opt-current{opacity:.45;pointer-events:none;}
-        .move-opt-current::after{content:'✓ echipa curentă';margin-left:auto;font-size:.65rem;color:#7d6849;font-weight:700;text-transform:none;}
+        .move-opt-current::after{content:'✓ echipa curentă';margin-left:auto;font-size:.65rem;color:#9bacc0;font-weight:700;text-transform:none;}
         .move-sheet-cancel{width:100%;padding:13px;border-radius:10px;background:#dcc89a;font-size:.95rem;font-weight:700;}
         @media(min-width:641px){
             /* Desktop keeps drag & drop as primary, but the move button remains a handy shortcut */
             .move-btn{width:26px;height:26px;font-size:.82rem;}
         }
         .rank-1{background:#ffd700}.rank-2{background:#c0c0c0}.rank-3{background:#cd7f32}.rank-other{background:transparent}
-        .player-stats{font-size:0.73rem;color:#7d6849;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+        .player-stats{font-size:0.73rem;color:#9bacc0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
         .streak-badge{padding:1px 7px;border-radius:10px;font-size:0.7rem;font-weight:700;}
         .streak-win{background:rgba(40,167,69,0.2);color:#2e7d32;border:1px solid rgba(40,167,69,0.3);}
         .streak-loss{background:rgba(198,40,40,0.2);color:#b33030;border:1px solid rgba(198,40,40,0.3);}
         .cat-bars{display:flex;gap:4px;align-items:center;}
         .cat-bar-item{display:flex;flex-direction:column;align-items:center;gap:1px;}
-        .cat-bar-label{font-size:0.58rem;color:#6b5840;text-transform:uppercase;}
+        .cat-bar-label{font-size:0.58rem;color:#a8bacd;text-transform:uppercase;}
         .cat-bar-track{width:22px;height:3px;background:#dcc89a;border-radius:2px;overflow:hidden;}
         .cat-bar-fill{height:100%;border-radius:2px;transition:width 0.4s;}
         /* Live Stats Editor */
@@ -411,13 +411,13 @@
         .live-penalty-badge.penalty{background:rgba(229,57,53,.15);color:#b71c1c;border:1px solid rgba(229,57,53,.3);}
         .live-penalty-badge.bonus{background:rgba(76,175,80,.12);color:#a5d6a7;border:1px solid rgba(76,175,80,.25);}
         .live-attr-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-        .live-attr-lbl{font-size:.7rem;color:#6b5840;width:70px;flex-shrink:0;}
+        .live-attr-lbl{font-size:.7rem;color:#a8bacd;width:70px;flex-shrink:0;}
         .live-attr-slider{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;}
         .live-attr-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;cursor:pointer;border:2px solid #f7ecd9;}
         .live-attr-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;width:26px;text-align:center;flex-shrink:0;}
         .live-attr-contrib{font-size:.62rem;width:54px;text-align:right;flex-shrink:0;}
         .live-quickset{display:flex;gap:3px;margin-top:2px;margin-left:76px;}
-        .live-qs-btn{font-size:.58rem;padding:2px 6px;border-radius:4px;background:#fdf3df;border:1px solid #dcc89a;color:#6b5840;cursor:pointer;white-space:nowrap;}
+        .live-qs-btn{font-size:.58rem;padding:2px 6px;border-radius:4px;background:#fdf3df;border:1px solid #dcc89a;color:#a8bacd;cursor:pointer;white-space:nowrap;}
         .live-qs-btn:hover{border-color:#3d5afe;color:#1554b3;}
         /* Tag activation system */
         .tag-act-row{padding:8px 0;border-bottom:1px solid #f1e4c8;}
@@ -426,23 +426,23 @@
         .tag-dot{width:8px;height:8px;border-radius:50%;transition:background .2s;}
         .tag-dot.filled{background:#4caf50;}
         .tag-dot.empty{background:#dcc89a;}
-        .tag-act-count{font-size:.62rem;color:#6b5840;min-width:24px;}
+        .tag-act-count{font-size:.62rem;color:#a8bacd;min-width:24px;}
         .tag-act-status{font-size:.78rem;}
         .tag-hist-wrap{max-height:0;overflow:hidden;transition:max-height .3s ease;}
         .tag-hist-wrap.open{max-height:300px;}
         .tag-hist-inner{padding:6px 4px;background:#fffaf0;border-radius:7px;margin-top:5px;}
-        .tag-hist-row{font-size:.68rem;color:#7d6849;padding:2px 0;display:flex;justify-content:space-between;}
-        .tag-hist-row span{color:#7d6849;}
+        .tag-hist-row{font-size:.68rem;color:#9bacc0;padding:2px 0;display:flex;justify-content:space-between;}
+        .tag-hist-row span{color:#9bacc0;}
         /* Algorithm Control Panel */
         .algo-panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;}
         .algo-weight-cell{background:#fff7e8;border:1px solid #e3d3ac;border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;transition:border-color .15s;}
         .algo-weight-cell:focus-within{border-color:#3d5afe44;}
-        .algo-weight-lbl{font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
+        .algo-weight-lbl{font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap;}
         .algo-weight-ctrl{display:flex;align-items:center;gap:4px;}
-        .algo-btn{width:24px;height:24px;border-radius:5px;border:1px solid #dcc89a;background:#fdf3df;color:#7d6849;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all .1s;flex-shrink:0;padding:0;}
+        .algo-btn{width:24px;height:24px;border-radius:5px;border:1px solid #dcc89a;background:#fdf3df;color:#9bacc0;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all .1s;flex-shrink:0;padding:0;}
         .algo-btn:hover{border-color:#3d5afe;color:#1554b3;}
-        .algo-num{flex:1;background:transparent;border:none;color:#3a2f1f;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;width:0;min-width:0;}
-        .algo-pct{font-size:.65rem;color:#6b5840;}
+        .algo-num{flex:1;background:transparent;border:none;color:#edf4fb;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;text-align:center;outline:none;width:0;min-width:0;}
+        .algo-pct{font-size:.65rem;color:#a8bacd;}
         /* Power ring */
         .algo-power-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:12px 0;}
         .algo-power-ring{position:relative;width:80px;height:80px;}
@@ -451,11 +451,11 @@
         .algo-power-ring-fill{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .4s,stroke .3s;}
         .algo-power-label{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
         .algo-power-pct{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;line-height:1;}
-        .algo-power-sub{font-size:.48rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;}
+        .algo-power-sub{font-size:.48rem;color:#a8bacd;text-transform:uppercase;letter-spacing:.8px;}
         /* Presets */
         .algo-presets{display:flex;gap:6px;margin-bottom:12px;}
-        .algo-preset-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;border:1px solid #dcc89a;background:#fdf3df;color:#7d6849;transition:all .15s;text-align:center;}
-        .algo-preset-btn:hover{color:#3a2f1f;border-color:#3d5afe;}
+        .algo-preset-btn{flex:1;padding:7px 4px;border-radius:8px;font-size:.7rem;font-weight:700;cursor:pointer;border:1px solid #dcc89a;background:#fdf3df;color:#9bacc0;transition:all .15s;text-align:center;}
+        .algo-preset-btn:hover{color:#edf4fb;border-color:#3d5afe;}
         /* Tag weight compact */
         .tw-row{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #08090e;}
         /* Impact Profile sliders */
@@ -465,8 +465,8 @@
         .ip-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;cursor:pointer;background:#a78bfa;}
         .ip-val{font-family:'Bebas Neue',sans-serif;font-size:.82rem;min-width:24px;text-align:right;}
         .tw-emoji{width:18px;text-align:center;font-size:.8rem;flex-shrink:0;}
-        .tw-label{flex:1;font-size:.74rem;color:#7d6849;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .tw-btn{width:20px;height:20px;border-radius:4px;border:1px solid #e3d3ac;background:#fff7e8;color:#6b5840;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .tw-label{flex:1;font-size:.74rem;color:#9bacc0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .tw-btn{width:20px;height:20px;border-radius:4px;border:1px solid #e3d3ac;background:#fff7e8;color:#a8bacd;font-size:.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
         .tw-btn:hover{border-color:#3d5afe;color:#1554b3;}
         .tw-val{font-family:'Bebas Neue',sans-serif;font-size:.9rem;width:34px;text-align:center;flex-shrink:0;}
 
@@ -483,10 +483,10 @@
 
         /* Quick vote tag grid */
         .qv-tags-section{margin-top:8px;padding-top:8px;border-top:1px solid #e3d3ac;}
-        .qv-tags-cat{font-size:.58rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;margin-top:8px;}
+        .qv-tags-cat{font-size:.58rem;color:#a8bacd;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;margin-top:8px;}
         .qv-tags-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:2px;}
-        .qv-tag-btn{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid #dcc89a;background:#fdf3df;color:#7d6849;transition:all .12s;white-space:nowrap;}
-        .qv-tag-btn:hover{border-color:#7d6849;color:#7d6849;}
+        .qv-tag-btn{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid #dcc89a;background:#fdf3df;color:#9bacc0;transition:all .12s;white-space:nowrap;}
+        .qv-tag-btn:hover{border-color:#9bacc0;color:#9bacc0;}
         .qv-tag-btn.sel-pos{background:rgba(40,167,69,.2);border-color:#1b7a35;color:#1b7a43;}
         .qv-tag-btn.sel-neg{background:rgba(198,40,40,.15);border-color:#c62828;color:#b71c1c;}
         .qv-tag-btn.sel-neu{background:rgba(61,90,254,.15);border-color:#3d5afe;color:#1554b3;}
@@ -497,7 +497,7 @@
         .tbi-warn{background:rgba(255,140,0,.12);color:#ffb74d;border:1px solid rgba(255,140,0,.3);display:block;}
         .tbi-danger{background:rgba(198,40,40,.12);color:#b71c1c;border:1px solid rgba(198,40,40,.3);display:block;}
         .arch-badge-admin{position:relative;}
-        .arch-badge-admin::after{content:'A';position:absolute;top:-3px;right:-3px;font-size:.45rem;background:#3d5afe;border-radius:3px;padding:0 2px;color:#3a2f1f;}
+        .arch-badge-admin::after{content:'A';position:absolute;top:-3px;right:-3px;font-size:.45rem;background:#3d5afe;border-radius:3px;padding:0 2px;color:#edf4fb;}
         .arch-badge{font-size:.6rem;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;line-height:1.4;}
         .arch-s{background:rgba(40,167,69,.18);color:#1b7a43;border:1px solid rgba(40,167,69,.35);}
         .arch-w{background:rgba(198,40,40,.15);color:#b71c1c;border:1px solid rgba(198,40,40,.3);}
@@ -505,12 +505,12 @@
         .lobby-header{background:linear-gradient(135deg,#dde9ff,#a8c8f0);padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
         .lobby-title{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#1554b3;flex:1;}
         .lobby-datetime{font-size:0.88rem;color:#2f5fcf;font-weight:700;}
-        .lobby-datetime.no-date{color:#7d6849;font-size:0.8rem;}
+        .lobby-datetime.no-date{color:#9bacc0;font-size:0.8rem;}
         .btn-form-teams{background:linear-gradient(135deg,#1565c0,#1976d2);border:1px solid #42a5f5;color:#e3f2fd;padding:9px 18px;border-radius:8px;font-size:0.9rem;font-weight:700;}
-        .btn-edit-schedule{background:transparent;border:1px solid #1a2a4a;color:#6b5840;padding:7px 12px;border-radius:7px;font-size:0.8rem;}
+        .btn-edit-schedule{background:transparent;border:1px solid #1a2a4a;color:#a8bacd;padding:7px 12px;border-radius:7px;font-size:0.8rem;}
         .btn-edit-schedule:hover{border-color:#2f5fcf;color:#2f5fcf;filter:none;transform:none;}
         .lobby-body{padding:14px 18px;}
-        .lobby-hint{font-size:0.78rem;color:#7d6849;margin-bottom:12px;}
+        .lobby-hint{font-size:0.78rem;color:#9bacc0;margin-bottom:12px;}
         .lobby-players{display:flex;flex-wrap:wrap;gap:8px;}
         .lobby-player-chip{display:flex;align-items:center;gap:8px;background:#faf0dc;border:1px solid #1e2a3a;border-radius:20px;padding:6px 12px 6px 8px;cursor:pointer;transition:all 0.15s;user-select:none;}
         .lobby-player-chip:hover{border-color:#1554b3;background:#e8f0ff;}
@@ -525,13 +525,13 @@
         .lobby-player-chip.presence-mid{background:linear-gradient(135deg,#fff3c4,#ffe082);border-color:#c9920a;}
         .lobby-player-chip.presence-mid .chip-name{color:#6b5000;}
         .lobby-player-chip.presence-low{background:linear-gradient(135deg,#fffbe8,#fff3c4);border-color:#e0c468;}
-        .lobby-player-chip.presence-low .chip-name{color:#7d6849;}
+        .lobby-player-chip.presence-low .chip-name{color:#9bacc0;}
         .lobby-player-chip.confirmed{background:#dde9ff;border-color:#1554b3;}
         .lobby-player-chip.absent{background:#fce0e0;border-color:#c62828;opacity:0.7;}
         .lobby-player-chip .chip-dot{width:10px;height:10px;border-radius:50%;background:#dcc89a;border:2px solid #333;flex-shrink:0;transition:all 0.15s;}
         .lobby-player-chip.confirmed .chip-dot{background:#2979ff;border-color:#1554b3;box-shadow:0 0 6px rgba(41,121,255,0.6);}
         .lobby-player-chip.absent .chip-dot{background:#c62828;border-color:#c62828;}
-        .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#6b5840;}
+        .lobby-player-chip .chip-name{font-size:0.85rem;font-weight:700;color:#a8bacd;}
         .lobby-player-chip.confirmed .chip-name{color:#1554b3;}
         .lobby-player-chip.absent .chip-name{color:#b33030;text-decoration:line-through;}
         .lobby-confirmed-count{font-size:0.78rem;color:#2f5fcf;font-weight:700;margin-top:10px;}
@@ -539,29 +539,29 @@
         /* Presence modal */
         .presence-modal{background:#fff8ed;width:90%;max-width:360px;border-radius:20px;padding:30px 24px;border:1px solid #d3bd8c;box-shadow:0 30px 80px rgba(0,0,0,0.9);text-align:center;}
         .presence-icon{font-size:3rem;margin-bottom:10px;}
-        .presence-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:#3a2f1f;margin-bottom:8px;}
+        .presence-title{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;color:#edf4fb;margin-bottom:8px;}
         .presence-match-info{font-size:0.9rem;color:#2f5fcf;font-weight:700;margin-bottom:6px;}
-        .presence-player-name{font-size:0.82rem;color:#6b5840;margin-bottom:24px;}
+        .presence-player-name{font-size:0.82rem;color:#a8bacd;margin-bottom:24px;}
         .presence-actions{display:flex;gap:12px;}
         .presence-btn{flex:1;padding:16px;border-radius:12px;font-size:1rem;font-weight:700;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;cursor:pointer;border:none;transition:all 0.15s;}
         .presence-yes{background:#28a745;color:#fff;border:1px solid #1b7a35;}
         .presence-yes:hover{filter:brightness(1.15);transform:translateY(-2px);}
         .presence-no{background:#fce0e0;color:#b33030;border:1px solid #c62828;}
         .presence-no:hover{background:#fce0e0;transform:translateY(-2px);}
-        .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#fdf3df;border:1px solid var(--accent);color:#3a2f1f;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
+        .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:#fdf3df;border:1px solid var(--accent);color:#edf4fb;padding:12px 26px;border-radius:12px;font-size:0.97rem;font-weight:700;z-index:9998;box-shadow:0 8px 32px rgba(0,0,0,0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.3s;opacity:0;pointer-events:none;white-space:nowrap;}
         .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
         .toast.toast-o{border-color:var(--orange);background:#fbe9c8;}
         .toast.toast-g{border-color:var(--green);background:#dff3df;}
         .stats-section{grid-column:1/-1;margin-top:4px;background:#f1e4c8;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
-        .stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:#7d6849;}
+        .stats-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;margin:0 0 14px;color:#9bacc0;}
         .leaderboard{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
-        .lb-tab{padding:5px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;transition:all .12s;white-space:nowrap;}
-        .lb-tab:hover{color:#3a2f1f;}
+        .lb-tab{padding:5px 10px;border-radius:7px;font-size:0.72rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;transition:all .12s;white-space:nowrap;}
+        .lb-tab:hover{color:#edf4fb;}
         .lb-tab.active{background:rgba(167,139,250,.2);border-color:#5a2fd9;color:#6b46c1;}
         .lb-period-btn{padding:4px 9px;border-radius:6px;font-size:.64rem;font-weight:600;cursor:pointer;background:transparent;border:1px solid #dcc89a;color:#8a7452;transition:all .12s;}
-        .lb-period-btn:hover{color:#3a2f1f;}
-        .lb-period-btn.active{background:#e9d9b3;border-color:#b89860;color:#3a2f1f;}
-        .lb-more-btn{width:100%;text-align:center;padding:7px;margin-top:4px;font-size:.68rem;font-weight:700;color:#7d6849;background:#fdf3df;border:1px dashed #dcc89a;border-radius:8px;cursor:pointer;}
+        .lb-period-btn:hover{color:#edf4fb;}
+        .lb-period-btn.active{background:#e9d9b3;border-color:#b89860;color:#edf4fb;}
+        .lb-more-btn{width:100%;text-align:center;padding:7px;margin-top:4px;font-size:.68rem;font-weight:700;color:#9bacc0;background:#fdf3df;border:1px dashed #dcc89a;border-radius:8px;cursor:pointer;}
         .lb-more-btn:hover{background:#f3e6cf;}
         .streak-banner-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
         @media(max-width:480px){.streak-banner-grid{grid-template-columns:1fr;}}
@@ -569,9 +569,9 @@
         .streak-banner-card.hot{background:linear-gradient(135deg,rgba(255,140,0,.12),rgba(229,57,53,.10));border:1px solid rgba(255,140,0,.35);}
         .streak-banner-card.goal{background:linear-gradient(135deg,rgba(27,122,67,.12),rgba(139,195,74,.10));border:1px solid rgba(27,122,67,.3);}
         .streak-banner-icon{font-size:1.4rem;line-height:1;}
-        .streak-banner-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#7d6849;}
-        .streak-banner-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
-        .streak-banner-sub{font-size:.65rem;color:#6b5840;}
+        .streak-banner-lbl{font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:#9bacc0;}
+        .streak-banner-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#edf4fb;}
+        .streak-banner-sub{font-size:.65rem;color:#a8bacd;}
         .modal-nemesis{font-size:.72rem;color:#b71c1c;margin-top:4px;display:flex;align-items:center;gap:5px;}
         .milestone-row{display:flex;gap:3px;flex-wrap:wrap;}
         .milestone-badge{font-size:.6rem;padding:2px 6px;border-radius:6px;background:rgba(255,204,0,.15);border:1px solid rgba(255,204,0,.4);color:#8a6800;white-space:nowrap;font-weight:700;}
@@ -579,20 +579,20 @@
         .week-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
         @media(max-width:640px){.week-cards-grid{grid-template-columns:1fr;}}
         .week-card{background:#fffaf0;border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
-        .week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#7d6849;margin-bottom:8px;}
+        .week-card-title{font-family:'Bebas Neue',sans-serif;font-size:.85rem;letter-spacing:1.5px;color:#9bacc0;margin-bottom:8px;}
         .week-player-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f0e6d0;font-size:.78rem;cursor:pointer;}
         .week-player-row:last-child{border-bottom:none;}
         .week-player-rank{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:#b89860;min-width:16px;}
-        .week-player-name{flex:1;font-weight:700;color:#3a2f1f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        .week-player-sub{font-size:.64rem;color:#6b5840;}
-        .derby-score{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px;text-align:center;margin:4px 0;color:#3a2f1f;}
-        .derby-teams{display:flex;justify-content:space-between;font-size:.68rem;color:#6b5840;text-transform:uppercase;letter-spacing:.5px;}
-        .derby-summary{font-size:.74rem;color:#3a2f1f;margin-top:6px;text-align:center;line-height:1.4;}
+        .week-player-name{flex:1;font-weight:700;color:#edf4fb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .week-player-sub{font-size:.64rem;color:#a8bacd;}
+        .derby-score{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px;text-align:center;margin:4px 0;color:#edf4fb;}
+        .derby-teams{display:flex;justify-content:space-between;font-size:.68rem;color:#a8bacd;text-transform:uppercase;letter-spacing:.5px;}
+        .derby-summary{font-size:.74rem;color:#edf4fb;margin-top:6px;text-align:center;line-height:1.4;}
         .derby-date{text-align:center;font-size:.6rem;color:#9a8663;margin-top:2px;}
         .lb-card{background:var(--card);border-radius:10px;padding:11px 13px;border:1px solid var(--border);}
-        .lb-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#7d6849;}
-        .lb-name{font-weight:700;color:#3a2f1f;font-size:0.93rem;margin:2px 0;}
-        .lb-stat{font-size:0.76rem;color:#6b5840;}
+        .lb-rank{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#9bacc0;}
+        .lb-name{font-weight:700;color:#edf4fb;font-size:0.93rem;margin:2px 0;}
+        .lb-stat{font-size:0.76rem;color:#a8bacd;}
         .lb-smart{font-size:0.76rem;color:#6b46c1;margin-top:2px;}
         .history-section{grid-column:1/-1;margin-top:4px;background:#f1e4c8;padding:18px 22px;border-radius:14px;border:1px solid var(--border);}
         .history-desktop-header{display:flex;}
@@ -600,12 +600,12 @@
         .history-section table{width:100%;}
         table{width:100%;border-collapse:collapse;}
         th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #1a1d26;font-size:0.88rem;}
-        th{color:#6b5840;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;}
+        th{color:#a8bacd;font-size:0.7rem;text-transform:uppercase;letter-spacing:1px;}
         .win-tag{padding:2px 9px;border-radius:20px;font-size:0.76rem;font-weight:700;}
-        .history-players{font-size:0.76rem;color:#6b5840;margin-top:3px;}
+        .history-players{font-size:0.76rem;color:#a8bacd;margin-top:3px;}
         #match-history tbody tr{cursor:pointer;transition:background 0.12s;border-bottom:1px solid #e3d3ac;}
         #match-history tbody tr:hover td{background:#f1e4c8;}
-        #match-history th{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:#7d6849;border-bottom:2px solid #dcc89a;padding:8px 12px;}
+        #match-history th{font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:#9bacc0;border-bottom:2px solid #dcc89a;padding:8px 12px;}
         #match-history td{padding:8px 12px;vertical-align:top;}
         .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:1000;justify-content:center;align-items:center;backdrop-filter:blur(4px);}
         /* FIFA Modal */
@@ -638,7 +638,7 @@
             background:rgba(0,0,0,.4);
         }
         .modal-header-info{flex:1;position:relative;z-index:1;}
-        .modal-player-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#3a2f1f;line-height:1;}
+        .modal-player-name{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:3px;color:#edf4fb;line-height:1;}
         .modal-header-meta{display:flex;align-items:center;gap:10px;margin-top:5px;flex-wrap:wrap;}
         .modal-rating-big{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;line-height:1;font-weight:700;}
         .modal-rating-label{font-size:.6rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:1px;}
@@ -648,12 +648,12 @@
         .modal-form-dot.L{background:#e53935;box-shadow:0 0 8px #e53935;}
         .modal-form-dot.empty{background:#e3d3ac;}
         .modal-close-btn{position:absolute;top:14px;right:14px;z-index:2;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.6);width:28px;height:28px;border-radius:8px;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-        .modal-close-btn:hover{background:rgba(198,40,40,.3);color:#3a2f1f;}
+        .modal-close-btn:hover{background:rgba(198,40,40,.3);color:#edf4fb;}
         /* FIFA tabs */
         .modal-tabs{display:flex;gap:6px;padding:12px 16px 0;background:#f3e6cf;flex-shrink:0;overflow-x:auto;}
-        .modal-tab{padding:8px 14px;font-size:.72rem;font-weight:700;color:#6b5840;cursor:pointer;border:none;border-radius:8px 8px 0 0;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .15s;background:transparent;border-bottom:2px solid transparent;}
-        .modal-tab:hover{color:#7d6849;background:rgba(255,255,255,.04);}
-        .modal-tab.active{color:#3a2f1f;background:rgba(255,255,255,.06);border-bottom-color:var(--accent);}
+        .modal-tab{padding:8px 14px;font-size:.72rem;font-weight:700;color:#a8bacd;cursor:pointer;border:none;border-radius:8px 8px 0 0;font-family:'Rajdhani',sans-serif;white-space:nowrap;transition:all .15s;background:transparent;border-bottom:2px solid transparent;}
+        .modal-tab:hover{color:#9bacc0;background:rgba(255,255,255,.04);}
+        .modal-tab.active{color:#edf4fb;background:rgba(255,255,255,.06);border-bottom-color:var(--accent);}
         .modal-tab-panel{display:none;padding:16px;overflow-y:auto;max-height:55vh;}
         .modal-tab-panel.active{display:block;}
         /* Hexagon SVG stats */
@@ -662,8 +662,8 @@
         .hex-labels{display:flex;flex-direction:column;gap:8px;}
         .hex-lbl-row{display:flex;align-items:center;gap:8px;}
         .hex-lbl-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-        .hex-lbl-text{font-size:.78rem;color:#7d6849;}
-        .hex-lbl-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#3a2f1f;margin-left:auto;}
+        .hex-lbl-text{font-size:.78rem;color:#9bacc0;}
+        .hex-lbl-val{font-family:'Bebas Neue',sans-serif;font-size:.95rem;color:#edf4fb;margin-left:auto;}
         /* Chemistry mini cards */
         .chem-mini-card{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:12px;background:linear-gradient(135deg,#fff8ed,#fffaf0);border:1px solid rgba(255,255,255,.06);margin-bottom:8px;transition:transform .15s;}
         .chem-mini-card:hover{transform:translateX(4px);}
@@ -678,117 +678,117 @@
         .tl-dot{position:absolute;left:-20px;top:4px;width:14px;height:14px;border-radius:50%;border:2px solid;flex-shrink:0;}
         .tl-dot.W{background:#1a3a1a;border-color:#2e7d32;box-shadow:0 0 8px rgba(76,175,80,.4);}
         .tl-dot.L{background:#fce0e0;border-color:#a52020;box-shadow:0 0 8px rgba(229,57,53,.3);}
-        .tl-date{font-size:.65rem;color:#6b5840;margin-bottom:3px;}
+        .tl-date{font-size:.65rem;color:#a8bacd;margin-bottom:3px;}
         .tl-result{font-size:.82rem;font-weight:700;margin-bottom:4px;}
         .tl-result.W{color:#2e7d32;}
         .tl-result.L{color:#b33030;}
-        .tl-team{font-size:.7rem;color:#7d6849;}
+        .tl-team{font-size:.7rem;color:#9bacc0;}
         .tl-mates{font-size:.68rem;color:#3a3d50;margin-top:2px;line-height:1.4;}
 
         /* Chemistry */
         .chem-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1e4c8;}
-        .chem-avatar{width:30px;height:30px;border-radius:50%;background:#fdf3df;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.72rem;color:#7d6849;flex-shrink:0;}
+        .chem-avatar{width:30px;height:30px;border-radius:50%;background:#fdf3df;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:.72rem;color:#9bacc0;flex-shrink:0;}
         .chem-name{flex:1;font-weight:700;font-size:.85rem;}
         .chem-bar-wrap{flex:1;height:6px;background:#fdf3df;border-radius:3px;overflow:hidden;}
         .chem-bar{height:100%;border-radius:3px;transition:width .5s ease;}
         .chem-score{font-family:'Bebas Neue',sans-serif;font-size:.95rem;min-width:32px;text-align:right;}
-        .chem-detail{font-size:.65rem;color:#6b5840;margin-top:2px;}
+        .chem-detail{font-size:.65rem;color:#a8bacd;margin-top:2px;}
 
         /* Match history in modal */
         .mh-row{padding:9px 0;border-bottom:1px solid #f1e4c8;display:flex;flex-direction:column;gap:3px;}
         .mh-top{display:flex;align-items:center;gap:8px;}
-        .mh-date{font-size:.78rem;color:#7d6849;width:60px;flex-shrink:0;}
+        .mh-date{font-size:.78rem;color:#9bacc0;width:60px;flex-shrink:0;}
         .mh-result{font-size:.72rem;font-weight:700;padding:1px 8px;border-radius:6px;flex-shrink:0;}
         .mh-result.W{background:rgba(40,167,69,.2);color:#2e7d32;border:1px solid rgba(40,167,69,.3);}
         .mh-result.L{background:rgba(198,40,40,.15);color:#b33030;border:1px solid rgba(198,40,40,.25);}
-        .mh-team{font-size:.72rem;color:#7d6849;flex:1;}
-        .mh-teammates{font-size:.7rem;color:#6b5840;padding-left:68px;line-height:1.4;}
+        .mh-team{font-size:.72rem;color:#9bacc0;flex:1;}
+        .mh-teammates{font-size:.7rem;color:#a8bacd;padding-left:68px;line-height:1.4;}
         .modal-stats-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;margin-bottom:4px;}
         .modal-stats-toggle:hover{background:#f1e4c8;}
         .modal-stats-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
         .modal-avg-big{font-size:0.9rem;color:var(--star);font-weight:700;}
         .modal-smart-big{font-size:0.85rem;font-weight:700;color:#6b46c1;background:rgba(61,43,191,0.2);padding:2px 9px;border-radius:8px;border:1px solid #3d2bbf;}
         .modal-streak-big{font-size:0.82rem;font-weight:700;padding:2px 10px;border-radius:8px;}
-        .stats-chevron{color:#6b5840;transition:transform 0.25s;font-size:0.75rem;flex-shrink:0;}
+        .stats-chevron{color:#a8bacd;transition:transform 0.25s;font-size:0.75rem;flex-shrink:0;}
         .stats-chevron.open{transform:rotate(180deg);}
         .stats-detail-wrap{max-height:0;overflow:hidden;transition:max-height 0.4s ease;}
         .stats-detail-wrap.open{max-height:700px;}
-        .algo-info{background:#fdf3df;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.78rem;color:#6b5840;border:1px solid #d3bd8c;}
+        .algo-info{background:#fdf3df;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:0.78rem;color:#a8bacd;border:1px solid #d3bd8c;}
         .algo-info strong{color:#6b46c1;}
         .algo-breakdown{background:#fff7e8;border-radius:10px;padding:12px 14px;margin-bottom:10px;border:1px solid #e3d3ac;}
-        .algo-title{font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+        .algo-title{font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
         .algo-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-        .algo-label{font-size:0.78rem;color:#7d6849;width:90px;flex-shrink:0;}
+        .algo-label{font-size:0.78rem;color:#9bacc0;width:90px;flex-shrink:0;}
         .algo-track{flex:1;height:6px;background:#dcc89a;border-radius:3px;overflow:hidden;}
         .algo-fill{height:100%;border-radius:3px;transition:width 0.5s;}
-        .algo-val{font-size:0.78rem;color:#4a3c28;font-weight:700;width:28px;text-align:right;}
-        .algo-weight{font-size:0.68rem;color:#6b5840;width:30px;text-align:right;}
+        .algo-val{font-size:0.78rem;color:#c6d5e4;font-weight:700;width:28px;text-align:right;}
+        .algo-weight{font-size:0.68rem;color:#a8bacd;width:30px;text-align:right;}
         .chart-section{margin-bottom:10px;}
-        .chart-toggle-label{font-size:0.78rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
+        .chart-toggle-label{font-size:0.78rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;}
         .chart-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .chart-body.open{max-height:320px;}
         .chart-body-inner{background:#f1e4c8;border:1px solid #e3d3ac;border-top:none;border-radius:0 0 10px 10px;padding:12px;}
         .cat-tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
-        .cat-tab{padding:5px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #d3bd8c;color:#6b5840;transition:all 0.12s;}
-        .cat-tab.active{background:var(--accent);color:#3a2f1f;border-color:var(--accent);}
+        .cat-tab{padding:5px 12px;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;background:#fdf3df;border:1px solid #d3bd8c;color:#a8bacd;transition:all 0.12s;}
+        .cat-tab.active{background:var(--accent);color:#edf4fb;border-color:var(--accent);}
         .ratings-list-wrap{margin-top:6px;margin-bottom:10px;}
         .ratings-list-toggle{display:flex;justify-content:space-between;align-items:center;background:#f1e4c8;border:1px solid #e3d3ac;border-radius:10px;padding:9px 14px;cursor:pointer;user-select:none;}
         .ratings-list-toggle:hover{background:#f1e4c8;}
-        .ratings-list-label{font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;}
-        .ratings-list-chevron{color:#6b5840;transition:transform 0.25s;font-size:0.75rem;}
+        .ratings-list-label{font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;}
+        .ratings-list-chevron{color:#a8bacd;transition:transform 0.25s;font-size:0.75rem;}
         .ratings-list-chevron.open{transform:rotate(180deg);}
         .ratings-list-body{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .ratings-list-body.open{max-height:200px;overflow-y:auto;}
         .ratings-list-inner{background:#f1e4c8;border:1px solid #e3d3ac;border-top:none;border-radius:0 0 10px 10px;padding:8px;}
         .rating-entry{display:flex;justify-content:space-between;align-items:center;background:#fff8ed;padding:7px 10px;margin-bottom:4px;border-radius:8px;border:1px solid #e3d3ac;}
         .rating-entry-left{display:flex;flex-direction:column;gap:1px;}
-        .rating-entry-name{font-weight:700;color:#4a3c28;font-size:0.85rem;}
-        .rating-entry-cats{font-size:0.72rem;color:#7d6849;}
-        .btn-delete-r{color:#7d6849;background:none;border:none;cursor:pointer;font-size:1rem;padding:0 4px;}
+        .rating-entry-name{font-weight:700;color:#c6d5e4;font-size:0.85rem;}
+        .rating-entry-cats{font-size:0.72rem;color:#9bacc0;}
+        .btn-delete-r{color:#9bacc0;background:none;border:none;cursor:pointer;font-size:1rem;padding:0 4px;}
         .btn-delete-r:hover{color:#a52020;transform:none;}
         .rating-section{margin-top:14px;}
-        .rating-section-header{font-size:0.72rem;color:#6b5840;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+        .rating-section-header{font-size:0.72rem;color:#a8bacd;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
         .rating-section-header::after{content:'';flex:1;height:1px;background:#e3d3ac;}
-        .rater-select{background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:10px 14px;border-radius:10px;width:100%;margin-bottom:12px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;cursor:pointer;}
+        .rater-select{background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:10px 14px;border-radius:10px;width:100%;margin-bottom:12px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;cursor:pointer;}
         .rater-select:focus{border-color:var(--accent);}
         .rater-select option{background:#fdf3df;}
         .rater-custom-wrap{display:none;margin-bottom:10px;}
         .rater-custom-wrap.show{display:block;}
-        .rater-input{background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:10px 14px;border-radius:10px;width:100%;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
+        .rater-input{background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:10px 14px;border-radius:10px;width:100%;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
         .rater-input:focus{border-color:var(--accent);}
         .general-rating-wrap{background:#fff7e8;border-radius:12px;padding:14px 14px 12px;margin-bottom:10px;border:2px solid #e3d3ac;transition:border-color 0.2s;}
         .general-rating-wrap.has-value{border-color:rgba(255,204,0,0.3);}
         .general-rating-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-        .general-rating-title{font-size:0.72rem;color:#6b5840;text-transform:uppercase;letter-spacing:2px;flex:1;}
+        .general-rating-title{font-size:0.72rem;color:#a8bacd;text-transform:uppercase;letter-spacing:2px;flex:1;}
         .general-rating-required{font-size:0.68rem;color:#c62828;font-weight:700;}
         .general-rating-val-big{font-size:2rem;font-weight:900;font-family:'Bebas Neue',sans-serif;min-width:2ch;text-align:right;transition:all 0.15s;}
-        .general-rating-val-big.empty{color:#7d6849;}
+        .general-rating-val-big.empty{color:#9bacc0;}
         .general-rating-val-big.filled{color:var(--star);}
         .general-star-row{display:flex;gap:3px;}
-        .general-star-btn{flex:1;height:46px;border-radius:8px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;letter-spacing:0.5px;}
+        .general-star-btn{flex:1;height:46px;border-radius:8px;background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;font-size:0.9rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;letter-spacing:0.5px;}
         .general-star-btn:hover{border-color:#8a680088;color:#8a680088;transform:translateY(-1px);}
         .general-star-btn.selected{background:var(--star);color:#000;border-color:var(--star);transform:translateY(-2px);box-shadow:0 4px 14px rgba(255,204,0,0.4);}
-        .general-star-btn[data-val="1"].selected,.general-star-btn[data-val="2"].selected{background:#e53935;border-color:#a52020;color:#3a2f1f;}
+        .general-star-btn[data-val="1"].selected,.general-star-btn[data-val="2"].selected{background:#e53935;border-color:#a52020;color:#edf4fb;}
         .general-star-btn[data-val="3"].selected,.general-star-btn[data-val="4"].selected{background:#ff8c00;border-color:#9c4f00;color:#000;}
         .general-star-btn[data-val="5"].selected,.general-star-btn[data-val="6"].selected{background:#ffd600;border-color:#7a6300;color:#000;}
         .general-star-btn[data-val="7"].selected,.general-star-btn[data-val="8"].selected{background:#69f0ae;border-color:#1b7a43;color:#000;}
         .general-star-btn[data-val="9"].selected,.general-star-btn[data-val="10"].selected{background:#00e5ff;border-color:#00707c;color:#000;}
-        .btn-details-toggle{width:100%;background:transparent;border:1px dashed #dcc89a;color:#7d6849;margin:0 0 6px;border-radius:10px;padding:10px 16px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Rajdhani',sans-serif;font-weight:700;}
+        .btn-details-toggle{width:100%;background:transparent;border:1px dashed #dcc89a;color:#9bacc0;margin:0 0 6px;border-radius:10px;padding:10px 16px;font-size:0.85rem;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;font-family:'Rajdhani',sans-serif;font-weight:700;}
         .btn-details-toggle:hover{border-color:#3d2bbf;color:#6b46c1;background:rgba(61,43,191,0.06);transform:none;}
         .btn-details-toggle.open{border-color:#3d2bbf;color:#6b46c1;background:rgba(61,43,191,0.1);border-style:solid;}
         .details-section{max-height:0;overflow:hidden;transition:max-height 0.35s ease;}
         .details-section.open{max-height:400px;}
         .details-section-inner{background:#fffaf0;border-radius:10px;padding:12px;border:1px solid #1a1d30;margin-bottom:6px;}
-        .details-hint{font-size:0.72rem;color:#6b5840;margin-bottom:10px;font-style:italic;}
+        .details-hint{font-size:0.72rem;color:#a8bacd;margin-bottom:10px;font-style:italic;}
         .cat-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
         .cat-input-group{display:flex;flex-direction:column;gap:4px;}
-        .cat-input-label{font-size:0.72rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
+        .cat-input-label{font-size:0.72rem;color:#a8bacd;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center;}
         .cat-val-badge{font-weight:700;font-size:0.75rem;min-width:18px;text-align:right;}
         .cat-val-badge.set{color:var(--star);}
-        .cat-val-badge.unset{color:#7d6849;font-style:italic;}
-        .cat-optional-tag{font-size:0.6rem;color:#7d6849;background:#fdf3df;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:400;text-transform:none;letter-spacing:0;}
+        .cat-val-badge.unset{color:#9bacc0;font-style:italic;}
+        .cat-optional-tag{font-size:0.6rem;color:#9bacc0;background:#fdf3df;border-radius:4px;padding:1px 5px;margin-left:4px;font-weight:400;text-transform:none;letter-spacing:0;}
         .cat-star-row{display:flex;gap:2px;}
-        .cat-star-btn{flex:1;height:28px;border-radius:4px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Rajdhani',sans-serif;}
+        .cat-star-btn{flex:1;height:28px;border-radius:4px;background:#fdf3df;border:1px solid #d3bd8c;color:#9bacc0;font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Rajdhani',sans-serif;}
         .cat-star-btn:hover{border-color:var(--star);color:var(--star);}
         .cat-star-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
         .modal-actions{display:flex;gap:8px;margin-top:12px;}
@@ -796,101 +796,101 @@
         .btn-close-m{background:#dcc89a;padding:13px 18px;border-radius:10px;}
         .settings-modal{background:#fff8ed;width:92%;max-width:640px;border-radius:16px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;display:flex;flex-direction:column;overflow:hidden;}
         .settings-header{padding:18px 22px 0;flex-shrink:0;}
-        .settings-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#3a2f1f;margin:0 0 14px;}
+        .settings-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#edf4fb;margin:0 0 14px;}
         .settings-tabs{display:flex;gap:0;border-bottom:1px solid #e3d3ac;margin:0 -22px;padding:0 22px;}
-        .settings-tab{padding:10px 16px;font-size:0.85rem;font-weight:700;color:#6b5840;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
-        .settings-tab:hover{color:#7d6849;}
-        .settings-tab.active{color:#3a2f1f;border-bottom-color:var(--accent);}
+        .settings-tab{padding:10px 16px;font-size:0.85rem;font-weight:700;color:#a8bacd;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;}
+        .settings-tab:hover{color:#9bacc0;}
+        .settings-tab.active{color:#edf4fb;border-bottom-color:var(--accent);}
         .settings-body{flex:1;overflow-y:auto;padding:18px 22px;}
         .settings-panel{display:none;}
         .settings-panel.active{display:block;}
         .player-edit-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:#f1e4c8;border-radius:10px;margin-bottom:6px;border:1px solid #e3d3ac;}
-        .player-edit-id{font-size:0.65rem;color:#7d6849;font-family:monospace;min-width:65px;white-space:nowrap;}
-        .player-edit-input{flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.92rem;outline:none;}
+        .player-edit-id{font-size:0.65rem;color:#9bacc0;font-family:monospace;min-width:65px;white-space:nowrap;}
+        .player-edit-input{flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.92rem;outline:none;}
         .player-edit-input:focus{border-color:var(--accent);}
-        .player-edit-stats{font-size:0.72rem;color:#6b5840;white-space:nowrap;}
+        .player-edit-stats{font-size:0.72rem;color:#a8bacd;white-space:nowrap;}
         .btn-save-name{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;}
         .btn-delete-player{background:#c62828;color:white;padding:6px 10px;border-radius:6px;font-size:0.78rem;}
         .settings-action-row{display:flex;flex-direction:column;gap:10px;}
         .settings-action-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f1e4c8;border-radius:10px;border:1px solid #e3d3ac;}
         .settings-action-info{display:flex;flex-direction:column;gap:2px;}
-        .settings-action-title{font-weight:700;color:#4a3c28;font-size:0.92rem;}
-        .settings-action-desc{font-size:0.76rem;color:#7d6849;}
+        .settings-action-title{font-weight:700;color:#c6d5e4;font-size:0.92rem;}
+        .settings-action-desc{font-size:0.76rem;color:#9bacc0;}
 
         /* Push notifications panel */
         .push-status-box{background:#fff7e8;border-radius:10px;padding:14px;border:1px solid #e3d3ac;margin-bottom:12px;}
         .push-status-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-        .push-status-label{font-size:0.85rem;color:#7d6849;}
+        .push-status-label{font-size:0.85rem;color:#9bacc0;}
         .push-status-val{font-size:0.85rem;font-weight:700;}
         .push-status-val.active{color:#2e7d32;}
-        .push-status-val.inactive{color:#7d6849;}
+        .push-status-val.inactive{color:#9bacc0;}
         .confirm-modal{background:#fff8ed;width:90%;max-width:380px;border-radius:16px;padding:24px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.9);text-align:center;}
         .confirm-icon{font-size:2.5rem;margin-bottom:10px;}
-        .confirm-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:8px;}
-        .confirm-msg{font-size:0.88rem;color:#7d6849;margin-bottom:20px;line-height:1.5;}
+        .confirm-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:2px;color:#edf4fb;margin-bottom:8px;}
+        .confirm-msg{font-size:0.88rem;color:#9bacc0;margin-bottom:20px;line-height:1.5;}
         .confirm-actions{display:flex;gap:10px;justify-content:center;}
         .btn-confirm-yes{flex:1;padding:12px;border-radius:10px;font-size:0.95rem;max-width:140px;}
         .btn-confirm-no{flex:1;padding:12px;border-radius:10px;font-size:0.95rem;background:#dcc89a;max-width:140px;}
         .schedule-modal{background:#fff8ed;width:90%;max-width:420px;border-radius:16px;padding:24px;border:1px solid #1a2a4a;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
         .schedule-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#1554b3;margin:0 0 16px;}
         .schedule-field{margin-bottom:14px;}
-        .schedule-field label{display:block;font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-        .schedule-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:10px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
+        .schedule-field label{display:block;font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+        .schedule-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:10px 14px;border-radius:10px;font-family:'Rajdhani',sans-serif;font-size:1rem;outline:none;}
         .schedule-input:focus{border-color:#1554b3;}
         .qv-modal{background:#fff8ed;width:94%;max-width:600px;border-radius:16px;padding:20px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
         .qv-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-        .qv-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#3a2f1f;}
+        .qv-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:3px;color:#edf4fb;}
         .qv-rater-bar{background:#fff7e8;border-radius:10px;padding:12px 14px;margin-bottom:14px;border:1px solid #1a1d30;display:flex;align-items:center;gap:10px;}
-        .qv-rater-bar label{font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
-        .qv-rater-select{flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:9px 12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;cursor:pointer;}
+        .qv-rater-bar label{font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;}
+        .qv-rater-select{flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:9px 12px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;cursor:pointer;}
         .qv-players-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
-        .qv-team-label{font-size:0.7rem;color:#7d6849;text-transform:uppercase;letter-spacing:2px;padding:6px 2px 4px;border-bottom:1px solid #e3d3ac;margin-bottom:2px;}
+        .qv-team-label{font-size:0.7rem;color:#9bacc0;text-transform:uppercase;letter-spacing:2px;padding:6px 2px 4px;border-bottom:1px solid #e3d3ac;margin-bottom:2px;}
         .qv-player-row{background:#f1e4c8;border-radius:10px;padding:10px 12px;border:1px solid #e3d3ac;}
         .qv-player-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-        .qv-player-name{font-weight:700;color:#3a2f1f;font-size:0.95rem;flex:1;}
-        .qv-player-prev{font-size:0.72rem;color:#6b5840;white-space:nowrap;}
+        .qv-player-name{font-weight:700;color:#edf4fb;font-size:0.95rem;flex:1;}
+        .qv-player-prev{font-size:0.72rem;color:#a8bacd;white-space:nowrap;}
         .qv-gen-row{display:flex;gap:2px;margin-bottom:4px;}
-        .qv-gen-btn{flex:1;height:38px;border-radius:6px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;}
+        .qv-gen-btn{flex:1;height:38px;border-radius:6px;background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;font-size:0.82rem;font-weight:700;cursor:pointer;transition:all 0.1s;padding:0;font-family:'Bebas Neue',sans-serif;}
         .qv-gen-btn:hover{border-color:#8a680066;color:#8a680066;}
         .qv-gen-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
-        .qv-gen-btn[data-v="1"].selected,.qv-gen-btn[data-v="2"].selected{background:#e53935;border-color:#a52020;color:#3a2f1f;}
+        .qv-gen-btn[data-v="1"].selected,.qv-gen-btn[data-v="2"].selected{background:#e53935;border-color:#a52020;color:#edf4fb;}
         .qv-gen-btn[data-v="3"].selected,.qv-gen-btn[data-v="4"].selected{background:#ff8c00;border-color:#9c4f00;color:#000;}
         .qv-gen-btn[data-v="5"].selected,.qv-gen-btn[data-v="6"].selected{background:#ffd600;border-color:#7a6300;color:#000;}
         .qv-gen-btn[data-v="7"].selected,.qv-gen-btn[data-v="8"].selected{background:#69f0ae;border-color:#1b7a43;color:#000;}
         .qv-gen-btn[data-v="9"].selected,.qv-gen-btn[data-v="10"].selected{background:#00e5ff;border-color:#00707c;color:#000;}
-        .qv-details-btn{font-size:0.72rem;color:#6b5840;background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'Rajdhani',sans-serif;font-weight:600;transform:none;}
+        .qv-details-btn{font-size:0.72rem;color:#a8bacd;background:none;border:none;padding:2px 0;cursor:pointer;text-decoration:underline;text-underline-offset:2px;font-family:'Rajdhani',sans-serif;font-weight:600;transform:none;}
         .qv-details-btn:hover{color:#6b46c1;filter:none;transform:none;}
         .qv-sub-section{max-height:0;overflow:hidden;transition:max-height 0.4s ease;}
         .qv-sub-section.open{max-height:800px;}
         .qv-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-top:8px;}
         .qv-sub-group{display:flex;flex-direction:column;gap:3px;}
-        .qv-sub-label{font-size:0.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;}
+        .qv-sub-label{font-size:0.65rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;}
         .qv-sub-val{font-weight:700;}
         .qv-sub-val.set{color:var(--star);}
-        .qv-sub-val.unset{color:#7d6849;}
+        .qv-sub-val.unset{color:#9bacc0;}
         .qv-sub-row{display:flex;gap:2px;}
-        .qv-sub-btn{flex:1;height:24px;border-radius:3px;background:#fdf3df;border:1px solid #dcc89a;color:#6b5840;font-size:0.65rem;font-weight:700;cursor:pointer;transition:all 0.08s;padding:0;font-family:'Rajdhani',sans-serif;}
+        .qv-sub-btn{flex:1;height:24px;border-radius:3px;background:#fdf3df;border:1px solid #dcc89a;color:#a8bacd;font-size:0.65rem;font-weight:700;cursor:pointer;transition:all 0.08s;padding:0;font-family:'Rajdhani',sans-serif;}
         .qv-sub-btn:hover{border-color:#8a680055;color:#8a680055;}
         .qv-sub-btn.selected{background:var(--star);color:#000;border-color:var(--star);}
-        .qv-progress{font-size:0.78rem;color:#7d6849;text-align:center;margin-bottom:8px;}
+        .qv-progress{font-size:0.78rem;color:#9bacc0;text-align:center;margin-bottom:8px;}
         .qv-progress span{color:var(--star);font-weight:700;}
         .match-modal{background:#fff8ed;width:90%;max-width:480px;border-radius:16px;padding:24px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.8);}
-        .match-modal-date{font-size:0.8rem;color:#7d6849;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
+        .match-modal-date{font-size:0.8rem;color:#9bacc0;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;}
         .match-winner-banner{text-align:center;padding:10px 16px;border-radius:10px;font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;margin-bottom:16px;}
         .match-mirror{margin-top:4px;}
         .match-mirror-score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;margin-bottom:10px;}
-        .match-mirror-team-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#3a2f1f;}
-        .match-mirror-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:#3a2f1f;white-space:nowrap;padding:0 6px;}
+        .match-mirror-team-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:1px;color:#edf4fb;}
+        .match-mirror-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:1px;color:#edf4fb;white-space:nowrap;padding:0 6px;}
         .match-mirror-body{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:start;}
         .match-mirror-col{background:#f1e4c8;border-radius:10px;padding:10px 12px;border:1px solid #e3d3ac;min-height:100%;}
         .match-mirror-col-left{text-align:right;}
         .match-mirror-col-right{text-align:left;}
         .match-mirror-col-center{width:1px;background:#e3d3ac;align-self:stretch;}
-        .match-mirror-player-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;color:#5c4a32;}
+        .match-mirror-player-row{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:0.85rem;color:#dce7f3;}
         .match-mirror-col-left .match-mirror-player-row{justify-content:flex-end;}
         .match-mirror-col-right .match-mirror-player-row{justify-content:flex-start;}
-        .match-mirror-player-name{font-weight:700;color:#3a2f1f;}
-        .match-mirror-player-stats{font-size:0.72rem;color:#7d6849;white-space:nowrap;}
+        .match-mirror-player-name{font-weight:700;color:#edf4fb;}
+        .match-mirror-player-stats{font-size:0.72rem;color:#9bacc0;white-space:nowrap;}
         .match-mirror-player-rating{font-family:'Bebas Neue',sans-serif;font-size:0.72rem;color:#8e3a9e;background:rgba(142,58,158,.1);border:1px solid rgba(142,58,158,.3);border-radius:5px;padding:0 4px;}
         .match-mirror-badge-mvp{font-size:0.78rem;}
         .match-mirror-badge-potm{font-size:0.78rem;}
@@ -903,17 +903,17 @@
         .csv-modal{background:#fff8ed;width:90%;max-width:600px;border-radius:16px;padding:24px;border:1px solid #d3bd8c;max-height:85vh;overflow-y:auto;}
         .csv-result-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f1e4c8;border-radius:6px;margin-bottom:4px;font-size:0.82rem;}
         .csv-match{color:#2e7d32}.csv-no-match{color:#b33030}
-        .match-edit-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:5px;color:#6b5840;font-size:0.8rem;transition:all 0.12s;}
-        .match-edit-btn:hover{color:#3a2f1f;background:#dcc89a;filter:none;transform:none;}
+        .match-edit-btn{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:5px;color:#a8bacd;font-size:0.8rem;transition:all 0.12s;}
+        .match-edit-btn:hover{color:#edf4fb;background:#dcc89a;filter:none;transform:none;}
 
         .match-editor-modal{background:#fff8ed;width:92%;max-width:560px;border-radius:16px;padding:22px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,0.8);max-height:92vh;overflow-y:auto;}
-        .match-editor-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#3a2f1f;}
+        .match-editor-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;color:#edf4fb;}
         .me-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
         .me-field{margin-bottom:12px;}
-        .me-field label{display:block;font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
-        .me-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:10px 12px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;}
+        .me-field label{display:block;font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+        .me-input{width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:10px 12px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:0.95rem;outline:none;}
         .me-input:focus{border-color:var(--accent);}
-        .me-winner-btn{padding:10px;border-radius:8px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.15s;}
+        .me-winner-btn{padding:10px;border-radius:8px;background:#fdf3df;border:1px solid #d3bd8c;color:#9bacc0;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:0.85rem;cursor:pointer;transition:all 0.15s;}
         .me-winner-btn:hover{filter:brightness(1.2);transform:none;}
         .me-winner-btn.active-o{background:rgba(255,140,0,0.2);border-color:var(--orange);color:var(--orange);}
         .me-winner-btn.active-g{background:rgba(40,167,69,0.2);border-color:#2e7d32;color:#2e7d32;}
@@ -925,15 +925,15 @@
         .me-player-check{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background 0.12s;user-select:none;}
         .me-player-check:hover{background:#f1e4c8;}
         .me-player-check input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;}
-        .me-player-check span{font-size:0.85rem;color:#5c4a32;}
-        .me-player-check.checked span{color:#3a2f1f;}
+        .me-player-check span{font-size:0.85rem;color:#dce7f3;}
+        .me-player-check.checked span{color:#edf4fb;}
 
         @media(max-width:480px){.me-grid{grid-template-columns:1fr}.me-teams-grid{grid-template-columns:1fr}}
-        .account-email{font-size:0.85rem;color:#4a3c28;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .account-email{font-size:0.85rem;color:#c6d5e4;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .account-role-badge{padding:2px 8px;border-radius:8px;font-size:0.68rem;font-weight:700;white-space:nowrap;}
         .account-linked{font-size:0.75rem;color:#2e7d32;}
-        .account-unlinked{font-size:0.75rem;color:#7d6849;}
-        .account-player-select{background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:6px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.82rem;outline:none;max-width:160px;}
+        .account-unlinked{font-size:0.75rem;color:#9bacc0;}
+        .account-player-select{background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:6px 10px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:0.82rem;outline:none;max-width:160px;}
         .btn-link-account{background:var(--accent);color:white;padding:6px 12px;border-radius:6px;font-size:0.78rem;white-space:nowrap;}
 
         .balance-col{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;gap:8px;}
@@ -965,10 +965,10 @@
            cu stil inline repetat la fiecare secțiune) ── */
         .balance-section{padding:4px 2px 6px;}
         .balance-section + .balance-section{border-top:1px solid #e3d3ac;margin-top:4px;}
-        .balance-section-title{font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:2px 8px 4px;}
+        .balance-section-title{font-size:.55rem;color:#a8bacd;text-transform:uppercase;letter-spacing:.8px;font-weight:700;padding:2px 8px 4px;}
         /* Scenario slots */
         .scenario-bar{display:flex;gap:4px;padding:6px 10px 4px;border-top:1px solid #dcc89a;margin-top:4px;}
-        .sc-btn{flex:1;padding:5px 2px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;border:1px solid #dcc89a;background:#fff8ed;color:#6b5840;transition:all .12s;text-align:center;white-space:nowrap;}
+        .sc-btn{flex:1;padding:5px 2px;border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;border:1px solid #dcc89a;background:#fff8ed;color:#a8bacd;transition:all .12s;text-align:center;white-space:nowrap;}
         .sc-btn:hover{border-color:#3d5afe;color:#1554b3;}
         .sc-btn.active{border-color:#3d5afe;background:rgba(61,90,254,.15);color:#6b46c1;}
         .sc-btn.saved{border-color:#1b7a35;color:#1b7a43;}
@@ -976,9 +976,9 @@
         .sc-vote-link{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:700;color:#8a6800;transition:background .12s;}
         .sc-vote-link:hover{background:#dcc89a;}
         .balance-popup.show{display:block;}
-        .balance-popup-title{font-size:0.68rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;padding:2px 6px 6px;border-bottom:1px solid #dcc89a;margin-bottom:4px;}
-        .balance-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;color:#4a3c28;transition:background 0.12s;}
-        .balance-opt:hover{background:#dcc89a;color:#3a2f1f;}
+        .balance-popup-title{font-size:0.68rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;padding:2px 6px 6px;border-bottom:1px solid #dcc89a;margin-bottom:4px;}
+        .balance-opt{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.88rem;font-weight:700;color:#c6d5e4;transition:background 0.12s;}
+        .balance-opt:hover{background:#dcc89a;color:#edf4fb;}
         .balance-opt .balance-opt-icon{font-size:1rem;}
 
         /* Mobile tabs */
@@ -990,12 +990,12 @@
            app.js — doar prezentarea diferă pe desktop prin media query. ── */
         .mobile-tabs-row{display:block;}
         .mobile-tabs{display:flex;background:#fffaf0;border-bottom:1px solid var(--border);overflow-x:auto;}
-        .mobile-tab{flex:1;min-width:58px;padding:10px 3px;text-align:center;font-size:0.65rem;font-weight:700;color:#6b5840;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:0.3px;transition:all 0.15s;}
-        .mobile-tab.active{color:#3a2f1f;border-bottom-color:var(--accent);}
+        .mobile-tab{flex:1;min-width:58px;padding:10px 3px;text-align:center;font-size:0.65rem;font-weight:700;color:#a8bacd;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;text-transform:uppercase;letter-spacing:0.3px;transition:all 0.15s;}
+        .mobile-tab.active{color:#edf4fb;border-bottom-color:var(--accent);}
         .mobile-tab.tab-match.active{border-bottom-color:var(--orange);color:var(--orange);}
         .mobile-tab.tab-players.active{border-bottom-color:#6b46c1;color:#6b46c1;}
         .mobile-tab.tab-lobby.active{border-bottom-color:#1554b3;color:#1554b3;}
-        .mobile-tab.tab-history.active{border-bottom-color:#7d6849;color:#5c4a32;}
+        .mobile-tab.tab-history.active{border-bottom-color:#9bacc0;color:#dce7f3;}
         /* Prezentare proprie pentru ecran lat — nu doar barele mobile
            întinse: tab-uri centrate, mai respirate, text normal (nu uppercase
            comprimat), consistent cu restul interfeței de pe desktop. */
@@ -1264,6 +1264,250 @@
           .leaderboard{gap:8px}
         }
 
+
+        /* ═══════════════════════════════════════════════════════════════
+           ARENA FC — THEME CONSISTENCY FIX
+           Contrast uniform pe întregul produs + raport de echilibrare.
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            color-scheme: dark;
+            --dark: #0b1220;
+            --card: #111d2c;
+            --surface: #101a29;
+            --surface-2: #172438;
+            --surface-3: #1b2b40;
+            --ink: #edf4fb;
+            --ink-soft: #dce7f3;
+            --ink-dim: #a8bacd;
+            --ink-faint: #8da2b8;
+            --border: #2b3d52;
+        }
+        body { color: var(--ink) !important; }
+        a { color: #8ec8ff; }
+
+        /* Componente care încă moșteneau fundaluri bej din tema veche. */
+        :is(.win-modal, .move-sheet, .presence-modal, .settings-modal,
+            .confirm-modal, .schedule-modal, .qv-modal, .match-modal,
+            .csv-modal, .match-editor-modal, .live-edit-wrap,
+            .algo-weight-cell, .algo-breakdown, .algo-info, .chart-body-inner,
+            .general-rating-wrap, .details-section-inner, .settings-action-item,
+            .player-edit-row, .push-status-box, .week-card, .rating-entry,
+            .ratings-list-inner, .modal-stats-toggle, .ratings-list-toggle,
+            .wm-balance-row, .match-mirror-col, .me-team-col, .qv-player-row,
+            .qv-rater-bar, .csv-result-row, .tag-hist-inner, .balance-popup,
+            .algo-preset-btn, .tw-btn, .sc-btn, .move-opt) {
+            background-color: #111d2c !important;
+            border-color: #2b3d52 !important;
+            color: #dce7f3 !important;
+        }
+        :is(.win-modal, .move-sheet, .presence-modal, .settings-modal,
+            .confirm-modal, .schedule-modal, .qv-modal, .match-modal,
+            .csv-modal, .match-editor-modal) {
+            background: linear-gradient(145deg, #142236, #0f1927) !important;
+            border: 1px solid #30445b !important;
+            color: #dce7f3 !important;
+            box-shadow: 0 24px 70px rgba(0,0,0,.48) !important;
+        }
+        :is(.win-modal-title, .wm-versus-name, .wm-team-name, .wm-team-pct,
+            .wm-versus-pct, .modal-title, .settings-title, .qv-title,
+            .match-modal-title, .presence-title) { color: #edf4fb !important; }
+        :is(.win-modal-sub, .wm-versus-vs, .settings-subtitle, .modal-subtitle) { color: #9bacc0 !important; }
+        :is(.modal-tabs, .modal-stats-toggle, .ratings-list-toggle) {
+            background: #172438 !important;
+            border-color: #2b3d52 !important;
+            color: #dce7f3 !important;
+        }
+        :is(.modal-tabs .active, .modal-tab.active, .settings-tab.active,
+            .cat-tab.active, .qv-gen-btn.selected, .general-star-btn.selected) {
+            border-color: #d8ff62 !important;
+        }
+        :is(.auth-input, .rater-select, .rater-input, .schedule-input,
+            .player-edit-input, .account-player-select, .qv-rater-select,
+            .me-input, .qv-sub-btn, input, select, textarea) {
+            background-color: #0d1725 !important;
+            color: #edf4fb !important;
+            border-color: #34495f !important;
+        }
+        select option { background: #111d2c; color: #edf4fb; }
+        input::placeholder, textarea::placeholder { color: #7f95ad !important; opacity: 1; }
+        :is(.move-opt, .sc-btn, .qv-sub-btn, .algo-btn, .algo-preset-btn, .tw-btn) {
+            background: #172438 !important;
+            border-color: #31465c !important;
+            color: #dce7f3 !important;
+        }
+        :is(.move-opt:hover, .sc-btn:hover, .qv-sub-btn:hover, .algo-btn:hover,
+            .algo-preset-btn:hover, .tw-btn:hover) {
+            background: #213249 !important;
+            border-color: #52708e !important;
+        }
+        .toast { background: #172438 !important; border-color: #405770 !important; color: #edf4fb !important; white-space: normal !important; max-width: min(92vw, 640px); }
+        .conn-badge { color: #dce7f3 !important; }
+        .live-edit-wrap, .algo-info, .algo-breakdown, .algo-weight-cell,
+        .general-rating-wrap, .details-section-inner, .player-edit-row,
+        .settings-action-item, .push-status-box, .week-card, .rating-entry,
+        .qv-rater-bar, .qv-player-row, .csv-result-row, .match-mirror-col,
+        .me-team-col, .wm-balance-row { box-shadow: inset 0 0 0 1px rgba(255,255,255,.015); }
+
+        /* Text vechi generat cu stiluri inline: nu lăsăm maro închis pe suprafețe dark. */
+        [style*="color:#7d6849"], [style*="color: #7d6849"],
+        [style*="color:#6b5840"], [style*="color: #6b5840"],
+        [style*="color:#4a3c28"], [style*="color: #4a3c28"],
+        [style*="color:#5c4a32"], [style*="color: #5c4a32"],
+        [style*="color:#9c7a4a"], [style*="color: #9c7a4a"] { color: #a8bacd !important; }
+        [style*="color:#3a2f1f"], [style*="color: #3a2f1f"] { color: #edf4fb !important; }
+        [style*="color:#1554b3"], [style*="color: #1554b3"] { color: #8ec8ff !important; }
+        [style*="color:#2e7d32"], [style*="color: #2e7d32"],
+        [style*="color:#1b7a35"], [style*="color: #1b7a35"],
+        [style*="color:#1b7a43"], [style*="color: #1b7a43"] { color: #a3ffb7 !important; }
+        [style*="color:#b33030"], [style*="color: #b33030"],
+        [style*="color:#b71c1c"], [style*="color: #b71c1c"],
+        [style*="color:#a52020"], [style*="color: #a52020"] { color: #ff8190 !important; }
+        /* Text întunecat rămâne intenționat doar pe butoane cu fundal neon/deschis. */
+        .controls button[onclick="openStartMatch()"], .tf-btn.active,
+        .lb-tab.active, .lb-period-btn.active,
+        .auth-btn-login, .general-star-btn[data-val="3"].selected,
+        .general-star-btn[data-val="4"].selected,
+        .general-star-btn[data-val="5"].selected,
+        .general-star-btn[data-val="6"].selected,
+        .qv-gen-btn[data-v="3"].selected, .qv-gen-btn[data-v="4"].selected,
+        .qv-gen-btn[data-v="5"].selected, .qv-gen-btn[data-v="6"].selected {
+            color: #14200e !important;
+        }
+
+        /* Panou „Cum echilibrăm echipele” — raport cu ierarhie și spațiere coerente. */
+        .team-balance-panel { color: #dce7f3 !important; }
+        .tbp-header { color: #a9bdcf !important; }
+        .tbp-rivalry { background: #172438 !important; border-color: #34485e !important; color: #dce7f3 !important; line-height: 1.45; }
+        .tbp-rivalry span { min-width: 0; }
+        .tbp-modes { align-items: stretch; }
+        .tbp-mode-card { min-width: 0; min-height: 94px; background: #111d2c !important; color: #dce7f3 !important; }
+        .tbp-mode-title { color: #edf4fb !important; line-height: 1.2; }
+        .tbp-mode-desc { color: #9bacc0 !important; font-size: .76rem !important; line-height: 1.45 !important; overflow-wrap: anywhere; }
+        .tbp-live-quality { align-items: flex-start !important; background: #0f1a28 !important; border-radius: 12px !important; }
+        .tbp-live-score { flex: 0 0 auto; white-space: nowrap; }
+        .tbp-live-label { min-width: 0; color: #a8bacd !important; line-height: 1.5 !important; overflow-wrap: anywhere; }
+        .tbp-report-wrap { background: #0d1725 !important; border-color: #2b3d52 !important; padding: 14px !important; }
+        .tbp-report-label { color: #9bacc0 !important; font-size: .72rem !important; letter-spacing: 1.4px !important; margin-bottom: 12px !important; }
+        #balanceReport { display: flex; flex-direction: column; gap: 12px; min-width: 0; color: #dce7f3 !important; font-size: .84rem !important; line-height: 1.45; }
+        #balanceReport * { min-width: 0; }
+        .tbp-report-quality { display: flex; align-items: center; gap: 13px; padding: 12px 14px; border: 1px solid #31465c; border-radius: 13px; background: linear-gradient(110deg,#17263a,#111d2c); }
+        .tbp-report-score { display: flex; align-items: baseline; gap: 4px; flex: 0 0 auto; white-space: nowrap; color: var(--score-color,#a3ff6f); }
+        .tbp-report-score > span { font-size: 1rem; }
+        .tbp-report-score > strong { font-family: 'Bebas Neue',sans-serif; font-size: 2rem; line-height: 1; letter-spacing: .4px; }
+        .tbp-report-score > small { color: #9bacc0 !important; font-size: .78rem; }
+        .tbp-report-quality-copy { display: flex; flex-direction: column; gap: 3px; }
+        .tbp-report-quality-copy > strong { color: #edf4fb !important; font-size: .92rem; }
+        .tbp-report-quality-copy > span { color: #9bacc0 !important; font-size: .78rem; overflow-wrap: anywhere; }
+        .tbp-report-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+        .tbp-report-meta > span { display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 9px; border-radius: 8px; background: #172438; border: 1px solid #2b3d52; color: #9bacc0 !important; font-size: .78rem; }
+        .tbp-report-meta strong { color: #edf4fb !important; }
+        .tbp-report-team-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,220px),1fr)); gap: 9px; }
+        .tbp-report-team { padding: 12px; border: 1px solid #2b3d52; border-left: 3px solid var(--team-color,#718096); border-radius: 11px; background: #111d2c; }
+        .tbp-report-team-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .tbp-report-team-dot { width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%; background: var(--team-color,#718096); box-shadow: 0 0 12px color-mix(in srgb, var(--team-color,#718096) 30%, transparent); }
+        .tbp-report-team-heading h4 { color: var(--team-color,#edf4fb) !important; font-size: .85rem; line-height: 1.25; font-weight: 800; margin: 0; overflow-wrap: anywhere; }
+        .tbp-report-team-metrics { display: flex; gap: 8px; margin-bottom: 9px; }
+        .tbp-report-metric { display: flex; flex-direction: column; gap: 2px; flex: 1; padding: 7px 8px; background: #0c1623; border: 1px solid #27384c; border-radius: 8px; }
+        .tbp-report-metric-label { color: #8298ae !important; font-size: .64rem; text-transform: uppercase; letter-spacing: .7px; }
+        .tbp-report-metric strong { color: #edf4fb !important; font-size: .9rem; }
+        .tbp-report-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+        .tbp-report-tag { display: inline-flex; align-items: center; padding: 4px 7px; background: #1b2a3c; border: 1px solid #30445b; border-radius: 7px; color: #b7c8d9 !important; font-size: .68rem; line-height: 1.25; overflow-wrap: anywhere; }
+        .tbp-report-tag.is-positive { background: rgba(66,180,110,.10); border-color: rgba(104,220,149,.25); color: #9cebb8 !important; }
+        .tbp-report-tag.is-danger { background: rgba(255,102,120,.10); border-color: rgba(255,102,120,.28); color: #ff9aa5 !important; }
+        .tbp-report-tag.is-warning { background: rgba(255,209,102,.10); border-color: rgba(255,209,102,.25); color: #ffd782 !important; }
+        .tbp-report-dominant { margin-top: 9px; padding-top: 8px; border-top: 1px solid #27384c; color: #ffd782 !important; font-size: .75rem; overflow-wrap: anywhere; }
+        .tbp-report-dominant strong { color: #ffd782 !important; }
+        .tbp-report-note { padding: 9px 11px; background: #131f30; border: 1px solid #2b3d52; border-radius: 9px; color: #a8bacd !important; font-size: .78rem; overflow-wrap: anywhere; }
+        .tbp-report-note strong { color: #edf4fb !important; }
+        .tbp-report-note .is-good, .tbp-report-meta .is-good { color: #a3ffb7 !important; }
+        .tbp-report-note .is-mid, .tbp-report-meta .is-mid { color: #ffd782 !important; }
+        .tbp-report-note .is-bad, .tbp-report-meta .is-bad { color: #ff8190 !important; }
+        .tbp-pair-details { border: 1px solid #2b3d52; border-radius: 10px; background: #101a29; overflow: hidden; }
+        .tbp-pair-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; color: #ff9aa5 !important; cursor: pointer; font-size: .8rem; font-weight: 800; list-style: none; }
+        .tbp-pair-details > summary::-webkit-details-marker { display: none; }
+        .tbp-pair-details > summary::after { content: '＋'; color: #9bacc0; margin-left: auto; }
+        .tbp-pair-details[open] > summary::after { content: '−'; }
+        .tbp-pair-summary-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 7px; color: #9bacc0 !important; font-size: .7rem; font-weight: 600; }
+        .tbp-pair-toggle { color: #b9c9d9 !important; }
+        .tbp-pair-chip-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 11px; max-height: 230px; overflow-y: auto; overscroll-behavior: contain; }
+        .tbp-pair-chip { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; max-width: 100%; padding: 6px 8px; border: 1px solid #344354; border-radius: 8px; background: #172438; color: #dce7f3; font-size: .7rem; line-height: 1.3; overflow-wrap: anywhere; }
+        .tbp-pair-chip strong { color: #e9f1f8; font-weight: 700; overflow-wrap: anywhere; }
+        .tbp-pair-plus { color: #8298ae !important; }
+        .tbp-pair-chip em { margin-left: 2px; color: #ff9aa5 !important; font-style: normal; font-weight: 800; white-space: nowrap; }
+        .tbp-rivalry input { accent-color: #d8ff62; }
+        @media (max-width: 700px) {
+            .tbp-report-quality { align-items: flex-start; padding: 11px; }
+            .tbp-report-score > strong { font-size: 1.75rem; }
+            .tbp-report-team-grid { grid-template-columns: 1fr; }
+            .tbp-report-meta { align-items: stretch; }
+            .tbp-report-meta > span { flex: 1 1 150px; flex-wrap: wrap; }
+            .tbp-pair-details > summary { align-items: flex-start; }
+            .tbp-pair-summary-meta { text-align: right; }
+            .tbp-pair-chip-list { max-height: 260px; }
+        }
+        @media (max-width: 480px) {
+            .tbp-modes { grid-template-columns: 1fr 1fr !important; }
+            .tbp-mode-card:last-child { grid-column: 1 / -1; }
+            .tbp-mode-card { min-height: 82px; }
+            .tbp-report-quality { gap: 9px; }
+            .tbp-report-quality-copy > strong { font-size: .82rem; }
+            .tbp-report-quality-copy > span { font-size: .72rem; }
+            .tbp-report-team-metrics { gap: 6px; }
+        }
+        @media (max-width: 360px) {
+            .tbp-modes { grid-template-columns: 1fr !important; }
+            .tbp-mode-card:last-child { grid-column: auto; }
+            .tbp-report-meta > span { flex-basis: 100%; }
+        }
+
+
+        /* Mici carduri, chips și controale secundare rămase din vechea temă. */
+        .lobby-player-chip { background: #172438 !important; border-color: #30445b !important; color: #dce7f3 !important; }
+        .lobby-player-chip:hover { background: #1d2e44 !important; border-color: #77b7ff !important; }
+        .lobby-player-chip.confirmed { background: rgba(73,190,115,.12) !important; border-color: #37885a !important; color: #a4edbc !important; }
+        .lobby-player-chip.absent { background: rgba(255,102,120,.1) !important; border-color: #944552 !important; color: #ff9aa5 !important; }
+        .lobby-player-chip .chip-dot { border-color: #64768a !important; }
+        .rating-badge { background: #26384c !important; border: 1px solid #425a73 !important; color: #d8ff62 !important; }
+        .fifa-attr-track, .cat-bar-track, .wm-dual-bar, .wm-attr-bars, .chem-bar-wrap, .algo-track { background: #26384c !important; }
+        .chem-avatar { background: #1c2b40 !important; color: #a8bacd !important; border: 1px solid #354a62; }
+        .form-dot.empty, .tag-dot.empty, .move-sheet-handle { background: #34485e !important; }
+        .rating-section-header::after { background: #2b3d52 !important; }
+        .btn-close-m, .btn-confirm-no, .move-sheet-cancel, .lb-more-btn {
+            background: #1a2a3f !important; border: 1px solid #34495f !important; color: #dce7f3 !important;
+        }
+        .lb-more-btn:hover, .btn-close-m:hover, .btn-confirm-no:hover { background: #243850 !important; }
+        .presence-yes { background: #1e4532 !important; border: 1px solid #37885a !important; color: #a4edbc !important; }
+        .presence-no { background: #44232d !important; border: 1px solid #8d3e50 !important; color: #ff9aa5 !important; }
+        :is(.live-qs-btn, .qv-tag-btn, .cat-tab, .cat-star-btn, .general-star-btn:not(.selected),
+            .qv-gen-btn:not(.selected), .me-winner-btn, .btn-3team, .btn-winchance,
+            .algo-btn, .algo-preset-btn, .tw-btn, .qv-sub-btn, .sc-btn) {
+            background: #172438 !important; border-color: #34495f !important; color: #dce7f3 !important;
+        }
+        :is(.live-qs-btn:hover, .qv-tag-btn:hover, .cat-tab:hover, .cat-star-btn:hover,
+            .general-star-btn:not(.selected):hover, .qv-gen-btn:not(.selected):hover,
+            .me-winner-btn:hover, .btn-3team:hover, .btn-winchance:hover) {
+            background: #23364c !important; border-color: #526b85 !important; color: #f2f7fc !important;
+        }
+        .general-star-btn[data-val="1"].selected, .general-star-btn[data-val="2"].selected,
+        .qv-gen-btn[data-v="1"].selected, .qv-gen-btn[data-v="2"].selected {
+            background: #a93343 !important; border-color: #d95d6d !important; color: #fff !important;
+        }
+        .general-star-btn[data-val="3"].selected, .general-star-btn[data-val="4"].selected,
+        .qv-gen-btn[data-v="3"].selected, .qv-gen-btn[data-v="4"].selected {
+            background: #a95717 !important; border-color: #dc8a43 !important; color: #fff !important;
+        }
+        .general-star-btn[data-val="5"].selected, .general-star-btn[data-val="6"].selected,
+        .qv-gen-btn[data-v="5"].selected, .qv-gen-btn[data-v="6"].selected {
+            background: #8f791b !important; border-color: #d6ba3e !important; color: #fff !important;
+        }
+        .settings-tab, .settings-tabs { color: #a8bacd !important; }
+        .settings-tab.active { background: #1b2b40 !important; color: #d8ff62 !important; border-color: #34495f !important; }
+        .week-player-row, .mh-row { border-color: #2b3d52 !important; }
+        @media (max-width: 640px) {
+            .tbp-report-wrap { margin: 10px 0 0 !important; padding: 11px !important; }
+            .tbp-report-label { line-height: 1.4; }
+        }
+
     </style>
 </head>
 <body>
@@ -1352,7 +1596,7 @@
      onclick/clasă de dinainte — doar poziția în DOM s-a schimbat, deci
      tot JS-ul din app.js funcționează neschimbat. -->
 <div class="controls">
-    <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#3a2f1f;font-weight:700;">▶ Start Meci</button>
+    <button onclick="openStartMatch()" title="Start Meci" class="admin-only" style="background:linear-gradient(135deg,#dff3df,var(--green));border:1px solid #28a745;color:#edf4fb;font-weight:700;">▶ Start Meci</button>
     <button onclick="window.open('live.html','_blank')" title="Deschide Live" style="background:linear-gradient(135deg,#ede3fa,#7c4dff);border:1px solid #7c4dff;color:#8e3a9e;font-size:.78rem;">📺 Live</button>
 
     <!-- 👁️ Afișare — ce coloane de informații se văd pe cardurile de jucător -->
@@ -1412,7 +1656,7 @@
 
 <!-- LIVE BANNER -->
 <div id="liveBanner" style="display:none;background:linear-gradient(135deg,#c62828,#b71c1c);padding:8px 20px;align-items:center;justify-content:center;gap:10px;">
-    <span style="font-size:.8rem;color:#3a2f1f;font-weight:700;">🔴 MECI LIVE — Echipele sunt blocate</span>
+    <span style="font-size:.8rem;color:#edf4fb;font-weight:700;">🔴 MECI LIVE — Echipele sunt blocate</span>
     <a href="live.html" target="_blank" style="font-size:.72rem;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.3);padding:2px 8px;border-radius:5px;text-decoration:none;">Deschide Live →</a>
 </div>
 
@@ -1476,14 +1720,14 @@
         <div style="flex:1;min-width:200px;">
             <div style="display:flex;justify-content:space-between;font-size:0.72rem;font-weight:700;margin-bottom:4px;">
                 <span style="color:var(--orange);">🟠 <span id="probOrange">—</span></span>
-                <span style="font-size:0.65rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">Șanse victorie</span>
+                <span style="font-size:0.65rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;">Șanse victorie</span>
                 <span style="color:#2e7d32;"><span id="probGreen">—</span> 🟢</span>
             </div>
             <div style="height:8px;border-radius:4px;background:#fdf3df;overflow:hidden;display:flex;">
                 <div id="probBarOrange" style="height:100%;background:linear-gradient(90deg,#ff8c00,#ffaa00);border-radius:4px 0 0 4px;transition:width 0.6s ease;width:50%;"></div>
                 <div id="probBarGreen"  style="height:100%;background:linear-gradient(90deg,#a8d8a0,#28a745);border-radius:0 4px 4px 0;transition:width 0.6s ease;width:50%;"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#7d6849;margin-top:3px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#9bacc0;margin-top:3px;">
                 <span id="avgLabelOrange">★ —</span>
                 <span id="avgLabelGreen">★ —</span>
             </div>
@@ -1639,9 +1883,9 @@
             <div class="lobby-search-wrap" style="position:relative;margin-bottom:10px;">
                 <input type="text" id="lobbySearch" placeholder="🔎 Caută jucător…" autocomplete="off"
                     oninput="filterLobbySearch(this.value)"
-                    style="width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:8px;border:1px solid #dcc89a;background:#fffaf0;font-size:.82rem;color:#3a2f1f;">
+                    style="width:100%;box-sizing:border-box;padding:9px 32px 9px 12px;border-radius:8px;border:1px solid #dcc89a;background:#fffaf0;font-size:.82rem;color:#edf4fb;">
                 <button id="lobbySearchClear" onclick="clearLobbySearch()" title="Șterge căutarea"
-                    style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:#7d6849;font-size:.9rem;cursor:pointer;padding:4px 6px;line-height:1;">✕</button>
+                    style="display:none;position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:#9bacc0;font-size:.9rem;cursor:pointer;padding:4px 6px;line-height:1;">✕</button>
             </div>
             <div class="lobby-players" id="lobbyPlayers"></div>
             <div class="lobby-confirmed-count" id="lobbyCount"></div>
@@ -1651,10 +1895,10 @@
     <!-- HISTORY -->
     <div class="history-section" id="sec-history">
         <div class="history-desktop-header">
-            <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#7d6849;">Istoric Meciuri</h3>
+            <h3 style="margin:0;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#9bacc0;">Istoric Meciuri</h3>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button class="admin-only" onclick="saveSeason()" title="Arhivează meciurile curente sub un nume de sezon și pornește un sezon nou" style="background:rgba(27,94,32,.1);border:1px solid rgba(27,94,32,.35);color:#1b5e20;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">💾 Salvează Sezon</button>
-                <button onclick="viewSeasons()" title="Vezi meciurile din sezoanele arhivate" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#7d6849;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📂 Sezoane Anterioare</button>
+                <button onclick="viewSeasons()" title="Vezi meciurile din sezoanele arhivate" style="background:rgba(125,104,73,.1);border:1px solid rgba(125,104,73,.3);color:#9bacc0;padding:7px 12px;border-radius:7px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">📂 Sezoane Anterioare</button>
             </div>
         </div>
         <table id="match-history" style="margin-top:4px;">
@@ -1713,7 +1957,7 @@
         <div id="statsEditPanel" style="display:none;"></div>
         <div id="adminRatingPanel" style="display:none;"></div>
         <div id="adminSpeedPanel" style="display:none;"></div>
-        <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#7d6849;line-height:1.5;"></div>
+        <div class="algo-info" id="algoInfo" style="margin-bottom:8px;font-size:.72rem;color:#9bacc0;line-height:1.5;"></div>
         <div class="algo-breakdown" id="algoBreakdown"></div>
         <div id="modalChemPreview" style="margin-top:10px;"></div>
     </div>
@@ -1725,7 +1969,7 @@
 
     <!-- Tab: Chemistry -->
     <div class="modal-tab-panel" id="tabChemistry">
-        <div style="font-size:.65rem;color:#6b5840;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">🤝 Compatibilitate</div>
+        <div style="font-size:.65rem;color:#a8bacd;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">🤝 Compatibilitate</div>
         <div id="chemistryList"></div>
     </div>
 
@@ -1737,20 +1981,20 @@
 <div style="background:#f7ecd9;width:96%;max-width:560px;border-radius:16px;border:1px solid #dcc89a;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9);max-height:92vh;display:flex;flex-direction:column;">
     <div style="padding:16px 20px;border-bottom:1px solid #e3d3ac;display:flex;justify-content:space-between;align-items:center;">
         <div>
-            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#3a2f1f;">🎲 DRAFT MODE</div>
-            <div id="draftStatus" style="font-size:.75rem;color:#7d6849;margin-top:2px;"></div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:3px;color:#edf4fb;">🎲 DRAFT MODE</div>
+            <div id="draftStatus" style="font-size:.75rem;color:#9bacc0;margin-top:2px;"></div>
         </div>
-        <button onclick="closeDraft()" style="background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
+        <button onclick="closeDraft()" style="background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
     </div>
     <!-- Captains bar -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid #e3d3ac;">
         <div id="draftCapOrange" style="padding:10px 16px;background:rgba(255,140,0,.07);border-right:1px solid #e3d3ac;">
             <div data-team-label-o style="font-size:.6rem;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Căpitan Portocaliu</div>
-            <div id="draftCapOrangeName" style="font-weight:700;color:#3a2f1f;font-size:.9rem;">—</div>
+            <div id="draftCapOrangeName" style="font-weight:700;color:#edf4fb;font-size:.9rem;">—</div>
         </div>
         <div id="draftCapGreen" style="padding:10px 16px;background:rgba(40,167,69,.07);">
             <div data-team-label-g style="font-size:.6rem;color:var(--green);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;">Căpitan Verde</div>
-            <div id="draftCapGreenName" style="font-weight:700;color:#3a2f1f;font-size:.9rem;">—</div>
+            <div id="draftCapGreenName" style="font-weight:700;color:#edf4fb;font-size:.9rem;">—</div>
         </div>
     </div>
     <!-- Pick order indicator -->
@@ -1759,8 +2003,8 @@
     <div id="draftPlayerGrid" style="padding:14px 16px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:6px;"></div>
     <!-- Footer -->
     <div style="padding:12px 16px;border-top:1px solid #e3d3ac;display:flex;gap:8px;">
-        <button onclick="confirmDraft()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#3a2f1f;font-weight:700;font-size:.9rem;cursor:pointer;">✅ Confirmă Echipele</button>
-        <button onclick="closeDraft()" style="padding:10px 14px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;font-size:.85rem;cursor:pointer;">Anulează</button>
+        <button onclick="confirmDraft()" style="flex:1;padding:10px;border-radius:9px;background:linear-gradient(135deg,#dff3df,#28a745);border:1px solid #28a745;color:#edf4fb;font-weight:700;font-size:.9rem;cursor:pointer;">✅ Confirmă Echipele</button>
+        <button onclick="closeDraft()" style="padding:10px 14px;border-radius:9px;background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;font-size:.85rem;cursor:pointer;">Anulează</button>
     </div>
 </div>
 </div>
@@ -1769,24 +2013,24 @@
 <div class="modal-overlay" id="tableOverlay" onclick="if(event.target===this)closeTableView()" style="display:none;">
 <div style="background:#f7ecd9;width:96%;max-width:700px;border-radius:16px;border:1px solid #dcc89a;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.9);">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e3d3ac;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;color:#3a2f1f;">⚽ Echipe față în față</div>
-        <button onclick="closeTableView()" style="background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:3px;color:#edf4fb;">⚽ Echipe față în față</div>
+        <button onclick="closeTableView()" style="background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;width:28px;height:28px;border-radius:7px;cursor:pointer;">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;min-height:200px;">
         <!-- Orange -->
         <div style="border-right:1px solid #e3d3ac;">
-            <div style="background:var(--orange);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#3a2f1f;" id="matchOrangeTitle">Portocaliu</div>
+            <div style="background:var(--orange);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#edf4fb;" id="matchOrangeTitle">Portocaliu</div>
             <div id="tableOrangePlayers" style="padding:10px 16px;"></div>
         </div>
         <!-- Green -->
         <div>
-            <div style="background:var(--green);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#3a2f1f;" id="matchGreenTitle">Verde</div>
+            <div style="background:var(--green);padding:10px 16px;font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:1rem;color:#edf4fb;" id="matchGreenTitle">Verde</div>
             <div id="tableGreenPlayers" style="padding:10px 16px;"></div>
         </div>
     </div>
     <div style="padding:10px 20px;border-top:1px solid #e3d3ac;display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="copyTeams();closeTableView();" style="background:#dde9ff;border:1px solid #5c7aff;color:#8fa8ff;padding:7px 16px;border-radius:8px;font-size:.82rem;font-weight:700;">📋 Copiază</button>
-        <button onclick="closeTableView()" style="background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;padding:7px 16px;border-radius:8px;font-size:.82rem;">Închide</button>
+        <button onclick="closeTableView()" style="background:#fdf3df;border:1px solid #dcc89a;color:#9bacc0;padding:7px 16px;border-radius:8px;font-size:.82rem;">Închide</button>
     </div>
 </div>
 </div>
@@ -1855,20 +2099,20 @@
 
     <!-- Score edit -->
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
-        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
+        <div style="font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Scor Final</div>
         <div style="display:flex;align-items:center;justify-content:center;gap:12px;">
             <div style="text-align:center;" id="meScoreBlockO">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--orange);margin-bottom:4px;">Portocaliu</div>
                 <input type="number" min="0" max="99" id="meScoreO" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:var(--orange);padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div id="meScoreSepOG" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;">:</div>
+            <div id="meScoreSepOG" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#9bacc0;">:</div>
             <div style="text-align:center;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:var(--green);margin-bottom:4px;">Verde</div>
                 <input type="number" min="0" max="99" id="meScoreG" value="0"
                     style="width:52px;background:#fdf3df;border:1px solid #d3bd8c;color:#2e7d32;padding:6px;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:1.5rem;text-align:center;outline:none;">
             </div>
-            <div id="meScoreSepB" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#7d6849;display:none;">:</div>
+            <div id="meScoreSepB" style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:#9bacc0;display:none;">:</div>
             <div id="meScoreBlockB" style="text-align:center;display:none;">
                 <div class="me-score-lbl" style="font-size:.6rem;color:#555;margin-bottom:4px;">Negru</div>
                 <input type="number" min="0" max="99" id="meScoreB" value="0"
@@ -1879,12 +2123,12 @@
 
     <!-- Goals per player -->
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
-        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Goluri — cine, ce echipă, la ce minut</div>
+        <div style="font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚽ Goluri — cine, ce echipă, la ce minut</div>
         <div id="meGoalsList" style="display:flex;flex-direction:column;gap:3px;max-height:220px;overflow-y:auto;"></div>
     </div>
 
     <div style="background:#fff7e8;border-radius:10px;border:1px solid #e3d3ac;padding:10px 14px;margin-bottom:12px;">
-        <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧤 Goluri Primite (per jucător)</div>
+        <div style="font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧤 Goluri Primite (per jucător)</div>
         <div id="meConcededList" style="display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;"></div>
     </div>
 
@@ -1905,7 +2149,7 @@
 
     <div style="display:flex;gap:8px;margin-top:16px;">
         <button style="flex:1;padding:13px;border-radius:10px;background:#28a745;color:#fff;font-size:1rem;font-weight:700;" onclick="saveMatchEdit()">💾 Salvează Meciul</button>
-        <button id="meDeleteBtn" style="padding:13px 16px;border-radius:10px;background:#c62828;color:#3a2f1f;" onclick="deleteMatchEdit()" title="Șterge meciul">🗑️</button>
+        <button id="meDeleteBtn" style="padding:13px 16px;border-radius:10px;background:#c62828;color:#edf4fb;" onclick="deleteMatchEdit()" title="Șterge meciul">🗑️</button>
     </div>
 </div>
 </div>
@@ -1928,17 +2172,17 @@
     </div>
     <div class="settings-body">
         <div class="settings-panel active" id="panel-players">
-            <div style="font-size:0.75rem;color:#6b5840;margin-bottom:12px;">ID-urile sunt unice și permanente.</div>
+            <div style="font-size:0.75rem;color:#a8bacd;margin-bottom:12px;">ID-urile sunt unice și permanente.</div>
             <div id="playerEditList"></div>
             <button style="width:100%;margin-top:10px;padding:10px;background:#dff3df;border:1px dashed #28a745;color:#1b7a35;border-radius:8px;" onclick="addNewPlayerFromSettings()">+ Jucător Nou</button>
         </div>
 
         <!-- ACCOUNTS PANEL — admin only -->
         <div class="settings-panel" id="panel-accounts">
-            <div style="font-size:0.75rem;color:#7d6849;margin-bottom:14px;line-height:1.6;">
+            <div style="font-size:0.75rem;color:#9bacc0;margin-bottom:14px;line-height:1.6;">
                 Asociază conturile înregistrate cu profilurile de jucători existente. Jucătorii asociați pot marca prezența cu contul lor.
             </div>
-            <div id="accountsList"><div style="color:#6b5840;font-size:0.85rem;text-align:center;padding:20px;">Se încarcă conturile...</div></div>
+            <div id="accountsList"><div style="color:#a8bacd;font-size:0.85rem;text-align:center;padding:20px;">Se încarcă conturile...</div></div>
         </div>
         <div class="settings-panel" id="panel-notifications">
             <div class="push-status-box">
@@ -1946,13 +2190,13 @@
                 <div class="push-status-row"><span class="push-status-label">Jucător asociat</span><span class="push-status-val inactive" id="pushPlayerVal">—</span></div>
             </div>
             <div style="margin-bottom:10px;">
-                <div style="font-size:0.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Jucătorul tău (pentru notificări):</div>
+                <div style="font-size:0.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Jucătorul tău (pentru notificări):</div>
                 <select class="rater-select" id="pushPlayerSelect" style="margin-bottom:10px;">
                     <option value="">— Selectează —</option>
                 </select>
             </div>
             <button style="width:100%;padding:12px;border-radius:10px;background:linear-gradient(135deg,#ede3fa,#8e3a9e);border:1px solid var(--purple);color:#8e3a9e;font-size:0.95rem;" onclick="enablePushNotifications()">🔔 Activează Notificările</button>
-            <div style="font-size:0.75rem;color:#6b5840;margin-top:10px;line-height:1.5;">
+            <div style="font-size:0.75rem;color:#a8bacd;margin-top:10px;line-height:1.5;">
                 Vei primi notificări când se programează un meci nou. Necesită VAPID keys configurate în Supabase Edge Functions.
             </div>
         </div>
@@ -1989,53 +2233,53 @@
         <div class="settings-panel" id="panel-algorithm">
             <!-- Site title -->
             <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e3d3ac;">
-                <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🏟️ Titlul Aplicației</div>
+                <div style="font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🏟️ Titlul Aplicației</div>
                 <div style="display:flex;gap:6px;">
-                    <input id="siteTitleInput" type="text" value="Arena Friends FC" style="flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px 11px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;">
-                    <button onclick="saveSiteTitle()" style="background:var(--accent);color:#3a2f1f;padding:7px 13px;border-radius:8px;font-size:.8rem;font-weight:700;white-space:nowrap;">Salvează</button>
+                    <input id="siteTitleInput" type="text" value="Arena Friends FC" style="flex:1;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px 11px;border-radius:8px;font-family:'Rajdhani',sans-serif;font-size:.9rem;outline:none;">
+                    <button onclick="saveSiteTitle()" style="background:var(--accent);color:#edf4fb;padding:7px 13px;border-radius:8px;font-size:.8rem;font-weight:700;white-space:nowrap;">Salvează</button>
                 </div>
             </div>
 
             <!-- EA FC OVR — panou simplificat radical: doar 2 constante -->
-            <div style="font-size:.62rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚙️ Algoritm (OVR 1-99)</div>
+            <div style="font-size:.62rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">⚙️ Algoritm (OVR 1-99)</div>
             <div class="algo-panel-grid" id="weightsList"></div>
 
             <div style="display:flex;gap:8px;margin-top:12px;">
-                <button onclick="saveAlgorithm()" id="btnSaveAlgo" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#3a2f1f;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
-                <button onclick="resetAlgorithm()" style="padding:10px 14px;border-radius:9px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;font-size:.82rem;">↺ Reset</button>
+                <button onclick="saveAlgorithm()" id="btnSaveAlgo" style="flex:1;padding:10px;border-radius:9px;background:var(--accent);color:#edf4fb;font-size:.88rem;font-weight:700;">💾 Salvează Algoritmul</button>
+                <button onclick="resetAlgorithm()" style="padding:10px 14px;border-radius:9px;background:#fdf3df;border:1px solid #d3bd8c;color:#9bacc0;font-size:.82rem;">↺ Reset</button>
             </div>
         </div>
 
         <div class="settings-panel" id="panel-tags">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <div style="font-size:.72rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;">Tag-uri configurabile</div>
-                <button onclick="openAddTag()" style="background:var(--accent);color:#3a2f1f;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;">+ Tag Nou</button>
+                <div style="font-size:.72rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;">Tag-uri configurabile</div>
+                <button onclick="openAddTag()" style="background:var(--accent);color:#edf4fb;padding:6px 14px;border-radius:8px;font-size:.8rem;font-weight:700;border:none;cursor:pointer;">+ Tag Nou</button>
             </div>
             <!-- Add form (hidden by default) -->
             <div id="addTagForm" style="display:none;background:#fff7e8;border:1px solid #e3d3ac;border-radius:10px;padding:14px;margin-bottom:14px;">
-                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:#3a2f1f;margin-bottom:10px;">Tag Nou</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:.9rem;letter-spacing:2px;color:#edf4fb;margin-bottom:10px;">Tag Nou</div>
                 <div style="display:grid;grid-template-columns:56px 1fr;gap:8px;margin-bottom:8px;">
-                    <div><div style="font-size:.62rem;color:#7d6849;margin-bottom:4px;">EMOJI</div><input id="ntEmoji" type="text" maxlength="4" placeholder="🎯" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px;border-radius:7px;font-size:1rem;outline:none;text-align:center;"></div>
-                    <div><div style="font-size:.62rem;color:#7d6849;margin-bottom:4px;">LABEL</div><input id="ntLabel" type="text" placeholder="Vizionar" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;"></div>
+                    <div><div style="font-size:.62rem;color:#9bacc0;margin-bottom:4px;">EMOJI</div><input id="ntEmoji" type="text" maxlength="4" placeholder="🎯" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px;border-radius:7px;font-size:1rem;outline:none;text-align:center;"></div>
+                    <div><div style="font-size:.62rem;color:#9bacc0;margin-bottom:4px;">LABEL</div><input id="ntLabel" type="text" placeholder="Vizionar" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px;border-radius:7px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;"></div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-                    <div><div style="font-size:.62rem;color:#7d6849;margin-bottom:4px;">TIP</div>
-                        <select id="ntType" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
+                    <div><div style="font-size:.62rem;color:#9bacc0;margin-bottom:4px;">TIP</div>
+                        <select id="ntType" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
                             <option value="pos">✅ Pozitiv</option><option value="neg">❌ Negativ</option><option value="neu">⚪ Neutru</option>
                         </select></div>
-                    <div><div style="font-size:.62rem;color:#7d6849;margin-bottom:4px;">CATEGORIE</div>
-                        <select id="ntCat" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#3a2f1f;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
+                    <div><div style="font-size:.62rem;color:#9bacc0;margin-bottom:4px;">CATEGORIE</div>
+                        <select id="ntCat" style="width:100%;background:#fdf3df;border:1px solid #d3bd8c;color:#edf4fb;padding:7px;border-radius:7px;font-size:.82rem;outline:none;">
                             <option value="atac">⚽ Atac</option><option value="aparare">🛡️ Apărare</option><option value="efort">🏃 Efort</option><option value="portar">🧤 Portar</option><option value="mentalitate">💡 Mentalitate / IQ</option><option value="fizic">💪 Profil Fizic</option><option value="executie">🎯 Execuție</option><option value="pozitionare">📍 Poziționare</option><option value="negativ">❌ Negative</option>
                         </select></div>
                 </div>
                 <!-- Impact Profile sliders -->
                 <div style="background:#f3e6cf;border-radius:8px;padding:10px;margin-bottom:10px;border:1px solid #e3d3ac;">
-                    <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Efecte pe atribute (−3 → +3), in-line — fără profil extern</div>
+                    <div style="font-size:.6rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Efecte pe atribute (−3 → +3), in-line — fără profil extern</div>
                     <div id="ntEffectSteppers" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
                 </div>
                 <div style="display:flex;gap:8px;">
-                    <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#3a2f1f;padding:9px;border-radius:8px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
-                    <button onclick="document.getElementById('addTagForm').style.display='none'" style="padding:9px 14px;background:#fdf3df;border:1px solid #d3bd8c;color:#7d6849;border-radius:8px;cursor:pointer;">✕</button>
+                    <button onclick="saveNewTag()" style="flex:1;background:var(--accent);color:#edf4fb;padding:9px;border-radius:8px;font-size:.88rem;font-weight:700;border:none;cursor:pointer;">💾 Adaugă</button>
+                    <button onclick="document.getElementById('addTagForm').style.display='none'" style="padding:9px 14px;background:#fdf3df;border:1px solid #d3bd8c;color:#9bacc0;border-radius:8px;cursor:pointer;">✕</button>
                 </div>
             </div>
             <!-- Tags list -->
@@ -2068,11 +2312,11 @@
     <div class="match-modal-date" id="matchModalDate"></div>
     <div class="match-winner-banner" id="matchWinnerBanner"></div>
     <!-- Score + timing -->
-    <div style="text-align:center;font-size:0.85rem;color:#7d6849;margin-bottom:4px;" id="matchScore"></div>
-    <div id="matchTiming" style="display:none;text-align:center;font-size:.72rem;color:#6b5840;margin-bottom:12px;line-height:1.7;"></div>
+    <div style="text-align:center;font-size:0.85rem;color:#9bacc0;margin-bottom:4px;" id="matchScore"></div>
+    <div id="matchTiming" style="display:none;text-align:center;font-size:.72rem;color:#a8bacd;margin-bottom:12px;line-height:1.7;"></div>
     <!-- Goal timeline -->
     <div id="matchTimeline" style="display:none;margin-bottom:12px;background:#f3e6cf;border-radius:10px;border:1px solid #e3d3ac;padding:10px 12px;">
-        <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⏱️ Timeline Goluri</div>
+        <div style="font-size:.6rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⏱️ Timeline Goluri</div>
         <div id="matchTimelineBody"></div>
     </div>
     <!-- Teams — tabelă în oglindă (echipa A aliniată dreapta, echipa B aliniată stânga) -->
@@ -2090,7 +2334,7 @@
     </div>
     <!-- Istoric ture (doar meciuri mod 3 echipe) -->
     <div id="matchRoundsSection" style="display:none;margin-top:12px;background:#f3e6cf;border-radius:10px;border:1px solid #e3d3ac;padding:10px 12px;">
-        <div style="font-size:.6rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔁 Istoric Ture</div>
+        <div style="font-size:.6rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔁 Istoric Ture</div>
         <div id="matchRoundsBody"></div>
     </div>
     <button onclick="closeMatchModal()" style="width:100%;margin-top:16px;background:#dcc89a;">✕ Închide</button>
@@ -2100,15 +2344,15 @@
 <!-- CSV MODAL -->
 <div class="modal-overlay" id="csvModalOverlay" onclick="if(event.target===this)closeCsvModal()">
 <div class="csv-modal">
-    <h3 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;margin:0 0 14px;color:#3a2f1f;">Import CSV Google Forms</h3>
-    <div style="background:#fff7e8;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #e3d3ac;font-size:0.85rem;color:#7d6849;line-height:1.6;">
+    <h3 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;margin:0 0 14px;color:#edf4fb;">Import CSV Google Forms</h3>
+    <div style="background:#fff7e8;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #e3d3ac;font-size:0.85rem;color:#9bacc0;line-height:1.6;">
         Format coloane: <code style="background:#fdf3df;padding:2px 6px;border-radius:4px;color:#6b46c1;">Timestamp</code> | <code style="background:#fdf3df;padding:2px 6px;border-radius:4px;color:#6b46c1;">Evaluator</code> | <code style="background:#fdf3df;padding:2px 6px;border-radius:4px;color:#6b46c1;">[Jucător] - General</code> | ...
     </div>
-    <label style="display:block;background:#fdf3df;border:2px dashed #d3bd8c;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#6b5840;margin-bottom:14px;">
+    <label style="display:block;background:#fdf3df;border:2px dashed #d3bd8c;border-radius:10px;padding:20px;text-align:center;cursor:pointer;color:#a8bacd;margin-bottom:14px;">
         📁 Click sau trage fișierul CSV<input type="file" accept=".csv" onchange="previewCSV(event)" style="display:none;">
     </label>
     <div id="csvPreviewArea" style="display:none;">
-        <div style="font-size:0.75rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Previzualizare:</div>
+        <div style="font-size:0.75rem;color:#9bacc0;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Previzualizare:</div>
         <div id="csvResultRows"></div>
         <button style="background:linear-gradient(135deg,#1a5276,#2980b9);width:100%;margin-top:12px;font-size:1rem;padding:12px;border-radius:8px;" onclick="confirmCSVImport()">✅ Confirmă Import</button>
     </div>
@@ -2297,7 +2541,7 @@ function copyAllPlayersStats(btnEl){ copyPresentPlayersStats(btnEl); }
 <div class="modal-overlay" id="startMatchOverlay" onclick="if(event.target===this)closeStartMatch()" style="display:none;">
 <div style="background:#fff8ed;width:92%;max-width:520px;border-radius:16px;border:1px solid #d3bd8c;box-shadow:0 20px 60px rgba(0,0,0,.8);max-height:88vh;overflow-y:auto;padding:0;">
     <div style="background:linear-gradient(135deg,#dff3df,#a8d8a0);padding:16px 20px;border-radius:16px 16px 0 0;">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#3a2f1f;margin-bottom:2px;">▶ START MECI</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#edf4fb;margin-bottom:2px;">▶ START MECI</div>
         <div style="font-size:.72rem;color:rgba(255,255,255,.5);">Confirmă configurația și pornește meciul</div>
     </div>
     <div style="padding:16px 20px;" id="startMatchBody"></div>

@@ -6195,64 +6195,94 @@ function computeBalanceQualityScore(oArr, gArr, bArr){
 }
 
 function buildBalanceReport(oArr, gArr, mode, bArr) {
+    // Reportul folosește clase CSS dedicate; nu mai amestecă stiluri inline
+    // vechi (bej/deschis) în noua temă dark.
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+
     const fmtTeam = (arr, name, hex) => {
         if (!arr.length) return '';
-        const avg = (arr.reduce((s,p)=>s+getSmartRating(p),0)/arr.length).toFixed(2);
-        const actMults = arr.map(p => getActivityMultiplier(p));
-        const lowestAct = actMults.some(m => m < 0.95);
-        const synPairs = [];
-        for(let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++) {
-            const sc = getSynergyScore(arr[i].name, arr[j].name);
-            if (sc !== 0.5) synPairs.push({a:arr[i].name,b:arr[j].name,sc});
+        const avg = (arr.reduce((sum, p) => sum + getSmartRating(p), 0) / arr.length).toFixed(2);
+        const lowestAct = arr.some(p => getActivityMultiplier(p) < 0.95);
+        let goodSyn = 0, badSyn = 0;
+        for (let i = 0; i < arr.length; i++) {
+            for (let j = i + 1; j < arr.length; j++) {
+                const score = getSynergyScore(arr[i].name, arr[j].name);
+                if (score > 0.6) goodSyn++;
+                if (score < 0.4) badSyn++;
+            }
         }
-        const goodSyn = synPairs.filter(p=>p.sc>0.6).length;
-        const badSyn  = synPairs.filter(p=>p.sc<0.4).length;
         const antiPairs = countAntiSynergyInTeam(arr);
+        const dominant = arr.filter(p => getStreak(p).type === 'W' && getStreak(p).count >= 3);
+        const metrics = [
+            `<span class="tbp-report-metric"><span class="tbp-report-metric-label">Rating mediu</span><strong>★ ${avg}</strong></span>`,
+            `<span class="tbp-report-metric"><span class="tbp-report-metric-label">Lot</span><strong>${arr.length} juc.</strong></span>`
+        ];
+        const alerts = [];
+        if (lowestAct) alerts.push('<span class="tbp-report-tag is-warning">⚠️ Activitate scăzută</span>');
+        if (goodSyn > 0) alerts.push(`<span class="tbp-report-tag is-positive">💚 ${goodSyn} sinergii bune</span>`);
+        if (badSyn > 0) alerts.push(`<span class="tbp-report-tag is-danger">🔴 ${badSyn} anti-sinergii</span>`);
+        if (antiPairs > 0) alerts.push(`<span class="tbp-report-tag is-warning">⚠️ ${antiPairs} perechi problematice</span>`);
 
-        let html = `<div style="margin-bottom:6px;padding:5px 7px;background:#fffaf0;border-radius:6px;border-left:3px solid ${hex};">
-            <div style="color:${hex};font-weight:700;font-size:.7rem;">${name} (${arr.length} juc.)</div>
-            <div style="color:#7d6849;margin-top:2px;">★ Avg: <b style="color:#3a2f1f;">${avg}</b>`;
-        if (lowestAct) html += ` · ⚠️ <span style="color:#8a6307;">activitate scăzută</span>`;
-        if (goodSyn > 0) html += ` · 💚 ${goodSyn} pereche(i) cu sinergie bună`;
-        if (badSyn > 0)  html += ` · 🔴 ${badSyn} anti-sinergie`;
-        if (antiPairs > 0) html += ` · <span style="color:#b71c1c;">⚠️ ${antiPairs} pereche(i) problematice</span>`;
-        html += `</div>`;
-        const imb = arr.filter(p=>getStreak(p).type==='W'&&getStreak(p).count>=3);
-        if (imb.length) html += `<div style="color:#8a6307;font-size:.62rem;">⚡ ${imb.map(p=>p.name+'('+getStreak(p).count+'W)').join(', ')} dominant(i)</div>`;
-        html += `</div>`;
+        let html = `<article class="tbp-report-team" style="--team-color:${hex};">
+            <div class="tbp-report-team-heading"><span class="tbp-report-team-dot"></span><h4>${esc(name)}</h4></div>
+            <div class="tbp-report-team-metrics">${metrics.join('')}</div>
+            ${alerts.length ? `<div class="tbp-report-tags">${alerts.join('')}</div>` : '<div class="tbp-report-tags"><span class="tbp-report-tag">✓ Fără alerte de sinergie</span></div>'}`;
+        if (dominant.length) {
+            html += `<div class="tbp-report-dominant">⚡ <strong>Jucător dominant:</strong> ${dominant.map(p => `${esc(p.name)} (${getStreak(p).count}W)`).join(', ')}</div>`;
+        }
+        html += '</article>';
         return html;
     };
 
-    const oAvg = oArr.length ? oArr.reduce((s,p)=>s+getSmartRating(p),0)/oArr.length : 0;
-    const gAvg = gArr.length ? gArr.reduce((s,p)=>s+getSmartRating(p),0)/gArr.length : 0;
+    const oAvg = oArr.length ? oArr.reduce((s, p) => s + getSmartRating(p), 0) / oArr.length : 0;
+    const gAvg = gArr.length ? gArr.reduce((s, p) => s + getSmartRating(p), 0) / gArr.length : 0;
     const diff = Math.abs(oAvg - gAvg);
-    const modeLabels = {smart:'★ Smart Balans', general:'⭐ Rating General', roles:'🎭 Pozitii', surprise:'🎰 Aleatoriu'};
-
+    const modeLabels = { smart: '★ Smart Balans', general: '⭐ Rating General', roles: '🎭 Balans Poziții', surprise: '🎰 Aleatoriu' };
     const q = computeBalanceQualityScore(oArr, gArr, bArr);
-    const qColor = q.score>=80 ? '#1b7a43' : q.score>=60 ? '#c9920a' : '#b71c1c';
-    const qEmoji = q.score>=80 ? '🟢' : q.score>=60 ? '🟡' : '🔴';
-    let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:7px 10px;background:#fff;border-radius:8px;border:1.5px solid ${qColor};">
-        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${qColor};">${qEmoji} ${q.score}/100</div>
-        <div style="font-size:.62rem;color:#7d6849;line-height:1.3;">Scor calitate echilibrare${rivalryMode?' · ⚔️ Mod Rivalitate activ':''}${q.nemOpponentCount>0?` · ${q.nemOpponentCount} rivalitate(ăți) ca adversari`:''}</div>
+    const qColor = q.score >= 80 ? '#a3ff6f' : q.score >= 60 ? '#ffd166' : '#ff6678';
+    const qEmoji = q.score >= 80 ? '🟢' : q.score >= 60 ? '🟡' : '🔴';
+    const teams = [
+        fmtTeam(oArr, teamNames.orange, teamColors.orange),
+        fmtTeam(gArr, teamNames.green, teamColors.green)
+    ];
+    if (bArr?.length) teams.push(fmtTeam(bArr, teamNames.bench || 'Negru', teamColors.bench || '#78baff'));
+
+    let html = `<div class="tbp-report-quality">
+        <div class="tbp-report-score" style="--score-color:${qColor};"><span>${qEmoji}</span><strong>${q.score}</strong><small>/100</small></div>
+        <div class="tbp-report-quality-copy"><strong>Scor calitate echilibrare</strong>
+            <span>${rivalryMode ? '⚔️ Mod Rivalitate activ' : 'Echipe comparate după rating și chimie'}${q.nemOpponentCount > 0 ? ` · ${q.nemOpponentCount} rivalități ca adversari` : ''}</span>
+        </div>
     </div>`;
-    html += `<div style="color:#7d6849;margin-bottom:5px;">Mod: <b style="color:#5c4a32;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#1b7a43':diff<0.7?'#c9920a':'#b71c1c'};">${diff.toFixed(2)}★</b></div>`;
-    html += fmtTeam(oArr, teamNames.orange, teamColors.orange);
-    html += fmtTeam(gArr, teamNames.green,  teamColors.green);
-    if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Negru', teamColors.bench||'#111111');
+    html += `<div class="tbp-report-meta">
+        <span>Mod selectat <strong>${esc(modeLabels[mode] || mode)}</strong></span>
+        <span>Diferență rating <strong class="${diff < 0.3 ? 'is-good' : diff < 0.7 ? 'is-mid' : 'is-bad'}">${diff.toFixed(2)}★</strong></span>
+    </div>`;
+    html += `<div class="tbp-report-team-grid">${teams.join('')}</div>`;
 
     if (_antiSynergyPairs.length) {
-        html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🔴 Anti-sinergie globală: ${_antiSynergyPairs.map(p=>`${p.a}+${p.b} (${(p.wr*100).toFixed(0)}%WR)`).join(', ')}</div>`;
+        const pairRows = _antiSynergyPairs.map(pair => `<span class="tbp-pair-chip" title="Rată de victorie comună: ${(pair.wr * 100).toFixed(0)}%">
+            <strong>${esc(pair.a)}</strong><span class="tbp-pair-plus">+</span><strong>${esc(pair.b)}</strong><em>${(pair.wr * 100).toFixed(0)}% WR</em>
+        </span>`).join('');
+        html += `<details class="tbp-pair-details">
+            <summary><span>🔴 Anti-sinergii globale</span><span class="tbp-pair-summary-meta">${_antiSynergyPairs.length} perechi <span class="tbp-pair-toggle">Vezi lista ⌄</span></span></summary>
+            <div class="tbp-pair-chip-list">${pairRows}</div>
+        </details>`;
     }
-    if (_nemesisPairs.length && q.nemTeammateCount>0) {
-        html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">⚔️ Nemesis ca și coechipieri: ${q.nemTeammateCount} pereche(i)</div>`;
+    if (_nemesisPairs.length && q.nemTeammateCount > 0) {
+        html += `<div class="tbp-report-note">⚔️ <strong>${q.nemTeammateCount}</strong> perechi nemesis sunt în aceeași echipă. Activează Mod Rivalitate pentru a favoriza întâlnirea lor ca adversari.</div>`;
     }
     if (mode === 'smart' && !bArr?.length) {
         const oA = teamAttrAvgs(oArr), gA = teamAttrAvgs(gArr);
         let worstKey = null, worstGap = 0;
-        EA_ATTR_KEYS.forEach(k => { const gap = Math.abs(oA[k]-gA[k]); if (gap>worstGap) { worstGap=gap; worstKey=k; } });
+        EA_ATTR_KEYS.forEach(key => {
+            const gap = Math.abs(oA[key] - gA[key]);
+            if (gap > worstGap) { worstGap = gap; worstKey = key; }
+        });
         if (worstKey) {
-            const okColor = worstGap<8 ? '#1b7a43' : worstGap<15 ? '#c9920a' : '#b71c1c';
-            html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🎯 Cel mai mare decalaj de atribute: <b style="color:${okColor};">${worstKey}</b> (${teamNames.orange} ${Math.round(oA[worstKey])} vs ${teamNames.green} ${Math.round(gA[worstKey])})</div>`;
+            const gapClass = worstGap < 8 ? 'is-good' : worstGap < 15 ? 'is-mid' : 'is-bad';
+            html += `<div class="tbp-report-note">🎯 Cel mai mare decalaj de atribute: <strong class="${gapClass}">${esc(worstKey)}</strong> (${esc(teamNames.orange)} ${Math.round(oA[worstKey])} vs ${esc(teamNames.green)} ${Math.round(gA[worstKey])})</div>`;
         }
     }
     return html;
