@@ -338,22 +338,16 @@
             content:'✨';position:absolute;top:6px;left:10px;font-size:.8rem;
             filter:drop-shadow(0 0 3px rgba(107,70,193,.6));pointer-events:none;
         }
-        /* FIFA card body layout — spațiere/ierarhie rafinată: numele
-           jucătorului (elementul cel mai important de scanat rapid) e acum
-           vizibil mai proeminent, iar rândurile de sub el (stats/atribute/
-           statusuri) au respirație constantă între ele în loc să fie
-           înghesuite cu margini de 1-3px. Clasele/ID-urile NU s-au schimbat
-           — doar valorile — ca drag&drop, click-pe-modal și togglurile de
-           afișare (applyDashAttrsVisibility etc.) să rămână neatinse. */
-        .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:11px 13px 10px;}
+        /* FIFA card body layout */
+        .fifa-card-body{display:flex;align-items:stretch;gap:0;padding:10px 12px 8px;}
         /* Left: rating column */
-        .fifa-rating-col{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:48px;padding-right:11px;border-right:1px solid rgba(255,255,255,.06);}
-        .fifa-rating-num{font-family:'Bebas Neue',sans-serif;font-size:1.85rem;line-height:1;color:#3a2f1f;letter-spacing:1px;}
-        .fifa-rating-lbl{font-size:.52rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-top:2px;}
+        .fifa-rating-col{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:46px;padding-right:10px;border-right:1px solid rgba(255,255,255,.06);}
+        .fifa-rating-num{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;line-height:1;color:#3a2f1f;letter-spacing:1px;}
+        .fifa-rating-lbl{font-size:.5rem;color:#7d6849;text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
         .fifa-rating-gen{font-size:.68rem;color:var(--star);font-weight:700;margin-top:2px;}
         /* Right: name + stats */
-        .fifa-info-col{flex:1;padding-left:11px;display:flex;flex-direction:column;gap:5px;}
-        .player-name{font-weight:800;color:#3a2f1f;font-size:1rem;line-height:1.2;letter-spacing:.2px;}
+        .fifa-info-col{flex:1;padding-left:10px;display:flex;flex-direction:column;gap:3px;}
+        .player-name{font-weight:700;color:#3a2f1f;font-size:.92rem;line-height:1.2;letter-spacing:.3px;}
         /* Form dots row */
         .form-row{display:flex;align-items:center;gap:3px;margin-top:1px;}
         .form-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;box-shadow:0 0 4px currentColor;}
@@ -362,8 +356,8 @@
         .form-dot.empty{background:#dcc89a;color:transparent;}
         .form-label{font-size:.55rem;color:#6b5840;text-transform:uppercase;letter-spacing:.8px;margin-left:2px;}
         /* Stats mini row */
-        .fifa-stats-row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:0;}
-        .fifa-stat{font-size:.68rem;color:#7d6849;white-space:nowrap;}
+        .fifa-stats-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px;}
+        .fifa-stat{font-size:.65rem;color:#7d6849;white-space:nowrap;}
         .fifa-stat span{color:#7d6849;font-weight:700;}
         /* Tags row */
         .card-top{display:flex;justify-content:space-between;align-items:center;}
@@ -371,6 +365,9 @@
         .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
         .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
         .player-id-tag{font-size:0.6rem;color:#7d6849;font-family:monospace;margin-left:5px;}
+        .rating-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+        .rating-badge{background:#dcc89a;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:var(--star);font-weight:700;white-space:nowrap;}
+        .rating-badge-smart{background:linear-gradient(135deg,#ede3fa,#6b46c1);border:1px solid #3d2bbf;padding:3px 9px;border-radius:20px;font-size:0.78rem;color:#6b46c1;font-weight:700;white-space:nowrap;}
         .player-rank-label{position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:60%;border-radius:0 2px 2px 0;}
         /* Tap-to-move button on player cards — mobile-friendly alternative to drag & drop */
         .move-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(61,90,254,.15);border:1px solid var(--accent);color:#2f5fcf;font-size:.95rem;line-height:1;display:flex;align-items:center;justify-content:center;z-index:5;padding:0;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);}
@@ -1047,8 +1044,9 @@
             .mobile-tab-match .column-match-group{display:flex;}
             #playersArea.mobile-active{display:block;}
             #sectionsArea.mobile-active{display:block;}
-            /* Match tab: show orange, green, bench */
-            .col-match-active{display:flex !important;}
+            /* Tabul Meci Activ arată echipele, banca și jucătorii disponibili.
+               Lista activă era ascunsă aici, obligând utilizatorul să schimbe tabul. */
+            #col-orange,#col-green,#col-bench,#col-active{display:flex;}
             #sec-lobby,#sec-stats,#sec-history{border-radius:0;border-left:none;border-right:none;margin-top:0;}
             .history-desktop-header{padding:12px 16px 10px;}
             .col-body{min-height:160px;}

@@ -1462,7 +1462,7 @@ function render(){
             // butonul 📊 din bara de sus (toggleDashAttrs).
             const eaCardMini = eaGetPlayerCard(p);
             const eaMiniLabels = eaCardMini.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
-            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;flex-wrap:wrap;">
+            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;">
                 ${Object.keys(eaMiniLabels).map(k=>`<span style="font-size:.56rem;font-weight:700;color:${eaAttrColor(eaCardMini.attrs[k])};">${eaMiniLabels[k]} <span style="color:#3a2f1f;">${eaCardMini.attrs[k]}</span></span>`).join('')}
             </div>`;
             card.innerHTML=`
@@ -1483,7 +1483,7 @@ function render(){
                             ${goalsLine}${gcLine}
                         </div>
                         ${attrsRowHtml}
-                        <div class="ptag-row">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
+                        <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
                         ${renderMilestoneBadges(p)}
                         ${renderSpeedBadge(p)}
                     </div>
@@ -1495,10 +1495,8 @@ function render(){
     updateTeamStats();renderLeaderboard();renderStreakBanner();renderWeeklyCards();renderHistory();renderLobby();renderTeamTitles();applyThreeTeamUI();
     checkLiveStatus();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
-    // Keep active tab (Meci Activ/Jucători/Lobby/Istoric) consistent după
-    // fiecare re-randare de date — pe orice lățime, nu doar pe mobil (vezi
-    // nota din switchMobileTab/initMobile pentru context complet).
-    switchMobileTab(currentMobileTab || 'match');
+    // Keep mobile tab active after re-render
+    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
     applyDashStatsVisibility();
     applyDashWrStatsVisibility();
     applyDashTagsVisibility();
@@ -5218,55 +5216,64 @@ let currentMobileTab = 'orange';
 
 function switchMobileTab(tab) {
     currentMobileTab = tab;
-    // NOTĂ (redesign navigare): înainte, pe desktop (>640px) funcția ieșea
-    // imediat aici ("CSS handles everything" — toate secțiunile erau mereu
-    // vizibile simultan, stivuite = pagină interminabilă). Acum folosim
-    // ACEEAȘI logică de comutare pe tab-uri și pe desktop, ca navigarea
-    // Meci Activ/Jucători/Lobby/Istoric să fie consecventă peste tot, nu
-    // doar un comportament ascuns de mobil. Restul funcției (mai jos) era
-    // deja complet independent de lățimea ecranului — doar togglează
-    // display pe ID-uri fixe — deci a mers neschimbată pentru desktop.
 
-    // Hide all columns
-    ['orange','green','bench','active'].forEach(t =>
-        document.getElementById(`col-${t}`)?.style && (document.getElementById(`col-${t}`).style.display = 'none')
-    );
-    // Hide all areas
-    document.getElementById('playersArea').style.display  = 'none';
-    document.getElementById('sectionsArea').style.display = 'none';
-    document.getElementById('sec-lobby').style.display    = 'none';
-    document.getElementById('sec-history').style.display  = 'none';
-    // .balance-col (uneltele de echilibrare echipe, 🔧🎲📋) nu era menționată
-    // aici înainte — pe mobil nu conta, era deja ascunsă necondiționat sub
-    // 900px prin CSS. Acum că tab-urile sunt active și pe desktop (>900px),
-    // trebuie ascunsă explicit în afara tab-ului "Meci Activ", altfel ar
-    // rămâne vizibilă, "plutind" lângă tab-urile Jucători/Lobby/Istoric.
-    const balanceColEl = document.querySelector('.balance-col');
-    if (balanceColEl) balanceColEl.style.display = 'none';
-
-    if (tab === 'match') {
-        // Show orange + verde + bench stacked
-        ['orange','green','bench'].forEach(t => {
-            document.getElementById(`col-${t}`).style.display = 'flex';
+    // Pe desktop, taburile nu trebuie să ascundă conținutul principal.
+    // Echipele, banca, jucătorii disponibili, clasamentul, lobby-ul și istoricul
+    // rămân în pagină; taburile sunt doar navigare/indicator vizual.
+    if (window.innerWidth > 640) {
+        ['orange','green','bench','active','white'].forEach(t => {
+            const col = document.getElementById(`col-${t}`);
+            if (col) col.style.display = '';
         });
+        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = '';
+        });
+        const balanceColEl = document.querySelector('.balance-col');
         if (balanceColEl) balanceColEl.style.display = '';
-    } else if (tab === 'players') {
-        // Show active column + leaderboard
-        document.getElementById('col-active').style.display   = 'flex';
-        document.getElementById('playersArea').style.display  = 'block';
-        document.getElementById('sec-stats').style.display    = 'block';
-    } else if (tab === 'lobby') {
-        document.getElementById('sectionsArea').style.display = 'block';
-        document.getElementById('sec-lobby').style.display    = 'block';
-    } else if (tab === 'history') {
-        document.getElementById('sectionsArea').style.display = 'block';
-        document.getElementById('sec-history').style.display  = 'block';
+    } else {
+        // Pe mobil păstrăm navigarea pe taburi, dar tabul Meci Activ include
+        // și lista Jucători, ca să nu dispară lotul disponibil când gestionezi echipele.
+        ['orange','green','bench','active','white'].forEach(t => {
+            const el = document.getElementById(`col-${t}`);
+            if (el) el.style.display = 'none';
+        });
+        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+        const balanceColEl = document.querySelector('.balance-col');
+        if (balanceColEl) balanceColEl.style.display = 'none';
+
+        if (tab === 'match') {
+            ['orange','green','bench','active'].forEach(t => {
+                const el = document.getElementById(`col-${t}`);
+                if (el) el.style.display = 'flex';
+            });
+            if (balanceColEl) balanceColEl.style.display = '';
+        } else if (tab === 'players') {
+            const activeCol = document.getElementById('col-active');
+            if (activeCol) activeCol.style.display = 'flex';
+            const playersArea = document.getElementById('playersArea');
+            if (playersArea) playersArea.style.display = 'block';
+            const stats = document.getElementById('sec-stats');
+            if (stats) stats.style.display = 'block';
+        } else if (tab === 'lobby') {
+            const sections = document.getElementById('sectionsArea');
+            if (sections) sections.style.display = 'block';
+            const lobby = document.getElementById('sec-lobby');
+            if (lobby) lobby.style.display = 'block';
+        } else if (tab === 'history') {
+            const sections = document.getElementById('sectionsArea');
+            if (sections) sections.style.display = 'block';
+            const history = document.getElementById('sec-history');
+            if (history) history.style.display = 'block';
+        }
     }
 
-    // Update tab active styles
+    // Actualizăm starea vizuală a tabului pe ambele dimensiuni de ecran.
     document.querySelectorAll('.mobile-tab').forEach(el => {
-        const isActive = el.classList.contains(`tab-${tab}`);
-        el.classList.toggle('active', isActive);
+        el.classList.toggle('active', el.classList.contains(`tab-${tab}`));
     });
 }
 
