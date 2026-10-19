@@ -6266,8 +6266,8 @@ function buildBalanceReport(oArr, gArr, mode, bArr) {
             <strong>${esc(pair.a)}</strong><span class="tbp-pair-plus">+</span><strong>${esc(pair.b)}</strong><em>${(pair.wr * 100).toFixed(0)}% WR</em>
         </span>`).join('');
         html += `<details class="tbp-pair-details">
-            <summary><span>🔴 Anti-sinergii globale</span><span class="tbp-pair-summary-meta">${_antiSynergyPairs.length} perechi <span class="tbp-pair-toggle">Vezi lista ⌄</span></span></summary>
-            <div class="tbp-pair-chip-list">${pairRows}</div>
+            <summary><span>🔴 Anti-sinergii</span><span class="tbp-pair-summary-meta">${_antiSynergyPairs.length} perechi</span></summary>
+            <div class="tbp-pair-chip-list" aria-label="Lista perechilor cu anti-sinergie">${pairRows}</div>
         </details>`;
     }
     if (_nemesisPairs.length && q.nemTeammateCount > 0) {
