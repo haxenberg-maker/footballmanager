@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Votăm cadoul mamei ❤️</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#fff7f2;--card:#fff;--ink:#39272b;--pink:#c94f76;--line:#f0d5dd;--muted:#806a70;--green:#287a53}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(140deg,#fff7f2,#fce8ee);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink)}
+header{text-align:center;padding:28px 16px 18px}h1{margin:0;color:#b83e68;font-size:clamp(2rem,5vw,3.2rem)}header p{margin:8px auto;color:var(--muted);max-width:720px}
+.toolbar{max-width:1200px;margin:0 auto 18px;padding:0 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}.toolbar input{padding:11px;border:1px solid var(--line);border-radius:10px;min-width:220px;max-width:100%}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{border:0;border-radius:10px;padding:10px 12px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:.9rem}.primary{background:var(--pink);color:white}.neutral{background:#f5f0f1;color:#5c454c}.status{max-width:1168px;margin:0 auto 16px;padding:0 16px;color:var(--muted);font-size:.88rem}.status.ok{color:var(--green)}.status.error{color:#a62e34}
+#grid{max-width:1200px;margin:auto;padding:0 16px 34px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}.card{background:var(--card);border:2px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 8px 22px #6e2b4010;transition:.15s}.card.selected{border-color:var(--pink);box-shadow:0 0 0 3px #c94f7620}.photo{height:245px;background:#f9edf0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}.photo img{width:100%;height:100%;object-fit:contain}.placeholder{display:none;padding:20px;text-align:center;color:#9b7883;line-height:1.6}.body{padding:14px}.num{font-size:.75rem;font-weight:800;letter-spacing:1px;color:var(--pink)}h2{font-size:1rem;margin:4px 0 9px;min-height:42px}.price{font-size:.82rem;color:var(--muted);margin-bottom:10px}.vote{width:100%;background:#f8e0e8;color:#9b2f56}.selected .vote{background:var(--pink);color:white}.link{background:#f5f0f1;color:#5c454c;margin-top:8px;width:100%}.count{font-size:.82rem;color:var(--muted);margin:10px 0 0;text-align:center}.winner{font-weight:800;color:#a62e57}.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:0 auto 12px;padding:0 16px}.controls label{font-size:.85rem;color:var(--muted);display:flex;gap:6px;align-items:center}.controls input{padding:10px;border:1px solid var(--line);border-radius:10px;width:190px}.bottom-note{max-width:1100px;margin:0 auto 28px;padding:0 16px;font-size:.82rem;color:var(--muted);line-height:1.55}
+@media(max-width:550px){.photo{height:220px}.toolbar{justify-content:center}.toolbar>input{width:100%}.controls{align-items:stretch;flex-direction:column}.controls label{justify-content:center}.controls input{width:min(100%,290px)}}
+</style></head><body>
+<header><h1>❤️ Votăm cadoul mamei ❤️</h1><p>Priviți cele 14 modele și votați cerceii care vi se par cei mai frumoși. Puteți selecta mai multe modele; votul se sincronizează cu Supabase.</p><div id="summary" class="winner">Se pregătește lista…</div></header>
+<div class="controls"><label for="voter">Numele tău pentru vot:</label><input id="voter" placeholder="Ex. Gabi" maxlength="80"><button class="btn primary" id="saveBtn">☁️ Salvează votul online</button></div>
+<div class="toolbar"><div class="actions"><button class="btn neutral" id="exportBtn">⬇️ Exportă voturile mele</button><button class="btn neutral" id="clearBtn">Resetează selecția</button></div><input id="search" placeholder="Caută după număr sau model…"></div>
+<div id="status" class="status">Se conectează la votul familiei…</div>
+<div id="grid"></div>
+<div class="bottom-note">Fotografiile sunt preluate direct din CDN-ul OLX. Dacă o variantă de imagine nu răspunde, pagina încearcă automat alte dimensiuni ale aceleiași fotografii. Folosiți „Vezi anunțul OLX” pentru a verifica modelul și detaliile originale.</div>
+<script>
+const SUPABASE_URL = "https://lfnumwbjikiyngdxsgrk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxmbnVtd2JqaWtpeW5nZHhzZ3JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MDQ1MzEsImV4cCI6MjA5MDA4MDUzMX0.BrrmEHnOwa66hDqN-GhYCyqHqOqTAV7dswjcOVxx-wc";
+const TABLE_NAME = 'vot_mama';
+const SESSION_NAME = 'vot_mama';
+const items = [{"nr":1,"title":"AG46 Cercei aur 1.50g B.4802.3","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-1-50g-b-4802-3-IDkROt2.html?reason=seller_listing%7Colx_shop_premium","file":"550q89kgihxt2","firstSize":"704x1524"},{"nr":2,"title":"AG46 Cercei aur 1.02g B.4889","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-1-02g-b-4889-IDkROym.html?reason=seller_listing%7Colx_shop_premium","file":"ynn3wa53u80a","firstSize":"704x1524"},{"nr":3,"title":"AG46 Cercei aur 1.02g B.4855","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-1-02-b-4855-IDkROAp.html?reason=seller_listing%7Colx_shop_premium","file":"iy6grlrmljya","firstSize":"1524x704"},{"nr":4,"title":"AG46 Cercei aur 2.83g B.4892","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-2-83g-b-4892-IDkROC6.html?reason=seller_listing%7Colx_shop_premium","file":"95isbvf074du","firstSize":"704x1524"},{"nr":5,"title":"AG46 Cercei aur 1.55g B.4870","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-1-55g-b-4870-IDkRODR.html?reason=seller_listing%7Colx_shop_premium","file":"lw5q84e94e8f1","firstSize":"704x1524"},{"nr":6,"title":"AG46 Cercei aur 14K B.5054.1","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-5054-1-IDl06Zz.html?reason=seller_listing%7Colx_shop_premium","file":"wj12zdobe1vm","firstSize":"704x1524"},{"nr":7,"title":"AG46 Cercei aur 14K B.4979.1","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4979-1-IDl07O1.html?reason=seller_listing%7Colx_shop_premium","file":"ny72xmrh7otq","firstSize":"704x1524"},{"nr":8,"title":"AG46 Cercei aur 14K B.4610.10","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4610-10-IDkD9Kh.html?reason=seller_listing%7Colx_shop_premium","file":"v2wh825j162c2","firstSize":"739x1600"},{"nr":9,"title":"AG46 Cercei aur 14K B.4924","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4924-IDkZZH9.html?reason=seller_listing%7Colx_shop_premium","file":"k5cu2yc6gb6","firstSize":"704x1524"},{"nr":10,"title":"AG46 Cercei aur 14K B.4589.6","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4589-6-IDkDfxU.html?reason=seller_listing%7Colx_shop_premium","file":"909ss86e43wr","firstSize":"924x2000"},{"nr":11,"title":"AG46 Cercei aur 14K B.4610.8","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4610-8-IDkD9z9.html?reason=seller_listing%7Colx_shop_premium","file":"k9e75m82swa23","firstSize":"924x2000"},{"nr":12,"title":"AG46 Cercei aur 14K B.4611.11","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4611-11-IDkD9n2.html?reason=seller_listing%7Colx_shop_premium","file":"01xzvsfh5qoo2","firstSize":"924x2000"},{"nr":13,"title":"AG46 Cercei aur 14K B.4604.5","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4604-5-IDkD9BL.html?reason=seller_listing%7Colx_shop_premium","file":"5jhze1pn35bw2","firstSize":"739x1600"},{"nr":14,"title":"AG46 Cercei aur 14K B.4649.1","url":"https://www.olx.ro/d/oferta/ag46-cercei-aur-14k-b-4649-1-IDkDfZO.html?reason=seller_listing%7Colx_shop_premium","file":"yr8zk4w7r4v92","firstSize":"924x2000"}];
+const votesKey = 'vot_mama_votes_v2';
+const voterKey = 'vot_mama_voter_v2';
+let votes = JSON.parse(localStorage.getItem(votesKey) || '[]').map(Number);
+let sb = null;
+let cloudCounts = {};
+let cloudReady = false;
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function imageUrls(item){
+ const base=`https://frankfurt.apollo.olxcdn.com/v1/files/${item.file}-RO/`;
+ // 1) dimensiunea observată pe pagina OLX; 2) imagine mai mare; 3) alte formate de redimensionare; 4) fișierul fără parametru.
+ return [...new Set([`${base}image%3Bs%3D${item.firstSize}`,`${base}image;s=${item.firstSize}`,`${base}image;s=1200x0`,`${base}image;s=739x1600`,`${base}image;s=704x1524`,`${base}image;s=300x0`,`${base}image`])];
+}
+function imageFailed(n,img){
+ const item=items.find(x=>x.nr===n); if(!item)return;
+ const all=imageUrls(item); const next=Number(img.dataset.try||0)+1;
+ if(next<all.length){img.dataset.try=String(next);img.src=all[next];return;}
+ img.style.display='none'; const placeholder=img.nextElementSibling; if(placeholder)placeholder.style.display='block';
+}
+function render(){
+ const q=$('search').value.toLowerCase();
+ $('grid').innerHTML=items.filter(x=>(x.title+' '+x.nr).toLowerCase().includes(q)).sort((a,b)=>a.nr-b.nr).map(x=>{
+   const selected=votes.includes(x.nr); const urls=imageUrls(x);
+   return `<article class="card ${selected?'selected':''}"><div class="photo"><img src="${esc(urls[0])}" data-try="0" alt="Fotografia ${x.nr}: ${esc(x.title)}" loading="lazy" onerror="imageFailed(${x.nr},this)"><div class="placeholder">📷<br><b>Fotografia nu s-a încărcat</b><br><span>Deschide anunțul OLX pentru a vedea modelul.</span></div></div><div class="body"><div class="num">MODELUL #${x.nr}</div><h2>${esc(x.title)}</h2><button class="btn vote" onclick="toggleVote(${x.nr})">${selected?'❤️ Ai votat — retrage':'🤍 Votează acest model'}</button><a class="btn link" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Vezi anunțul OLX ↗</a><div class="count">${cloudReady?(cloudCounts[x.nr]||0)+' vot(uri) în total':'Voturile online se încarcă…'}</div></div></article>`;
+ }).join('');
+ $('summary').textContent=`Ai selectat ${votes.length} model(e): ${votes.length?votes.slice().sort((a,b)=>a-b).map(n=>'#'+n).join(', '):'încă niciunul'}`;
+}
+function status(msg,type=''){ $('status').textContent=msg;$('status').className='status '+type; }
+function toggleVote(n){votes=votes.includes(n)?votes.filter(x=>x!==n):[...votes,n];localStorage.setItem(votesKey,JSON.stringify(votes));render();}
+async function refreshCloud(){
+ if(!sb){cloudReady=false;render();return;}
+ try{
+  const {data,error}=await sb.from(TABLE_NAME).select('listing_number');
+  if(error)throw error;
+  cloudCounts={};(data||[]).forEach(r=>{const n=Number(r.listing_number);cloudCounts[n]=(cloudCounts[n]||0)+1;});cloudReady=true;render();
+  status('Conectat la Supabase. Voturile afișate includ selecțiile salvate online.','ok');
+ }catch(e){cloudReady=false;render();status('Nu am putut citi tabelul „vot_mama”. Rulează scriptul SQL atașat în Supabase. Detalii: '+e.message,'error');}
+}
+$('search').addEventListener('input',render);
+$('voter').value=localStorage.getItem(voterKey)||'';
+$('voter').addEventListener('change',()=>localStorage.setItem(voterKey,$('voter').value.trim()));
+$('clearBtn').onclick=()=>{if(confirm('Sigur vrei să elimini toate selecțiile locale? Apasă apoi „Salvează votul online” dacă vrei să actualizezi și votul online.')){votes=[];localStorage.setItem(votesKey,'[]');render();}};
+$('exportBtn').onclick=()=>{const voter=$('voter').value.trim()||'Anonim';const blob=new Blob([JSON.stringify({project:'vot_mama',voter,votes,items:items.filter(x=>votes.includes(x.nr)).map(({nr,title,url})=>({nr,title,url})),exported_at:new Date().toISOString()},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vot_mama.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
+$('saveBtn').onclick=async()=>{
+ const voter=$('voter').value.trim();
+ if(!voter){status('Scrie-ți numele înainte de a salva votul online.','error');$('voter').focus();return;}
+ localStorage.setItem(voterKey,voter);localStorage.setItem(votesKey,JSON.stringify(votes));
+ if(!sb){status('Nu există conexiune la Supabase. Verifică internetul și reîncarcă pagina.','error');return;}
+ const btn=$('saveBtn');btn.disabled=true;btn.textContent='Se salvează…';
+ try{
+  const {data:existing,error:readErr}=await sb.from(TABLE_NAME).select('listing_number').eq('session_name',SESSION_NAME).eq('voter_name',voter);
+  if(readErr)throw readErr;
+  const oldNums=(existing||[]).map(r=>Number(r.listing_number));
+  const removed=oldNums.filter(n=>!votes.includes(n));
+  for(const n of removed){const {error}=await sb.from(TABLE_NAME).delete().eq('session_name',SESSION_NAME).eq('voter_name',voter).eq('listing_number',n);if(error)throw error;}
+  if(votes.length){
+   const rows=votes.map(n=>({session_name:SESSION_NAME,voter_name:voter,listing_number:n,listing_title:items.find(x=>x.nr===n).title,listing_url:items.find(x=>x.nr===n).url}));
+   const {error}=await sb.from(TABLE_NAME).upsert(rows,{onConflict:'session_name,voter_name,listing_number'});if(error)throw error;
+  }
+  status(`Gata, ${votes.length} vot(uri) salvate pentru ${voter}.`,'ok');
+  await refreshCloud();
+ }catch(e){status('Eroare la salvarea votului: '+e.message+' — verifică dacă ai rulat scriptul SQL și politicile RLS.','error');}
+ finally{btn.disabled=false;btn.textContent='☁️ Salvează votul online';}
+};
+(async function init(){
+ render();
+ try{if(!window.supabase?.createClient)throw new Error('Biblioteca Supabase nu s-a încărcat. Verifică internetul.');sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);await refreshCloud();}
+ catch(e){render();status('Pagina este deschisă, dar conexiunea Supabase nu este disponibilă: '+e.message,'error');}
+})();
+</script></body></html>
