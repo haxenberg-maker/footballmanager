@@ -1064,7 +1064,7 @@ function computeMotmCandidates(currentMonthRows){
     const items = groupHistoryForDisplay(currentMonthRows);
 
     const stats = {}; // { playerName: {goals,assists,wins,seconds,titles,sessions} }
-    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, seconds:0, titles:0, sessions:0 });
+    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, matches:0, seconds:0, titles:0, sessions:0 });
 
     items.forEach(item => {
         const playersInItem = new Set();
@@ -1075,6 +1075,7 @@ function computeMotmCandidates(currentMonthRows){
                 const s = ensure(n);
                 s.goals   += (h.playerGoals   && h.playerGoals[n])   || 0;
                 s.assists += (h.playerAssists && h.playerAssists[n]) || 0;
+                s.matches++;
                 if (isWinner) s.wins++;
             };
             (h.orangePlayers||[]).forEach(n => addPlayer(n, winO));
@@ -1105,7 +1106,7 @@ function computeMotmCandidates(currentMonthRows){
         .map(s => {
             const minutes = Math.round(s.seconds/60);
             const score = s.goals*1 + s.assists*1 + s.wins*0.5 + s.titles*2 + (s.seconds/60)/90;
-            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, minutes, titles:s.titles, sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
+            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, matches:s.matches, minutes, titles:s.titles, sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
         })
         .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
 }
@@ -2508,6 +2509,7 @@ function renderMotmCard(candidate, idx){
             <span>⚽ ${candidate.goals} goluri</span>
             <span>🎯 ${candidate.assists} assist-uri</span>
             <span>🏆 ${candidate.wins} victorii</span>
+            <span>🎮 ${candidate.matches} meciuri jucate</span>
             <span>⏱️ ${candidate.minutes} min</span>
         </div>
     </div>`;
