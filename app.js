@@ -1462,7 +1462,7 @@ function render(){
             // butonul 📊 din bara de sus (toggleDashAttrs).
             const eaCardMini = eaGetPlayerCard(p);
             const eaMiniLabels = eaCardMini.isGk ? EA_GK_LABELS : EA_ATTR_LABELS;
-            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;">
+            const attrsRowHtml = `<div class="fifa-attrs-row" style="display:flex;gap:5px;flex-wrap:wrap;">
                 ${Object.keys(eaMiniLabels).map(k=>`<span style="font-size:.56rem;font-weight:700;color:${eaAttrColor(eaCardMini.attrs[k])};">${eaMiniLabels[k]} <span style="color:#3a2f1f;">${eaCardMini.attrs[k]}</span></span>`).join('')}
             </div>`;
             card.innerHTML=`
@@ -1483,7 +1483,7 @@ function render(){
                             ${goalsLine}${gcLine}
                         </div>
                         ${attrsRowHtml}
-                        <div class="ptag-row" style="margin-top:2px;">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
+                        <div class="ptag-row">${tagPreviewHtml||'<span style="font-size:.62rem;color:#7d6849;">Fără statusuri</span>'}</div>
                         ${renderMilestoneBadges(p)}
                         ${renderSpeedBadge(p)}
                     </div>
@@ -1495,8 +1495,10 @@ function render(){
     updateTeamStats();renderLeaderboard();renderStreakBanner();renderWeeklyCards();renderHistory();renderLobby();renderTeamTitles();applyThreeTeamUI();
     checkLiveStatus();
     localStorage.setItem('fb_club_v6',JSON.stringify(db));
-    // Keep mobile tab active after re-render
-    if (window.innerWidth <= 640) switchMobileTab(currentMobileTab || 'match');
+    // Keep active tab (Meci Activ/Jucători/Lobby/Istoric) consistent după
+    // fiecare re-randare de date — pe orice lățime, nu doar pe mobil (vezi
+    // nota din switchMobileTab/initMobile pentru context complet).
+    switchMobileTab(currentMobileTab || 'match');
     applyDashStatsVisibility();
     applyDashWrStatsVisibility();
     applyDashTagsVisibility();
@@ -1870,8 +1872,14 @@ function computeSessionMvpWinner(rows){
 }
 
 function renderHistory(){
+    // Tabelul de istoric meciuri a fost scos din index.html (dublura lui
+    // clasament.html, mult mai completă — meciuri, goluri, PDF etc.).
+    // Gardă de siguranță: dacă elementele nu mai există, nu facem nimic
+    // (restul lanțului din render() continuă normal).
+    const thActions = document.getElementById('th-actions');
+    if (!thActions) return;
     const admin = isAdmin();
-    document.getElementById('th-actions').style.display = admin ? '' : 'none';
+    thActions.style.display = admin ? '' : 'none';
     document.querySelector('#match-history thead tr').lastElementChild.style.display = admin ? '' : 'none';
 
     const sorted = [...db.history].sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
@@ -5215,63 +5223,45 @@ document.addEventListener('click', () => {
 let currentMobileTab = 'orange';
 
 function switchMobileTab(tab) {
+    // NOTĂ (curățare duplicate — index.html păstrează DOAR organizarea
+    // echipei și prezența; clasamentul/statisticile și istoricul de meciuri
+    // s-au mutat definitiv în clasament.html, unde oricum erau mult mai
+    // complete — nu mai au sens duplicate aici). Au rămas DOAR 2 tab-uri
+    // reale: 'match' (echipe + bancă + jucători disponibili + unelte de
+    // echilibrare) și 'lobby' (prezență). Orice altă valoare primită
+    // (ex. un vechi 'players'/'history' rămas pe undeva) cade sigur pe
+    // 'match', ca să nu existe stare "goală" pe ecran.
+    if (tab !== 'lobby') tab = 'match';
     currentMobileTab = tab;
 
-    // Pe desktop, taburile nu trebuie să ascundă conținutul principal.
-    // Echipele, banca, jucătorii disponibili, clasamentul, lobby-ul și istoricul
-    // rămân în pagină; taburile sunt doar navigare/indicator vizual.
-    if (window.innerWidth > 640) {
-        ['orange','green','bench','active','white'].forEach(t => {
-            const col = document.getElementById(`col-${t}`);
-            if (col) col.style.display = '';
-        });
-        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = '';
-        });
-        const balanceColEl = document.querySelector('.balance-col');
-        if (balanceColEl) balanceColEl.style.display = '';
-    } else {
-        // Pe mobil păstrăm navigarea pe taburi, dar tabul Meci Activ include
-        // și lista Jucători, ca să nu dispară lotul disponibil când gestionezi echipele.
-        ['orange','green','bench','active','white'].forEach(t => {
-            const el = document.getElementById(`col-${t}`);
-            if (el) el.style.display = 'none';
-        });
-        ['playersArea','sectionsArea','sec-lobby','sec-stats','sec-history'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
-        });
-        const balanceColEl = document.querySelector('.balance-col');
-        if (balanceColEl) balanceColEl.style.display = 'none';
+    // Ascunde tot, apoi arată DOAR ce ține de tab-ul activ.
+    ['orange','green','bench','active'].forEach(t => {
+        const el = document.getElementById(`col-${t}`);
+        if (el) el.style.display = 'none';
+    });
+    const secLobby = document.getElementById('sec-lobby');
+    if (secLobby) secLobby.style.display = 'none';
+    // .balance-col (uneltele de echilibrare echipe, 🔧🎲📋) — vizibilă doar
+    // la tab-ul "Meci Activ", altfel ar rămâne "plutind" lângă Lobby.
+    const balanceColEl = document.querySelector('.balance-col');
+    if (balanceColEl) balanceColEl.style.display = 'none';
 
-        if (tab === 'match') {
-            ['orange','green','bench','active'].forEach(t => {
-                const el = document.getElementById(`col-${t}`);
-                if (el) el.style.display = 'flex';
-            });
-            if (balanceColEl) balanceColEl.style.display = '';
-        } else if (tab === 'players') {
-            const activeCol = document.getElementById('col-active');
-            if (activeCol) activeCol.style.display = 'flex';
-            const playersArea = document.getElementById('playersArea');
-            if (playersArea) playersArea.style.display = 'block';
-            const stats = document.getElementById('sec-stats');
-            if (stats) stats.style.display = 'block';
-        } else if (tab === 'lobby') {
-            const sections = document.getElementById('sectionsArea');
-            if (sections) sections.style.display = 'block';
-            const lobby = document.getElementById('sec-lobby');
-            if (lobby) lobby.style.display = 'block';
-        } else if (tab === 'history') {
-            const sections = document.getElementById('sectionsArea');
-            if (sections) sections.style.display = 'block';
-            const history = document.getElementById('sec-history');
-            if (history) history.style.display = 'block';
-        }
+    if (tab === 'lobby') {
+        if (secLobby) secLobby.style.display = 'block';
+    } else {
+        // 'match' — Portocaliu + Verde + Bancă + Jucători (disponibili,
+        // sursa de drag&drop pentru echipe) + uneltele de echilibrare.
+        // col-white (formatul de 4 echipe) NU se atinge aici — rămâne
+        // gestionat separat de switchFormat()/applyThreeTeamUI(), ca și
+        // înainte.
+        ['orange','green','bench','active'].forEach(t => {
+            const el = document.getElementById(`col-${t}`);
+            if (el) el.style.display = 'flex';
+        });
+        if (balanceColEl) balanceColEl.style.display = '';
     }
 
-    // Actualizăm starea vizuală a tabului pe ambele dimensiuni de ecran.
+    // Update tab active styles
     document.querySelectorAll('.mobile-tab').forEach(el => {
         el.classList.toggle('active', el.classList.contains(`tab-${tab}`));
     });
@@ -5398,7 +5388,7 @@ function initSwipe() {
     const page = document.querySelector('.page');
     if (!page) return;
     let startX = 0, startY = 0;
-    const colOrder = ['match', 'players', 'lobby', 'history'];
+    const colOrder = ['match', 'lobby']; // doar cele 2 tab-uri rămase (vezi switchMobileTab)
 
     page.addEventListener('touchstart', e => {
         startX = e.touches[0].clientX;
@@ -6195,94 +6185,64 @@ function computeBalanceQualityScore(oArr, gArr, bArr){
 }
 
 function buildBalanceReport(oArr, gArr, mode, bArr) {
-    // Reportul folosește clase CSS dedicate; nu mai amestecă stiluri inline
-    // vechi (bej/deschis) în noua temă dark.
-    const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-
     const fmtTeam = (arr, name, hex) => {
         if (!arr.length) return '';
-        const avg = (arr.reduce((sum, p) => sum + getSmartRating(p), 0) / arr.length).toFixed(2);
-        const lowestAct = arr.some(p => getActivityMultiplier(p) < 0.95);
-        let goodSyn = 0, badSyn = 0;
-        for (let i = 0; i < arr.length; i++) {
-            for (let j = i + 1; j < arr.length; j++) {
-                const score = getSynergyScore(arr[i].name, arr[j].name);
-                if (score > 0.6) goodSyn++;
-                if (score < 0.4) badSyn++;
-            }
+        const avg = (arr.reduce((s,p)=>s+getSmartRating(p),0)/arr.length).toFixed(2);
+        const actMults = arr.map(p => getActivityMultiplier(p));
+        const lowestAct = actMults.some(m => m < 0.95);
+        const synPairs = [];
+        for(let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++) {
+            const sc = getSynergyScore(arr[i].name, arr[j].name);
+            if (sc !== 0.5) synPairs.push({a:arr[i].name,b:arr[j].name,sc});
         }
+        const goodSyn = synPairs.filter(p=>p.sc>0.6).length;
+        const badSyn  = synPairs.filter(p=>p.sc<0.4).length;
         const antiPairs = countAntiSynergyInTeam(arr);
-        const dominant = arr.filter(p => getStreak(p).type === 'W' && getStreak(p).count >= 3);
-        const metrics = [
-            `<span class="tbp-report-metric"><span class="tbp-report-metric-label">Rating mediu</span><strong>★ ${avg}</strong></span>`,
-            `<span class="tbp-report-metric"><span class="tbp-report-metric-label">Lot</span><strong>${arr.length} juc.</strong></span>`
-        ];
-        const alerts = [];
-        if (lowestAct) alerts.push('<span class="tbp-report-tag is-warning">⚠️ Activitate scăzută</span>');
-        if (goodSyn > 0) alerts.push(`<span class="tbp-report-tag is-positive">💚 ${goodSyn} sinergii bune</span>`);
-        if (badSyn > 0) alerts.push(`<span class="tbp-report-tag is-danger">🔴 ${badSyn} anti-sinergii</span>`);
-        if (antiPairs > 0) alerts.push(`<span class="tbp-report-tag is-warning">⚠️ ${antiPairs} perechi problematice</span>`);
 
-        let html = `<article class="tbp-report-team" style="--team-color:${hex};">
-            <div class="tbp-report-team-heading"><span class="tbp-report-team-dot"></span><h4>${esc(name)}</h4></div>
-            <div class="tbp-report-team-metrics">${metrics.join('')}</div>
-            ${alerts.length ? `<div class="tbp-report-tags">${alerts.join('')}</div>` : '<div class="tbp-report-tags"><span class="tbp-report-tag">✓ Fără alerte de sinergie</span></div>'}`;
-        if (dominant.length) {
-            html += `<div class="tbp-report-dominant">⚡ <strong>Jucător dominant:</strong> ${dominant.map(p => `${esc(p.name)} (${getStreak(p).count}W)`).join(', ')}</div>`;
-        }
-        html += '</article>';
+        let html = `<div style="margin-bottom:6px;padding:5px 7px;background:#fffaf0;border-radius:6px;border-left:3px solid ${hex};">
+            <div style="color:${hex};font-weight:700;font-size:.7rem;">${name} (${arr.length} juc.)</div>
+            <div style="color:#7d6849;margin-top:2px;">★ Avg: <b style="color:#3a2f1f;">${avg}</b>`;
+        if (lowestAct) html += ` · ⚠️ <span style="color:#8a6307;">activitate scăzută</span>`;
+        if (goodSyn > 0) html += ` · 💚 ${goodSyn} pereche(i) cu sinergie bună`;
+        if (badSyn > 0)  html += ` · 🔴 ${badSyn} anti-sinergie`;
+        if (antiPairs > 0) html += ` · <span style="color:#b71c1c;">⚠️ ${antiPairs} pereche(i) problematice</span>`;
+        html += `</div>`;
+        const imb = arr.filter(p=>getStreak(p).type==='W'&&getStreak(p).count>=3);
+        if (imb.length) html += `<div style="color:#8a6307;font-size:.62rem;">⚡ ${imb.map(p=>p.name+'('+getStreak(p).count+'W)').join(', ')} dominant(i)</div>`;
+        html += `</div>`;
         return html;
     };
 
-    const oAvg = oArr.length ? oArr.reduce((s, p) => s + getSmartRating(p), 0) / oArr.length : 0;
-    const gAvg = gArr.length ? gArr.reduce((s, p) => s + getSmartRating(p), 0) / gArr.length : 0;
+    const oAvg = oArr.length ? oArr.reduce((s,p)=>s+getSmartRating(p),0)/oArr.length : 0;
+    const gAvg = gArr.length ? gArr.reduce((s,p)=>s+getSmartRating(p),0)/gArr.length : 0;
     const diff = Math.abs(oAvg - gAvg);
-    const modeLabels = { smart: '★ Smart Balans', general: '⭐ Rating General', roles: '🎭 Balans Poziții', surprise: '🎰 Aleatoriu' };
-    const q = computeBalanceQualityScore(oArr, gArr, bArr);
-    const qColor = q.score >= 80 ? '#a3ff6f' : q.score >= 60 ? '#ffd166' : '#ff6678';
-    const qEmoji = q.score >= 80 ? '🟢' : q.score >= 60 ? '🟡' : '🔴';
-    const teams = [
-        fmtTeam(oArr, teamNames.orange, teamColors.orange),
-        fmtTeam(gArr, teamNames.green, teamColors.green)
-    ];
-    if (bArr?.length) teams.push(fmtTeam(bArr, teamNames.bench || 'Negru', teamColors.bench || '#78baff'));
+    const modeLabels = {smart:'★ Smart Balans', general:'⭐ Rating General', roles:'🎭 Pozitii', surprise:'🎰 Aleatoriu'};
 
-    let html = `<div class="tbp-report-quality">
-        <div class="tbp-report-score" style="--score-color:${qColor};"><span>${qEmoji}</span><strong>${q.score}</strong><small>/100</small></div>
-        <div class="tbp-report-quality-copy"><strong>Scor calitate echilibrare</strong>
-            <span>${rivalryMode ? '⚔️ Mod Rivalitate activ' : 'Echipe comparate după rating și chimie'}${q.nemOpponentCount > 0 ? ` · ${q.nemOpponentCount} rivalități ca adversari` : ''}</span>
-        </div>
+    const q = computeBalanceQualityScore(oArr, gArr, bArr);
+    const qColor = q.score>=80 ? '#1b7a43' : q.score>=60 ? '#c9920a' : '#b71c1c';
+    const qEmoji = q.score>=80 ? '🟢' : q.score>=60 ? '🟡' : '🔴';
+    let html = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:7px 10px;background:#fff;border-radius:8px;border:1.5px solid ${qColor};">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${qColor};">${qEmoji} ${q.score}/100</div>
+        <div style="font-size:.62rem;color:#7d6849;line-height:1.3;">Scor calitate echilibrare${rivalryMode?' · ⚔️ Mod Rivalitate activ':''}${q.nemOpponentCount>0?` · ${q.nemOpponentCount} rivalitate(ăți) ca adversari`:''}</div>
     </div>`;
-    html += `<div class="tbp-report-meta">
-        <span>Mod selectat <strong>${esc(modeLabels[mode] || mode)}</strong></span>
-        <span>Diferență rating <strong class="${diff < 0.3 ? 'is-good' : diff < 0.7 ? 'is-mid' : 'is-bad'}">${diff.toFixed(2)}★</strong></span>
-    </div>`;
-    html += `<div class="tbp-report-team-grid">${teams.join('')}</div>`;
+    html += `<div style="color:#7d6849;margin-bottom:5px;">Mod: <b style="color:#5c4a32;">${modeLabels[mode]||mode}</b> · Diferență rating: <b style="color:${diff<0.3?'#1b7a43':diff<0.7?'#c9920a':'#b71c1c'};">${diff.toFixed(2)}★</b></div>`;
+    html += fmtTeam(oArr, teamNames.orange, teamColors.orange);
+    html += fmtTeam(gArr, teamNames.green,  teamColors.green);
+    if (bArr?.length) html += fmtTeam(bArr, teamNames.bench||'Negru', teamColors.bench||'#111111');
 
     if (_antiSynergyPairs.length) {
-        const pairRows = _antiSynergyPairs.map(pair => `<span class="tbp-pair-chip" title="Rată de victorie comună: ${(pair.wr * 100).toFixed(0)}%">
-            <strong>${esc(pair.a)}</strong><span class="tbp-pair-plus">+</span><strong>${esc(pair.b)}</strong><em>${(pair.wr * 100).toFixed(0)}% WR</em>
-        </span>`).join('');
-        html += `<details class="tbp-pair-details">
-            <summary><span>🔴 Anti-sinergii</span><span class="tbp-pair-summary-meta">${_antiSynergyPairs.length} perechi</span></summary>
-            <div class="tbp-pair-chip-list" aria-label="Lista perechilor cu anti-sinergie">${pairRows}</div>
-        </details>`;
+        html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🔴 Anti-sinergie globală: ${_antiSynergyPairs.map(p=>`${p.a}+${p.b} (${(p.wr*100).toFixed(0)}%WR)`).join(', ')}</div>`;
     }
-    if (_nemesisPairs.length && q.nemTeammateCount > 0) {
-        html += `<div class="tbp-report-note">⚔️ <strong>${q.nemTeammateCount}</strong> perechi nemesis sunt în aceeași echipă. Activează Mod Rivalitate pentru a favoriza întâlnirea lor ca adversari.</div>`;
+    if (_nemesisPairs.length && q.nemTeammateCount>0) {
+        html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">⚔️ Nemesis ca și coechipieri: ${q.nemTeammateCount} pereche(i)</div>`;
     }
     if (mode === 'smart' && !bArr?.length) {
         const oA = teamAttrAvgs(oArr), gA = teamAttrAvgs(gArr);
         let worstKey = null, worstGap = 0;
-        EA_ATTR_KEYS.forEach(key => {
-            const gap = Math.abs(oA[key] - gA[key]);
-            if (gap > worstGap) { worstGap = gap; worstKey = key; }
-        });
+        EA_ATTR_KEYS.forEach(k => { const gap = Math.abs(oA[k]-gA[k]); if (gap>worstGap) { worstGap=gap; worstKey=k; } });
         if (worstKey) {
-            const gapClass = worstGap < 8 ? 'is-good' : worstGap < 15 ? 'is-mid' : 'is-bad';
-            html += `<div class="tbp-report-note">🎯 Cel mai mare decalaj de atribute: <strong class="${gapClass}">${esc(worstKey)}</strong> (${esc(teamNames.orange)} ${Math.round(oA[worstKey])} vs ${esc(teamNames.green)} ${Math.round(gA[worstKey])})</div>`;
+            const okColor = worstGap<8 ? '#1b7a43' : worstGap<15 ? '#c9920a' : '#b71c1c';
+            html += `<div style="color:#7d6849;font-size:.6rem;margin-top:3px;">🎯 Cel mai mare decalaj de atribute: <b style="color:${okColor};">${worstKey}</b> (${teamNames.orange} ${Math.round(oA[worstKey])} vs ${teamNames.green} ${Math.round(gA[worstKey])})</div>`;
         }
     }
     return html;
