@@ -1950,12 +1950,18 @@ async function refreshPotmVotes(){
             }).join('');
         }
 
-        const voterNames = (data||[]).map(v=>{
-            const p = db.players.find(x=>x.id==v.voter_player_id);
-            return p ? p.name : null;
-        }).filter(Boolean);
+        // Fiecare vot: cine a votat -> pe cine a votat (sortat alfabetic după votant).
+        const voteRows = (data||[]).map(v=>{
+            const voter = db.players.find(x=>x.id==v.voter_player_id);
+            const voted = db.players.find(x=>x.id==v.voted_player_id);
+            return voter ? { voter: voter.name, voted: voted ? voted.name : '#'+v.voted_player_id } : null;
+        }).filter(Boolean).sort((a,b)=>a.voter.localeCompare(b.voter,'ro'));
         const participants = potmMatchParticipants(_potmAdminMatch);
-        votersEl.innerHTML = `Au votat (${voterNames.length}/${participants.length}): ${voterNames.length ? voterNames.join(', ') : '—'}`;
+        votersEl.innerHTML = `<div>Au votat (${voteRows.length}/${participants.length}):${voteRows.length ? '' : ' —'}</div>`
+            + voteRows.map(r=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--border);">
+                <span style="color:#aaa;">${r.voter}</span>
+                <span style="color:#e0e0e0;font-weight:700;">→ ${r.voted}</span>
+            </div>`).join('');
 
         renderPotmDeadlineStatus();
     }catch(e){
