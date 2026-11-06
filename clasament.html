@@ -465,7 +465,7 @@ body{font-family:var(--font-body);background:
 </style>
 </head>
 <body>
-  
+
 <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div><div class="loading-text">Se încarcă clasamentul...</div></div>
 
 <div class="wrap">
@@ -4218,7 +4218,30 @@ async function loadAll(){
             sb.from('algo_settings').select('key,value'),
             sb.from('players').select('*, ratings(*)').order('id'),
             sb.from('match_history').select('*').order('created_at', { ascending:false }),
-            sb.from('match_goals').select('*'),
+            // Descarcă TOATE golurile în pagini. Unele proiecte Supabase au
+            // max_rows configurat foarte jos (de ex. 3), caz în care un singur
+            // select('*') returnează doar primele înregistrări și cronologia
+            // meciului pare incompletă. Offset-ul avansează cu numărul REAL
+            // primit, nu cu dimensiunea cerută, deci funcționează și cu limite mici.
+            (async () => {
+                const allGoals = [];
+                const pageSize = 1000;
+                let from = 0;
+                while (true) {
+                    const { data, error } = await sb
+                        .from('match_goals')
+                        .select('*')
+                        .order('minute', { ascending: true })
+                        .order('id', { ascending: true })
+                        .range(from, from + pageSize - 1);
+                    if (error) throw error;
+                    const page = data || [];
+                    if (!page.length) break;
+                    allGoals.push(...page);
+                    from += page.length;
+                }
+                return { data: allGoals, error: null };
+            })(),
             sb.from('potm_votes').select('match_id,voted_player_id'),
             sb.from('player_awards').select('*').order('created_at',{ascending:false}),
             loadMilestoneConfig(), // mutează direct milestoneConfig — nu ne interesează rezultatul aici
@@ -4264,23 +4287,13 @@ async function loadAll(){
         // exact ce funcționează deja garantat (e folosit și în index.html).
         let goalsPerMatch = {};
         try{
-            if (histRes.status !== 'fulfilled') throw (histRes.reason || new Error('fetch failed'));
-            const histData = histRes.value?.data || [];
-            const matchIds = histData.map(h => h.id).filter(Boolean);
-
-            if (matchIds.length > 0) {
-                // Preluăm golurile în tranșe de 1000 dacă sunt multe, sau direct dacă sunt sub 1000 per interogare .in()
-                const { data: allGoals, error } = await sb
-                    .from('match_goals')
-                    .select('*')
-                    .in('match_id', matchIds);
-
-                if (error) throw error;
-                (allGoals || []).forEach(g => {
-                    if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
-                    goalsPerMatch[g.match_id].push(g);
-                });
-            }
+            if (goalsRes.status!=='fulfilled') throw (goalsRes.reason||new Error('fetch failed'));
+            const { data: allGoals, error } = goalsRes.value;
+            if (error) throw error;
+            (allGoals||[]).forEach(g=>{
+                if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]=[];
+                goalsPerMatch[g.match_id].push(g);
+            });
         }catch(e){ console.warn('match_goals load:', e.message); }
         // POTM (Player of The Match) — voturi + suprascriere manuală, pentru
         // insigna ⭐ POTM de pe fiecare card/detaliu de meci.
