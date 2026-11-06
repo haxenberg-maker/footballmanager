@@ -4264,13 +4264,23 @@ async function loadAll(){
         // exact ce funcționează deja garantat (e folosit și în index.html).
         let goalsPerMatch = {};
         try{
-            if (goalsRes.status!=='fulfilled') throw (goalsRes.reason||new Error('fetch failed'));
-            const { data: allGoals, error } = goalsRes.value;
-            if (error) throw error;
-            (allGoals||[]).forEach(g=>{
-                if(!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id]=[];
-                goalsPerMatch[g.match_id].push(g);
-            });
+            if (histRes.status !== 'fulfilled') throw (histRes.reason || new Error('fetch failed'));
+            const histData = histRes.value?.data || [];
+            const matchIds = histData.map(h => h.id).filter(Boolean);
+
+            if (matchIds.length > 0) {
+                // Preluăm golurile în tranșe de 1000 dacă sunt multe, sau direct dacă sunt sub 1000 per interogare .in()
+                const { data: allGoals, error } = await sb
+                    .from('match_goals')
+                    .select('*')
+                    .in('match_id', matchIds);
+
+                if (error) throw error;
+                (allGoals || []).forEach(g => {
+                    if (!goalsPerMatch[g.match_id]) goalsPerMatch[g.match_id] = [];
+                    goalsPerMatch[g.match_id].push(g);
+                });
+            }
         }catch(e){ console.warn('match_goals load:', e.message); }
         // POTM (Player of The Match) — voturi + suprascriere manuală, pentru
         // insigna ⭐ POTM de pe fiecare card/detaliu de meci.
