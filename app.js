@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260808k';
+const APP_VERSION = '20260903d';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -195,7 +195,22 @@ const DEFAULT_PLAYERS = ["Vlad Galatanu","Cristi Stan","Potirniche Ionut","Andre
 const today = new Date().toLocaleDateString('ro-RO');
 
 // ── App State ──
-let db = { players:[], history:[], nextMatch:{date:null,time:null,location:null,confirmedIds:[],absentIds:[]} };
+// ── 2 meciuri programate în paralel: slot 1 / slot 2, fiecare cu data + prezența lui.
+// db.nextMatch rămâne un alias către meciul ACTIV (db.matches[db.activeMatch]), deci tot
+// codul vechi (lobby, prezență, echipe, scenarii) lucrează automat pe meciul selectat.
+function blankMatch(){ return {date:null,time:null,location:null,confirmedIds:[],absentIds:[],teams:null}; }
+function rowToMatch(r){ return r ? {date:r.match_date,time:r.match_time,location:r.location,confirmedIds:r.confirmed_ids||[],absentIds:r.absent_ids||[],teams:r.teams||null} : blankMatch(); }
+function makeDb(base){
+    const d = Object.assign({players:[],history:[]}, base||{});
+    const m = d.matches || {};
+    d.matches = {1: m[1] || d.nextMatch || blankMatch(), 2: m[2] || blankMatch()};
+    d.activeMatch = d.activeMatch===2 ? 2 : 1;
+    delete d.nextMatch;
+    Object.defineProperty(d,'nextMatch',{enumerable:false,configurable:true,
+        get(){ return this.matches[this.activeMatch]; }, set(v){ this.matches[this.activeMatch]=v; }});
+    return d;
+}
+let db = makeDb();
 // ⭐ Rating trend (clasament.html → profil jucător) — ultimul rating salvat per
 // jucător, ca să nu inserăm un rând nou în player_rating_history dacă nu s-a
 // schimbat nimic (evită umplerea tabelului la fiecare recalculare/load).
@@ -574,10 +589,8 @@ async function loadAll() {
         }
 
         // Next match
-        const { data: nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
-        db.nextMatch = nm
-            ? { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] }
-            : { date:null, time:null, location:null, confirmedIds:[], absentIds:[] };
+        const { data: nms } = await sb.from('next_match').select('*').in('id',[1,2]);
+        applyMatchRows(nms);
 
         setConnected(true);
         _antiSynergyPairs = getAntiSynergyPairs();
@@ -599,7 +612,7 @@ async function loadAll() {
         showToast('❌ Eroare conectare DB: ' + (err.message||err), '');
         // Fallback la localStorage dacă există
         const local = localStorage.getItem('fb_club_v6');
-        if (local) { try { db = JSON.parse(local); render(); } catch(_){} }
+        if (local) { try { db = makeDb(JSON.parse(local)); render(); } catch(_){} }
     } finally {
         showLoading(false);
     }
@@ -673,17 +686,75 @@ async function dbDeleteRating(dbId) {
     if (error) throw error;
 }
 
-async function dbSaveNextMatch() {
-    const nm = db.nextMatch;
-    const { error } = await sb.from('next_match').upsert({
-        id:1,
-        match_date: nm.date || null,
-        match_time: nm.time || null,
-        location:   nm.location || null,
-        confirmed_ids: nm.confirmedIds || [],
-        absent_ids: nm.absentIds || []
+function applyMatchRows(rows){
+    rows = rows || [];
+    [1,2].forEach(i=>{ db.matches[i] = rowToMatch(rows.find(r=>r.id===i)); });
+    const act = rows.find(r=>r.is_active);
+    if(act) db.activeMatch = act.id===2 ? 2 : 1;
+}
+
+// Salvează unul sau mai multe sloturi (implicit meciul activ) într-un singur upsert.
+async function dbSaveNextMatch(slots) {
+    slots = slots ? [].concat(slots) : [db.activeMatch];
+    const rows = slots.map(s=>{
+        const nm = db.matches[s];
+        return { id:s, match_date:nm.date||null, match_time:nm.time||null, location:nm.location||null,
+                 confirmed_ids:nm.confirmedIds||[], absent_ids:nm.absentIds||[] };
     });
+    const full = rows.map(r=>({ ...r, is_active: r.id===db.activeMatch, teams: db.matches[r.id].teams||null }));
+    let { error } = await sb.from('next_match').upsert(full);
+    // Migrarea SQL (coloanele teams / is_active) nu e rulată încă → salvăm măcar prezența
+    if (error && /teams|is_active|column/i.test(error.message||'')) ({ error } = await sb.from('next_match').upsert(rows));
     if (error) throw error;
+}
+
+function snapshotBoard(){
+    const t = {};
+    ['orange','green','bench','white'].forEach(k=>{ t[k] = db.players.filter(p=>p.status===k).map(p=>p.id); });
+    return t;
+}
+
+// Schimbă meciul „pe masă": echipele se salvează pe meciul vechi, iar tabla
+// (status jucători) se reconstruiește din prezența + echipele meciului nou.
+async function switchMatchSlot(n){
+    if(n===db.activeMatch) return;
+    if(!isAdmin()){ showToast('⚠️ Doar adminul schimbă meciul organizat.'); return; }
+    if(window._isLive){ showToast('⚠️ Meci live în desfășurare — termină-l înainte să schimbi meciul.'); return; }
+    const old = db.activeMatch;
+    db.matches[old].teams = snapshotBoard();
+    db.activeMatch = n;
+    const nm = db.matches[n], t = nm.teams || {};
+    const changed = [];
+    db.players.forEach(p=>{
+        let s = 'active';
+        if(nm.confirmedIds.includes(p.id)){
+            s = 'bench';
+            ['orange','green','white'].forEach(k=>{ if((t[k]||[]).includes(p.id)) s = k; });
+        }
+        if(p.status!==s){ p.status = s; changed.push(p); }
+    });
+    render(); renderLobby(); updateScenarioBadge();
+    try{
+        await Promise.all(changed.map(p=>dbUpdatePlayer(p)));
+        await dbSaveNextMatch([old,n]);
+        showToast(`📅 Meciul ${n} e acum cel organizat`);
+    }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+function renderMatchTabs(){
+    const el = document.getElementById('matchTabs'); if(!el) return;
+    el.innerHTML = [1,2].map(i=>{
+        const m = db.matches[i], on = i===db.activeMatch;
+        let when = 'neprogramat';
+        if(m.date){
+            const d = new Date(m.date+'T'+(m.time||'00:00'));
+            when = d.toLocaleDateString('ro-RO',{weekday:'short',day:'numeric',month:'short'}) + (m.time?' · '+m.time:'');
+        }
+        return `<button onclick="switchMatchSlot(${i})" style="flex:1;min-width:0;padding:8px 10px;border-radius:10px;cursor:pointer;text-align:left;touch-action:manipulation;`
+            + (on ? 'background:#dde9ff;border:1px solid #2979ff;color:#1554b3;' : 'background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;') + `">`
+            + `<div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;">Meci ${i}${on?' · activ':''}</div>`
+            + `<div style="font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${when} · ✅ ${m.confirmedIds.length}</div></button>`;
+    }).join('');
 }
 
 async function dbInsertMatchHistory(entry) {
@@ -701,9 +772,15 @@ async function dbInsertMatchHistory(entry) {
 function setupRealtime() {
     sb.channel('next_match_realtime')
         .on('postgres_changes', { event:'*', schema:'public', table:'next_match' }, async () => {
-            const { data:nm } = await sb.from('next_match').select('*').eq('id',1).maybeSingle();
-            if (nm) {
-                db.nextMatch = { date:nm.match_date, time:nm.match_time, location:nm.location, confirmedIds:nm.confirmed_ids||[], absentIds:nm.absent_ids||[] };
+            const prev = db.activeMatch;
+            const { data:nms } = await sb.from('next_match').select('*').in('id',[1,2]);
+            if (nms && nms.length) {
+                applyMatchRows(nms);
+                if (prev !== db.activeMatch) { // alt dispozitiv a schimbat meciul → sincronizăm tabla
+                    const { data:pl } = await sb.from('players').select('id,status');
+                    (pl||[]).forEach(r=>{ const p=db.players.find(x=>x.id==r.id); if(p) p.status=r.status; });
+                    render();
+                }
                 renderLobby();
                 updateScenarioBadge();
             }
@@ -2115,6 +2192,7 @@ function clearLobbySearch(){
 }
 
 function renderLobby(){
+    renderMatchTabs();
     const nm=db.nextMatch;
     const dtEl=document.getElementById('lobbyDatetime');
     const bd = document.getElementById('matchBannerDate');
@@ -2258,6 +2336,7 @@ async function toggleLobbyPresence(playerId){
 
 function openScheduleModal(){
     const nm=db.nextMatch;
+    const stl=document.getElementById('scheduleTitle'); if(stl) stl.textContent='📅 Programează Meciul '+db.activeMatch;
     document.getElementById('scheduleDate').value=nm.date||'';
     document.getElementById('scheduleTime').value=nm.time||'';
     document.getElementById('scheduleLocation').value=nm.location||'';
@@ -2274,7 +2353,7 @@ async function saveSchedule(){
         showToast('📅 Meci programat!');
         // Send push notifications to all subscribers
         await sendPushToAll({
-            title:'⚽ Meci programat!',
+            title:`⚽ Meciul ${db.activeMatch} programat!`,
             body:`${db.nextMatch.date||''}${db.nextMatch.time?' · '+db.nextMatch.time:''}${db.nextMatch.location?' · '+db.nextMatch.location:''}`,
             url: window.location.origin
         });
@@ -2456,7 +2535,7 @@ async function nukeAll(){
             await sb.from('ratings').delete().neq('id','00000000-0000-0000-0000-000000000000');
             await sb.from('players').delete().neq('id',0);
             await sb.from('match_history').delete().neq('id','00000000-0000-0000-0000-000000000000');
-            await sb.from('next_match').upsert({id:1,match_date:null,match_time:null,location:null,confirmed_ids:[],absent_ids:[]});
+            await sb.from('next_match').upsert([1,2].map(i=>({id:i,match_date:null,match_time:null,location:null,confirmed_ids:[],absent_ids:[]})));
             localStorage.removeItem('fb_club_v6');
             location.reload();
         }catch(e){showToast('⚠️ '+e.message);}
@@ -3019,8 +3098,7 @@ async function deletePlayer(id){
     const p=db.players.find(x=>x.id==id);
     showConfirm('🗑️',`Șterge ${p.name}?`,'Toate datele jucătorului vor fi șterse.','Șterge','#c62828',async()=>{
         db.players=db.players.filter(x=>x.id!=id);
-        db.nextMatch.confirmedIds=db.nextMatch.confirmedIds.filter(i=>i!=id);
-        db.nextMatch.absentIds=(db.nextMatch.absentIds||[]).filter(i=>i!=id);
+        [1,2].forEach(s=>{ const m=db.matches[s]; m.confirmedIds=m.confirmedIds.filter(i=>i!=id); m.absentIds=(m.absentIds||[]).filter(i=>i!=id); });
         render();buildPlayerEditList();
         try{
             await sb.from('players').delete().eq('id',id);
@@ -6535,7 +6613,8 @@ async function launchLive(){
 
         closeStartMatch();
         showToast('✅ Meci pregătit! Deschidere Live...');
-        setTimeout(()=> window.open('live.html?match='+matchId, '_blank'), 400);
+        localStorage.setItem('live_nm_slot', String(db.activeMatch)); // live.html știe ce meci programat să reseteze la final
+        setTimeout(()=> window.open('live.html?match='+matchId+'&nm='+db.activeMatch, '_blank'), 400);
     }catch(e){
         showToast('⚠️ Eroare: '+e.message);
         if(btn){ btn.disabled=false; btn.textContent='▶ Start Meci — Deschide Live'; }
@@ -6925,47 +7004,44 @@ let voteState = {
 };
 
 async function checkPresenceModal() {
-    // Verifică dacă există meci viitor programat
-    const nm = db.nextMatch;
-    if (!nm.date) return false;
-
-    const matchDate = new Date(nm.date + 'T' + (nm.time || '00:00'));
-    const now = new Date();
-    if (matchDate <= now) return false; // meciul a trecut
-
     // Găsește jucătorul curent
     let myPlayer = null;
     if (currentProfile?.player_id) myPlayer = db.players.find(p=>p.id==currentProfile.player_id);
     if (!myPlayer && currentProfile?.display_name) myPlayer = db.players.find(p=>p.name.toLowerCase()===currentProfile.display_name.toLowerCase());
     if (!myPlayer) return false;
 
-    // A răspuns deja?
-    const alreadyConfirmed = nm.confirmedIds.includes(myPlayer.id);
-    const alreadyAbsent    = (nm.absentIds||[]).includes(myPlayer.id);
-    if (alreadyConfirmed || alreadyAbsent) return false;
+    const when = i => new Date(db.matches[i].date + 'T' + (db.matches[i].time || '00:00'));
+    const now = new Date();
+    // Meciurile viitoare programate (slot 1 / 2), cel mai apropiat primul
+    const slots = [1,2].filter(i => db.matches[i].date && when(i) > now).sort((x,y)=>when(x)-when(y));
+    for (const slot of slots) {
+        const nm = db.matches[slot];
+        // A răspuns deja la acest meci?
+        if (nm.confirmedIds.includes(myPlayer.id) || (nm.absentIds||[]).includes(myPlayer.id)) continue;
+        // A sărit deja în sesiunea asta?
+        if (sessionStorage.getItem(`presence_skip_${currentUser.id}_${slot}_${nm.date}`)) continue;
 
-    // Verifică sessionStorage — dacă a sarit deja în sesiunea asta
-    const skipKey = `presence_skip_${currentUser.id}_${nm.date}`;
-    if (sessionStorage.getItem(skipKey)) return false;
-
-    // Afișează modalul
-    let matchStr = matchDate.toLocaleDateString('ro-RO', {weekday:'long', day:'numeric', month:'long'});
-    if (nm.time) matchStr += ' · ' + nm.time;
-    if (nm.location) matchStr += ' · ' + nm.location;
-    document.getElementById('presenceMatchInfo').textContent = matchStr;
-    document.getElementById('presencePlayerName').textContent = `ca ${myPlayer.name}`;
-    document.getElementById('presenceOverlay').style.display = 'flex';
-
-    // Salvează referința la jucător pentru respondPresence
-    window._presencePlayer = myPlayer;
-    return true;
+        let matchStr = when(slot).toLocaleDateString('ro-RO', {weekday:'long', day:'numeric', month:'long'});
+        if (nm.time) matchStr += ' · ' + nm.time;
+        if (nm.location) matchStr += ' · ' + nm.location;
+        if (db.matches[1].date && db.matches[2].date) matchStr = `Meciul ${slot} · ` + matchStr;
+        document.getElementById('presenceMatchInfo').textContent = matchStr;
+        document.getElementById('presencePlayerName').textContent = `ca ${myPlayer.name}`;
+        document.getElementById('presenceOverlay').style.display = 'flex';
+        window._presencePlayer = myPlayer;
+        window._presenceSlot = slot;
+        return true;
+    }
+    return false;
 }
 
 async function respondPresence(present) {
     const myPlayer = window._presencePlayer;
     if (!myPlayer) return;
 
-    const nm = db.nextMatch;
+    const slot = window._presenceSlot || db.activeMatch;
+    const nm = db.matches[slot];
+    const onBoard = slot === db.activeMatch; // statusul jucătorului urmează doar meciul organizat acum
     if (!nm.absentIds) nm.absentIds = [];
 
     if (present) {
@@ -6975,8 +7051,7 @@ async function respondPresence(present) {
         const absIdx = nm.absentIds.indexOf(myPlayer.id);
         if (absIdx !== -1) nm.absentIds.splice(absIdx, 1);
         // Mută jucătorul în Pe Bancă (așteptând formarea echipelor)
-        myPlayer.status = 'bench';
-        await dbUpdatePlayer(myPlayer).catch(()=>{});
+        if (onBoard) { myPlayer.status = 'bench'; await dbUpdatePlayer(myPlayer).catch(()=>{}); }
         showToast(`✅ Prezență confirmată! Te așteptăm, ${myPlayer.name}!`, 'g');
     } else {
         // Adaugă la absenți
@@ -6985,7 +7060,7 @@ async function respondPresence(present) {
         const confIdx = nm.confirmedIds.indexOf(myPlayer.id);
         if (confIdx !== -1) nm.confirmedIds.splice(confIdx, 1);
         // Dacă era pe bancă, mută înapoi în activi (point 5)
-        if (myPlayer.status === 'bench') {
+        if (onBoard && myPlayer.status === 'bench') {
             myPlayer.status = 'active';
             await dbUpdatePlayer(myPlayer).catch(()=>{});
         }
@@ -6995,10 +7070,11 @@ async function respondPresence(present) {
     document.getElementById('presenceOverlay').style.display = 'none';
 
     try {
-        await dbSaveNextMatch();
+        await dbSaveNextMatch(slot);
     } catch(e) { showToast('⚠️ ' + e.message); }
 
     render();
+    setTimeout(()=>checkPresenceModal(), 400); // dacă mai e un meci la care nu a răspuns, îl întreabă și pe acela
 }
 
 function parseMatchDate(dateStr) {

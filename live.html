@@ -706,6 +706,8 @@ async function tryAutoAuth() {
 }
 
 // ── Local state (derived from DB, never source of truth) ──────────
+// Care meci programat (slot 1/2 din next_match) a fost lansat — vine din Start Meci (index)
+const NM_SLOT = parseInt(new URLSearchParams(location.search).get('nm') || localStorage.getItem('live_nm_slot') || '1', 10) === 2 ? 2 : 1;
 let players    = [];
 let goals      = [];
 let rounds     = [];   // live_rounds rows
@@ -2742,7 +2744,7 @@ async function finalizeMatch2Team(finalRounds) {
             }catch(e){}
         }
         await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-        try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',1);}catch(e){}
+        try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',NM_SLOT);}catch(e){}
         await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
         goals=[];render();applyTimerUI(liveState);
         const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0))[0];

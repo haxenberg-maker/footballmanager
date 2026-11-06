@@ -1420,6 +1420,7 @@
 
 <!-- LOBBY (prezență) -->
 <div class="lobby-section" id="sec-lobby">
+    <div id="matchTabs" style="display:flex;gap:8px;padding:10px 14px;background:#fffaf0;"></div>
     <div class="lobby-header">
         <span class="lobby-title">📅 Meci Următor</span>
         <span class="lobby-datetime no-date" id="lobbyDatetime">Niciun meci programat</span>
@@ -1592,7 +1593,7 @@
 <!-- SCHEDULE MODAL -->
 <div class="modal-overlay" id="scheduleOverlay" onclick="if(event.target===this)closeScheduleModal()">
 <div class="schedule-modal">
-    <div class="schedule-title">📅 Programează Meci</div>
+    <div class="schedule-title" id="scheduleTitle">📅 Programează Meci</div>
     <div class="schedule-field"><label>Data meciului</label><input type="date" class="schedule-input" id="scheduleDate"></div>
     <div class="schedule-field"><label>Ora</label><input type="time" class="schedule-input" id="scheduleTime"></div>
     <div class="schedule-field"><label>Locație (opțional)</label><input type="text" class="schedule-input" id="scheduleLocation" placeholder="ex: Terenul din Bârlad"></div>
@@ -1909,7 +1910,7 @@
 </div>
 
 <script src="smart-rating.js?v=20260903c"></script>
-<script src="app.js?v=20260903c"></script>
+<script src="app.js?v=20260903d"></script>
 
 <!-- Script NOU, separat — doar pt. meniurile popover din bara de
      controale (👁️ Afișare / ⚙️ Admin). Nu atinge și nu depinde de nimic
