@@ -7,7 +7,7 @@ const ADMIN_EMAIL       = 'evoluttionofall@gmail.com';
 // din index.html. La fiecare modificare, actualizează AMBELE (aici + index.html) cu
 // aceeași valoare, ca să poți confirma din consolă (F12) exact ce build a încărcat
 // telefonul, fără să ghicești dacă a prins din cache versiunea veche.
-const APP_VERSION = '20260903d';
+const APP_VERSION = '20260903e';
 console.log(`%c⚽ app.js ${APP_VERSION} încărcat`, 'background:#1b7a43;color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;');
 
 // ── Supabase Client ──
@@ -719,7 +719,6 @@ function snapshotBoard(){
 async function switchMatchSlot(n){
     if(n===db.activeMatch) return;
     if(!isAdmin()){ showToast('⚠️ Doar adminul schimbă meciul organizat.'); return; }
-    if(window._isLive){ showToast('⚠️ Meci live în desfășurare — termină-l înainte să schimbi meciul.'); return; }
     const old = db.activeMatch;
     db.matches[old].teams = snapshotBoard();
     db.activeMatch = n;
@@ -738,13 +737,15 @@ async function switchMatchSlot(n){
         await Promise.all(changed.map(p=>dbUpdatePlayer(p)));
         await dbSaveNextMatch([old,n]);
         showToast(`📅 Meciul ${n} e acum cel organizat`);
+        checkLiveStatus();
     }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 function renderMatchTabs(){
     const el = document.getElementById('matchTabs'); if(!el) return;
+    const both = db.matches[1].confirmedIds.filter(id=>db.matches[2].confirmedIds.includes(id)).length;
     el.innerHTML = [1,2].map(i=>{
-        const m = db.matches[i], on = i===db.activeMatch;
+        const m = db.matches[i], on = i===db.activeMatch, live = (window._liveSlots||{})[i];
         let when = 'neprogramat';
         if(m.date){
             const d = new Date(m.date+'T'+(m.time||'00:00'));
@@ -752,9 +753,9 @@ function renderMatchTabs(){
         }
         return `<button onclick="switchMatchSlot(${i})" style="flex:1;min-width:0;padding:8px 10px;border-radius:10px;cursor:pointer;text-align:left;touch-action:manipulation;`
             + (on ? 'background:#dde9ff;border:1px solid #2979ff;color:#1554b3;' : 'background:#fdf3df;border:1px solid #dcc89a;color:#7d6849;') + `">`
-            + `<div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;">Meci ${i}${on?' · activ':''}</div>`
+            + `<div style="font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:2px;">Meci ${i}${on?' · activ':''}${live?' · 🔴 LIVE':''}</div>`
             + `<div style="font-size:.68rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${when} · ✅ ${m.confirmedIds.length}</div></button>`;
-    }).join('');
+    }).join('') + (both ? `<div style="flex:1 1 100%;font-size:.72rem;color:#b71c1c;">⚠️ ${both} jucători sunt confirmați la AMBELE meciuri — un jucător nu poate fi în două meciuri live simultan.</div>` : '');
 }
 
 async function dbInsertMatchHistory(entry) {
@@ -789,7 +790,7 @@ function setupRealtime() {
     setupScenariosRealtime();
     // Subscribe to live state for live banner
     sb.channel('live_state_idx')
-        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'},()=>checkLiveStatus())
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state'},()=>checkLiveStatus())
         .subscribe();
 }
 
@@ -6342,18 +6343,28 @@ function computeTeamStreak(team) {
 
 // ── is_live flag ─────────────────────────────────────────────────
 window._isLive = false;
+window._liveSlots = {1:false, 2:false};
 async function checkLiveStatus(){
     try{
-        const{data}=await sb.from('live_state').select('timer_status,match_started_at').eq('id',1).single();
-        const live = data?.timer_status==='running'||data?.timer_status==='paused';
+        const{data}=await sb.from('live_state').select('id,timer_status').in('id',[1,2]);
+        const sl={1:false,2:false};
+        (data||[]).forEach(r=>{ sl[r.id]=r.timer_status==='running'||r.timer_status==='paused'; });
+        window._liveSlots=sl;
+        // tabla (echipele) se blochează doar când meciul afișat pe ea e live — celălalt se poate organiza liber
+        const live = !!sl[db.activeMatch];
         window._isLive = live;
+        const liveList=[1,2].filter(i=>sl[i]);
         const banner=document.getElementById('liveBanner');
-        if(banner) banner.style.display=live?'flex':'none';
-        // Disable drag on player cards
+        if(banner){
+            banner.style.display=liveList.length?'flex':'none';
+            banner.innerHTML=`<span style="font-size:.8rem;color:#3a2f1f;font-weight:700;">🔴 MECI LIVE${live?` — Echipele din Meciul ${db.activeMatch} sunt blocate`:''}</span>`
+                + liveList.map(i=>`<a href="live.html?nm=${i}" onclick="localStorage.setItem('live_nm_slot','${i}')" target="_blank" style="font-size:.72rem;color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.4);padding:2px 8px;border-radius:5px;text-decoration:none;">Meci ${i} Live →</a>`).join('');
+        }
         document.querySelectorAll('.player-card').forEach(card=>{
             card.draggable = isAdmin() && !live;
             card.style.cursor = live?'pointer':'';
         });
+        renderMatchTabs();
     }catch(e){}
 }
 
@@ -6540,6 +6551,28 @@ async function launchLive(){
     const btn = document.getElementById('launchLiveBtn');
     if(btn){ btn.disabled=true; btn.textContent='⏳ Se pregătește...'; }
 
+    // ── Meciul programat pornit acum = slotul activ (1 sau 2). Fiecare slot are live separat. ──
+    const slot = db.activeMatch, other = slot===1 ? 2 : 1;
+    const resetBtn = ()=>{ if(btn){ btn.disabled=false; btn.textContent='▶ Start Meci — Deschide Live'; } };
+    try{
+        const { data:ls } = await sb.from('live_state').select('id,timer_status,roster').in('id',[1,2]);
+        const mine=(ls||[]).find(r=>r.id===slot), oth=(ls||[]).find(r=>r.id===other);
+        const isOn = r => r && (r.timer_status==='running' || r.timer_status==='paused');
+        // 1) Un jucător nu poate fi în 2 meciuri live în același timp
+        if(isOn(oth) && oth.roster){
+            const busy = new Set([...(oth.roster.orange||[]),...(oth.roster.green||[]),...(oth.roster.bench||[])]);
+            const clash = db.players.filter(p=>['orange','green','bench'].includes(p.status) && busy.has(p.id)).map(p=>p.name);
+            if(clash.length){ resetBtn(); showToast(`⛔ Deja în Meciul ${other} live: ${clash.join(', ')} — scoate-i dintr-un meci.`); return; }
+        }
+        // 2) Acest meci e deja pornit → nu-i ștergem scorul fără confirmare
+        if(isOn(mine) && !window._confirmRelaunch){
+            resetBtn();
+            showConfirm('⚠️',`Meciul ${slot} e deja live`,'Dacă îl pornești din nou, scorul, golurile și turele LUI se șterg (celălalt meci rămâne neatins). Continui?','Da, repornește','#c62828',()=>{ window._confirmRelaunch=true; launchLive(); });
+            return;
+        }
+    }catch(e){}
+    window._confirmRelaunch=false;
+
     const bP = db.players.filter(p=>p.status==='bench');
     const has3 = bP.length > 0; // auto-detect from bench players
     const benchKey = has3 ? (startBenchChoice || 'bench') : null;
@@ -6600,12 +6633,17 @@ async function launchLive(){
             match_started_at: null,
         };
 
-        // Reset live goals and rounds for fresh start
+        // Roster = cine joacă în ACEST meci (independent de celălalt meci live)
+        patch.roster = { orange:[], green:[], bench:[] };
+        db.players.forEach(p=>{ if(patch.roster[p.status]) patch.roster[p.status].push(p.id); });
+
+        // Reset live goals and rounds doar pentru slotul acesta (celălalt meci rămâne neatins)
         await Promise.all([
-            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            sb.from('live_goals').delete().eq('slot', slot),
+            sb.from('live_rounds').delete().eq('slot', slot),
         ]);
-        await sb.from('live_state').update(patch).eq('id',1);
+        const { error: lsErr } = await sb.from('live_state').upsert({ id: slot, ...patch });
+        if (lsErr) throw lsErr;
 
         // Generate pseudo match ID from timestamp
         const matchTs = new Date().toISOString();

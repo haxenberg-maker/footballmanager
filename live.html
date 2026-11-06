@@ -493,6 +493,7 @@ body.has-bottom-bar{padding-bottom:80px;}
   <div class="hd-right">
     <div class="live-pill"><span class="live-dot"></span><span class="live-lbl">Live</span></div>
     <div class="conn-pill ok" id="connPill" title="Stare conexiune"><span class="conn-dot"></span><span id="connLbl">Online</span></div>
+    <span id="slotBadge" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:.8rem;background:#dde9ff;border:1px solid #2979ff;color:#1554b3;padding:3px 9px;border-radius:6px;"></span>
     <span class="admin-badge" id="adminBadge" onclick="isLiveAdmin ? logoutAdmin() : openCodeAuth()" style="display:none;">Admin</span>
     <button class="hd-key-btn" id="loginKeyBtn" onclick="openCodeAuth()" title="Login admin">🔑</button>
     <button class="universal-undo-btn" id="universalUndoBtn" onclick="universalUndo()">
@@ -708,6 +709,9 @@ async function tryAutoAuth() {
 // ── Local state (derived from DB, never source of truth) ──────────
 // Care meci programat (slot 1/2 din next_match) a fost lansat — vine din Start Meci (index)
 const NM_SLOT = parseInt(new URLSearchParams(location.search).get('nm') || localStorage.getItem('live_nm_slot') || '1', 10) === 2 ? 2 : 1;
+const SLOT = NM_SLOT; // fiecare meci live = un slot separat (live_state.id, live_goals.slot, live_rounds.slot)
+document.title = 'Live · Meci ' + SLOT + ' · Arena Friends FC';
+{ const _sb = document.getElementById('slotBadge'); if (_sb) _sb.textContent = 'MECI ' + SLOT; }
 let players    = [];
 let goals      = [];
 let rounds     = [];   // live_rounds rows
@@ -943,8 +947,34 @@ function applyTeamColors() {
 async function patchState(patch) {
     // Apply locally immediately — no waiting for Realtime roundtrip
     liveState = { ...liveState, ...patch };
-    const { error } = await sb.from('live_state').update(patch).eq('id', 1);
+    const { error } = await sb.from('live_state').update(patch).eq('id', SLOT);
     if (error) console.error('patchState:', error.message);
+}
+
+// ── Roster per meci ───────────────────────────────────────────────
+// Cine joacă în ACEST meci (orange/green/bench) trăiește în live_state.roster, nu în
+// players.status (care e global și ar amesteca cele 2 meciuri). `players` local primește
+// status-ul din roster, deci tot restul codului merge neschimbat.
+function buildRoster() {
+    const r = { orange: [], green: [], bench: [] };
+    players.forEach(p => { if (!p._temp && r[p.status]) r[p.status].push(p.id); });
+    return r;
+}
+function applyRoster() {
+    const r = liveState && liveState.roster;
+    if (!r) { if (SLOT === 2) players.forEach(p => { if (!p._temp) p.status = 'active'; }); return; }
+    players.forEach(p => {
+        if (p._temp) return;
+        p.status = ['orange','green','bench'].find(k => (r[k] || []).includes(p.id)) || 'active';
+    });
+}
+async function persistStatuses(ops) {
+    ops.forEach(({ id, status }) => { const p = players.find(x => x.id == id); if (p) p.status = status; });
+    await patchState({ roster: buildRoster() });
+    // tabla din dashboard (players.status) urmează meciul live doar dacă e meciul afișat pe ea
+    const { data } = await sb.from('next_match').select('id,is_active');
+    const act = (data || []).find(r => r.is_active);
+    if ((act ? act.id : 1) === SLOT) await Promise.all(ops.map(({ id, status }) => sb.from('players').update({ status }).eq('id', id)));
 }
 
 // ── Timer ─────────────────────────────────────────────────────────
@@ -1229,7 +1259,7 @@ async function changeThreshold(d) {
     liveState.goal_threshold = v;
     const el = document.getElementById('thrVal'); if(el) el.textContent = v;
     render(); // refresh round-badge
-    await sb.from('live_state').update({ goal_threshold: v }).eq('id',1);
+    await sb.from('live_state').update({ goal_threshold: v }).eq('id',SLOT);
 }
 async function changeTimeLimitMin(d) {
     if (!liveState) return;
@@ -1237,7 +1267,7 @@ async function changeTimeLimitMin(d) {
     // Update UI immediately
     liveState.time_limit_min = v;
     const el = document.getElementById('timeLimitVal'); if(el) el.textContent = v;
-    await sb.from('live_state').update({ time_limit_min: v }).eq('id',1);
+    await sb.from('live_state').update({ time_limit_min: v }).eq('id',SLOT);
     if (liveState.three_team_mode && liveState.timer_status === 'running') {
         scheduleRoundTimeout(liveState);
     }
@@ -1293,6 +1323,7 @@ async function saveRoundToDB(loserColor, reason, penaltyWinnerId = null, penalty
         num,
         team_a_id:      oTid,
         team_b_id:      gTid,
+        slot:           SLOT,
         score_a:        oG,
         score_b:        gG,
         orange_players: players.filter(p => p.status === 'orange').map(p => p.name),
@@ -1348,7 +1379,7 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
 
         // *** Clear live_goals so score resets to 0-0 for new round ***
         goals = [];
-        await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await sb.from('live_goals').delete().eq('slot', SLOT);
 
         // 2. *** OPTIMISTIC LOCAL UPDATE *** — apply swap to local players immediately
         const loserIds = new Set(losers.map(p => p.id));
@@ -1364,9 +1395,7 @@ async function doRotation(loserColor, reason, penaltyWinnerId = null, penaltySho
             ...losers.map(p => ({ id: p.id, status: 'bench' })),
             ...bench.map(p  => ({ id: p.id, status: loserColor })),
         ];
-        await Promise.all(swapOps.map(({ id, status }) =>
-            sb.from('players').update({ status }).eq('id', id)
-        ));
+        await persistStatuses(swapOps);
 
         // 4. Update colorMap + round_start_sec — identitatea (PORTOCALIU/VERDE/NEGRU) urmează jucătorii
         const oldColorMap  = { ...getColorMap() };
@@ -1428,20 +1457,18 @@ async function undoRotation(snap) {
             const orig = snap.players.find(x => x.id === p.id);
             return orig ? { ...p, status: orig.status } : p;
         });
-        await Promise.all(snap.players.map(({ id, status }) =>
-            sb.from('players').update({ status }).eq('id', id)
-        ));
+        await persistStatuses(snap.players);
 
         // 3. Restaurează scorul turei anterioare (live_goals)
-        await sb.from('live_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await sb.from('live_goals').delete().eq('slot', SLOT);
         if (snap.goals.length) {
             const rows = snap.goals.map(g => ({
                 id: String(g.id).startsWith('tmp_') ? undefined : g.id,
-                player_name: g.player_name, team: g.team, minute: g.minute, created_at: g.created_at,
+                slot: SLOT, player_name: g.player_name, team: g.team, minute: g.minute, created_at: g.created_at,
             }));
             await sb.from('live_goals').insert(rows);
         }
-        const { data: freshGoals } = await sb.from('live_goals').select('*').order('created_at', { ascending: true });
+        const { data: freshGoals } = await sb.from('live_goals').select('*').eq('slot', SLOT).order('created_at', { ascending: true });
         goals = freshGoals || [];
 
         // 4. Restaurează identitatea echipelor + cronometrul turei
@@ -1461,15 +1488,16 @@ async function undoRotation(snap) {
 // ── Load all data ─────────────────────────────────────────────────
 async function loadAll() {
     const [{ data: st }, { data: pl }, { data: gl }] = await Promise.all([
-        sb.from('live_state').select('*').eq('id', 1).single(),
+        sb.from('live_state').select('*').eq('id', SLOT).single(),
         sb.from('players').select('id,name,status').order('name'),
-        sb.from('live_goals').select('*').order('created_at', { ascending: true }),
+        sb.from('live_goals').select('*').eq('slot', SLOT).order('created_at', { ascending: true }),
     ]);
     liveState = st;
     players   = pl || [];
     goals     = gl || [];
+    applyRoster();
     // Fetch rounds (all current - cleared on each new match start)
-    const { data: rd } = await sb.from('live_rounds').select('*').order('num', { ascending: true });
+    const { data: rd } = await sb.from('live_rounds').select('*').eq('slot', SLOT).order('num', { ascending: true });
     rounds = rd || [];
     render();
     applyTimerUI(liveState);
@@ -1989,14 +2017,14 @@ async function addGoal(name, team, assistName) {
     render(); bump(team); showGoalBanner(name, team, assistName);
 
     try {
-        let insertPayload = { player_name: name, team, minute, assist_name: assistName || null };
+        let insertPayload = { slot: SLOT, player_name: name, team, minute, assist_name: assistName || null };
         let { data, error } = await sb.from('live_goals').insert(insertPayload).select().single();
         if (error && /assist_name/i.test(error.message || '')) {
             // Coloana assist_name nu există încă în Supabase (ALTER TABLE neaplicat) —
             // salvăm golul oricum, doar fără assist, ca să nu se piardă golul întreg.
             console.warn('assist_name lipsă în DB, reîncerc fără el:', error.message);
             showToast('⚠️ Coloana assist_name lipsește în Supabase — golul s-a salvat fără assist');
-            const retry = await sb.from('live_goals').insert({ player_name: name, team, minute }).select().single();
+            const retry = await sb.from('live_goals').insert({ slot: SLOT, player_name: name, team, minute }).select().single();
             data = retry.data; error = retry.error;
         }
         if (error) throw error;
@@ -2664,8 +2692,8 @@ async function finalizeMatch3Team(pairs) {
             }
             savedCount++;
         }
-        await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-        await sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        await sb.from('live_goals').delete().eq('slot', SLOT);
+        await sb.from('live_rounds').delete().eq('slot', SLOT);
         await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,
             three_team_mode:false,color_map:{},round_start_sec:0,match_started_at:null});
         rounds=[]; goals=[]; editPairs=[]; editRounds=[];
@@ -2743,8 +2771,16 @@ async function finalizeMatch2Team(finalRounds) {
                 }).eq('id',p.id);
             }catch(e){}
         }
-        await sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000');
-        try{const active=players.filter(p=>p.status==='orange'||p.status==='green');if(active.length)await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',NM_SLOT);}catch(e){}
+        await sb.from('live_goals').delete().eq('slot', SLOT);
+        try{
+            const active=players.filter(p=>p.status==='orange'||p.status==='green');
+            const { data:nmRows } = await sb.from('next_match').select('id,is_active');
+            const actRow=(nmRows||[]).find(r=>r.is_active);
+            if(active.length && (actRow?actRow.id:1)===SLOT) await Promise.all(active.map(p=>sb.from('players').update({status:'bench'}).eq('id',p.id)));
+            active.forEach(p=>{ p.status='bench'; });
+            const rs=await sb.from('next_match').update({confirmed_ids:[],absent_ids:[],teams:null}).eq('id',SLOT);
+            if(rs.error) await sb.from('next_match').update({confirmed_ids:[],absent_ids:[]}).eq('id',SLOT);
+        }catch(e){}
         await patchState({timer_status:'idle',timer_elapsed_ms:0,timer_started_at:null,match_started_at:null,round_start_sec:0});
         goals=[];render();applyTimerUI(liveState);
         const top=Object.entries(goalMap).sort((a,b)=>b[1].count-a[1].count||(assistMap2[b[0]]||0)-(assistMap2[a[0]]||0))[0];
@@ -2927,7 +2963,7 @@ async function confirmTransfer() {
     players = players.map(x=>x.id===_transferPlayer ? {...x,status:_transferTarget} : x);
     render();
     closeTransfer();
-    try { await sb.from('players').update({status:_transferTarget}).eq('id',_transferPlayer); }
+    try { await persistStatuses([{ id: _transferPlayer, status: _transferTarget }]); }
     catch(e) { showToast('⚠️ '+e.message); }
     showToast(`✓ ${p.name} → ${getTeamName(_transferTarget)}`);
 }
@@ -2997,8 +3033,8 @@ async function doReset() {
     stopLocalTimerTick(); cancelRoundTimeout();
     try {
         await Promise.all([
-            sb.from('live_goals').delete().neq('id','00000000-0000-0000-0000-000000000000'),
-            sb.from('live_rounds').delete().neq('id','00000000-0000-0000-0000-000000000000'),
+            sb.from('live_goals').delete().eq('slot', SLOT),
+            sb.from('live_rounds').delete().eq('slot', SLOT),
             // IMPORTANT: NU atingem three_team_mode / color_map aici — ele descriu identitatea
             // reală a echipelor (cine e Portocaliu/Verde/Negru și pe ce poziție). Ștergerea lor
             // la reset cauza exact bug-ul "NEGRU devine VERDE": fără color_map, aplicația
@@ -3016,9 +3052,10 @@ async function doReset() {
 function subscribe() {
     // live_state changes
     sb.channel('live_state_rt')
-        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.1'}, payload => {
+        .on('postgres_changes',{event:'UPDATE',schema:'public',table:'live_state',filter:'id=eq.'+SLOT}, payload => {
             const prev = liveState ? { ...liveState } : null;
             liveState = payload.new;
+            applyRoster();
             render();
             // Only restart timer UI if status changed
             if (!prev || prev.timer_status !== liveState.timer_status
@@ -3034,6 +3071,7 @@ function subscribe() {
     // live_goals changes
     sb.channel('live_goals_rt')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_goals'}, p => {
+            if ((p.new.slot||1) !== SLOT) return; // gol din celălalt meci
             if (!goals.some(g => g.id === p.new.id)) {
                 const ti = goals.findIndex(g => String(g.id).startsWith('tmp_') && g.player_name===p.new.player_name);
                 if (ti !== -1) {
@@ -3048,7 +3086,7 @@ function subscribe() {
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_goals'}, () => {
             // Re-fetch only — local array is already updated optimistically in doRotation/undoLast
             // This handler mainly helps spectators / other devices
-            sb.from('live_goals').select('*').order('created_at',{ascending:true})
+            sb.from('live_goals').select('*').eq('slot', SLOT).order('created_at',{ascending:true})
                 .then(({data})=>{ goals=data||[]; render(); });
         })
         .subscribe();
@@ -3056,6 +3094,7 @@ function subscribe() {
     // live_rounds changes
     sb.channel('live_rounds_rt')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'live_rounds'}, p => {
+            if ((p.new.slot||1) !== SLOT) return; // tură din celălalt meci
             // Replace any tmp_ placeholder with real DB row
             const tmpIdx = rounds.findIndex(r => String(r.id).startsWith('tmp_') && r.num === p.new.num);
             if (tmpIdx !== -1) rounds[tmpIdx] = p.new;
@@ -3063,7 +3102,7 @@ function subscribe() {
             renderTureHistory();
         })
         .on('postgres_changes',{event:'DELETE',schema:'public',table:'live_rounds'}, () => {
-            sb.from('live_rounds').select('*').order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
+            sb.from('live_rounds').select('*').eq('slot', SLOT).order('num',{ascending:true}).then(({data})=>{ rounds=data||[]; renderTureHistory(); });
         })
         .subscribe();
 
@@ -3074,13 +3113,13 @@ function subscribe() {
             // If we have a single row update and it matches a known player, apply it optimistically
             if (payload.eventType === 'UPDATE' && payload.new) {
                 const idx = players.findIndex(p => p.id === payload.new.id);
-                if (idx !== -1) players[idx] = { ...players[idx], ...payload.new };
+                if (idx !== -1) { players[idx] = { ...players[idx], ...payload.new }; applyRoster(); }
             }
             // Debounce full refetch — wait for all parallel updates to settle
             if (_playersRefetchTimer) clearTimeout(_playersRefetchTimer);
             _playersRefetchTimer = setTimeout(() => {
                 sb.from('players').select('id,name,status').order('name')
-                    .then(({ data }) => { players = data || []; render(); });
+                    .then(({ data }) => { players = data || []; applyRoster(); render(); });
                 _playersRefetchTimer = null;
             }, 400);
         })
