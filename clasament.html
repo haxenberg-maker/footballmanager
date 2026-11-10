@@ -3442,12 +3442,58 @@ function getPlayerMatchAwards(name){
     });
     return { potmIds, mvpIds };
 }
-
+// ── Profil: statistici pe Total / Sezon curent / sezon arhivat ──────────
+const PP_SCOPE_ALL = '__all__', PP_SCOPE_CURRENT = '__current__';
+let ppScope = PP_SCOPE_CURRENT;
+function ppScopeHistory(){
+    if (ppScope === PP_SCOPE_ALL) return db.history;
+    if (ppScope === PP_SCOPE_CURRENT) return db.history.filter(h => !h.season);
+    return db.history.filter(h => h.season === ppScope);
+}
+function ppScopeLabel(){
+    return ppScope===PP_SCOPE_ALL ? 'toate sezoanele' : ppScope===PP_SCOPE_CURRENT ? 'sezonul curent' : 'sezonul „'+ppScope+'”';
+}
+function setPpScope(s){ ppScope = s; ppMatchesExpanded = false; renderPlayerProfile(highlightPlayer); }
+// Toate cifrele vin din db.history (toate sezoanele sunt încărcate), deci Total = suma sezoanelor.
+function computePlayerScopeStats(p, hist){
+    const name = p.name;
+    const st = { games:0, wins:0, draws:0, losses:0, goals:0, assists:0, potm:0, mvp:0, streak:0,
+                 bestGoals:{value:0,match:null}, bestAssists:{value:0,match:null} };
+    let cur = 0;
+    [...hist].reverse().forEach(h=>{ // cronologic (db.history e sortat descrescător)
+        let g=0, a=0;
+        (h.goalsList||[]).forEach(x=>{
+            if (x.is_penalty) return;
+            if (x.player_name===name) g += (x.goals||1);
+            if (x.assist_name===name) a++;
+        });
+        st.goals += g; st.assists += a;
+        if (g > st.bestGoals.value) st.bestGoals = {value:g, match:h};
+        if (a > st.bestAssists.value) st.bestAssists = {value:a, match:h};
+        const won = playerWonMatch(h, name);
+        if (won === null) return;
+        st.games++;
+        if (won) { st.wins++; cur++; if (cur > st.streak) st.streak = cur; }
+        else {
+            cur = 0;
+            const w = (h.winner||'').toLowerCase().trim();
+            if (!w || w==='egal') st.draws++; else st.losses++;
+        }
+    });
+    groupHistoryForDisplay(hist).forEach(item=>{
+        const { winnerId } = computePotmWinnerForRows(item.rows);
+        if (winnerId != null && winnerId === p.id) st.potm++;
+        const m = computeSessionMvpWinner([...item.rows].reverse());
+        if (m && m.name === name) st.mvp++;
+    });
+    return st;
+}
 function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
     const p = db.players.find(x=>x.name===name);
 
-    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; }
+    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; ppScope = PP_SCOPE_CURRENT; }
+    if (ppScope !== PP_SCOPE_ALL && ppScope !== PP_SCOPE_CURRENT && !seasonsList.includes(ppScope)) ppScope = PP_SCOPE_CURRENT;
 
     if (!p) {
         wrap.innerHTML = `
@@ -3470,16 +3516,21 @@ function renderPlayerProfile(name){
         trendHtml = `<div class="pp-trend" style="color:${color};">${arrow} ${delta>0?'+':''}${delta} față de meciul anterior</div>`;
     }
 
-    const wr = p.games>0 ? Math.round((p.wins/p.games)*100) : 0;
-    const assists = getCurrentAssists(p.name);
-    const bestGoalsMatch = getBestSingleMatchGoalsWithMatch(p.name);
-    const bestAssistsMatch = getBestSingleMatchAssists(p.name);
-    const streak = getLongestWinStreak(p);
-    const teammate = computeBestTeammate(p.name);
-    const nemesis = computeNemesis(p.name);
+    const scopeHist = ppScopeHistory();
+    const sc = computePlayerScopeStats(p, scopeHist);
+    const wr = sc.games>0 ? Math.round((sc.wins/sc.games)*100) : 0;
+    const assists = sc.assists;
+    const bestGoalsMatch = sc.bestGoals;
+    const bestAssistsMatch = sc.bestAssists;
+    const streak = sc.streak;
+    const teammate = computeBestTeammate(p.name, scopeHist);
+    const nemesis = computeNemesis(p.name, scopeHist);
+    // Achievements: logica neschimbată (nu depind de selectorul de sezon).
+    const achBestGoals = getBestSingleMatchGoalsWithMatch(p.name);
+    const achTeammate = computeBestTeammate(p.name);
     const achievements = computeAchievements(p, {
-        wins:p.wins||0, games:p.games||0, assists, bestMatchGoals: bestGoalsMatch.value,
-        bestMatchAssists: bestAssistsMatch.value, rating, teammateWins: teammate ? teammate.wins : 0, streak
+        wins:p.wins||0, games:p.games||0, assists:getCurrentAssists(p.name), bestMatchGoals: achBestGoals.value,
+        bestMatchAssists: getBestSingleMatchAssists(p.name).value, rating, teammateWins: achTeammate ? achTeammate.wins : 0, streak: getLongestWinStreak(p)
     });
     ppCurrentAchievements = achievements; // pentru showAchievementInfo(i)
     const form = getFormIndex(p);
@@ -3487,21 +3538,24 @@ function renderPlayerProfile(name){
     const myMotmMonths = getMotmMonthsWonBy(p.name); // vezi cerința 4 — 🏅 MOTM pe profil
     // Tot sezonul curent selectat (currentSeason — același selector ca restul
     // clasamentului; null = sezonul live), nu doar ultimele N per total istoric.
-    const seasonMatches = ppMatchesFor(p.name).filter(h => h.season === currentSeason);
+    const seasonMatches = ppMatchesFor(p.name, scopeHist);
     const ppShowAll = ppMatchesExpanded;
     const recentMatches = ppShowAll ? seasonMatches : seasonMatches.slice(0,8);
     const { potmIds, mvpIds } = getPlayerMatchAwards(p.name);
     const otherPlayers = db.players.filter(x=>x.name!==p.name).map(x=>x.name).sort((a,b)=>a.localeCompare(b,'ro'));
-    const chemistry = computeTeammateChemistry(p.name);
+    const chemistry = computeTeammateChemistry(p.name, scopeHist);
 
     const overviewHtml = `
         <div class="pp-grid">
-            <div class="pp-stat"><div class="pp-stat-val">${p.games||0}</div><div class="pp-stat-lbl">Meciuri</div></div>
-            <div class="pp-stat"><div class="pp-stat-val">${p.wins||0}</div><div class="pp-stat-lbl">Victorii</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.games}</div><div class="pp-stat-lbl">Meciuri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.wins}</div><div class="pp-stat-lbl">Victorii</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.draws}</div><div class="pp-stat-lbl">Egaluri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.losses}</div><div class="pp-stat-lbl">Înfrângeri</div></div>
             <div class="pp-stat"><div class="pp-stat-val">${wr}%</div><div class="pp-stat-lbl">Winrate</div></div>
-            <div class="pp-stat"><div class="pp-stat-val">${p.totalGoals||0}</div><div class="pp-stat-lbl">Goluri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.goals}</div><div class="pp-stat-lbl">Goluri</div></div>
             <div class="pp-stat"><div class="pp-stat-val">${assists}</div><div class="pp-stat-lbl">Assisturi</div></div>
-            <div class="pp-stat"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">MVP-uri</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.mvp}</div><div class="pp-stat-lbl">👑 MVP</div></div>
+            <div class="pp-stat"><div class="pp-stat-val">${sc.potm}</div><div class="pp-stat-lbl">⭐ POTM</div></div>
         </div>
 
         <div class="stats-section" style="margin-bottom:14px;">
@@ -3555,7 +3609,7 @@ function renderPlayerProfile(name){
                     <div class="pp-record-lbl">Cea mai lungă serie de victorii</div>
                 </div>
                 <div class="pp-record">
-                    <div class="pp-record-val">${p.games>=PP_MIN_WR_GAMES ? wr+'%' : '—'}</div>
+                    <div class="pp-record-val">${sc.games>=PP_MIN_WR_GAMES ? wr+'%' : '—'}</div>
                     <div class="pp-record-lbl">Cel mai bun winrate</div>
                     <div class="pp-record-meta">minimum ${PP_MIN_WR_GAMES} meciuri</div>
                 </div>
@@ -3573,7 +3627,7 @@ function renderPlayerProfile(name){
         </div>
 
         <div class="stats-section" style="margin-bottom:14px;">
-            <div class="pp-section-title">🏆 TROFEE</div>
+            <div class="pp-section-title">🏆 TROFEE · CARIERĂ</div>
             <div class="pp-grid" style="grid-template-columns:repeat(4,1fr);">
                 <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('mvp')"><div class="pp-stat-val">${p.careerMvpCount||0}</div><div class="pp-stat-lbl">👑 MVP</div></div>
                 <div class="pp-stat pp-stat-clickable" onclick="showTrophyDetail('potm')"><div class="pp-stat-val">${p.careerPotmCount||0}</div><div class="pp-stat-lbl">⭐ POTM</div></div>
@@ -3601,7 +3655,7 @@ function renderPlayerProfile(name){
         </div>
 
         <div class="stats-section">
-            <div class="pp-section-title">ULTIMELE MECIURI${currentSeason?' · '+currentSeason:''}</div>
+            <div class="pp-section-title">ULTIMELE MECIURI · ${ppScopeLabel()}</div>
             ${recentMatches.length ? recentMatches.map(h=>{
                 const won = playerWonMatch(h, p.name);
                 const resLabel = won===true?'WIN':won===false?'LOSS':'—';
@@ -3616,8 +3670,8 @@ function renderPlayerProfile(name){
                     <div class="pp-match-score">${getRowTeamNames(h).join(' vs ')}${h.score?' · '+getOrderedScoreStr(h):''}${isPotm?' <span title="POTM">⭐</span>':''}${isMvp?' <span title="MVP">👑</span>':''}</div>
                     <div class="pp-match-contrib">${goals?'⚽'+goals+' ':''}${ast?'🅰️'+ast:''}</div>
                 </div>`;
-            }).join('') : `<div class="pp-empty">Fără meciuri ${currentSeason?'în acest sezon':'înregistrate'}.</div>`}
-            ${seasonMatches.length>8 ? `<button class="lb-more-btn" onclick="togglePpMatches()">${ppShowAll?'▲ Arată doar ultimele 8':'▼ Vezi tot sezonul ('+seasonMatches.length+')'}</button>` : ''}
+            }).join('') : `<div class="pp-empty">Fără meciuri în ${ppScopeLabel()}.</div>`}
+            ${seasonMatches.length>8 ? `<button class="lb-more-btn" onclick="togglePpMatches()">${ppShowAll?'▲ Arată doar ultimele 8':'▼ Vezi toate ('+seasonMatches.length+')'}</button>` : ''}
         </div>
     `;
 
@@ -3639,6 +3693,9 @@ function renderPlayerProfile(name){
             }).join('') : `<div class="pp-empty">Fără coechipieri cu suficiente meciuri comune încă.</div>`}
         </div>
     `;
+
+    const scopeBtn = (key,label)=>`<button class="lb-season-btn${ppScope===key?' active':''}" data-s="${key.replace(/"/g,'&quot;')}" onclick="setPpScope(this.dataset.s)">${label}</button>`;
+    const scopeRowHtml = `<div class="pp-scope-row">${scopeBtn(PP_SCOPE_ALL,'📊 Total')}${scopeBtn(PP_SCOPE_CURRENT,'🟢 Sezon curent')}${seasonsList.map(sn=>scopeBtn(sn,'🗓️ '+sn)).join('')}</div>`;
 
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
@@ -3666,6 +3723,8 @@ function renderPlayerProfile(name){
                 ${otherPlayers.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('')}
             </select>
         </div>
+
+        ${scopeRowHtml}
 
         ${ppActiveTab==='overview' ? overviewHtml : chemistryHtml}
     `;
