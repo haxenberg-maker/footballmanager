@@ -1009,7 +1009,386 @@ function computeSessionMvpWinner(chrono){
     return candidates[0] || null;
 }
 
-Motor complet ambielat Volvo V40 II [Fabr 2013-2019] D4162T 1.6 D4162T 84KW / 115CP
+// ═══════════════════════════════════════════════════════════════════════
+// ── 🏅 MOTM — Omul Lunii (luna calendaristică în curs) ──────────────────
+// Formulă Scor MOTM, per lună calendaristică:
+//   • 1 punct / gol marcat în lună
+//   • 1 punct / assist în lună
+//   • 0.5 puncte / victorie (per meci/pereche — la fel cum se numără
+//     "Victorii" peste tot în aplicație, ex. computeWeekPlayerStats)
+//   • 3 puncte / POTM câștigat într-o sesiune/meci din lună (cel mai greu
+//     — e singurul semnal de calitate pentru un apărător fără gol/assist)
+//   • 2 puncte / MVP câștigat într-o sesiune/meci din lună (mai puțin, fiindcă
+//     MVP = golgheterul, deci golurile lui sunt deja punctate separat)
+//     (ambele calculate pe ÎNTREAGA sesiune, nu per pereche — la fel ca
+//     computeSessionMvpWinner/computePotmWinnerForRows, folosite peste tot)
+//   • 1 punct / achievement DEBLOCAT în acea lună (treaptă de milestone care
+//     trece de la „neobținut” la „obținut” între începutul și sfârșitul lunii —
+//     vezi computeMonthAchievementUnlocks; rating-ul NU poate fi reconstituit
+//     retroactiv, deci achievementurile de rating nu se numără)
+//   • minute jucate în lună / 90
+// Toate ponderile sunt în MOTM_WEIGHTS (mai jos) — se ajustează dintr-un loc.
+// Prag de eligibilitate: minim 2 sesiuni/meciuri jucate în lună — o sesiune
+// 3 echipe numără o SINGURĂ dată (nu per pereche), la fel ca peste tot în
+// aplicație (vezi groupHistoryForDisplay).
+// Suprascriere manuală: NU există o coloană DB dedicată (manual_motm_player_id)
+// și nicio migrare SQL nouă în acest task — reutilizăm mecanismul EXISTENT de
+// premii custom (tabelul player_awards, gestionat deja din setari.html →
+// „Premii/Titluri"), prin convenția title==='MOTM' + note==='YYYY-MM'. Adminul
+// poate seta/schimba manual câștigătorul unei luni fix din acel panou, fără
+// nicio modificare de schemă — vezi getMotmManualOverride().
+// ═══════════════════════════════════════════════════════════════════════
+
+function getMonthKey(date){
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+
+// Durata jucată (secunde) pe un rând din db.history — sesiune 3 echipe
+// (sumă ture) SAU meci simplu 2 echipe (started_at → ended_at). Extras ca
+// helper reutilizabil — logica identică apărea deja, duplicată, în mai multe
+// locuri (computeSessionMvpWinner, buildMatchStatsTabHtml etc.).
+function getRowPlaySeconds(h){
+    if (Array.isArray(h.roundsDetail) && h.roundsDetail.length) {
+        return h.roundsDetail.reduce((s,r)=>s+(r.duration_sec||0), 0);
+    }
+    if (h.startedAt && h.endedAt) {
+        return Math.max(0, Math.round((new Date(h.endedAt) - new Date(h.startedAt)) / 1000));
+    }
+    return 0;
+}
+
+let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună; suprascris din algo_settings (key: 'motm_min_sessions'), configurabil din Setări → Premii/Titluri
+
+const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, achievement:1 };
+
+function _motmRowTime(h){
+    const d = parseDateToObj(h.date);
+    return (d && !isNaN(d.getTime())) ? d.getTime() : null;
+}
+function _motmCreatedMs(h){ return h.createdAt ? new Date(h.createdAt).getTime() : 0; }
+
+// Instantaneu al achievement-urilor unui jucător, ca la momentul `cutoffMs`
+// (doar meciurile ANTERIOARE acelui moment). Achievement-urile nu au dată de
+// deblocare în DB, așa că le reconstituim exact cum le calculează profilul:
+//   • sezon-scopate (goluri, meciuri, victorii, serie, winrate) — doar
+//     meciurile sezonului lunii respective (aceeași resetare ca saveSeason);
+//   • pe toată cariera (assist-uri, MVP, penalty-uri, best match, coechipier).
+// Întoarce { numeJucator: chips[] } — aceeași structură ca computeAchievements.
+function _motmAchievementSnapshot(players, cutoffMs, seasonLabel){
+    const before = db.history.filter(h => { const t=_motmRowTime(h); return t!==null && t<cutoffMs; });
+    const seasonRows = before
+        .filter(h => (h.season||null) === seasonLabel)
+        .sort((a,b) => (_motmRowTime(a)-_motmRowTime(b)) || (_motmCreatedMs(a)-_motmCreatedMs(b)));
+
+    const seasonAgg = {};
+    seasonRows.forEach(h => {
+        ['orangePlayers','greenPlayers','blackPlayers'].forEach(k => (h[k]||[]).forEach(n => {
+            const a = seasonAgg[n] || (seasonAgg[n] = { games:0, wins:0, goals:0, results:[] });
+            const won = playerWonMatch(h, n) === true;
+            a.games++; if (won) a.wins++;
+            a.goals += (h.playerGoals && h.playerGoals[n]) || 0;
+            a.results.push(won ? 'W' : 'L');
+        }));
+    });
+
+    const saved = db.history;
+    db.history = before; // getterele de mai jos citesc db.history global
+    const out = {};
+    try {
+        const mvp = {};
+        groupHistoryForDisplay(before).forEach(item => {
+            const w = computeSessionMvpWinner([...item.rows].reverse());
+            if (w) mvp[w.name] = (mvp[w.name]||0) + 1;
+        });
+        const pen = computeCareerPenaltyStats();
+        players.forEach(p => {
+            const a = seasonAgg[p.name] || { games:0, wins:0, goals:0, results:[] };
+            const snapP = { ...p,
+                games:a.games, wins:a.wins, totalGoals:a.goals, matchHistory:a.results,
+                careerMvpCount: mvp[p.name]||0,
+                careerPenaltyAttempts: (pen[p.name]||{}).attempts||0,
+                careerPenaltyGoals: (pen[p.name]||{}).goals||0,
+            };
+            const tm = computeBestTeammate(p.name);
+            out[p.name] = computeAchievements(snapP, {
+                wins:a.wins, games:a.games,
+                assists: getCurrentAssists(p.name),
+                bestMatchGoals: getBestSingleMatchGoalsWithMatch(p.name).value,
+                bestMatchAssists: getBestSingleMatchAssists(p.name).value,
+                streak: getLongestWinStreak(snapP),
+                rating: -1, // nu se poate reconstitui retroactiv → niciodată „nou deblocat”
+                teammateWins: tm ? tm.wins : 0,
+            });
+        });
+    } finally { db.history = saved; }
+    return out;
+}
+
+// Achievement-urile DEBLOCATE într-o lună calendaristică (year complet,
+// month 0-based): treapta e „neobținută” la 1 ale lunii și „obținută” la
+// sfârșitul ei. Întoarce { numeJucator: [{emoji,label}, ...] }.
+let _motmUnlockCache = { token:null, data:{} };
+function computeMonthAchievementUnlocks(year, month, monthRows, names){
+    const token = `${db.history.length}|${(db.history[0]||{})._dbId}|${(milestoneConfig||[]).length}`;
+    if (_motmUnlockCache.token !== token) _motmUnlockCache = { token, data:{} };
+    const key = `${year}-${month}|${names.slice().sort().join(',')}`;
+    if (_motmUnlockCache.data[key]) return _motmUnlockCache.data[key];
+
+    const startMs = new Date(year, month, 1).getTime();
+    const endMs   = new Date(year, month+1, 1).getTime();
+    const lastRow = [...monthRows].sort((a,b)=>_motmRowTime(b)-_motmRowTime(a))[0];
+    const seasonLabel = lastRow ? (lastRow.season||null) : null;
+    const players = db.players.filter(p => names.includes(p.name));
+
+    const snapBefore = _motmAchievementSnapshot(players, startMs, seasonLabel);
+    const snapAfter  = _motmAchievementSnapshot(players, endMs,   seasonLabel);
+
+    const result = {};
+    players.forEach(p => {
+        const b = snapBefore[p.name] || [], a = snapAfter[p.name] || [];
+        result[p.name] = a
+            .map((chip,i) => (chip.unlocked && b[i] && !b[i].unlocked) ? { emoji:chip.emoji, label:chip.label } : null)
+            .filter(Boolean);
+    });
+    _motmUnlockCache.data[key] = result;
+    return result;
+}
+
+// Calculează statisticile TUTUROR jucătorilor cu minute în luna dată (rows
+// deja filtrate pe lună) — inclusiv cei SUB pragul de eligibilitate, cu
+// `eligible:false`. Extras separat de computeMotmWinner ca să poată fi
+// folosit și pentru banner-ul „în curs de conturare" (vezi renderMotmBanner)
+// atunci când ÎNCĂ nimeni nu a atins cele 2 sesiuni minime.
+function computeMotmCandidates(currentMonthRows){
+    if (!Array.isArray(currentMonthRows) || !currentMonthRows.length) return [];
+
+    // Grupăm pe SESIUNE/meci (nu pe pereche) — o sesiune 3 echipe (3 perechi)
+    // numără o singură dată la eligibilitate și la titlurile POTM/MVP.
+    const items = groupHistoryForDisplay(currentMonthRows);
+
+    const stats = {};
+    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, matches:0, seconds:0, potm:0, mvp:0, sessions:0 });
+
+    items.forEach(item => {
+        const playersInItem = new Set();
+        item.rows.forEach(h => {
+            const winO = h.winner === 'Portocaliu', winG = h.winner === 'Verde', winB = h.winner === 'Negru';
+            const addPlayer = (n, isWinner) => {
+                playersInItem.add(n);
+                const s = ensure(n);
+                s.goals   += (h.playerGoals   && h.playerGoals[n])   || 0;
+                s.assists += (h.playerAssists && h.playerAssists[n]) || 0;
+                s.matches++;
+                if (isWinner) s.wins++;
+            };
+            (h.orangePlayers||[]).forEach(n => addPlayer(n, winO));
+            (h.greenPlayers ||[]).forEach(n => addPlayer(n, winG));
+            (h.blackPlayers ||[]).forEach(n => addPlayer(n, winB));
+
+            // Minute jucate — doar echipele care AU JUCAT efectiv acest rând
+            // (la o sesiune 3 echipe, a 3-a echipă stă pe margine prin rotație).
+            const rowSeconds = getRowPlaySeconds(h);
+            if (rowSeconds > 0) {
+                const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
+                playersInRow.forEach(n => { ensure(n).seconds += rowSeconds; });
+            }
+        });
+        playersInItem.forEach(n => { ensure(n).sessions++; });
+
+        // POTM și MVP câștigate în ACEST eveniment — numărate SEPARAT, pe toată sesiunea.
+        const mvpWinner = computeSessionMvpWinner(item.rows);
+        if (mvpWinner) ensure(mvpWinner.name).mvp++;
+        const { winnerId: potmId } = computePotmWinnerForRows(item.rows);
+        if (potmId != null) {
+            const potmPlayer = db.players.find(p => p.id === potmId);
+            if (potmPlayer) ensure(potmPlayer.name).potm++;
+        }
+    });
+
+    // Achievement-uri deblocate în luna respectivă (luna se deduce din rânduri).
+    let unlocks = {};
+    const firstT = _motmRowTime(currentMonthRows[0]);
+    if (firstT !== null) {
+        const d0 = new Date(firstT);
+        try { unlocks = computeMonthAchievementUnlocks(d0.getFullYear(), d0.getMonth(), currentMonthRows, Object.keys(stats)); }
+        catch (e) { console.warn('MOTM achievements:', e && e.message); unlocks = {}; }
+    }
+
+    const W = MOTM_WEIGHTS;
+    return Object.values(stats)
+        .map(s => {
+            const minutes = Math.round(s.seconds/60);
+            const achList = unlocks[s.name] || [];
+            const achievements = achList.length;
+            const score = s.goals*W.goal + s.assists*W.assist + s.wins*W.win
+                        + s.potm*W.potm + s.mvp*W.mvp + achievements*W.achievement
+                        + (s.seconds/60)*W.minute;
+            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, matches:s.matches, minutes,
+                     potm:s.potm, mvp:s.mvp, titles:s.potm+s.mvp, achievements, achievementList:achList,
+                     sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
+        })
+        .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
+}
+
+// Primii 3 jucători ELIGIBILI (Locul 1/2/3) pentru un set de rânduri deja
+// filtrate pe luna calendaristică dorită — folosit de renderMotmBanner ca să
+// arate, pe lângă câștigător, și cine urmează la rând (locurile 2 și 3).
+// `computeMotmCandidates` întoarce deja lista sortată (eligibili primii, apoi
+// după scor), deci aici doar filtrăm eligibilii și păstrăm primii 3.
+function computeMotmTop3(currentMonthRows){
+    const candidates = computeMotmCandidates(currentMonthRows);
+    return candidates.filter(c => c.eligible).slice(0, 3);
+}
+
+// Calculează câștigătorul AUTOMAT (fără suprascriere manuală) pentru un set
+// de rânduri deja filtrate pe luna calendaristică dorită (vezi
+// computeMotmForMonth mai jos, care face filtrarea + aplică suprascrierea).
+// Semnătură cerută: computeMotmWinner(currentMonthRows).
+function computeMotmWinner(currentMonthRows){
+    return computeMotmTop3(currentMonthRows)[0] || null;
+}
+
+// Suprascriere manuală MOTM pentru o lună (monthKey = 'YYYY-MM') — vezi nota
+// din antetul secțiunii despre convenția player_awards folosită.
+function getMotmManualOverride(monthKey){
+    const award = (db.playerAwards||[]).find(a =>
+        (a.title||'').trim().toUpperCase() === 'MOTM' && (a.note||'').trim() === monthKey);
+    if (!award) return null;
+    return db.players.find(p => p.id === award.player_id) || null;
+}
+
+// Câștigătorul MOTM pentru o lună calendaristică dată (year = an complet,
+// month = 0-based, ca la Date.getMonth()) — suprascrierea manuală are
+// prioritate; altfel se aplică formula automată (computeMotmWinner) pe
+// TOATE meciurile din acea lună (indiferent de sezon — o lună trecută rămâne
+// „câștigată" chiar dacă sezonul ei a fost arhivat între timp).
+function computeMotmForMonth(year, month){
+    const monthKey = `${year}-${String(month+1).padStart(2,'0')}`;
+    const manual = getMotmManualOverride(monthKey);
+    if (manual) return { name: manual.name, monthKey, manual: true };
+
+    const rows = db.history.filter(h => {
+        const d = parseDateToObj(h.date);
+        return d && !isNaN(d.getTime()) && d.getFullYear()===year && d.getMonth()===month;
+    });
+    const winner = computeMotmWinner(rows);
+    return winner ? { ...winner, monthKey, manual: false } : null;
+}
+
+// Câștigătorul MOTM pentru luna CURENTĂ (recalculat mereu din `new Date()`,
+// nu memorat — se adaptează automat când trecem în altă lună, vezi cerința 3).
+function getCurrentMonthMotm(){
+    const now = new Date();
+    return computeMotmForMonth(now.getFullYear(), now.getMonth());
+}
+
+const MOTM_MONTH_NAMES_RO = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+function formatMotmMonthLabel(monthKey){
+    const [y,m] = monthKey.split('-').map(Number);
+    return `${MOTM_MONTH_NAMES_RO[m-1]} ${y}`;
+}
+
+// Toate lunile calendaristice care apar în db.history (indiferent de sezon),
+// sortate crescător — folosit pentru reconstruirea istoricului de titluri
+// MOTM (profilul jucătorului, vezi getMotmMonthsWonBy).
+function getAllMotmMonthKeys(){
+    const keys = new Set();
+    db.history.forEach(h => {
+        const d = parseDateToObj(h.date);
+        if (d && !isNaN(d.getTime())) keys.add(getMonthKey(d));
+    });
+    return [...keys].sort();
+}
+
+// Lunile în care `playerName` a câștigat MOTM (trecut SAU luna curentă) —
+// folosit de renderPlayerProfile pentru insigna 🏅 MOTM.
+function getMotmMonthsWonBy(playerName){
+    const nowKey = getMonthKey(new Date());
+    return getAllMotmMonthKeys()
+        .map(monthKey => {
+            const [y,m] = monthKey.split('-').map(Number);
+            return { monthKey, winner: computeMotmForMonth(y, m-1) };
+        })
+        .filter(x => x.winner && x.winner.name === playerName)
+        .map(x => ({
+            monthKey: x.monthKey, manual: x.winner.manual, isCurrent: x.monthKey === nowKey,
+            // Statistici lunii — doar pentru câștigul AUTOMAT (calculat); la o
+            // suprascriere manuală (player_awards) nu există un scor de arătat.
+            goals: x.winner.goals, assists: x.winner.assists, wins: x.winner.wins, minutes: x.winner.minutes,
+        }))
+        .sort((a,b) => b.monthKey.localeCompare(a.monthKey));
+}
+
+// ── Istoric detaliat pe tip de trofeu, pentru modalul de pe profil ─────
+// Toate calculate pe ÎNTREG istoricul (all-time), la fel ca
+// p.careerMvpCount/p.careerPotmCount/myMotmMonths.length de mai sus.
+function getPlayerMvpHistory(playerName){
+    const out = [];
+    groupHistoryForDisplay(db.history).forEach(item => {
+        const winner = computeSessionMvpWinner(item.rows);
+        if (winner && winner.name === playerName) {
+            out.push({ date: item.rows[0].date, goals: winner.goals, assists: winner.assists, minutes: winner.minutes });
+        }
+    });
+    return out.sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+}
+
+function getPlayerPotmHistory(playerId){
+    const out = [];
+    groupHistoryForDisplay(db.history).forEach(item => {
+        const { winnerId, source, votes } = computePotmWinnerForRows(item.rows);
+        if (winnerId === playerId) {
+            out.push({ date: item.rows[0].date, votes: source==='voted' ? (votes[String(winnerId)]||0) : null, manual: source==='manual' });
+        }
+    });
+    return out.sort((a,b) => parseDateToObj(b.date) - parseDateToObj(a.date));
+}
+
+// Markup comun (scoruri per echipă + golgheter) pentru o pereche
+function renderPairBodyPublic(h, opts){
+    const showHattrick = opts?.showHattrick !== false; // implicit true — vezi apelul din renderMatchDetailScreen (sesiune 3 echipe)
+    const hasBlack = (h.blackPlayers||[]).length > 0;
+    const tg = h.teamGoals || { orange:0, green:0, black:0 };
+    const penG = { orange:0, green:0, black:0 };
+    if (Array.isArray(h.roundsDetail)) {
+        h.roundsDetail.forEach(r=>{
+            if (Array.isArray(r.penalty_shots)) {
+                r.penalty_shots.forEach(s=>{
+                    if (s.state==='goal' && penG[s.team]!==undefined) penG[s.team]++;
+                });
+            }
+        });
+    }
+    const makeTeamScore = (names, teamKey, color, label) => {
+        if (!names?.length) return '';
+        const g = tg[teamKey] || 0;
+        const pen = penG[teamKey] || 0;
+        const isWinner = h.winner?.toLowerCase().includes(label.toLowerCase());
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+            <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block;"></span>
+            <span style="font-weight:700;font-size:.82rem;color:${isWinner?color:'#f3f6fa'};">${label}</span>
+            <span style="font-size:.72rem;color:#8b96a8;">(${names.length} juc.)</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:1rem;margin-left:auto;color:${isWinner?color:'#f3f6fa'};min-width:18px;text-align:right;">${g}${pen>0?` <span style="font-family:'Inter',sans-serif;font-size:.62rem;color:#8b96a8;">(pen ${pen})</span>`:''}</span>
+        </div>`;
+    };
+    const teamsHTML = [
+        makeTeamScore(h.orangePlayers, 'orange', teamColorsPublic.orange, 'Portocaliu'),
+        makeTeamScore(h.greenPlayers,  'green',  teamColorsPublic.green,  'Verde'),
+        hasBlack ? makeTeamScore(h.blackPlayers, 'black', teamColorsPublic.black, 'Negru') : '',
+    ].filter(Boolean).join('<div style="height:1px;background:#262f3f;margin:1px 0;"></div>');
+    const mvpWinner = computeSessionMvpWinner([h]); // override-aware — la 2 echipe, goluri+minute e echivalent cu goluri (minute egale), dar respectă suprascrierea manuală
+    const hattrick = showHattrick && mvpWinner && mvpWinner.goals >= 3;
+    // Mod 2 echipe (showHattrick=false): fără mențiunea/logica de hat-trick —
+    // doar un ⭐ MVP simplu. Afișăm goluri · assist · min, la fel ca la
+    // sesiunile 3 echipe (vezi renderSessionCard), nu doar golurile simplu.
+    const topScorerHTML = mvpWinner
+        ? `<div class="mc-badge" style="background:${hattrick?'rgba(167,139,250,.1)':'rgba(52,211,153,.1)'};border:1px solid ${hattrick?'rgba(167,139,250,.35)':'rgba(52,211,153,.3)'};color:${hattrick?'#a78bfa':'#34d399'};">${hattrick?'🎩 Hattrick':'⭐ MVP'}: <b class="${isCurrentUser(mvpWinner.name)?'um-name':''}">${mvpWinner.name}</b> (${mvpWinner.goals} gol${mvpWinner.goals!==1?'uri':''} · ${mvpWinner.assists||0} assist · ${mvpWinner.minutes} min)${hattrick?' <span style="color:#a78bfa;font-weight:700;">HATTRICK!</span>':''}</div>`
+        : '';
+    const potmHTML = h.potmWinnerName
+        ? `<div class="mc-badge" style="background:rgba(255,210,63,.12);border:1px solid rgba(255,210,63,.4);color:#eab308;">⭐ POTM: <b class="${isCurrentUser(h.potmWinnerName)?'um-name':''}">${h.potmWinnerName}</b>${h.potmSource==='voted' ? ` <span style="color:#8b96a8;font-weight:400;">(${(h.potmVoteCounts[String(h.potmWinnerId)]||0)} voturi)</span>` : ` <span style="color:#8b96a8;font-weight:400;">(setat manual)</span>`}</div>`
+        : '';
+    return { teamsHTML, topScorerHTML, potmHTML, hattrick };
+}
 
 // Folosit de renderMatchDetailScreen (tab „Tabela scoruri”)
 // (renderSingleMatchCard) — tabelă în oglindă + listă cronologică de goluri +
