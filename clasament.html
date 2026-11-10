@@ -4264,6 +4264,24 @@ function rowToPlayer(p) {
     };
 }
 
+// PostgREST/Supabase taie rezultatele la `max_rows` (implicit 1000, în unele proiecte setat mult mai jos —
+// de aceea apăreau doar câteva goluri din ultimul meci). Citim în pagini până vine o pagină goală;
+// offset-ul avansează cu numărul REAL primit, deci merge și cu un max_rows mic.
+// `makeQuery` trebuie să întoarcă un query NOU la fiecare apel (builder-ul Supabase e de unică folosință).
+async function fetchAllRows(makeQuery, pageSize = 1000){
+    const all = [];
+    let from = 0;
+    for (let i = 0; i < 5000; i++) {
+        const { data, error } = await makeQuery().range(from, from + pageSize - 1);
+        if (error) return { data: null, error };
+        const page = data || [];
+        if (!page.length) break;
+        all.push(...page);
+        from += page.length;
+    }
+    return { data: all, error: null };
+}
+
 async function loadAll(){
     try{
         // Interogările independente pornesc TOATE deodată (Promise.allSettled,
@@ -4282,8 +4300,8 @@ async function loadAll(){
             sb.from('tags_config').select('*').order('sort_order'),
             sb.from('algo_settings').select('key,value'),
             sb.from('players').select('*, ratings(*)').order('id'),
-            sb.from('match_history').select('*').order('created_at', { ascending:false }),
-            sb.from('match_goals').select('*'),
+            fetchAllRows(() => sb.from('match_history').select('*').order('created_at', { ascending:false }).order('id', { ascending:false })),
+            fetchAllRows(() => sb.from('match_goals').select('*').order('minute', { ascending:true }).order('id', { ascending:true })),
             sb.from('potm_votes').select('match_id,voted_player_id'),
             sb.from('player_awards').select('*').order('created_at',{ascending:false}),
             loadMilestoneConfig(), // mutează direct milestoneConfig — nu ne interesează rezultatul aici
@@ -4293,7 +4311,7 @@ async function loadAll(){
             // grupat pe jucător mai jos (db.ratingHistory), ca profilul fiecărui
             // jucător să poată desena graficul sincron, fără un query separat
             // la fiecare deschidere de profil.
-            sb.from('player_rating_history').select('player_id,rating,created_at').order('created_at',{ascending:true}),
+            fetchAllRows(() => sb.from('player_rating_history').select('player_id,rating,created_at').order('created_at',{ascending:true})),
         ]);
         const dataOf = r => r.status==='fulfilled' ? (r.value?.data ?? null) : null;
 
