@@ -2632,6 +2632,9 @@ function renderMotmCard(candidate, idx){
             <span>🏆 ${candidate.wins} victorii</span>
             <span>🎮 ${candidate.matches} meciuri jucate</span>
             <span>⏱️ ${candidate.minutes} min</span>
+            <span>⭐ ${candidate.potm||0} POTM</span>
+            <span>👑 ${candidate.mvp||0} MVP</span>
+            <span title="${(candidate.achievementList||[]).map(a=>a.label).join(', ').replace(/"/g,'&quot;')}">🏅 ${candidate.achievements||0} achievement-uri deblocate${(candidate.achievementList||[]).length ? ' ('+candidate.achievementList.map(a=>a.emoji).join('')+')' : ''}</span>
         </div>
     </div>`;
 }
