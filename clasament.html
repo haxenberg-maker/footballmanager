@@ -986,7 +986,9 @@ function computeSessionMvpWinner(chrono){
 
     const totalSeconds = {};
     chrono.forEach(h => {
-        const rowSeconds = (h.roundsDetail||[]).reduce((s,r)=>s+(r.duration_sec||0),0);
+        // getRowPlaySeconds: sesiune 3 echipe = suma turelor; meci simplu 2 echipe = started_at → ended_at
+        // (înainte se suma doar roundsDetail, deci la 2 echipe ieșea mereu 0 minute).
+        const rowSeconds = getRowPlaySeconds(h);
         const playersInRow = new Set([...(h.orangePlayers||[]), ...(h.greenPlayers||[]), ...(h.blackPlayers||[])]);
         playersInRow.forEach(n => { totalSeconds[n] = (totalSeconds[n]||0) + rowSeconds; });
     });
