@@ -1061,6 +1061,9 @@ function getRowPlaySeconds(h){
     return 0;
 }
 
+// Meci terminat la egalitate: winner gol sau 'Egal' → mesaj dedicat, nu „Egal a câștigat”.
+function isDrawResult(h){ const w = (h.winner||'').toLowerCase().trim(); return !w || w === 'egal'; }
+
 let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună; suprascris din algo_settings (key: 'motm_min_sessions'), configurabil din Setări → Premii/Titluri
 
 const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, achievement:1 };
@@ -1286,6 +1289,21 @@ function getCurrentMonthMotm(){
     return computeMotmForMonth(now.getFullYear(), now.getMonth());
 }
 
+// Poziția și punctajul MOTM ale unui jucător în luna CURENTĂ (aceeași formulă ca banner-ul MOTM).
+function getCurrentMonthMotmStanding(playerName){
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+    const monthKey = `${y}-${String(m+1).padStart(2,'0')}`;
+    const rows = db.history.filter(h => {
+        const d = parseDateToObj(h.date);
+        return d && !isNaN(d.getTime()) && d.getFullYear()===y && d.getMonth()===m;
+    });
+    const cands = computeMotmCandidates(rows);
+    const idx = cands.findIndex(c => c.name === playerName);
+    const manual = getMotmManualOverride(monthKey);
+    return { monthKey, rank: idx>=0 ? idx+1 : null, total: cands.length,
+             candidate: idx>=0 ? cands[idx] : null, manualWinner: manual ? manual.name : null };
+}
+
 const MOTM_MONTH_NAMES_RO = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
 function formatMotmMonthLabel(monthKey){
     const [y,m] = monthKey.split('-').map(Number);
@@ -1488,7 +1506,7 @@ function renderSingleMatchCard(h){
     return `<div class="match-card mc-clickable${iPlayed?' um-card':''}" onclick="showMatchDetail('${h._dbId}')">
         <div class="match-card-hero" style="background:linear-gradient(135deg,${winColor},${winColor}cc);">
             <div class="mc-date">${h.date||'—'}</div>
-            <div class="mc-title">🏆 ${h.winner||'Egal'} a câștigat · ${getOrderedScoreStr(h)}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
+            <div class="mc-title">${isDrawResult(h) ? '🤝 S-a terminat la egalitate' : '🏆 '+h.winner+' a câștigat'} · ${getOrderedScoreStr(h)}${h.imbalanced?' · ⚠️ dezechilibru':''}</div>
         </div>
         <div class="match-card-body">
             ${iPlayed ? `<span class="um-badge">📍 Joci în acest meci</span>` : ''}
@@ -2001,7 +2019,7 @@ function renderMatchDetailScreen(dbId){
            <div style="margin-top:12px;">${statsTabHtml}</div>`;
 
     const subParts = [];
-    subParts.push(h.winner ? `🏆 ${escapeHtml(h.winner)} a câștigat` : 'Egal');
+    subParts.push(isDrawResult(h) ? '🤝 S-a terminat la egalitate' : `🏆 ${escapeHtml(h.winner)} a câștigat`);
     if (h.imbalanced) subParts.push('⚠️ dezechilibru');
     if (hasRounds) {
         subParts.push(`${h.roundsDetail.length} tur${h.roundsDetail.length!==1?'e':'ă'}`);
@@ -2145,7 +2163,7 @@ function buildShareCardHtml(h){
             <div class="msc-team-name" style="text-align:right;color:${teamColorsPublic.green};">${escapeHtml(teamNames[1]||'?')}</div>
         </div>
         <div class="msc-score-big" style="color:${winColor};">${escapeHtml(getOrderedScoreStr(h))}</div>
-        <div style="text-align:center;font-size:.8rem;color:#8b96a8;margin-bottom:16px;">🏆 ${escapeHtml(h.winner||'Egal')} a câștigat</div>
+        <div style="text-align:center;font-size:.8rem;color:#8b96a8;margin-bottom:16px;">${isDrawResult(h) ? '🤝 S-a terminat la egalitate' : '🏆 '+escapeHtml(h.winner)+' a câștigat'}</div>
         ${topScorers.length ? `<div class="msc-section-title">Golgheteri</div>${topScorers.map(([n,g])=>`<div class="msc-pair-row"><span>⚽ ${escapeHtml(n)}</span><span style="font-family:'Bebas Neue',sans-serif;">${g}</span></div>`).join('')}` : ''}
         ${mvp ? `<div class="msc-highlight" style="margin-top:14px;"><span class="msc-highlight-icon">👑</span><div><div class="msc-highlight-lbl">MVP</div><div class="msc-highlight-name">${escapeHtml(mvp.name)}</div><div class="msc-highlight-sub">${mvp.goals} goluri · ${mvp.assists||0} assist · ${mvp.minutes} min</div></div></div>` : ''}
         ${potmName ? `<div class="msc-highlight"><span class="msc-highlight-icon">⭐</span><div><div class="msc-highlight-lbl">POTM</div><div class="msc-highlight-name">${escapeHtml(potmName)}</div></div></div>` : ''}
@@ -2187,7 +2205,7 @@ async function shareMatch(dbId){
             await navigator.share({
                 files: [file],
                 title: 'Arena Friends FC',
-                text: `${h.winner ? '🏆 '+h.winner+' a câștigat · ' : ''}${getOrderedScoreStr(h)}`,
+                text: `${isDrawResult(h) ? '🤝 S-a terminat la egalitate · ' : '🏆 '+h.winner+' a câștigat · '}${getOrderedScoreStr(h)}`,
             });
             showToast('📲 Trimis!');
         } else {
@@ -3703,6 +3721,25 @@ function renderPlayerProfile(name){
     const scopeBtn = (key,label)=>`<button class="lb-season-btn${ppScope===key?' active':''}" data-s="${key.replace(/"/g,'&quot;')}" onclick="setPpScope(this.dataset.s)">${label}</button>`;
     const scopeRowHtml = `<div class="pp-scope-row">${scopeBtn(PP_SCOPE_ALL,'📊 Total')}${scopeBtn(PP_SCOPE_CURRENT,'🟢 Sezon curent')}${seasonsList.map(sn=>scopeBtn(sn,'🗓️ '+sn)).join('')}</div>`;
 
+    let motmCardHtml = '';
+    try {
+        const ms = getCurrentMonthMotmStanding(p.name), c = ms.candidate;
+        const monthLbl = formatMotmMonthLabel(ms.monthKey);
+        const chips = c ? [`⚽ ${c.goals}`, `🅰️ ${c.assists}`, `✅ ${c.wins} V`, `⭐ ${c.potm} POTM`, `👑 ${c.mvp} MVP`, `🎖️ ${c.achievements} achiev.`, `⏱ ${c.minutes} min`]
+                        .map(t => `<span style="font-size:.7rem;color:#8b96a8;background:#141a26;border:1px solid #262f3f;border-radius:6px;padding:2px 7px;">${t}</span>`).join('') : '';
+        const status = !c ? `N-a jucat în ${monthLbl} — 0 puncte`
+            : `Locul ${ms.rank} din ${ms.total}${c.eligible ? '' : ` · neeligibil încă (${c.sessions}/${MOTM_MIN_SESSIONS} sesiuni)`}`
+              + (ms.manualWinner === p.name ? ' · 🏅 setat manual' : '');
+        motmCardHtml = `<div style="background:#0f1420;border:1px solid rgba(255,210,63,.3);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div><div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:#eab308;">🏅 Omul lunii · ${monthLbl}</div>
+                <div style="font-size:.78rem;color:#8b96a8;margin-top:2px;">${status}</div></div>
+                <div style="text-align:right;"><div style="font-size:1.5rem;font-weight:900;color:#eab308;line-height:1;">${c ? c.score : 0}</div><div style="font-size:.6rem;color:#8b96a8;">puncte MOTM</div></div>
+            </div>
+            ${chips ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;">${chips}</div>` : ''}
+        </div>`;
+    } catch(e) { console.warn('MOTM profil:', e && e.message); }
+
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
 
@@ -3718,6 +3755,8 @@ function renderPlayerProfile(name){
                 ${trendHtml}
             </div>
         </div>
+
+        ${motmCardHtml}
 
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
             <div class="pp-tabs">
@@ -3936,7 +3975,7 @@ function renderComparePage(nameA, nameB){
         <div class="stats-section">
             <div class="pp-section-title">ULTIMELE MECIURI DIRECTE</div>
             ${h2h.matches.length ? h2h.matches.slice(0,10).map(m=>{
-                const resLabel = m.wonA===true?a.name+' a câștigat':m.wonB===true?b.name+' a câștigat':'Egal / fără câștigător clar';
+                const resLabel = m.wonA===true?a.name+' a câștigat':m.wonB===true?b.name+' a câștigat':'S-a terminat la egalitate';
                 const resColor = m.wonA===true?'#22c55e':m.wonB===true?'#ef4444':'#64748b';
                 return `<div class="pp-match-row">
                     <div class="pp-match-date">${ppFormatDate(m.h.date)}</div>
@@ -4250,15 +4289,21 @@ function rowToPlayer(p) {
     return {
         id: p.id, name: p.name, status: p.status||'bench', role: p.role||null,
         positionPrimary: p.position_primary || null,
+        positionSecondary: p.position_secondary || null,
         wins: p.wins||0, games: p.games||0,
         matchHistory: p.match_history||[],
+        mainStatus: p.main_status||null,
+        negativeStatus: p.negative_status||null,
+        speedStatus: p.speed_status||null,
         adminTags: p.admin_tags ? p.admin_tags.split(',').filter(Boolean) : [],
         adminRating: p.admin_rating != null ? parseFloat(p.admin_rating) : null,
         manualAttrs: p.manual_attrs || null,
         totalGoals: p.total_goals||0,
         totalGoalsConceded: p.total_goals_conceded||0,
+        totalPenaltyGoals: p.total_penalty_goals||0,
         lastImbalanceLoss: p.last_imbalance_loss||0,
-        ratings: (p.ratings||[]).map(r=>({
+        // sortate cronologic, ca în app.js (ordinea influențează ultimele ratinguri)
+        ratings: (p.ratings||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(r=>({
             rater:r.rater, date:r.date, tags:r.tags||'',
             general:r.general||5, viteza:r.viteza||5, tehnica:r.tehnica||5,
             strategie:r.strategie||5, aparare:r.aparare||5
@@ -4404,7 +4449,9 @@ async function loadAll(){
             const playerGoals = {};
             const playerPenaltyGoals = {};
             const playerAssists = {}; // pentru MVP (goluri + asisturi + minute)
+            const playerConceded = {}; // goluri primite (per jucător, ca în app.js)
             goals.forEach(g=>{
+                if ((g.goals_conceded||0) > 0) playerConceded[g.player_name] = (playerConceded[g.player_name]||0) + g.goals_conceded;
                 if (g.is_penalty) {
                     playerPenaltyGoals[g.player_name] = (playerPenaltyGoals[g.player_name]||0) + (g.goals||1);
                 } else {
@@ -4433,7 +4480,7 @@ async function loadAll(){
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
                 orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
-                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerAssists, playerPenaltyGoals, topScorer, teamGoals,
+                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerAssists, playerPenaltyGoals, playerConceded, topScorer, teamGoals,
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
