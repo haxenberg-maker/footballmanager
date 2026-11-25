@@ -1086,6 +1086,7 @@ const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, ac
 const MOTM_ROLE_FACTOR = { GK:1.0, DEF:1.0, MID:0.7, FWD:0.3 };
 const MOTM_DEF_CAP = 10;
 const MOTM_IMPACT_SHRINK = 6; // „k” al trasării spre 0: n/(n+k)
+const MOTM_IMPACT_PER_ROW = 0.15; // clasament pe sezon: bonusul de impact crește cu nr. de meciuri jucate
 
 function _motmRoleFactor(name){
     const pl = db.players.find(x => x.name === name);
@@ -1131,18 +1132,18 @@ function _motmRowDefUnits(h){
     return c ? { kind:'match', units:[c] } : null;
 }
 // Media de goluri primite pe echipă, separat pe meciuri și pe ture (scări diferite).
-function _motmLeagueConcededAvg(){
+function _motmLeagueConcededAvg(rows){
     const acc = { match:{t:0,n:0}, round:{t:0,n:0} };
-    db.history.forEach(h => {
+    (rows || db.history).forEach(h => {
         const du = _motmRowDefUnits(h); if (!du) return;
         du.units.forEach(u => Object.values(u).forEach(v => { acc[du.kind].t += v; acc[du.kind].n++; }));
     });
     return { match: acc.match.n ? acc.match.t/acc.match.n : null, round: acc.round.n ? acc.round.t/acc.round.n : null };
 }
 // { nume: { n, shrunk } } — diferența RELATIVĂ la media ligii (fără el − cu el), pe tot istoricul.
-function _motmImpactMap(avg){
+function _motmImpactMap(avg, rows){
     const per = {}; let totSum = 0, totN = 0;
-    db.history.forEach(h => {
+    (rows || db.history).forEach(h => {
         const du = _motmRowDefUnits(h), base = du && avg[du.kind];
         if (!du || !base) return;
         _motmTeamsOfRow(h).forEach(([k,arr]) => {
@@ -4198,49 +4199,38 @@ window.addEventListener('popstate', () => {
     applyPageMode();
 });
 
-// 🛡️ Apărare pe un sezon (null = sezonul curent): suma punctelor de apărare LUNARE — aceeași formulă
-// ca la MOTM (poartă curată, ture fără gol primit, sub media ligii, impact, factor de rol), cu plafonul
-// MOTM_DEF_CAP aplicat pe fiecare lună. Folosit de sub-tabul 🛡️ Defensivă din Contribuții.
+// 🛡️ Apărare pe un SEZON (null = sezonul curent), pentru sub-tabul 🛡️ Defensivă din Contribuții.
+// Aceeași formulă ca la MOTM (poartă curată, ture fără gol primit, sub media ligii, impact, rol), dar:
+//   • media ligii și impactul „cu/fără el” se calculează doar din meciurile ACELUI sezon;
+//   • punctele se ADUNĂ pe tot sezonul, fără plafonul lunar de la MOTM — cine joacă mai multe
+//     meciuri strânge mai multe puncte (20 de meciuri bune bat 5 meciuri bune);
+//   • bonusul de impact crește liniar cu numărul de meciuri (MOTM_IMPACT_PER_ROW).
 function computeDefenseSeasonStats(seasonName){
     const rows = db.history.filter(h => (h.season||null) === (seasonName||null));
-    const leagueAvg = _motmLeagueConcededAvg();
-    const impactMap = _motmImpactMap(leagueAvg);
+    const leagueAvg = _motmLeagueConcededAvg(rows);
+    const impactMap = _motmImpactMap(leagueAvg, rows);
     const W = MOTM_WEIGHTS;
-    const byMonth = {};
-    rows.forEach(h => {
-        const d = parseDateToObj(h.date);
-        if (!d || isNaN(d.getTime())) return;
-        const k = getMonthKey(d);
-        (byMonth[k] || (byMonth[k] = [])).push(h);
-    });
     const out = {};
-    Object.values(byMonth).forEach(monthRows => {
-        const m = {};
-        monthRows.forEach(h => {
-            const du = _motmRowDefUnits(h);
-            if (!du) return;
-            const isR = du.kind === 'round', avg = leagueAvg[du.kind];
-            const wCS = isR ? W.cleanRound : W.cleanSheet, wAv = isR ? W.concededVsAvgRound : W.concededVsAvg;
-            _motmTeamsOfRow(h).forEach(([k,arr]) => arr.forEach(n => {
-                const st = m[n] || (m[n] = { cs:0, cr:0, rp:0, conceded:0, rows:0, raw:0 });
-                st.rows++;
-                du.units.forEach(u => {
-                    const c = u[k] || 0;
-                    st.conceded += c;
-                    if (isR) st.rp++;
-                    if (c === 0) { if (isR) st.cr++; else st.cs++; }
-                    st.raw += (c === 0 ? wCS : 0) + (avg != null ? wAv * Math.max(0, avg - c) : 0);
-                });
-            }));
-        });
-        Object.entries(m).forEach(([n,st]) => {
-            const impactRaw = impactMap[n] ? impactMap[n].shrunk : 0;
-            const impactPts = st.rows ? Math.max(0, impactRaw) * (st.rows/(st.rows + 3)) : 0;
-            const pts = Math.min(MOTM_DEF_CAP, _motmRoleFactor(n) * (st.raw + impactPts*W.impact));
-            const o = out[n] || (out[n] = { points:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, rows:0 });
-            o.points += pts; o.cleanSheets += st.cs; o.cleanRounds += st.cr; o.roundsPlayed += st.rp;
-            o.conceded += st.conceded; o.rows += st.rows;
-        });
+    rows.forEach(h => {
+        const du = _motmRowDefUnits(h);
+        if (!du) return;
+        const isR = du.kind === 'round', avg = leagueAvg[du.kind];
+        const wCS = isR ? W.cleanRound : W.cleanSheet, wAv = isR ? W.concededVsAvgRound : W.concededVsAvg;
+        _motmTeamsOfRow(h).forEach(([k,arr]) => arr.forEach(n => {
+            const st = out[n] || (out[n] = { raw:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, rows:0, points:0 });
+            st.rows++;
+            du.units.forEach(u => {
+                const c = u[k] || 0;
+                st.conceded += c;
+                if (isR) st.roundsPlayed++;
+                if (c === 0) { if (isR) st.cleanRounds++; else st.cleanSheets++; }
+                st.raw += (c === 0 ? wCS : 0) + (avg != null ? wAv * Math.max(0, avg - c) : 0);
+            });
+        }));
+    });
+    Object.entries(out).forEach(([n,st]) => {
+        const impactPts = Math.max(0, impactMap[n] ? impactMap[n].shrunk : 0) * st.rows * MOTM_IMPACT_PER_ROW;
+        st.points = _motmRoleFactor(n) * (st.raw + impactPts * W.impact);
     });
     return out;
 }
@@ -4346,7 +4336,7 @@ function renderLeaderboard(){
           if (currentContribSubTab === 'def') {
               // Defensivă: clasament după PUNCTELE DE APĂRARE (aceeași formulă ca la MOTM:
               // poartă curată, ture fără gol primit, sub media ligii, impact × rol), însumate
-              // pe lunile sezonului. Mai mult = mai bine, ca la celelalte sub-taburi.
+              // pe tot sezonul (fără plafon lunar). Mai mult = mai bine, ca la celelalte sub-taburi.
               const defStats = computeDefenseSeasonStats(currentSeason);
               const defOf = p => defStats[p.name];
               sorted = [...withGames]
@@ -4354,8 +4344,8 @@ function renderLeaderboard(){
                   .sort((a,b) => defOf(b).points - defOf(a).points || defOf(b).cleanSheets - defOf(a).cleanSheets);
               getValue = p => '🛡️' + defOf(p).points.toFixed(1);
               subLabel = p => {
-                  const d = defOf(p);
-                  return `🧱 ${d.cleanSheets} CS`
+                  const d = defOf(p), g = gamesOf(p);
+                  return `${g} meciuri · ${g > 0 ? (d.points/g).toFixed(2) : '—'}/meci · 🧱 ${d.cleanSheets} CS`
                       + (d.roundsPlayed ? ` · ${d.cleanRounds}/${d.roundsPlayed} ture fără gol` : '')
                       + ` · ${d.conceded} primite (echipă)`;
               };
