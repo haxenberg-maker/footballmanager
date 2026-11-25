@@ -3467,7 +3467,7 @@ function getPlayerMatchAwards(name){
 
 // ── Profil: statistici pe Total / Sezon curent / sezon arhivat ──────────
 const PP_SCOPE_ALL = '__all__', PP_SCOPE_CURRENT = '__current__';
-let ppScope = PP_SCOPE_CURRENT;
+let ppScope = urlParams.get('s') || PP_SCOPE_CURRENT;
 function ppScopeHistory(){
     if (ppScope === PP_SCOPE_ALL) return db.history;
     if (ppScope === PP_SCOPE_CURRENT) return db.history.filter(h => !h.season);
@@ -3516,7 +3516,7 @@ function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
     const p = db.players.find(x=>x.name===name);
 
-    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; ppScope = PP_SCOPE_CURRENT; }
+    if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; ppScope = urlParams.get('s') || PP_SCOPE_CURRENT; }
     if (ppScope !== PP_SCOPE_ALL && ppScope !== PP_SCOPE_CURRENT && !seasonsList.includes(ppScope)) ppScope = PP_SCOPE_CURRENT;
 
     if (!p) {
@@ -3789,7 +3789,8 @@ function setPpTab(tab){
 
 function goCompare(nameA, nameB){
     if (!nameA || !nameB || nameA===nameB) return;
-    location.href = 'clasament.html?p1='+encodeURIComponent(nameA)+'&p2='+encodeURIComponent(nameB);
+    location.href = 'clasament.html?p1='+encodeURIComponent(nameA)+'&p2='+encodeURIComponent(nameB)
+        + (ppScope !== PP_SCOPE_CURRENT ? '&s='+encodeURIComponent(ppScope) : '');
 }
 
 // Popup "cum se obține" la click pe un achievement — folosește datele deja
@@ -3871,12 +3872,12 @@ function closeTrophyDetail(){
 
 // Meciuri directe (echipe diferite, în același meci) între doi jucători —
 // folosește playerWonMatch/getRowTeamNames deja existente, nu o a doua sursă.
-function computeHeadToHead(nameA, nameB){
+function computeHeadToHead(nameA, nameB, src){
     const teamOf = (h,name) =>
         (h.orangePlayers||[]).includes(name) ? 'orange' :
         (h.greenPlayers ||[]).includes(name) ? 'green'  :
         (h.blackPlayers ||[]).includes(name) ? 'black'  : null;
-    const matches = db.history.map(h=>{
+    const matches = (src||db.history).map(h=>{
         const tA = teamOf(h,nameA), tB = teamOf(h,nameB);
         if (!tA || !tB || tA===tB) return null;
         return { h, wonA: playerWonMatch(h,nameA), wonB: playerWonMatch(h,nameB) };
@@ -3886,6 +3887,8 @@ function computeHeadToHead(nameA, nameB){
     const draws = matches.length - winsA - winsB;
     return { matches, winsA, winsB, draws, total: matches.length };
 }
+
+function setCmpScope(sc){ ppScope = sc; renderComparePage(compareP1, compareP2); }
 
 function renderComparePage(nameA, nameB){
     const wrap = document.getElementById('comparePageWrap');
@@ -3904,10 +3907,18 @@ function renderComparePage(nameA, nameB){
 
     const ratingA = withCurrentSeasonHistory(()=>getSmartRating(a));
     const ratingB = withCurrentSeasonHistory(()=>getSmartRating(b));
-    const wrA = a.games>0 ? Math.round((a.wins/a.games)*100) : 0;
-    const wrB = b.games>0 ? Math.round((b.wins/b.games)*100) : 0;
-    const assistsA = getCurrentAssists(a.name), assistsB = getCurrentAssists(b.name);
-    const h2h = computeHeadToHead(a.name, b.name);
+    if (ppScope !== PP_SCOPE_ALL && ppScope !== PP_SCOPE_CURRENT && !seasonsList.includes(ppScope)) ppScope = PP_SCOPE_CURRENT;
+    const scopeHist = ppScopeHistory();
+    const scA = computePlayerScopeStats(a, scopeHist), scB = computePlayerScopeStats(b, scopeHist);
+    const wrA = scA.games>0 ? Math.round((scA.wins/scA.games)*100) : 0;
+    const wrB = scB.games>0 ? Math.round((scB.wins/scB.games)*100) : 0;
+    const h2h = computeHeadToHead(a.name, b.name, scopeHist);
+    const mA = getCurrentMonthMotmStanding(a.name), mB = getCurrentMonthMotmStanding(b.name);
+    const cA = mA.candidate, cB = mB.candidate;
+    const mv = (c, k) => c ? c[k] : 0;
+    const scopeBtn = (key,label)=>`<button class="lb-season-btn${ppScope===key?' active':''}" data-s="${key.replace(/"/g,'&quot;')}" onclick="setCmpScope(this.dataset.s)">${label}</button>`;
+    const scopeRowHtml = `<div class="pp-scope-row">${scopeBtn(PP_SCOPE_ALL,'📊 Total')}${scopeBtn(PP_SCOPE_CURRENT,'🟢 Sezon curent')}${seasonsList.map(sn=>scopeBtn(sn,'🗓️ '+sn)).join('')}</div>
+        <div style="font-size:.66rem;color:var(--ink-faint);margin:-4px 0 12px;">Statistici și meciuri directe: ${ppScopeLabel()} · rating, realizări și MOTM: valori curente</div>`;
     const achA = getPlayerAchievements(a).filter(x=>x.unlocked);
     const achB = getPlayerAchievements(b).filter(x=>x.unlocked);
     const achNamesA = new Set(achA.map(x=>x.label));
@@ -3927,6 +3938,8 @@ function renderComparePage(nameA, nameB){
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html?player='+encodeURIComponent('${a.name.replace(/'/g,"\\'")}')">← Înapoi la profilul lui ${a.name}</div>
 
+        ${scopeRowHtml}
+
         <div class="h2h-header">
             <div class="h2h-side">
                 <div class="h2h-side-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${a.name.replace(/'/g,"\\'")}')">${a.name}</div>
@@ -3940,17 +3953,32 @@ function renderComparePage(nameA, nameB){
         </div>
 
         <div class="h2h-record">${h2h.winsA} - ${h2h.draws} - ${h2h.winsB}</div>
-        <div class="h2h-record-lbl">Meciuri directe (V ${a.name} — Egal — V ${b.name}) · ${h2h.total} meciuri</div>
+        <div class="h2h-record-lbl">Meciuri directe (V ${a.name} — Egal — V ${b.name}) · ${h2h.total} meciuri · ${ppScopeLabel()}</div>
 
         <div class="stats-section" style="margin-bottom:14px;">
             <div class="pp-section-title">STATISTICI</div>
-            ${statRow('Meciuri', a.games||0, b.games||0)}
-            ${statRow('Victorii', a.wins||0, b.wins||0)}
+            ${statRow('Meciuri', scA.games, scB.games)}
+            ${statRow('Victorii', scA.wins, scB.wins)}
+            ${statRow('Înfrângeri', scA.losses, scB.losses, false)}
             ${statRow('Winrate', wrA+'%', wrB+'%')}
-            ${statRow('Goluri', a.totalGoals||0, b.totalGoals||0)}
-            ${statRow('Assisturi', assistsA, assistsB)}
-            ${statRow('MVP-uri', a.careerMvpCount||0, b.careerMvpCount||0)}
+            ${statRow('Goluri', scA.goals, scB.goals)}
+            ${statRow('Assisturi', scA.assists, scB.assists)}
+            ${statRow('👑 MVP-uri', scA.mvp, scB.mvp)}
+            ${statRow('⭐ POTM-uri', scA.potm, scB.potm)}
             ${statRow('Realizări deblocate', achA.length, achB.length)}
+        </div>
+
+        <div class="stats-section" style="margin-bottom:14px;">
+            <div class="pp-section-title">🏅 OMUL LUNII · ${formatMotmMonthLabel(mA.monthKey)}</div>
+            ${statRow('Puncte MOTM', mv(cA,'score'), mv(cB,'score'))}
+            ${statRow('Loc în clasament', mA.rank ? mA.rank+'/'+mA.total : '—', mB.rank ? mB.rank+'/'+mB.total : '—', false)}
+            ${statRow('Goluri', mv(cA,'goals'), mv(cB,'goals'))}
+            ${statRow('Assisturi', mv(cA,'assists'), mv(cB,'assists'))}
+            ${statRow('Victorii', mv(cA,'wins'), mv(cB,'wins'))}
+            ${statRow('POTM', mv(cA,'potm'), mv(cB,'potm'))}
+            ${statRow('MVP', mv(cA,'mvp'), mv(cB,'mvp'))}
+            ${statRow('Achievement-uri', mv(cA,'achievements'), mv(cB,'achievements'))}
+            ${statRow('Minute', mv(cA,'minutes'), mv(cB,'minutes'))}
         </div>
 
         <div class="stats-section" style="margin-bottom:14px;">
