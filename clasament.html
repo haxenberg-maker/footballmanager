@@ -1067,13 +1067,18 @@ function isDrawResult(h){ const w = (h.winner||'').toLowerCase().trim(); return 
 let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună; suprascris din algo_settings (key: 'motm_min_sessions'), configurabil din Setări → Premii/Titluri
 
 const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, achievement:1,
-                       cleanSheet:0.75, concededVsAvg:0.25, impact:1 };
+                       cleanSheet:0.75, concededVsAvg:0.25,        // meci întreg (2 echipe)
+                       cleanRound:0.25, concededVsAvgRound:0.1,    // per TURĂ (sesiune 3 echipe, cu goluri salvate pe tură)
+                       impact:3 };                                  // ≈ puncte pentru 100% mai puține goluri primite, cu/fără el
 
 // ── Apărare în MOTM ─────────────────────────────────────────────────────
 // Trei componente, toate înmulțite cu un factor de ROL (portar/fundaș contează
 // cel mai mult, atacantul puțin) și plafonate la MOTM_DEF_CAP puncte/lună:
 //   1) poarta curată: +cleanSheet pentru fiecare meci cu 0 goluri primite de echipă;
-//   2) goluri primite sub media ligii: +concededVsAvg × (medie − primite) per meci;
+//      la sesiunile cu 3 echipe se numără TURELE (+cleanRound per tură fără gol primit),
+//      pentru că acolo se joacă pe ture (la 2 goluri sau 10 minute);
+//   2) goluri primite sub media ligii: +concededVsAvg × (medie − primite) per meci / per tură
+//      (media se calculează separat pentru meciuri și pentru ture);
 //   3) impact „cu/fără el”: media de goluri primite de echipă când joacă vs. echipele
 //      fără el (pe tot istoricul), trasă spre 0 când sunt puține meciuri; doar bonus.
 // Golurile primite = golurile adversarului din match_goals (inclusiv penalty). Meciurile
@@ -1101,19 +1106,49 @@ function _motmRowConceded(h){
     if (g0 + g1 === 0 && !(noRounds && /^\s*0\s*[-–:]\s*0\s*$/.test(String(h.score||'')))) return null;
     return { [teams[0][0]]: g1, [teams[1][0]]: g0 };
 }
-function _motmLeagueConcededAvg(){
-    let tot = 0, n = 0;
-    db.history.forEach(h => { const c = _motmRowConceded(h); if (c) Object.values(c).forEach(v => { tot += v; n++; }); });
-    return n ? tot/n : null;
+// Unități defensive ale unui rând: TURELE (sesiune 3 echipe, când fiecare tură are golurile salvate
+// și totalul se potrivește cu golurile pe meci) sau, altfel, meciul întreg. null = date nesigure.
+function _motmRowDefUnits(h){
+    const teams = _motmTeamsOfRow(h);
+    if (teams.length !== 2) return null;
+    const rd = h.roundsDetail;
+    if (Array.isArray(rd) && rd.length && rd.every(r => Array.isArray(r.goals))) {
+        const k0 = teams[0][0], k1 = teams[1][0];
+        let total = 0;
+        const units = rd.map(r => {
+            const c = { [k0]:0, [k1]:0 };
+            r.goals.forEach(g => {
+                if (g.is_penalty) return; // golurile de la penalty (departajare) nu intră în goluri primite pe tură
+                const opp = g.team === k0 ? k1 : g.team === k1 ? k0 : null;
+                if (opp) { c[opp] += (g.goals||1); total += (g.goals||1); }
+            });
+            return c;
+        });
+        const tg = h.teamGoals || {}, rowTotal = (tg[k0]||0) + (tg[k1]||0);
+        if (total > 0 && (rowTotal === 0 || rowTotal === total)) return { kind:'round', units };
+    }
+    const c = _motmRowConceded(h);
+    return c ? { kind:'match', units:[c] } : null;
 }
-// { nume: { n, shrunk } } — diferența (medie primite fără el − cu el), pe tot istoricul.
-function _motmImpactMap(){
+// Media de goluri primite pe echipă, separat pe meciuri și pe ture (scări diferite).
+function _motmLeagueConcededAvg(){
+    const acc = { match:{t:0,n:0}, round:{t:0,n:0} };
+    db.history.forEach(h => {
+        const du = _motmRowDefUnits(h); if (!du) return;
+        du.units.forEach(u => Object.values(u).forEach(v => { acc[du.kind].t += v; acc[du.kind].n++; }));
+    });
+    return { match: acc.match.n ? acc.match.t/acc.match.n : null, round: acc.round.n ? acc.round.t/acc.round.n : null };
+}
+// { nume: { n, shrunk } } — diferența RELATIVĂ la media ligii (fără el − cu el), pe tot istoricul.
+function _motmImpactMap(avg){
     const per = {}; let totSum = 0, totN = 0;
     db.history.forEach(h => {
-        const c = _motmRowConceded(h); if (!c) return;
+        const du = _motmRowDefUnits(h), base = du && avg[du.kind];
+        if (!du || !base) return;
         _motmTeamsOfRow(h).forEach(([k,arr]) => {
-            totSum += c[k]; totN++;
-            arr.forEach(nm => { const o = per[nm] || (per[nm] = {sum:0, n:0}); o.sum += c[k]; o.n++; });
+            const rel = (du.units.reduce((sum,u) => sum + (u[k]||0), 0) / du.units.length) / base;
+            totSum += rel; totN++;
+            arr.forEach(nm => { const o = per[nm] || (per[nm] = {sum:0, n:0}); o.sum += rel; o.n++; });
         });
     });
     const out = {};
@@ -1232,8 +1267,8 @@ function computeMotmCandidates(currentMonthRows){
 
     const stats = {};
     const leagueAvg = _motmLeagueConcededAvg();
-    const impactMap = _motmImpactMap();
-    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, matches:0, seconds:0, potm:0, mvp:0, sessions:0, cleanSheets:0, conceded:0, defRows:0, vsAvg:0 });
+    const impactMap = _motmImpactMap(leagueAvg);
+    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, matches:0, seconds:0, potm:0, mvp:0, sessions:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, defRows:0, defRaw:0 });
 
     items.forEach(item => {
         const playersInItem = new Set();
@@ -1260,13 +1295,21 @@ function computeMotmCandidates(currentMonthRows){
             }
 
             // Apărare: goluri primite de echipa fiecărui jucător în acest rând.
-            const conc = _motmRowConceded(h);
-            if (conc) _motmTeamsOfRow(h).forEach(([k,arr]) => arr.forEach(n => {
-                const st = ensure(n);
-                st.defRows++; st.conceded += conc[k];
-                if (conc[k] === 0) st.cleanSheets++;
-                if (leagueAvg != null) st.vsAvg += Math.max(0, leagueAvg - conc[k]);
-            }));
+            const du = _motmRowDefUnits(h);
+            if (du) {
+                const isR = du.kind === 'round', avg = leagueAvg[du.kind], WD = MOTM_WEIGHTS;
+                const wCS = isR ? WD.cleanRound : WD.cleanSheet, wAv = isR ? WD.concededVsAvgRound : WD.concededVsAvg;
+                _motmTeamsOfRow(h).forEach(([k,arr]) => arr.forEach(n => {
+                    const st = ensure(n); st.defRows++;
+                    du.units.forEach(u => {
+                        const c = u[k] || 0;
+                        st.conceded += c;
+                        if (isR) st.roundsPlayed++;
+                        if (c === 0) { if (isR) st.cleanRounds++; else st.cleanSheets++; }
+                        st.defRaw += (c === 0 ? wCS : 0) + (avg != null ? wAv * Math.max(0, avg - c) : 0);
+                    });
+                }));
+            }
         });
         playersInItem.forEach(n => { ensure(n).sessions++; });
 
@@ -1298,13 +1341,13 @@ function computeMotmCandidates(currentMonthRows){
             const impactRaw = impactMap[s.name] ? impactMap[s.name].shrunk : 0;
             const impactPts = s.defRows ? Math.max(0, impactRaw) * (s.defRows/(s.defRows + 3)) : 0;
             const defense = Math.min(MOTM_DEF_CAP, _motmRoleFactor(s.name) *
-                (s.cleanSheets*W.cleanSheet + s.vsAvg*W.concededVsAvg + impactPts*W.impact));
+                (s.defRaw + impactPts*W.impact));
             const score = s.goals*W.goal + s.assists*W.assist + s.wins*W.win
                         + s.potm*W.potm + s.mvp*W.mvp + achievements*W.achievement
                         + (s.seconds/60)*W.minute + defense;
             return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, matches:s.matches, minutes,
                      potm:s.potm, mvp:s.mvp, titles:s.potm+s.mvp, achievements, achievementList:achList,
-                     cleanSheets:s.cleanSheets, goalsAgainst:s.conceded, defRows:s.defRows, impact:Math.round(impactRaw*100)/100, defense:Math.round(defense*100)/100,
+                     cleanSheets:s.cleanSheets, cleanRounds:s.cleanRounds, roundsPlayed:s.roundsPlayed, goalsAgainst:s.conceded, defRows:s.defRows, impact:Math.round(impactRaw*100)/100, defense:Math.round(defense*100)/100,
                      sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
         })
         .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
@@ -1882,6 +1925,13 @@ function buildRoundsTimelineHtml(h){
         const winnerHtml = roundWinnerName
             ? `<span style="color:${teamHex(roundWinnerName==='Portocaliu'?'orange':roundWinnerName==='Verde'?'green':'black')};font-weight:700;">🏆 ${roundWinnerName}</span>`
             : `<span style="color:#5b6577;">Egal</span>`;
+        // 🧱 Poartă curată pe tură: echipa al cărei adversar n-a marcat în tura respectivă.
+        let csHtml = '';
+        if (Array.isArray(r.goals) && pairTeams.length === 2) {
+            const sc = pairTeams.map(t => r.goals.filter(g => !g.is_penalty && g.team === t.col).reduce((sum,g) => sum + (g.goals||1), 0));
+            const clean = pairTeams.filter((t,i) => sc[1-i] === 0);
+            if (clean.length) csHtml = `<div style="font-size:.64rem;margin-top:3px;color:#8b96a8;">🧱 Poartă curată: ${clean.map(t=>`<b style="color:${teamHex(t.col)};">${escapeHtml(t.name)}</b>`).join(' · ')}</div>`;
+        }
         const hasRoster = pairTeams.length > 0;
         const rosterId = `${scopeId}_r${ri}`;
         const rosterHtml = hasRoster ? `<div id="${rosterId}" style="display:none;margin-top:6px;padding:7px 9px;background:#0e131c;border-radius:7px;border:1px solid #1d2531;">${rosterInner}</div>` : '';
@@ -1892,6 +1942,7 @@ function buildRoundsTimelineHtml(h){
                 <span style="font-weight:400;font-size:.7rem;">${winnerHtml} <span style="color:#5b6577;">· ${durStr} · ${reasonLabel[r.end_reason]||r.end_reason||''}</span></span>
             </div>
             <div style="margin-top:3px;">${goalsHtml}</div>
+            ${csHtml}
             ${rosterBtnHtml}
             ${rosterHtml}
         </div>`;
@@ -2727,7 +2778,7 @@ function renderMotmCard(candidate, idx){
             <span>⏱️ ${candidate.minutes} min</span>
             <span>⭐ ${candidate.potm||0} POTM</span>
             <span>👑 ${candidate.mvp||0} MVP</span>
-            <span title="Poartă curată + goluri primite sub medie + impact, înmulțit cu rolul">🧱 ${candidate.cleanSheets||0} poarta curată · 🛡️ +${candidate.defense||0} pct apărare</span>
+            <span title="Poartă curată + goluri primite sub medie + impact, înmulțit cu rolul">🧱 ${candidate.cleanSheets||0} meciuri + ${candidate.cleanRounds||0}/${candidate.roundsPlayed||0} ture fără gol primit · 🛡️ +${candidate.defense||0} pct apărare</span>
             <span title="${(candidate.achievementList||[]).map(a=>a.label).join(', ').replace(/"/g,'&quot;')}">🏅 ${candidate.achievements||0} achievement-uri deblocate${(candidate.achievementList||[]).length ? ' ('+candidate.achievementList.map(a=>a.emoji).join('')+')' : ''}</span>
         </div>
     </div>`;
@@ -3799,7 +3850,7 @@ function renderPlayerProfile(name){
     try {
         const ms = getCurrentMonthMotmStanding(p.name), c = ms.candidate;
         const monthLbl = formatMotmMonthLabel(ms.monthKey);
-        const chips = c ? [`⚽ ${c.goals}`, `🅰️ ${c.assists}`, `✅ ${c.wins} V`, `⭐ ${c.potm} POTM`, `👑 ${c.mvp} MVP`, `🎖️ ${c.achievements} achiev.`, `🧱 ${c.cleanSheets} CS`, `🛡️ +${c.defense} apărare`, `⏱ ${c.minutes} min`]
+        const chips = c ? [`⚽ ${c.goals}`, `🅰️ ${c.assists}`, `✅ ${c.wins} V`, `⭐ ${c.potm} POTM`, `👑 ${c.mvp} MVP`, `🎖️ ${c.achievements} achiev.`, `🧱 ${c.cleanSheets} CS + ${c.cleanRounds}/${c.roundsPlayed} ture fără gol`, `🛡️ +${c.defense} apărare`, `⏱ ${c.minutes} min`]
                         .map(t => `<span style="font-size:.7rem;color:#8b96a8;background:#141a26;border:1px solid #262f3f;border-radius:6px;padding:2px 7px;">${t}</span>`).join('') : '';
         const status = !c ? `N-a jucat în ${monthLbl} — 0 puncte`
             : `Locul ${ms.rank} din ${ms.total}${c.eligible ? '' : ` · neeligibil încă (${c.sessions}/${MOTM_MIN_SESSIONS} sesiuni)`}`
@@ -4052,7 +4103,8 @@ function renderComparePage(nameA, nameB){
             ${statRow('POTM', mv(cA,'potm'), mv(cB,'potm'))}
             ${statRow('MVP', mv(cA,'mvp'), mv(cB,'mvp'))}
             ${statRow('Achievement-uri', mv(cA,'achievements'), mv(cB,'achievements'))}
-            ${statRow('Poarta curată', mv(cA,'cleanSheets'), mv(cB,'cleanSheets'))}
+            ${statRow('Poarta curată (meciuri)', mv(cA,'cleanSheets'), mv(cB,'cleanSheets'))}
+            ${statRow('Ture fără gol primit', mv(cA,'cleanRounds')+'/'+mv(cA,'roundsPlayed'), mv(cB,'cleanRounds')+'/'+mv(cB,'roundsPlayed'))}
             ${statRow('Goluri primite (echipă)', mv(cA,'goalsAgainst'), mv(cB,'goalsAgainst'), false)}
             ${statRow('Puncte apărare', mv(cA,'defense'), mv(cB,'defense'))}
             ${statRow('Impact defensiv', mv(cA,'impact'), mv(cB,'impact'))}
