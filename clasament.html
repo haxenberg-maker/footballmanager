@@ -1069,7 +1069,8 @@ let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri 
 const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, achievement:1,
                        cleanSheet:1.25, concededVsAvg:0.5,         // meci întreg (2 echipe)
                        cleanRound:0.5, concededVsAvgRound:0.2,     // per TURĂ (sesiune 3 echipe, cu goluri salvate pe tură)
-                       impact:4 };                                  // ≈ puncte pentru 100% mai puține goluri primite, cu/fără el
+                       impact:4,                                    // ≈ puncte pentru 100% mai puține goluri primite, cu/fără el
+                       defPotm:3 };                                 // clasament Defensivă: POTM câștigat ca apărător (0 goluri/assisturi, poartă bună)
 
 // ── Apărare în MOTM ─────────────────────────────────────────────────────
 // Trei componente, toate înmulțite cu un factor de ROL (portar/fundaș contează
@@ -4204,7 +4205,12 @@ window.addEventListener('popstate', () => {
 //   • media ligii și impactul „cu/fără el” se calculează doar din meciurile ACELUI sezon;
 //   • punctele se ADUNĂ pe tot sezonul, fără plafonul lunar de la MOTM — cine joacă mai multe
 //     meciuri strânge mai multe puncte (20 de meciuri bune bat 5 meciuri bune);
-//   • bonusul de impact crește liniar cu numărul de meciuri (MOTM_IMPACT_PER_ROW).
+//   • bonusul de impact crește liniar cu numărul de meciuri (MOTM_IMPACT_PER_ROW);
+//   • 🏅 POTM CA APĂRĂTOR: dacă jucătorul a luat POTM într-un meci/sesiune în care n-a dat gol și n-a
+//     dat assist, voturile lui vin cel mai probabil din apărare → +defPotm dacă echipa lui a ținut
+//     poarta curată în cel puțin jumătate din meciuri/ture, +jumătate dacă a primit cel mult media
+//     ligii. Nu se înmulțește cu factorul de rol (dovada din meci bate poziția setată). La MOTM nu
+//     se aplică, fiindcă acolo POTM-ul își are deja punctele lui.
 function computeDefenseSeasonStats(seasonName){
     const rows = db.history.filter(h => (h.season||null) === (seasonName||null));
     const leagueAvg = _motmLeagueConcededAvg(rows);
@@ -4217,7 +4223,7 @@ function computeDefenseSeasonStats(seasonName){
         const isR = du.kind === 'round', avg = leagueAvg[du.kind];
         const wCS = isR ? W.cleanRound : W.cleanSheet, wAv = isR ? W.concededVsAvgRound : W.concededVsAvg;
         _motmTeamsOfRow(h).forEach(([k,arr]) => arr.forEach(n => {
-            const st = out[n] || (out[n] = { raw:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, rows:0, points:0 });
+            const st = out[n] || (out[n] = { raw:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, rows:0, points:0, potmBonus:0, defPotm:0 });
             st.rows++;
             du.units.forEach(u => {
                 const c = u[k] || 0;
@@ -4228,9 +4234,32 @@ function computeDefenseSeasonStats(seasonName){
             });
         }));
     });
+    // 🏅 POTM câștigat ca apărător (vezi nota de sus).
+    groupHistoryForDisplay(rows).forEach(item => {
+        const { winnerId } = computePotmWinnerForRows(item.rows);
+        const pl = winnerId != null ? db.players.find(x => x.id === winnerId) : null;
+        if (!pl || !out[pl.name]) return;
+        const n = pl.name;
+        let units = 0, clean = 0, conc = 0, expected = 0, goals = 0, assists = 0;
+        item.rows.forEach(h => {
+            goals   += (h.playerGoals   && h.playerGoals[n])   || 0;
+            assists += (h.playerAssists && h.playerAssists[n]) || 0;
+            const t = _motmTeamsOfRow(h).find(([,arr]) => arr.includes(n));
+            const du = t && _motmRowDefUnits(h);
+            if (!du) return;
+            du.units.forEach(u => {
+                const c = u[t[0]] || 0;
+                units++; conc += c; expected += (leagueAvg[du.kind] || 0);
+                if (c === 0) clean++;
+            });
+        });
+        if (!units || goals > 0 || assists > 0) return;
+        const tier = clean/units >= 0.5 ? 1 : conc <= expected ? 0.5 : 0;
+        if (tier > 0) { out[n].potmBonus += tier * W.defPotm; out[n].defPotm++; }
+    });
     Object.entries(out).forEach(([n,st]) => {
         const impactPts = Math.max(0, impactMap[n] ? impactMap[n].shrunk : 0) * st.rows * MOTM_IMPACT_PER_ROW;
-        st.points = _motmRoleFactor(n) * (st.raw + impactPts * W.impact);
+        st.points = _motmRoleFactor(n) * (st.raw + impactPts * W.impact) + st.potmBonus;
     });
     return out;
 }
@@ -4347,7 +4376,8 @@ function renderLeaderboard(){
                   const d = defOf(p), g = gamesOf(p);
                   return `${g} meciuri · ${g > 0 ? (d.points/g).toFixed(2) : '—'}/meci · 🧱 ${d.cleanSheets} CS`
                       + (d.roundsPlayed ? ` · ${d.cleanRounds}/${d.roundsPlayed} ture fără gol` : '')
-                      + ` · ${d.conceded} primite (echipă)`;
+                      + ` · ${d.conceded} primite (echipă)`
+                      + (d.defPotm ? ` · ⭐ ${d.defPotm} POTM ca apărător` : '');
               };
               bigColor = '#1b7a43';
               break;
