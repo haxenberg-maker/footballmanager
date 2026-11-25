@@ -1066,7 +1066,7 @@ function isDrawResult(h){ const w = (h.winner||'').toLowerCase().trim(); return 
 
 let MOTM_MIN_SESSIONS = 2; // prag de eligibilitate — minim 2 sesiuni/meciuri în lună; suprascris din algo_settings (key: 'motm_min_sessions'), configurabil din Setări → Premii/Titluri
 
-const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, minute:1/90, potm:3, mvp:2, achievement:1,
+const MOTM_WEIGHTS = { goal:1, assist:1, win:0.5, draw:1/6, minute:1/90, potm:3, mvp:2, achievement:1,
                        cleanSheet:1.25, concededVsAvg:0.5,         // meci întreg (2 echipe)
                        cleanRound:0.5, concededVsAvgRound:0.2,     // per TURĂ (sesiune 3 echipe, cu goluri salvate pe tură)
                        impact:4,                                    // ≈ puncte pentru 100% mai puține goluri primite, cu/fără el
@@ -1188,7 +1188,7 @@ function _motmAchievementSnapshot(players, cutoffMs, seasonLabel){
             const won = playerWonMatch(h, n) === true;
             a.games++; if (won) a.wins++;
             a.goals += (h.playerGoals && h.playerGoals[n]) || 0;
-            a.results.push(won ? 'W' : 'L');
+            a.results.push(getMatchOutcome(h, n));
         }));
     });
 
@@ -1270,7 +1270,7 @@ function computeMotmCandidates(currentMonthRows){
     const stats = {};
     const leagueAvg = _motmLeagueConcededAvg();
     const impactMap = _motmImpactMap(leagueAvg);
-    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, matches:0, seconds:0, potm:0, mvp:0, sessions:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, defRows:0, defRaw:0 });
+    const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, draws:0, matches:0, seconds:0, potm:0, mvp:0, sessions:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, defRows:0, defRaw:0 });
 
     items.forEach(item => {
         const playersInItem = new Set();
@@ -1282,7 +1282,7 @@ function computeMotmCandidates(currentMonthRows){
                 s.goals   += (h.playerGoals   && h.playerGoals[n])   || 0;
                 s.assists += (h.playerAssists && h.playerAssists[n]) || 0;
                 s.matches++;
-                if (isWinner) s.wins++;
+                if (isWinner) s.wins++; else if (isDrawResult(h)) s.draws++;
             };
             (h.orangePlayers||[]).forEach(n => addPlayer(n, winO));
             (h.greenPlayers ||[]).forEach(n => addPlayer(n, winG));
@@ -1344,10 +1344,10 @@ function computeMotmCandidates(currentMonthRows){
             const impactPts = s.defRows ? Math.max(0, impactRaw) * (s.defRows/(s.defRows + 3)) : 0;
             const defense = Math.min(MOTM_DEF_CAP, _motmRoleFactor(s.name) *
                 (s.defRaw + impactPts*W.impact));
-            const score = s.goals*W.goal + s.assists*W.assist + s.wins*W.win
+            const score = s.goals*W.goal + s.assists*W.assist + s.wins*W.win + s.draws*W.draw
                         + s.potm*W.potm + s.mvp*W.mvp + achievements*W.achievement
                         + (s.seconds/60)*W.minute + defense;
-            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, matches:s.matches, minutes,
+            return { name:s.name, goals:s.goals, assists:s.assists, wins:s.wins, draws:s.draws, matches:s.matches, minutes,
                      potm:s.potm, mvp:s.mvp, titles:s.potm+s.mvp, achievements, achievementList:achList,
                      cleanSheets:s.cleanSheets, cleanRounds:s.cleanRounds, roundsPlayed:s.roundsPlayed, goalsAgainst:s.conceded, defRows:s.defRows, impact:Math.round(impactRaw*100)/100, defense:Math.round(defense*100)/100,
                      sessions:s.sessions, score: Math.round(score*100)/100, eligible: s.sessions >= MOTM_MIN_SESSIONS };
@@ -1700,7 +1700,7 @@ function renderSessionCard(rows){
             <span class="mc-timeline-dot" style="background:${dotColor};"></span>
             <div class="mc-timeline-content">
                 <div class="mc-timeline-teams">${idx===0?'▶ START · ':''}${tA||'?'} vs ${tB||'?'}</div>
-                <div class="mc-timeline-score">ture ${getOrderedScoreStr(h)} · câștigă ${h.winner||'—'}</div>
+                <div class="mc-timeline-score">ture ${getOrderedScoreStr(h)} · ${isDrawResult(h) ? 'egalitate' : 'câștigă '+h.winner}</div>
                 ${h.topScorer ? `<div class="mc-timeline-scorer${isCurrentUser(h.topScorer.name)?' um-name':''}">${h.topScorer.goals>=3?'🎩':'⚽'} ${h.topScorer.name} ${h.topScorer.goals} gol${h.topScorer.goals!==1?'uri':''}</div>` : ''}
             </div>
         </div>`;
@@ -2693,6 +2693,14 @@ function playerWonMatch(h, playerName) {
     return false;
 }
 
+// 'W' | 'D' | 'L' | null (null = n-a jucat). Egalul NU e înfrângere.
+function getMatchOutcome(h, playerName){
+    const won = playerWonMatch(h, playerName);
+    if (won === null) return null;
+    if (won) return 'W';
+    return isDrawResult(h) ? 'D' : 'L';
+}
+
 function buildPTById(){ PT_BY_ID = Object.fromEntries(tagsConfig.map(t=>[String(t.id),t])); }
 function buildTWFromConfig(){ TW = {}; tagsConfig.forEach(t=>{ TW[String(t.id)] = parseFloat(t.tw_weight)||0; }); }
 
@@ -3093,7 +3101,10 @@ function toggleRuleItem(i){
 }
 
 function getFormIndex(p){
-    const history = p.matchHistory || [];
+    // Din meciurile reale ale sezonului curent (egal = 'D'); players.match_history din DB trece egalul drept 'L'.
+    let history = [];
+    try { history = db.history.filter(h => !h.season).slice().reverse().map(h => getMatchOutcome(h, p.name)).filter(Boolean); } catch(e) {}
+    if (!history.length) history = p.matchHistory || [];
     const last5 = history.slice(-5);
     const wins  = last5.filter(r=>r==='W').length;
     const total = last5.length;
@@ -3226,7 +3237,7 @@ function renderSeasonMatchesList(){
         + '<div style="margin-top:8px;">' + matches.map(h=>`
             <div class="season-match-row">
                 <div class="season-match-date">${h.date||''}</div>
-                <div class="season-match-score">${getOrderedScoreStr(h)} ${h.winner?`· câștigă ${h.winner}`:''}</div>
+                <div class="season-match-score">${getOrderedScoreStr(h)} ${isDrawResult(h) ? '· egalitate' : `· câștigă ${h.winner}`}</div>
             </div>`).join('') + '</div>';
 }
 
@@ -3344,17 +3355,17 @@ function computeNemesis(name, src){
         const inGreen  = (h.greenPlayers ||[]).includes(name);
         const inBlack  = (h.blackPlayers ||[]).includes(name);
         if (!inOrange && !inGreen && !inBlack) return;
-        const won = playerWonMatch(h, name);
-        if (won===null) return;
+        const res = getMatchOutcome(h, name);
+        if (res===null) return;
         let oppList = [];
         if (inOrange) oppList = [...(h.greenPlayers||[]), ...(h.blackPlayers||[])];
         else if (inGreen) oppList = [...(h.orangePlayers||[]), ...(h.blackPlayers||[])];
         else oppList = [...(h.orangePlayers||[]), ...(h.greenPlayers||[])];
         oppList.forEach(n=>{
             if (n===name) return;
-            if (!opponents[n]) opponents[n]={games:0,losses:0};
+            if (!opponents[n]) opponents[n]={games:0,wins:0,draws:0,losses:0};
             opponents[n].games++;
-            if (won===false) opponents[n].losses++;
+            if (res==='L') opponents[n].losses++; else if (res==='W') opponents[n].wins++; else opponents[n].draws++;
         });
     });
     let nemesis=null;
@@ -3363,7 +3374,7 @@ function computeNemesis(name, src){
         const lossRate = st.losses/st.games;
         if (lossRate<=0.5) return;
         if (!nemesis || lossRate>nemesis.lossRate || (lossRate===nemesis.lossRate && st.games>nemesis.games)) {
-            nemesis = {name:n, games:st.games, losses:st.losses, wins:st.games-st.losses, lossRate};
+            nemesis = {name:n, games:st.games, losses:st.losses, wins:st.wins, draws:st.draws, lossRate};
         }
     });
     return nemesis;
@@ -3726,7 +3737,7 @@ function renderPlayerProfile(name){
                 <div class="pp-card-lbl">⚔️ Nemesis</div>
                 ${nemesis ? `
                     <div class="pp-card-name pp-name-link" onclick="location.href='clasament.html?player='+encodeURIComponent('${nemesis.name.replace(/'/g,"\\'")}')">${nemesis.name}</div>
-                    <div class="pp-card-sub">${nemesis.losses} înfrângeri · ${nemesis.games} meciuri · ${nemesis.wins}V</div>
+                    <div class="pp-card-sub">${nemesis.losses} înfrângeri · ${nemesis.games} meciuri · ${nemesis.wins}V · ${nemesis.draws}E</div>
                 ` : `<div class="pp-empty">Fără nemesis clar (min. 3 meciuri directe, &gt;50% înfrângeri).</div>`}
             </div>
         </div>
@@ -3802,15 +3813,15 @@ function renderPlayerProfile(name){
 
         <div class="stats-section" style="margin-bottom:14px;">
             <div class="pp-section-title">FORMĂ RECENTĂ</div>
-            ${form.total ? `<div class="pp-form-dots">${form.last5.map(r=>`<span class="pp-form-dot" style="background:${r==='W'?'#22c55e':'#ef4444'};" title="${r==='W'?'Victorie':'Înfrângere'}"></span>`).join('')}</div>` : `<div class="pp-empty">Fără meciuri recente.</div>`}
+            ${form.total ? `<div class="pp-form-dots">${form.last5.map(r=>`<span class="pp-form-dot" style="background:${r==='W'?'#22c55e':r==='D'?'#eab308':'#ef4444'};" title="${r==='W'?'Victorie':'Înfrângere'}"></span>`).join('')}</div>` : `<div class="pp-empty">Fără meciuri recente.</div>`}
         </div>
 
         <div class="stats-section">
             <div class="pp-section-title">ULTIMELE MECIURI · ${ppScopeLabel()}</div>
             ${recentMatches.length ? recentMatches.map(h=>{
-                const won = playerWonMatch(h, p.name);
-                const resLabel = won===true?'WIN':won===false?'LOSS':'—';
-                const resColor = won===true?'#22c55e':won===false?'#ef4444':'#64748b';
+                const oc = getMatchOutcome(h, p.name);
+                const resLabel = oc==='W'?'WIN':oc==='D'?'DRAW':oc==='L'?'LOSS':'—';
+                const resColor = oc==='W'?'#22c55e':oc==='D'?'#eab308':oc==='L'?'#ef4444':'#64748b';
                 const goals = (h.goalsList||[]).filter(g=>!g.is_penalty && g.player_name===p.name).reduce((s,g)=>s+(g.goals||1),0);
                 const ast = (h.goalsList||[]).filter(g=>!g.is_penalty && g.assist_name===p.name).length;
                 const isPotm = potmIds.has(h._dbId);
@@ -4494,7 +4505,7 @@ function renderLeaderboard(){
             const dots = currentLbTab==='pen'
                 ? (periodStats[p.name]?.penaltyShots||[]).slice(0,5).reverse()
                     .map(scored=>`<span title="${scored?'Gol':'Ratat'}" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${scored?'#22c55e':'#ef4444'};"></span>`).join('')
-                : form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#22c55e':'#ef4444'};"></span>`).join('');
+                : form.last5.slice(0,5).map(r=>`<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${r==='W'?'#22c55e':r==='D'?'#eab308':'#ef4444'};"></span>`).join('');
             return `<div class="${isMe?'row-highlight':''}" style="display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;background:${bg};border-bottom:1px solid #262f3f;">
                 <span style="font-family:'Bebas Neue',sans-serif;font-size:${i<3?'1rem':'.8rem'};min-width:24px;text-align:center;color:${medalColors[i]||'#8b96a8'};">${medals[i]||(i+1)}</span>
                 <div style="flex:1;min-width:0;">
