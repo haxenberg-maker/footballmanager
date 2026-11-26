@@ -543,6 +543,7 @@ body{font-family:var(--font-body);background:
         <h3>🏅 Clasament</h3>
         <div id="motmBanner" style="display:none;margin-bottom:6px;"></div>
         <div id="motmHistoryWrap" style="display:none;margin-bottom:10px;"></div>
+        <div id="omsBanner" style="display:none;margin-bottom:10px;"></div>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;" id="lbTabs">
             <button class="lb-tab active" id="lbt-contrib" onclick="setLbTab('contrib')">🔥 Contribuții</button>
@@ -627,6 +628,9 @@ const compareP1 = urlParams.get('p1');
 const compareP2 = urlParams.get('p2');
 // ?motm=1 — pagina dedicată „Omul Lunii”: top 10 al lunii curente + legenda formulei.
 const motmPageMode = urlParams.get('motm') === '1';
+// ?oms=1[&season=NUME] — pagina „Omul sezonului” (aceeași machetă ca Omul lunii, pe un sezon întreg).
+const omsPageMode = urlParams.get('oms') === '1';
+let omsSeason = urlParams.get('season') || null; // null = sezonul curent
 
 // Citește LIVE (nu doar la încărcare) parametrul de meci din URL — folosit de
 // applyPageMode() ca plasă de siguranță și de listenerul popstate (Înainte/
@@ -4194,20 +4198,93 @@ function renderComparePage(nameA, nameB){
     `;
 }
 
+// 🏆 OMUL SEZONULUI — suma punctajelor lunare de la Omul lunii (aceeași formulă: goluri, assisturi,
+// victorii, minute, POTM, MVP, achievement-uri, apărare cu plafon lunar), deci contează și câte meciuri
+// ai jucat. Eligibil: minim un sfert din sesiunile sezonului (cel puțin MOTM_MIN_SESSIONS).
+// seasonName = null → sezonul curent (nearhivat; numele apare abia când sezonul e salvat).
+let _omsCache = { token:null, data:{} };
+function computeSeasonMotmCandidates(seasonName){
+    const token = `${db.history.length}|${(db.history[0]||{})._dbId}|${(milestoneConfig||[]).length}`;
+    if (_omsCache.token !== token) _omsCache = { token, data:{} };
+    const ck = seasonName || '';
+    if (_omsCache.data[ck]) return _omsCache.data[ck];
+
+    const rows = db.history.filter(h => (h.season||null) === (seasonName||null));
+    const byMonth = {};
+    rows.forEach(h => {
+        const d = parseDateToObj(h.date);
+        if (!d || isNaN(d.getTime())) return;
+        const k = getMonthKey(d);
+        (byMonth[k] || (byMonth[k] = [])).push(h);
+    });
+    const SUM = ['goals','assists','wins','draws','matches','minutes','potm','mvp','achievements','cleanSheets','cleanRounds','roundsPlayed','goalsAgainst','defRows','sessions'];
+    const agg = {};
+    Object.values(byMonth).forEach(mrows => computeMotmCandidates(mrows).forEach(c => {
+        const a = agg[c.name] || (agg[c.name] = { name:c.name, score:0, defense:0, achievementList:[] });
+        SUM.forEach(k => { a[k] = (a[k]||0) + (c[k]||0); });
+        a.score += c.score; a.defense += c.defense;
+        a.achievementList.push(...(c.achievementList||[]));
+    }));
+    const minS = Math.max(MOTM_MIN_SESSIONS, Math.ceil(groupHistoryForDisplay(rows).length * 0.25));
+    const r2 = n => Math.round(n*100)/100;
+    const out = Object.values(agg)
+        .map(a => ({ ...a, titles:a.potm+a.mvp, impact:0, score:r2(a.score), defense:r2(a.defense), minSessions:minS, eligible:a.sessions >= minS }))
+        .sort((a,b) => (b.eligible - a.eligible) || b.score - a.score || b.goals - a.goals || b.minutes - a.minutes || a.name.localeCompare(b.name,'ro'));
+    _omsCache.data[ck] = out;
+    return out;
+}
+function getSeasonInfo(seasonName){
+    const ts = db.history.filter(h => (h.season||null) === (seasonName||null)).map(_motmRowTime).filter(t => t !== null);
+    const fmt = t => new Date(t).toLocaleDateString('ro-RO', { day:'numeric', month:'short', year:'numeric' });
+    return { span: ts.length ? `${fmt(Math.min(...ts))} – ${fmt(Math.max(...ts))}` : '' };
+}
+function setOmsSeason(sn){ omsSeason = sn || null; renderMotmPage('season'); }
+
+// Banner compact pe prima pagină (sezonul selectat sus: curent sau arhivat).
+function renderOmsBanner(){
+    const el = document.getElementById('omsBanner');
+    if (!el) return;
+    const sName = currentSeason || null;
+    const cands = computeSeasonMotmCandidates(sName);
+    if (!cands.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    const top3 = cands.filter(c => c.eligible).slice(0, 3);
+    const medals = ['🏆','🥈','🥉'];
+    const chip = (c,m) => `<span style="background:rgba(255,255,255,.05);border:1px solid rgba(167,139,250,.3);border-radius:8px;padding:4px 9px;font-size:.78rem;">${m} <b>${escapeHtml(c.name)}</b> · ${c.score} pct</span>`;
+    const href = `clasament.html?oms=1${sName ? '&season='+encodeURIComponent(sName) : ''}`;
+    el.style.display = 'block';
+    el.innerHTML = `<div class="motm-section" style="cursor:pointer;border-color:rgba(167,139,250,.35);background:linear-gradient(135deg,rgba(167,139,250,.10),rgba(255,210,63,.05));" onclick="location.href='${href.replace(/'/g,"\\'")}'">
+        <div class="motm-section-head" style="margin-bottom:8px;">
+            <div class="motm-section-icon">🏆</div>
+            <div class="motm-section-lbl">Omul sezonului · ${escapeHtml(sName || 'sezonul curent')}</div>
+            <span style="margin-left:auto;font-size:.68rem;font-weight:700;color:var(--ink-dim);">Top 10 ▸</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">${top3.length ? top3.map((c,i) => chip(c, medals[i])).join('') : chip(cands[0], '⏳')}</div>
+        ${top3.length ? '' : `<div style="font-size:.68rem;color:var(--ink-dim);margin-top:6px;">provizoriu, lider · ${cands[0].sessions}/${cands[0].minSessions} sesiuni (prag de eligibilitate)</div>`}
+    </div>`;
+}
+
 // 🏅 Pagina „Omul Lunii” (?motm=1): top 10 al lunii curente + legenda formulei (din MOTM_WEIGHTS,
 // deci rămâne mereu la fel cu calculul real).
-function renderMotmPage(){
+function renderMotmPage(mode){
     const wrap = document.getElementById('motmPageWrap');
     if (!wrap) return;
+    const isSeason = (mode || (omsPageMode ? 'season' : 'month')) === 'season';
+    if (isSeason && omsSeason && !seasonsList.includes(omsSeason)) omsSeason = null;
+    const per = isSeason ? 'sezon' : 'lună';
     const now = new Date();
     const monthKey = getMonthKey(now), monthLabel = formatMotmMonthLabel(monthKey);
     const rows = db.history.filter(h => {
         const d = parseDateToObj(h.date);
         return d && !isNaN(d.getTime()) && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
     });
-    const allCands = computeMotmCandidates(rows);
+    const allCands = isSeason ? computeSeasonMotmCandidates(omsSeason) : computeMotmCandidates(rows);
     const cands = allCands.slice(0, 10);
-    const manual = getMotmManualOverride(monthKey);
+    const manual = isSeason ? null : getMotmManualOverride(monthKey);
+    const minS = (allCands[0] && allCands[0].minSessions) || MOTM_MIN_SESSIONS;
+    const titleTxt = isSeason ? (omsSeason ? `Omul sezonului, ${escapeHtml(omsSeason)}` : 'Omul sezonului curent') : `Omul lunii, ${monthLabel}`;
+    const spanTxt = isSeason ? getSeasonInfo(omsSeason).span : '';
+    const seasonBtn = (key,label) => `<button class="lb-season-btn${(omsSeason||'')===key?' active':''}" data-s="${escapeHtml(key)}" onclick="setOmsSeason(this.dataset.s)">${label}</button>`;
+    const seasonRowHtml = isSeason && seasonsList.length ? `<div class="pp-scope-row" style="margin-top:10px;">${seasonBtn('','🟢 Sezon curent')}${seasonsList.map(sn => seasonBtn(sn,'🗓️ '+sn)).join('')}</div>` : '';
     const W = MOTM_WEIGHTS, R = MOTM_ROLE_FACTOR;
     const f = n => String(Math.round(n*100)/100).replace('.', ',');
     const eligible = cands.filter(c => c.eligible), pending = cands.filter(c => !c.eligible);
@@ -4236,7 +4313,7 @@ function renderMotmPage(){
     const rowHtml = (c, rankLabel, isPending) => `<div class="mp-row${isPending ? ' pending' : ''}" ${goTo(c)}>
         <div class="mp-rank">${rankLabel}</div><div class="mp-name">${escapeHtml(c.name)}</div><div class="mp-score">${c.score}</div>
         ${barHtml(c)}
-        <div class="mp-meta">${isPending ? sp([`${c.sessions}/${MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
+        <div class="mp-meta">${isPending ? sp([`${c.sessions}/${c.minSessions || MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
     </div>`;
     const podiumHtml = eligible.length ? `<div class="mp-podium">${[1,0,2].map(i => eligible[i] ? podCard(eligible[i], i) : '').join('')}</div>` : '';
     const keyHtml = `<div class="mp-key">${SEG.map(([n,col]) => `<span><i style="background:${col}"></i>${n}</span>`).join('')}</div>`;
@@ -4246,15 +4323,15 @@ function renderMotmPage(){
     const legend = `<details open style="background:#0f1420;border:1px solid #1f2736;border-radius:12px;padding:10px 14px;margin-top:14px;">
         <summary style="cursor:pointer;font-weight:800;font-size:.8rem;">ℹ️ Cum se calculează punctajul</summary>
         <div style="font-size:.76rem;color:#aab4c4;margin-top:8px;line-height:1.5;">
-            <div style="font-weight:700;color:#e6e9ef;">Pe fiecare meci din lună</div>
+            <div style="font-weight:700;color:#e6e9ef;">Pe fiecare meci din ${per}</div>
             <ul style="margin:4px 0 8px 18px;padding:0;">
                 ${li(`⚽ Gol: <b>+${f(W.goal)}</b> · 🎯 Assist: <b>+${f(W.assist)}</b>`)}
                 ${li(`🏆 Victorie: <b>+${f(W.win)}</b> · 🤝 Egal: <b>+${f(W.draw)}</b> · înfrângere: 0`)}
                 ${li(`⏱ Minute jucate: <b>+${f(W.minute*90)}</b> la fiecare 90 de minute`)}
                 ${li(`⭐ POTM: <b>+${f(W.potm)}</b> · 👑 MVP: <b>+${f(W.mvp)}</b> (câștigat în sesiunea respectivă)`)}
-                ${li(`🏅 Achievement deblocat în luna respectivă: <b>+${f(W.achievement)}</b> fiecare`)}
+                ${li(`🏅 Achievement deblocat în ${isSeason ? 'cursul sezonului' : 'luna respectivă'}: <b>+${f(W.achievement)}</b> fiecare`)}
             </ul>
-            <div style="font-weight:700;color:#e6e9ef;">🛡️ Apărare (maxim ${MOTM_DEF_CAP} puncte / lună)</div>
+            <div style="font-weight:700;color:#e6e9ef;">🛡️ Apărare (maxim ${MOTM_DEF_CAP} puncte / lună${isSeason ? ', adunate pe luni' : ''})</div>
             <ul style="margin:4px 0 8px 18px;padding:0;">
                 ${li(`🧱 Poartă curată: <b>+${f(W.cleanSheet)}</b> / meci · <b>+${f(W.cleanRound)}</b> / tură (la sesiunile cu 3 echipe)`)}
                 ${li(`Goluri primite sub media ligii: <b>+${f(W.concededVsAvg)}</b> / meci și <b>+${f(W.concededVsAvgRound)}</b> / tură, înmulțit cu diferența față de medie`)}
@@ -4263,10 +4340,11 @@ function renderMotmPage(){
             </ul>
             <div style="font-weight:700;color:#e6e9ef;">Reguli</div>
             <ul style="margin:4px 0 0 18px;padding:0;">
-                ${li(`Eligibil: minim <b>${MOTM_MIN_SESSIONS} sesiuni</b> jucate în lună. Neeligibilii apar la coadă, estompați.`)}
+                ${isSeason ? li('Punctajul sezonului este <b>suma punctajelor lunare</b> de la Omul lunii (aceeași formulă), deci contează și câte meciuri joci.') : ''}
+                ${li(isSeason ? `Eligibil: minim <b>${minS} sesiuni</b> (un sfert din sesiunile sezonului, cel puțin ${MOTM_MIN_SESSIONS}). Neeligibilii apar la coadă, estompați.` : `Eligibil: minim <b>${MOTM_MIN_SESSIONS} sesiuni</b> jucate în lună. Neeligibilii apar la coadă, estompați.`)}
                 ${li('La punctaj egal decid golurile, apoi minutele jucate.')}
-                ${li('Se recalculează automat după fiecare meci; clasamentul pornește de la zero pe 1 ale lunii.')}
-                ${li('Dacă adminul setează manual câștigătorul lunii, acela apare ca Omul Lunii, indiferent de punctaj.')}
+                ${li(isSeason ? 'Se recalculează automat după fiecare meci; sezonul curent se încheie când adminul îl salvează.' : 'Se recalculează automat după fiecare meci; clasamentul pornește de la zero pe 1 ale lunii.')}
+                ${isSeason ? '' : li('Dacă adminul setează manual câștigătorul lunii, acela apare ca Omul Lunii, indiferent de punctaj.')}
             </ul>
         </div>
     </details>`;
@@ -4274,11 +4352,12 @@ function renderMotmPage(){
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
         <div style="margin:6px 0 0;">
-            <div class="mp-title">Omul lunii, ${monthLabel}</div>
-            <div class="mp-sub">${eligible.length} ${eligible.length === 1 ? 'jucător eligibil' : 'jucători eligibili'} din ${allCands.length} care au jucat luna asta</div>
+            <div class="mp-title">${titleTxt}</div>
+            <div class="mp-sub">${eligible.length} ${eligible.length === 1 ? 'jucător eligibil' : 'jucători eligibili'} din ${allCands.length} care au jucat ${isSeason ? 'în sezon' : 'luna asta'}${spanTxt ? ' · ' + spanTxt : ''}</div>
             ${manual ? `<div class="mp-sub">Câștigător setat manual: <b>${escapeHtml(manual.name)}</b></div>` : ''}
         </div>
-        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : '<div class="pp-empty">Niciun meci jucat încă luna asta.</div>'}
+        ${seasonRowHtml}
+        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : `<div class="pp-empty">Niciun meci jucat încă ${isSeason ? 'în acest sezon' : 'luna asta'}.</div>`}
         ${legend}`;
 }
 
@@ -4293,7 +4372,7 @@ function applyPageMode(){
     const isMatchDetail = !!activeMatchDetailId;
     const isCompare = !isMatchDetail && !!(compareP1 && compareP2);
     const isProfile = !isMatchDetail && !isCompare && !!highlightPlayer;
-    const isMotm = !isMatchDetail && !isCompare && !isProfile && motmPageMode;
+    const isMotm = !isMatchDetail && !isCompare && !isProfile && (motmPageMode || omsPageMode);
     document.getElementById('matchDetailWrap').style.display = isMatchDetail ? 'block' : 'none';
     document.getElementById('playerProfileWrap').style.display = isProfile ? 'block' : 'none';
     document.getElementById('comparePageWrap').style.display = isCompare ? 'block' : 'none';
@@ -4950,6 +5029,7 @@ async function loadAll(){
         renderMeCard();
         renderMotmBanner();
         renderMotmHistory();
+        try { renderOmsBanner(); } catch(e) { console.warn('Omul sezonului:', e && e.message); }
         renderStreakBanner();
         renderRulesCard();
         updateSeasonUI();
