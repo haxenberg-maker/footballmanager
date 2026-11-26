@@ -525,6 +525,32 @@ body{font-family:var(--font-body);background:
 .mp-detail-profile:hover,.mp-podium-toggle:hover{border-color:var(--gold-muted);color:var(--gold);}
 @media(prefers-reduced-motion:reduce){.mp-podium-details,.mp-step-chevron{transition:none;}}
 
+
+/* Detalii compacte pentru restul TOP 10, în același stil ca podiumul. */
+.mp-rank-entry{background:#0f1420;border:1px solid #1f2736;border-radius:12px;margin-bottom:7px;overflow:hidden;}
+.mp-rank-entry[open]{border-color:rgba(201,166,104,.48);}
+.mp-rank-entry .mp-row{margin:0;border:0;border-radius:0;background:transparent;list-style:none;grid-template-columns:26px minmax(0,1fr) auto 15px;gap:0 8px;}
+.mp-rank-entry .mp-row::-webkit-details-marker{display:none;}
+.mp-rank-entry .mp-row::marker{content:'';}
+.mp-rank-entry .mp-row:focus-visible{outline:2px solid var(--gold-muted);outline-offset:-3px;border-radius:10px;}
+.mp-rank-entry .mp-row:hover{background:rgba(255,255,255,.025);}
+.mp-rank-entry .mp-bar,.mp-rank-entry .mp-meta{grid-column:2 / -1;}
+.mp-rank-entry.pending .mp-row{opacity:.68;}
+.mp-rank-chevron{color:var(--ink-dim);display:flex;align-items:center;justify-content:center;transition:transform .18s ease;}
+.mp-rank-chevron svg{width:14px;height:14px;}
+.mp-rank-entry[open] .mp-rank-chevron{transform:rotate(180deg);color:var(--gold-muted);}
+.mp-rank-details{padding:9px 10px 10px;border-top:1px solid var(--line);}
+.mp-rank-entry[open] .mp-rank-details{animation:mpRankReveal .2s ease both;}
+.mp-rank-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;}
+.mp-rank-stat{background:var(--surface-2);border-radius:6px;min-width:0;padding:5px 3px;text-align:center;}
+.mp-rank-stat strong{display:block;color:var(--ink);font:700 .78rem var(--font-mono);overflow-wrap:anywhere;}
+.mp-rank-stat small{display:block;color:var(--ink-dim);font-size:.61rem;line-height:1.2;margin-top:3px;}
+.mp-rank-stat.wr strong{color:#86efac;}
+.mp-rank-details .mp-detail-profile{margin-top:7px;padding:6px;}
+@keyframes mpRankReveal{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+@media(max-width:350px){.mp-rank-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(prefers-reduced-motion:reduce){.mp-rank-entry[open] .mp-rank-details{animation:none;}.mp-rank-chevron{transition:none;}}
+
 </style>
 </head>
 <body>
@@ -4292,6 +4318,7 @@ function renderOmsBanner(allTime=false){
 // 🏅 Pagina „Omul Lunii” (?motm=1): top 10 al lunii curente + legenda formulei (din MOTM_WEIGHTS,
 // deci rămâne mereu la fel cu calculul real).
 let mpPodiumState = { key:null, selection:null };
+let mpRankPeriodKey = null;
 function applyMpPodiumSelection(wrap){
     const panel = wrap.querySelector('#mpPodiumDetails');
     const toggle = wrap.querySelector('.mp-podium-toggle');
@@ -4355,7 +4382,6 @@ function renderMotmPage(mode){
                         c.wins*W.win + (c.draws||0)*W.draw + c.minutes*W.minute,
                         c.potm*W.potm + c.mvp*W.mvp + c.achievements*W.achievement,
                         c.defense];
-    const goTo = c => `data-n="${escapeHtml(c.name)}" onclick="location.href='clasament.html?player='+encodeURIComponent(this.dataset.n)"`;
     const barHtml = c => `<div class="mp-bar"><div class="mp-bar-fill" style="width:${Math.max(4, c.score/lead*100)}%">${parts(c).map((v,k) =>
         `<b style="flex:${Math.max(v,0)} 0 0;background:${SEG[k][1]}" title="${SEG[k][0]}: ${f(v)} pct"></b>`).join('')}</div></div>`;
     const sp = arr => arr.map(t => `<span>${t}</span>`).join('');
@@ -4370,17 +4396,39 @@ function renderMotmPage(mode){
         ${barHtml(c)}
         <div class="mp-step">${i+1}<span class="mp-step-chevron" aria-hidden="true">⌄</span></div>
     </button>`;
-    const rowHtml = (c, rankLabel, isPending) => `<div class="mp-row${isPending ? ' pending' : ''}" ${goTo(c)}>
-        <div class="mp-rank">${rankLabel}</div><div class="mp-name">${escapeHtml(c.name)}</div><div class="mp-score">${c.score}</div>
-        ${barHtml(c)}
-        <div class="mp-meta">${isPending ? sp([`${c.sessions}/${c.minSessions || MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
-    </div>`;
+    // Păstrăm rândurile deschise la reîmprospătarea live, dar nu la schimbarea perioadei.
+    const rankPeriodKey = JSON.stringify([scope, isAllTime ? '' : isSeason ? omsSeason||'' : monthKey]);
+    const expandedRows = new Set(mpRankPeriodKey === rankPeriodKey ? [...wrap.querySelectorAll('.mp-rank-entry[open]')].map(el=>el.dataset.player) : []);
+    mpRankPeriodKey = rankPeriodKey;
+    const rowHtml = (c, rankLabel, isPending) => {
+        const wr = c.matches > 0 ? Math.round(c.wins/c.matches*100)+'%' : '—';
+        const losses = Math.max(0,c.matches-c.wins-(c.draws||0));
+        const stats = [
+            ['Meciuri',c.matches], ['WR',wr], ['Victorii',c.wins], ['Egaluri',c.draws||0],
+            ['Înfrângeri',losses], ['⚽ Goluri',c.goals], ['🎯 Assisturi',c.assists], ['⏱ Minute',c.minutes],
+            ['Sesiuni',c.sessions], ['👑 MVP',c.mvp], ['⭐ POTM',c.potm], ['🛡️ Apărare','+'+f(c.defense)]
+        ];
+        const playerKey = encodeURIComponent(c.name).replace(/'/g,'%27');
+        return `<details class="mp-rank-entry${isPending ? ' pending' : ''}" data-player="${playerKey}"${expandedRows.has(playerKey)?' open':''}>
+            <summary class="mp-row" title="Vezi statisticile jucătorului">
+                <div class="mp-rank">${rankLabel}</div><div class="mp-name">${escapeHtml(c.name)}</div><div class="mp-score">${c.score}</div>
+                <span class="mp-rank-chevron" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+                ${barHtml(c)}
+                <div class="mp-meta">${isPending ? sp([`${c.sessions}/${c.minSessions || MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
+            </summary>
+            <div class="mp-rank-details">
+                <div class="mp-rank-grid">${stats.map(([label,value])=>`<div class="mp-rank-stat${label==='WR'?' wr':''}"><strong>${escapeHtml(String(value))}</strong><small>${label}</small></div>`).join('')}</div>
+                <a class="mp-detail-profile" href="clasament.html?player=${playerKey}">Deschide profilul jucătorului ›</a>
+            </div>
+        </details>`;
+    };
     const podiumHtml = eligible.length ? `<div class="mp-podium">${[1,0,2].map(i => eligible[i] ? podCard(eligible[i], i) : '').join('')}</div>` : '';
     const statCell = (label,value) => `<div class="mp-detail-stat"><strong>${escapeHtml(String(value))}</strong><small>${label}</small></div>`;
     const detailCard = (c,i) => {
         const stats = [
             ['⚽ Goluri',c.goals], ['🎯 Assisturi',c.assists], ['🏆 Victorii',c.wins],
             ['🤝 Egaluri',c.draws||0], ['Înfrângeri',Math.max(0,c.matches-c.wins-(c.draws||0))], ['Meciuri',c.matches],
+            ['WR',c.matches > 0 ? Math.round(c.wins/c.matches*100)+'%' : '—'],
             ['Sesiuni',c.sessions], ['⏱ Minute',c.minutes], ['⭐ POTM',c.potm],
             ['👑 MVP',c.mvp], ['🏅 Realizări',c.achievements], ['🛡️ Pct. apărare','+'+f(c.defense)],
             ['Porți curate',c.cleanSheets], ['Ture fără gol',`${c.cleanRounds}/${c.roundsPlayed}`], ['Goluri primite (echipă)',c.goalsAgainst]
