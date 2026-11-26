@@ -183,22 +183,6 @@ body{font-family:var(--font-body);background:
 .motm-card-rank3 .motm-card-name{font-size:1rem;color:#cd8a4f;font-weight:600;}
 .motm-card-rank3 .motm-card-score{color:#cd8a4f;}
 @media(max-width:640px){.motm-card-rank1{order:-1;}}
-.motm-hist{border-radius:12px;border:1px solid var(--line);background:var(--surface-2);overflow:hidden;}
-.motm-hist-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 13px;cursor:pointer;font-size:.72rem;font-weight:700;color:var(--ink-dim);letter-spacing:.3px;user-select:none;}
-.motm-hist-toggle:hover{color:var(--ink);}
-.motm-hist-arrow{transition:transform .15s ease;font-size:.65rem;}
-.motm-hist-arrow.open{transform:rotate(180deg);}
-.motm-hist-list{display:none;padding:2px 13px 11px;max-height:320px;overflow-y:auto;}
-.motm-hist-list.open{display:block;}
-.motm-hist-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft);cursor:pointer;}
-.motm-hist-row:first-child{border-top:none;}
-.motm-hist-row:hover .motm-hist-name{text-decoration:underline;}
-.motm-hist-month{font-size:.67rem;color:var(--ink-dim);min-width:84px;flex-shrink:0;}
-.motm-hist-medal{flex-shrink:0;}
-.motm-hist-name{flex:1;min-width:0;font-weight:600;color:var(--ink);font-size:.82rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.motm-hist-score{font-size:.72rem;color:var(--ink-dim);white-space:nowrap;flex-shrink:0;}
-.motm-hist-manual{font-size:.56rem;color:#eab308;font-weight:700;margin-left:4px;}
-.motm-hist-empty{font-size:.76rem;color:var(--ink-faint);text-align:center;padding:14px 0;}
 .streak-banner-icon{font-size:1.5rem;line-height:1;}
 .streak-banner-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink-dim);font-weight:600;}
 .streak-banner-name{font-family:var(--font-display);font-size:1.05rem;letter-spacing:1px;color:var(--ink);}
@@ -507,6 +491,40 @@ body{font-family:var(--font-body);background:
 .mp-period-select option{color:var(--ink);background:var(--surface);}
 .mp-alltime-tag{display:inline-flex;align-items:center;gap:6px;color:#e8cd94;font-size:.7rem;font-weight:600;letter-spacing:.3px;margin:10px 0 0;}
 
+/* Detalii extensibile pentru podium — comun tuturor celor trei clasamente. */
+.mp-pod{appearance:none;-webkit-appearance:none;background:none;border:0;padding:0;color:var(--ink);font:inherit;position:relative;min-width:0;}
+.mp-pod:focus-visible,.mp-podium-toggle:focus-visible,.mp-detail-profile:focus-visible{outline:2px solid var(--gold);outline-offset:3px;}
+.mp-pod[aria-expanded="true"] .mp-av{outline:2px solid var(--c);outline-offset:5px;}
+.mp-pod[aria-expanded="true"] .mp-step{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 36%,#0f1420),#0f1420);}
+.mp-step{position:relative;}
+.mp-step-chevron{position:absolute;bottom:5px;right:9px;font-size:.8rem;line-height:1;color:var(--c);transition:transform .18s;}
+.mp-pod[aria-expanded="true"] .mp-step-chevron{transform:rotate(180deg);}
+.mp-podium-toggle{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 10px;border:1px solid var(--line);border-radius:0 0 10px 10px;background:var(--surface-2);color:var(--ink-soft);font:600 .72rem var(--font-body);cursor:pointer;}
+.mp-podium-toggle[aria-expanded="true"]{color:var(--gold);}
+.mp-podium-toggle[aria-expanded="true"] .mp-toggle-arrow{transform:rotate(180deg);}
+.mp-podium-details{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .24s ease,opacity .18s ease;}
+.mp-podium-details.open{grid-template-rows:1fr;opacity:1;}
+.mp-podium-inner{min-height:0;overflow:hidden;}
+.mp-detail-card{margin-top:8px;padding:12px;background:#0f1420;border:1px solid color-mix(in srgb,var(--c) 38%,var(--line));border-radius:11px;}
+.mp-detail-card[hidden]{display:none;}
+.mp-detail-head{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
+.mp-detail-rank{color:var(--c);font:700 .8rem var(--font-mono);}
+.mp-detail-name{font-size:.87rem;font-weight:700;overflow-wrap:anywhere;flex:1;min-width:0;}
+.mp-detail-score{color:var(--c);font:700 .9rem var(--font-mono);white-space:nowrap;}
+.mp-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;}
+.mp-detail-stat{background:var(--surface-2);border-radius:7px;padding:7px 5px;text-align:center;min-width:0;}
+.mp-detail-stat strong{display:block;color:var(--ink);font:700 .86rem var(--font-mono);overflow-wrap:anywhere;}
+.mp-detail-stat small{display:block;color:var(--ink-dim);font-size:.62rem;line-height:1.25;margin-top:3px;}
+.mp-detail-caption{margin:11px 0 5px;color:var(--ink-dim);font-size:.66rem;font-weight:600;}
+.mp-detail-parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;}
+.mp-detail-part{display:flex;align-items:center;gap:5px;min-width:0;font-size:.65rem;color:var(--ink-soft);}
+.mp-detail-part i{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
+.mp-detail-part b{margin-left:auto;white-space:nowrap;font-family:var(--font-mono);}
+.mp-detail-ach{font-size:.68rem;color:var(--ink-soft);line-height:1.5;overflow-wrap:anywhere;}
+.mp-detail-profile{display:block;text-align:center;margin-top:10px;padding:7px;border:1px solid var(--line);border-radius:7px;color:var(--ink-soft);text-decoration:none;font-size:.7rem;font-weight:600;}
+.mp-detail-profile:hover,.mp-podium-toggle:hover{border-color:var(--gold-muted);color:var(--gold);}
+@media(prefers-reduced-motion:reduce){.mp-podium-details,.mp-step-chevron{transition:none;}}
+
 </style>
 </head>
 <body>
@@ -556,7 +574,7 @@ body{font-family:var(--font-body);background:
     <div class="stats-section" id="leaderboardSection">
         <h3>🏅 Clasament</h3>
         <div id="motmBanner" style="display:none;margin-bottom:6px;"></div>
-        <div id="motmHistoryWrap" style="display:none;margin-bottom:10px;"></div>
+
         <div id="omsBanner" style="display:none;margin-bottom:6px;"></div>
         <div id="allTimeBanner" style="display:none;margin-bottom:10px;"></div>
         <div id="streakBanner" style="display:none;margin-bottom:10px;"></div>
@@ -2925,65 +2943,6 @@ function renderMotmBanner(){
     </div>`;
 }
 
-// 📜 Istoric Omul Lunii — DOAR luna imediat precedentă (excludem luna
-// curentă, deja afișată mai sus în motmBanner). Lista e sortată descrescător
-// (cel mai recent prim) și tăiată la 1 element cu .slice(0,1) — dacă luna
-// precedentă n-a avut niciun câștigător eligibil, nu mai căutăm înapoi la
-// alta mai veche, secțiunea dispare pur și simplu pentru luna asta.
-// Reutilizează computeMotmForMonth (aceeași sursă de adevăr ca banner-ul
-// curent și ca insigna de profil), deci o suprascriere manuală sau un calcul
-// retroactiv se reflectă automat și aici.
-let motmHistoryOpen = false;
-function renderMotmHistory(){
-    const el = document.getElementById('motmHistoryWrap');
-    if (!el) return;
-    const nowKey = getMonthKey(new Date());
-
-    const pastMonths = getAllMotmMonthKeys()
-        .filter(monthKey => monthKey !== nowKey)
-        .sort((a,b) => b.localeCompare(a)) // descrescător, cel mai recent primul
-        .slice(0, 1) // DOAR luna imediat precedentă
-        .map(monthKey => {
-            const [y,m] = monthKey.split('-').map(Number);
-            return { monthKey, winner: computeMotmForMonth(y, m-1) };
-        })
-        .filter(x => x.winner); // excludem luna dacă n-a avut niciun câștigător eligibil
-
-    if (!pastMonths.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
-
-    el.style.display = 'block';
-    const rows = pastMonths.map(({monthKey, winner}) => {
-        const safeName = winner.name.replace(/'/g,"\\'");
-        const scoreHtml = winner.manual
-            ? `<span class="motm-hist-manual">MANUAL</span>`
-            : `<span class="motm-hist-score">${winner.score} pct</span>`;
-        return `<div class="motm-hist-row" onclick="location.href='clasament.html?player='+encodeURIComponent('${safeName}')">
-            <span class="motm-hist-month">${formatMotmMonthLabel(monthKey)}</span>
-            <span class="motm-hist-medal">🏅</span>
-            <span class="motm-hist-name">${winner.name}</span>
-            ${scoreHtml}
-        </div>`;
-    }).join('');
-
-    el.innerHTML = `<div class="motm-hist">
-        <div class="motm-hist-toggle" onclick="toggleMotmHistory()">
-            <span>📜 Omul Lunii din luna anterioară</span>
-            <span class="motm-hist-arrow${motmHistoryOpen ? ' open' : ''}" id="motmHistArrow">▾</span>
-        </div>
-        <div class="motm-hist-list${motmHistoryOpen ? ' open' : ''}" id="motmHistList">
-            ${rows}
-            <div style="padding:8px 13px 10px;font-size:.7rem;font-weight:700;color:var(--ink-dim);cursor:pointer;" onclick="location.href='clasament.html?motm=1&month=${pastMonths[0].monthKey}'">Top 10 pentru ${formatMotmMonthLabel(pastMonths[0].monthKey)} ▸</div>
-        </div>
-    </div>`;
-}
-function toggleMotmHistory(){
-    motmHistoryOpen = !motmHistoryOpen;
-    const list = document.getElementById('motmHistList');
-    const arrow = document.getElementById('motmHistArrow');
-    if (list) list.classList.toggle('open', motmHistoryOpen);
-    if (arrow) arrow.classList.toggle('open', motmHistoryOpen);
-}
-
 function getLongestWinStreak(p){
     let longest=0, cur=0;
     (p.matchHistory||[]).forEach(r=>{ if(r==='W'){ cur++; longest=Math.max(longest,cur); } else cur=0; });
@@ -4332,6 +4291,30 @@ function renderOmsBanner(allTime=false){
 
 // 🏅 Pagina „Omul Lunii” (?motm=1): top 10 al lunii curente + legenda formulei (din MOTM_WEIGHTS,
 // deci rămâne mereu la fel cu calculul real).
+let mpPodiumState = { key:null, selection:null };
+function applyMpPodiumSelection(wrap){
+    const panel = wrap.querySelector('#mpPodiumDetails');
+    const toggle = wrap.querySelector('.mp-podium-toggle');
+    if (!panel || !toggle) return;
+    const cards = [...panel.querySelectorAll('.mp-detail-card')];
+    const selection = mpPodiumState.selection;
+    const isAll = selection === 'all';
+    const open = isAll || cards.some(c => c.dataset.rank === selection);
+    cards.forEach(c => { c.hidden = !open || (!isAll && c.dataset.rank !== selection); });
+    panel.classList.toggle('open', open);
+    panel.inert = !open;
+    panel.setAttribute('aria-hidden', String(!open));
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.querySelector('.mp-toggle-label').textContent = isAll ? 'Ascunde statisticile podiumului' : 'Toate statisticile podiumului';
+    wrap.querySelectorAll('.mp-pod').forEach(b => b.setAttribute('aria-expanded', String(open && (isAll || b.dataset.rank === selection))));
+}
+function toggleMpPodium(selection){
+    const wrap = document.getElementById('motmPageWrap');
+    if (!wrap) return;
+    mpPodiumState.selection = mpPodiumState.selection === selection ? null : selection;
+    applyMpPodiumSelection(wrap);
+}
+
 function renderMotmPage(mode){
     const wrap = document.getElementById('motmPageWrap');
     if (!wrap) return;
@@ -4377,20 +4360,42 @@ function renderMotmPage(mode){
         `<b style="flex:${Math.max(v,0)} 0 0;background:${SEG[k][1]}" title="${SEG[k][0]}: ${f(v)} pct"></b>`).join('')}</div></div>`;
     const sp = arr => arr.map(t => `<span>${t}</span>`).join('');
     const meta = c => sp([`⚽ ${c.goals}`, `🎯 ${c.assists}`, `🏆 ${c.wins}V` + (c.draws ? ` ${c.draws}E` : ''), `⭐ ${c.potm}`, `👑 ${c.mvp}`, `🛡️ +${c.defense}`, `⏱ ${c.minutes} min`]);
-    const podCard = (c,i) => `<div class="mp-pod p${i+1}" style="--c:${medalC[i]}" ${goTo(c)}>
+    const podiumKey = JSON.stringify([scope, isAllTime ? '' : isSeason ? omsSeason||'' : monthKey, ...eligible.slice(0,3).map(c=>c.name)]);
+    if (mpPodiumState.key !== podiumKey) mpPodiumState = {key:podiumKey, selection:null};
+    const podCard = (c,i) => `<button type="button" class="mp-pod p${i+1}" style="--c:${medalC[i]}" data-rank="${i+1}" aria-expanded="false" aria-controls="mpPodiumDetails" onclick="toggleMpPodium(this.dataset.rank)" title="Vezi statisticile jucătorului">
         <div class="mp-av">${escapeHtml(ini(c.name))}</div>
         <div class="mp-pname">${escapeHtml(c.name)}</div>
         <div class="mp-pscore">${c.score}</div>
         <div class="mp-pmeta">${sp([`⚽ ${c.goals}`, `🎯 ${c.assists}`, `🛡️ +${c.defense}`])}</div>
         ${barHtml(c)}
-        <div class="mp-step">${i+1}</div>
-    </div>`;
+        <div class="mp-step">${i+1}<span class="mp-step-chevron" aria-hidden="true">⌄</span></div>
+    </button>`;
     const rowHtml = (c, rankLabel, isPending) => `<div class="mp-row${isPending ? ' pending' : ''}" ${goTo(c)}>
         <div class="mp-rank">${rankLabel}</div><div class="mp-name">${escapeHtml(c.name)}</div><div class="mp-score">${c.score}</div>
         ${barHtml(c)}
         <div class="mp-meta">${isPending ? sp([`${c.sessions}/${c.minSessions || MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
     </div>`;
     const podiumHtml = eligible.length ? `<div class="mp-podium">${[1,0,2].map(i => eligible[i] ? podCard(eligible[i], i) : '').join('')}</div>` : '';
+    const statCell = (label,value) => `<div class="mp-detail-stat"><strong>${escapeHtml(String(value))}</strong><small>${label}</small></div>`;
+    const detailCard = (c,i) => {
+        const stats = [
+            ['⚽ Goluri',c.goals], ['🎯 Assisturi',c.assists], ['🏆 Victorii',c.wins],
+            ['🤝 Egaluri',c.draws||0], ['Înfrângeri',Math.max(0,c.matches-c.wins-(c.draws||0))], ['Meciuri',c.matches],
+            ['Sesiuni',c.sessions], ['⏱ Minute',c.minutes], ['⭐ POTM',c.potm],
+            ['👑 MVP',c.mvp], ['🏅 Realizări',c.achievements], ['🛡️ Pct. apărare','+'+f(c.defense)],
+            ['Porți curate',c.cleanSheets], ['Ture fără gol',`${c.cleanRounds}/${c.roundsPlayed}`], ['Goluri primite (echipă)',c.goalsAgainst]
+        ];
+        if (!isCumulative) stats.push(['Impact defensiv',f(c.impact||0)]);
+        return `<article class="mp-detail-card" data-rank="${i+1}" style="--c:${medalC[i]}" hidden>
+            <div class="mp-detail-head"><span class="mp-detail-rank">#${i+1}</span><span class="mp-detail-name">${escapeHtml(c.name)}</span><span class="mp-detail-score">${f(c.score)} pct</span></div>
+            <div class="mp-detail-grid">${stats.map(([label,value])=>statCell(label,value)).join('')}</div>
+            <div class="mp-detail-caption">Componența punctajului (aprox.)</div>
+            <div class="mp-detail-parts">${parts(c).map((v,k)=>`<span class="mp-detail-part"><i style="background:${SEG[k][1]}"></i>${SEG[k][0]}<b>${f(v)}</b></span>`).join('')}</div>
+            ${(c.achievementList||[]).length ? `<div class="mp-detail-caption">Realizări deblocate</div><div class="mp-detail-ach">${c.achievementList.map(a=>escapeHtml((a.emoji||'')+' '+(a.label||''))).join(' · ')}</div>` : ''}
+            <a class="mp-detail-profile" href="clasament.html?player=${encodeURIComponent(c.name)}">Deschide profilul jucătorului ›</a>
+        </article>`;
+    };
+    const podiumDetailsHtml = eligible.length ? `<button type="button" class="mp-podium-toggle" aria-expanded="false" aria-controls="mpPodiumDetails" onclick="toggleMpPodium('all')"><span class="mp-toggle-label">Toate statisticile podiumului</span><span class="mp-toggle-arrow" aria-hidden="true">⌄</span></button><div class="mp-podium-details" id="mpPodiumDetails" aria-hidden="true" inert><div class="mp-podium-inner">${eligible.slice(0,3).map(detailCard).join('')}</div></div>` : '';
     const keyHtml = `<div class="mp-key">${SEG.map(([n,col]) => `<span><i style="background:${col}"></i>${n}</span>`).join('')}</div>`;
     const restHtml = eligible.slice(3).map((c,k) => rowHtml(c, k+4, false)).join('');
     const pendingHtml = pending.length ? `<div class="mp-h2">Încă neeligibili</div>` + pending.map(c => rowHtml(c, '–', true)).join('') : '';
@@ -4432,8 +4437,9 @@ function renderMotmPage(mode){
             ${manual ? `<div class="mp-sub">Câștigător setat manual: <b>${escapeHtml(manual.name)}</b></div>` : ''}
         </div>
         ${allTimeTag}${seasonRowHtml}${monthRowHtml}
-        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : `<div class="pp-empty">${isAllTime ? 'Niciun meci înregistrat încă.' : isSeason ? 'Niciun meci jucat încă în acest sezon.' : monthKey === nowKey ? 'Niciun meci jucat încă luna asta.' : 'Niciun meci jucat în ' + monthLabel + '.'}</div>`}
+        ${cands.length ? podiumHtml + podiumDetailsHtml + keyHtml + restHtml + pendingHtml : `<div class="pp-empty">${isAllTime ? 'Niciun meci înregistrat încă.' : isSeason ? 'Niciun meci jucat încă în acest sezon.' : monthKey === nowKey ? 'Niciun meci jucat încă luna asta.' : 'Niciun meci jucat în ' + monthLabel + '.'}</div>`}
         ${legend}`;
+    applyMpPodiumSelection(wrap);
 }
 
 function applyPageMode(){
@@ -5103,7 +5109,6 @@ async function loadAll(){
 
         renderMeCard();
         renderMotmBanner();
-        renderMotmHistory();
         _omsCache = { token:null, data:Object.create(null), allTime:null };
         try { renderOmsBanner(); } catch(e) { console.warn('Omul sezonului:', e && e.message); }
         try { renderOmsBanner(true); } catch(e) { console.warn('All Time Best:', e && e.message); }
