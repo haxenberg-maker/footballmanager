@@ -656,7 +656,54 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── Highlighted player (from ?player=Name in URL) ──
 const urlParams = new URLSearchParams(window.location.search);
-const highlightPlayer = urlParams.get('player') || urlParams.get('p');
+const requestedProfileName = urlParams.get('player') || urlParams.get('p');
+let highlightPlayer = requestedProfileName;
+
+// Identitate istorică: doar nume complet exact sau echivalent normalizat UNIC.
+// Nu folosim potrivire parțială (prenume, substring, inversarea numelor).
+let rosterNamesExact = new Map(), rosterNamesNormalized = new Map();
+const unresolvedHistoryNames = new Map();
+function rosterNameKey(name){
+    return typeof name === 'string' ? normalizeSearchStr(name).trim().replace(/\s+/g,' ') : '';
+}
+function rebuildRosterNameIndex(){
+    rosterNamesExact = new Map(); rosterNamesNormalized = new Map();
+    const add = (map, key, player) => {
+        if (!key) return;
+        if (!map.has(key)) map.set(key, player);
+        else if (map.get(key)?.id !== player.id) map.set(key, null);
+    };
+    db.players.forEach(p => {
+        add(rosterNamesExact, p.name, p);
+        add(rosterNamesNormalized, rosterNameKey(p.name), p);
+    });
+    unresolvedHistoryNames.clear();
+}
+function resolveRosterPlayer(name){
+    if (typeof name !== 'string' || !name.trim()) return null;
+    if (rosterNamesExact.has(name)) return rosterNamesExact.get(name);
+    return rosterNamesNormalized.get(rosterNameKey(name)) || null;
+}
+function canonicalHistoryName(name){
+    if (typeof name !== 'string' || !name.trim()) return name;
+    const p = resolveRosterPlayer(name);
+    if (p) return p.name;
+    unresolvedHistoryNames.set(name, (unresolvedHistoryNames.get(name)||0)+1);
+    return name; // păstrăm în istoricul meciului, NU inventăm un profil
+}
+function canonicalHistoryTeam(names){
+    return [...new Set((Array.isArray(names) ? names : []).map(canonicalHistoryName))];
+}
+function canonicalHistoryGoal(g){
+    return {...g, player_name:canonicalHistoryName(g.player_name), assist_name:canonicalHistoryName(g.assist_name)};
+}
+function canonicalHistoryRounds(rounds){
+    if (!Array.isArray(rounds)) return rounds;
+    return rounds.map(r => ({...r,
+        goals:Array.isArray(r.goals) ? r.goals.map(canonicalHistoryGoal) : r.goals,
+        penalty_shots:Array.isArray(r.penalty_shots) ? r.penalty_shots.map(canonicalHistoryGoal) : r.penalty_shots
+    }));
+}
 
 // ── Identitate utilizator ("Cine ești?") — persistă în localStorage, NU în
 // URL (spre deosebire de highlightPlayer, care e per-link/per-share).
@@ -790,7 +837,8 @@ function isCurrentUser(playerName){
     const myName = currentUserName
         || (currentUserId ? (db.players.find(p=>String(p.id)===String(currentUserId))||{}).name : null);
     if (!myName) return false;
-    return normalizeSearchStr(playerName) === normalizeSearchStr(myName);
+    const p = resolveRosterPlayer(playerName);
+    return !!p && p.name === myName;
 }
 // A jucat identitatea salvată în acest rând (pereche/meci)? / în oricare din
 // aceste rânduri (o sesiune întreagă)? — folosit pentru insigna "📍 Joci în
@@ -1364,7 +1412,7 @@ function computeMotmCandidates(currentMonthRows){
     // Meciurile și eligibilitatea se calculează per pereche.
     const items = groupHistoryForDisplay(currentMonthRows);
 
-    const stats = {};
+    const stats = Object.create(null);
     const leagueAvg = _motmLeagueConcededAvg();
     const impactMap = _motmImpactMap(leagueAvg);
     const ensure = n => stats[n] || (stats[n] = { name:n, goals:0, assists:0, wins:0, draws:0, matches:0, seconds:0, potm:0, mvp:0, cleanSheets:0, cleanRounds:0, roundsPlayed:0, conceded:0, defRows:0, defRaw:0 });
@@ -1430,6 +1478,9 @@ function computeMotmCandidates(currentMonthRows){
 
     const W = MOTM_WEIGHTS;
     return Object.values(stats)
+        // Un nume din istoricul meciurilor nu este automat un jucător din registru.
+        // Nu publicăm candidați fără profil real sau fără vreun meci disputat.
+        .filter(s => s.matches > 0 && resolveRosterPlayer(s.name)?.name === s.name)
         .map(s => {
             const minutes = Math.round(s.seconds/60);
             const achList = unlocks[s.name] || [];
@@ -3059,7 +3110,7 @@ function computeWeekPlayerStats(){
 }
 function computeWeekTopScorer(){
     const stats = computeWeekPlayerStats();
-    const arr = Object.values(stats).filter(s=>s.goals>0).sort((a,b)=>b.goals-a.goals);
+    const arr = Object.values(stats).filter(s=>s.goals>0 && resolveRosterPlayer(s.name)?.name === s.name).sort((a,b)=>b.goals-a.goals);
     if(!arr.length) return null;
     const topGoals = arr[0].goals;
     const top = arr.filter(s=>s.goals===topGoals);
@@ -3692,7 +3743,8 @@ function computePlayerScopeStats(p, hist){
 
 function renderPlayerProfile(name){
     const wrap = document.getElementById('playerProfileWrap');
-    const p = db.players.find(x=>x.name===name);
+    const p = resolveRosterPlayer(name);
+    if (p) name = p.name;
 
     if (ppLastProfileName !== name) { ppMatchesExpanded = false; ppActiveTab = 'overview'; ppLastProfileName = name; ppScope = urlParams.get('s') || PP_SCOPE_CURRENT; }
     if (ppScope !== PP_SCOPE_ALL && ppScope !== PP_SCOPE_CURRENT && !seasonsList.includes(ppScope)) ppScope = PP_SCOPE_CURRENT;
@@ -4916,7 +4968,7 @@ async function loadAll(){
         ] = await Promise.allSettled([
             sb.from('tags_config').select('*').order('sort_order'),
             sb.from('algo_settings').select('key,value'),
-            sb.from('players').select('*, ratings(*)').order('id'),
+            fetchAllRows(() => sb.from('players').select('*, ratings(*)').order('id')),
             fetchAllRows(() => sb.from('match_history').select('*').order('created_at', { ascending:false }).order('id', { ascending:false })),
             fetchAllRows(() => sb.from('match_goals').select('*').order('minute', { ascending:true }).order('id', { ascending:true })),
             sb.from('potm_votes').select('match_id,voted_player_id'),
@@ -4949,7 +5001,10 @@ async function loadAll(){
 
         // players + ratings
         const playersRaw = dataOf(playersRes);
-        db.players = (playersRaw || []).map(rowToPlayer);
+        if (!playersRaw) throw new Error('Lista jucătorilor nu a putut fi încărcată.');
+        db.players = playersRaw.map(rowToPlayer);
+        rebuildRosterNameIndex();
+        highlightPlayer = resolveRosterPlayer(requestedProfileName)?.name || requestedProfileName;
         // Identitate utilizator ("Cine ești?") — id-ul era deja în localStorage
         // (citit la încărcarea scriptului); acum că avem db.players, recalculăm
         // numele și populăm dropdown-ul din header cu roster-ul la zi.
@@ -5013,7 +5068,7 @@ async function loadAll(){
     }));
 }
         db.history = (histRaw||[]).map(h=>{
-            const goals = goalsPerMatch[h.id]||[];
+            const goals = (goalsPerMatch[h.id]||[]).map(canonicalHistoryGoal);
             // Golurile de penalty (is_penalty:true) se țin STRICT separat, nu se adună
             // la golurile normale — nici în playerGoals, nici în teamGoals.
             const playerGoals = {};
@@ -5049,8 +5104,8 @@ async function loadAll(){
             return {
                 _dbId: h.id, date: h.date, winner: h.winner, score: h.score,
                 imbalanced: h.imbalanced||false,
-                orangePlayers: h.orange_players||[], greenPlayers: h.green_players||[], blackPlayers: h.black_players||[],
-                roundsDetail: enrichRoundGoalsWithAssists(h.rounds_detail, goals), playerGoals, playerAssists, playerPenaltyGoals, playerConceded, topScorer, teamGoals,
+                orangePlayers: canonicalHistoryTeam(h.orange_players), greenPlayers: canonicalHistoryTeam(h.green_players), blackPlayers: canonicalHistoryTeam(h.black_players),
+                roundsDetail: enrichRoundGoalsWithAssists(canonicalHistoryRounds(h.rounds_detail), goals), playerGoals, playerAssists, playerPenaltyGoals, playerConceded, topScorer, teamGoals,
                 season: h.season||null, createdAt: h.created_at||null,
                 startedAt: h.started_at||null, endedAt: h.ended_at||null, goalsList: goals,
                 manualPotmId: h.manual_potm_player_id!=null ? h.manual_potm_player_id : null,
@@ -5062,6 +5117,11 @@ async function loadAll(){
                 potmWinnerName: potmPlayer ? potmPlayer.name : null,
             };
         }).sort((a,b)=>parseDateToObj(b.date)-parseDateToObj(a.date));
+
+        if (unresolvedHistoryNames.size) console.warn('[Identitate clasament] Nume istorice fără profil unic în players (păstrate în meciuri, excluse din TOP):', [...unresolvedHistoryNames.keys()]);
+        // Datele se pot modifica fără a schimba numărul sau ID-ul ultimului meci.
+        _motmUnlockCache = { token:null, data:{} };
+        _omsCache = { token:null, data:Object.create(null), allTime:null };
 
         // Reconstituim golurile-pe-tură pentru sesiunile vechi (salvate înainte
         // de update-ul care le salvează direct) — vezi backfillSessionRoundGoals().
