@@ -152,6 +152,8 @@ body{font-family:var(--font-body);background:
 .mp-bar-fill b{display:block;height:100%;}
 .mp-meta{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:.68rem;color:var(--ink-dim);margin-top:7px;font-variant-numeric:tabular-nums;}
 .mp-h2{font-size:.82rem;font-weight:800;margin:18px 0 8px;}
+.mp-months{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:10px;-webkit-overflow-scrolling:touch;}
+.mp-months button{flex:0 0 auto;white-space:nowrap;}
 @keyframes mpGrow{from{transform:scaleX(0);}to{transform:scaleX(1);}}
 @media(prefers-reduced-motion:reduce){.mp-bar-fill{animation:none;}}
 @media(max-width:420px){.mp-pname{font-size:.78rem;}.mp-pscore{font-size:1.12rem;}}
@@ -631,6 +633,8 @@ const motmPageMode = urlParams.get('motm') === '1';
 // ?oms=1[&season=NUME] — pagina „Omul sezonului” (aceeași machetă ca Omul lunii, pe un sezon întreg).
 const omsPageMode = urlParams.get('oms') === '1';
 let omsSeason = urlParams.get('season') || null; // null = sezonul curent
+// ?motm=1&month=YYYY-MM — Top 10 Omul lunii pentru o lună anterioară (null = luna curentă).
+let motmMonth = urlParams.get('month') || null;
 
 // Citește LIVE (nu doar la încărcare) parametrul de meci din URL — folosit de
 // applyPageMode() ca plasă de siguranță și de listenerul popstate (Înainte/
@@ -2954,6 +2958,7 @@ function renderMotmHistory(){
         </div>
         <div class="motm-hist-list${motmHistoryOpen ? ' open' : ''}" id="motmHistList">
             ${rows}
+            <div style="padding:8px 13px 10px;font-size:.7rem;font-weight:700;color:var(--ink-dim);cursor:pointer;" onclick="location.href='clasament.html?motm=1&month=${pastMonths[0].monthKey}'">Top 10 pentru ${formatMotmMonthLabel(pastMonths[0].monthKey)} ▸</div>
         </div>
     </div>`;
 }
@@ -4238,6 +4243,11 @@ function getSeasonInfo(seasonName){
     const fmt = t => new Date(t).toLocaleDateString('ro-RO', { day:'numeric', month:'short', year:'numeric' });
     return { span: ts.length ? `${fmt(Math.min(...ts))} – ${fmt(Math.max(...ts))}` : '' };
 }
+function setMotmMonth(k){
+    motmMonth = (k && k !== getMonthKey(new Date())) ? k : null;
+    try { history.replaceState(null, '', '?motm=1' + (motmMonth ? '&month=' + motmMonth : '')); } catch(e) {}
+    renderMotmPage('month');
+}
 function setOmsSeason(sn){ omsSeason = sn || null; renderMotmPage('season'); }
 
 // Banner compact pe prima pagină (sezonul selectat sus: curent sau arhivat).
@@ -4271,16 +4281,22 @@ function renderMotmPage(mode){
     const isSeason = (mode || (omsPageMode ? 'season' : 'month')) === 'season';
     if (isSeason && omsSeason && !seasonsList.includes(omsSeason)) omsSeason = null;
     const per = isSeason ? 'sezon' : 'lună';
-    const now = new Date();
-    const monthKey = getMonthKey(now), monthLabel = formatMotmMonthLabel(monthKey);
+    const nowKey = getMonthKey(new Date());
+    const monthKey = (motmMonth && /^\d{4}-\d{2}$/.test(motmMonth)) ? motmMonth : nowKey;
+    const monthLabel = formatMotmMonthLabel(monthKey);
+    const [selY, selM] = monthKey.split('-').map(Number);
     const rows = db.history.filter(h => {
         const d = parseDateToObj(h.date);
-        return d && !isNaN(d.getTime()) && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+        return d && !isNaN(d.getTime()) && d.getFullYear()===selY && d.getMonth()===selM-1;
     });
     const allCands = isSeason ? computeSeasonMotmCandidates(omsSeason) : computeMotmCandidates(rows);
     const cands = allCands.slice(0, 10);
     const manual = isSeason ? null : getMotmManualOverride(monthKey);
     const minS = (allCands[0] && allCands[0].minSessions) || MOTM_MIN_SESSIONS;
+    // Selector de lună: luna curentă + toate lunile cu meciuri, cele mai recente primele.
+    const mkeys = [...new Set([nowKey, ...getAllMotmMonthKeys()])].sort().reverse();
+    const monthRowHtml = !isSeason && mkeys.length > 1 ? `<div class="mp-months">${mkeys.map(k =>
+        `<button class="lb-season-btn${k===monthKey?' active':''}" onclick="setMotmMonth('${k}')">${k===nowKey?'🟢 ':''}${MOTM_MONTH_NAMES_RO[Number(k.slice(5))-1]} ${k.slice(0,4)}</button>`).join('')}</div>` : '';
     const titleTxt = isSeason ? (omsSeason ? `Omul sezonului, ${escapeHtml(omsSeason)}` : 'Omul sezonului curent') : `Omul lunii, ${monthLabel}`;
     const spanTxt = isSeason ? getSeasonInfo(omsSeason).span : '';
     const seasonBtn = (key,label) => `<button class="lb-season-btn${(omsSeason||'')===key?' active':''}" data-s="${escapeHtml(key)}" onclick="setOmsSeason(this.dataset.s)">${label}</button>`;
@@ -4353,11 +4369,11 @@ function renderMotmPage(mode){
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
         <div style="margin:6px 0 0;">
             <div class="mp-title">${titleTxt}</div>
-            <div class="mp-sub">${eligible.length} ${eligible.length === 1 ? 'jucător eligibil' : 'jucători eligibili'} din ${allCands.length} care au jucat ${isSeason ? 'în sezon' : 'luna asta'}${spanTxt ? ' · ' + spanTxt : ''}</div>
+            <div class="mp-sub">${eligible.length} ${eligible.length === 1 ? 'jucător eligibil' : 'jucători eligibili'} din ${allCands.length} care au jucat ${isSeason ? 'în sezon' : (monthKey === nowKey ? 'luna asta' : 'în ' + monthLabel)}${spanTxt ? ' · ' + spanTxt : ''}</div>
             ${manual ? `<div class="mp-sub">Câștigător setat manual: <b>${escapeHtml(manual.name)}</b></div>` : ''}
         </div>
-        ${seasonRowHtml}
-        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : `<div class="pp-empty">Niciun meci jucat încă ${isSeason ? 'în acest sezon' : 'luna asta'}.</div>`}
+        ${seasonRowHtml}${monthRowHtml}
+        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : `<div class="pp-empty">${isSeason ? 'Niciun meci jucat încă în acest sezon.' : monthKey === nowKey ? 'Niciun meci jucat încă luna asta.' : 'Niciun meci jucat în ' + monthLabel + '.'}</div>`}
         ${legend}`;
 }
 
