@@ -126,6 +126,35 @@ body{font-family:var(--font-body);background:
 .motm-banner-name{font-family:var(--font-display);font-size:1.15rem;letter-spacing:1px;color:var(--ink);}
 .motm-banner-sub{font-size:.68rem;color:var(--ink-dim);}
 .motm-banner-manual{font-size:.6rem;color:#eab308;font-weight:700;margin-left:6px;}
+/* 🏅 Pagina Omul Lunii: podium + rânduri cu bară de compoziție a punctelor */
+.mp-title{font-size:1.45rem;font-weight:900;letter-spacing:-.3px;line-height:1.15;}
+.mp-sub{font-size:.76rem;color:var(--ink-dim);margin-top:4px;}
+.mp-podium{display:flex;align-items:flex-end;justify-content:center;gap:8px;margin:20px 0 4px;}
+.mp-pod{flex:1;max-width:210px;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;cursor:pointer;}
+.mp-pod.p1{flex:1.2;}
+.mp-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1rem;background:#151c2b;border:2px solid var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 18%,transparent);}
+.mp-pod.p1 .mp-av{width:64px;height:64px;font-size:1.3rem;box-shadow:0 0 24px color-mix(in srgb,var(--c) 50%,transparent);}
+.mp-pname{font-weight:800;font-size:.86rem;margin-top:8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-pscore{font-weight:900;font-size:1.3rem;color:var(--c);font-variant-numeric:tabular-nums;line-height:1.15;}
+.mp-pmeta{display:flex;flex-wrap:wrap;justify-content:center;gap:0 9px;font-size:.64rem;color:var(--ink-dim);margin:3px 0 0;}
+.mp-pod .mp-bar{width:100%;margin:7px 0 9px;grid-column:auto;}
+.mp-step{width:100%;border-radius:10px 10px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-weight:900;font-size:1.5rem;color:var(--c);background:linear-gradient(180deg,color-mix(in srgb,var(--c) 22%,#0f1420),#0f1420);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);border-bottom:0;}
+.mp-pod.p1 .mp-step{height:78px;}.mp-pod.p2 .mp-step{height:56px;}.mp-pod.p3 .mp-step{height:42px;}
+.mp-key{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.68rem;color:var(--ink-dim);margin:16px 0 10px;}
+.mp-key i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.mp-row{display:grid;grid-template-columns:26px 1fr auto;gap:0 10px;align-items:center;background:#0f1420;border:1px solid #1f2736;border-radius:12px;padding:10px 12px;margin-bottom:7px;cursor:pointer;}
+.mp-row.pending{opacity:.55;}
+.mp-rank{font-weight:800;color:var(--ink-dim);text-align:center;font-variant-numeric:tabular-nums;}
+.mp-name{font-weight:800;font-size:.88rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mp-score{font-weight:900;font-size:1.05rem;color:#eab308;font-variant-numeric:tabular-nums;}
+.mp-bar{grid-column:2 / 4;height:8px;border-radius:6px;background:#161d2c;overflow:hidden;margin-top:7px;}
+.mp-bar-fill{display:flex;height:100%;transform-origin:left;animation:mpGrow .7s cubic-bezier(.2,.7,.2,1) both;}
+.mp-bar-fill b{display:block;height:100%;}
+.mp-meta{grid-column:2 / 4;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:.68rem;color:var(--ink-dim);margin-top:7px;font-variant-numeric:tabular-nums;}
+.mp-h2{font-size:.82rem;font-weight:800;margin:18px 0 8px;}
+@keyframes mpGrow{from{transform:scaleX(0);}to{transform:scaleX(1);}}
+@media(prefers-reduced-motion:reduce){.mp-bar-fill{animation:none;}}
+@media(max-width:420px){.mp-pname{font-size:.78rem;}.mp-pscore{font-size:1.12rem;}}
 .motm-section{border-radius:14px;padding:14px;background:linear-gradient(135deg,rgba(255,210,63,.10),rgba(167,139,250,.05));border:1px solid rgba(255,210,63,.3);}
 .motm-section-head{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
 .motm-section-icon{font-size:1.5rem;line-height:1;}
@@ -4176,31 +4205,43 @@ function renderMotmPage(){
         const d = parseDateToObj(h.date);
         return d && !isNaN(d.getTime()) && d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
     });
-    const cands = computeMotmCandidates(rows).slice(0, 10);
+    const allCands = computeMotmCandidates(rows);
+    const cands = allCands.slice(0, 10);
     const manual = getMotmManualOverride(monthKey);
     const W = MOTM_WEIGHTS, R = MOTM_ROLE_FACTOR;
     const f = n => String(Math.round(n*100)/100).replace('.', ',');
-    const chip = t => `<span style="font-size:.68rem;color:#8b96a8;background:#141a26;border:1px solid #262f3f;border-radius:6px;padding:2px 6px;">${t}</span>`;
-    const medals = ['🥇','🥈','🥉'];
-    let eligRank = 0;
-    const listHtml = cands.map(c => {
-        const rank = c.eligible ? (++eligRank) : null;
-        const chips = [`⚽ ${c.goals}`, `🎯 ${c.assists}`, `🏆 ${c.wins}V` + (c.draws ? ` · 🤝 ${c.draws}E` : ''), `⭐ ${c.potm} POTM`, `👑 ${c.mvp} MVP`,
-                       `🏅 ${c.achievements}`, `🛡️ +${c.defense}`, `⏱ ${c.minutes} min`].map(chip).join('');
-        return `<div data-n="${escapeHtml(c.name)}" onclick="location.href='clasament.html?player='+encodeURIComponent(this.dataset.n)"
-                     style="cursor:pointer;background:#0f1420;border:1px solid ${rank===1?'rgba(255,210,63,.45)':'#1f2736'};border-radius:12px;padding:10px 12px;margin-bottom:8px;${c.eligible?'':'opacity:.6;'}">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:30px;text-align:center;font-size:${rank&&rank<=3?'1.2rem':'.85rem'};font-weight:800;color:#8b96a8;">${rank ? (medals[rank-1] || rank) : '—'}</div>
-                <div style="flex:1;min-width:0;">
-                    <div style="font-weight:800;">${escapeHtml(c.name)}</div>
-                    ${c.eligible ? '' : `<div style="font-size:.64rem;color:#8b96a8;">neeligibil încă · ${c.sessions}/${MOTM_MIN_SESSIONS} sesiuni</div>`}
-                </div>
-                <div style="text-align:right;"><div style="font-size:1.15rem;font-weight:900;color:#eab308;line-height:1;">${c.score}</div><div style="font-size:.58rem;color:#8b96a8;">puncte</div></div>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;">${chips}</div>
-        </div>`;
-    }).join('');
-
+    const eligible = cands.filter(c => c.eligible), pending = cands.filter(c => !c.eligible);
+    const lead = (eligible[0] || cands[0] || {}).score || 1;
+    const medalC = ['#f5c542', '#c3cad5', '#cd8b52'];
+    const SEG = [['Atac','#fb923c'], ['Rezultate și minute','#60a5fa'], ['Premii','#a78bfa'], ['Apărare','#34d399']];
+    const ini = n => n.split(/\s+/).filter(Boolean).map(w => w[0]).slice(0,2).join('').toUpperCase();
+    // Cele 4 surse ale punctajului; suma lor = scorul (minutele × W.minute).
+    const parts = c => [c.goals*W.goal + c.assists*W.assist,
+                        c.wins*W.win + (c.draws||0)*W.draw + c.minutes*W.minute,
+                        c.potm*W.potm + c.mvp*W.mvp + c.achievements*W.achievement,
+                        c.defense];
+    const goTo = c => `data-n="${escapeHtml(c.name)}" onclick="location.href='clasament.html?player='+encodeURIComponent(this.dataset.n)"`;
+    const barHtml = c => `<div class="mp-bar"><div class="mp-bar-fill" style="width:${Math.max(4, c.score/lead*100)}%">${parts(c).map((v,k) =>
+        `<b style="flex:${Math.max(v,0)} 0 0;background:${SEG[k][1]}" title="${SEG[k][0]}: ${f(v)} pct"></b>`).join('')}</div></div>`;
+    const sp = arr => arr.map(t => `<span>${t}</span>`).join('');
+    const meta = c => sp([`⚽ ${c.goals}`, `🎯 ${c.assists}`, `🏆 ${c.wins}V` + (c.draws ? ` ${c.draws}E` : ''), `⭐ ${c.potm}`, `👑 ${c.mvp}`, `🛡️ +${c.defense}`, `⏱ ${c.minutes} min`]);
+    const podCard = (c,i) => `<div class="mp-pod p${i+1}" style="--c:${medalC[i]}" ${goTo(c)}>
+        <div class="mp-av">${escapeHtml(ini(c.name))}</div>
+        <div class="mp-pname">${escapeHtml(c.name)}</div>
+        <div class="mp-pscore">${c.score}</div>
+        <div class="mp-pmeta">${sp([`⚽ ${c.goals}`, `🎯 ${c.assists}`, `🛡️ +${c.defense}`])}</div>
+        ${barHtml(c)}
+        <div class="mp-step">${i+1}</div>
+    </div>`;
+    const rowHtml = (c, rankLabel, isPending) => `<div class="mp-row${isPending ? ' pending' : ''}" ${goTo(c)}>
+        <div class="mp-rank">${rankLabel}</div><div class="mp-name">${escapeHtml(c.name)}</div><div class="mp-score">${c.score}</div>
+        ${barHtml(c)}
+        <div class="mp-meta">${isPending ? sp([`${c.sessions}/${MOTM_MIN_SESSIONS} sesiuni`]) : ''}${meta(c)}</div>
+    </div>`;
+    const podiumHtml = eligible.length ? `<div class="mp-podium">${[1,0,2].map(i => eligible[i] ? podCard(eligible[i], i) : '').join('')}</div>` : '';
+    const keyHtml = `<div class="mp-key">${SEG.map(([n,col]) => `<span><i style="background:${col}"></i>${n}</span>`).join('')}</div>`;
+    const restHtml = eligible.slice(3).map((c,k) => rowHtml(c, k+4, false)).join('');
+    const pendingHtml = pending.length ? `<div class="mp-h2">Încă neeligibili</div>` + pending.map(c => rowHtml(c, '–', true)).join('') : '';
     const li = t => `<li style="margin:3px 0;">${t}</li>`;
     const legend = `<details open style="background:#0f1420;border:1px solid #1f2736;border-radius:12px;padding:10px 14px;margin-top:14px;">
         <summary style="cursor:pointer;font-weight:800;font-size:.8rem;">ℹ️ Cum se calculează punctajul</summary>
@@ -4232,12 +4273,12 @@ function renderMotmPage(){
 
     wrap.innerHTML = `
         <div class="pp-back" onclick="location.href='clasament.html'">← Înapoi la clasament</div>
-        <div style="margin:6px 0 12px;">
-            <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:1.2px;color:#eab308;font-weight:700;">🏅 Omul Lunii</div>
-            <div style="font-size:1.3rem;font-weight:900;">Top 10 · ${monthLabel}</div>
-            ${manual ? `<div style="font-size:.74rem;color:#8b96a8;margin-top:3px;">Câștigător setat manual: <b>${escapeHtml(manual.name)}</b></div>` : ''}
+        <div style="margin:6px 0 0;">
+            <div class="mp-title">Omul lunii, ${monthLabel}</div>
+            <div class="mp-sub">${eligible.length} ${eligible.length === 1 ? 'jucător eligibil' : 'jucători eligibili'} din ${allCands.length} care au jucat luna asta</div>
+            ${manual ? `<div class="mp-sub">Câștigător setat manual: <b>${escapeHtml(manual.name)}</b></div>` : ''}
         </div>
-        ${cands.length ? listHtml : '<div class="pp-empty">Niciun meci jucat încă luna asta.</div>'}
+        ${cands.length ? podiumHtml + keyHtml + restHtml + pendingHtml : '<div class="pp-empty">Niciun meci jucat încă luna asta.</div>'}
         ${legend}`;
 }
 
